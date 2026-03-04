@@ -1,0 +1,12 @@
+services:
+  mongodb:
+    image: mongodb/mongodb-community-server:8.0.8-ubuntu2204
+    container_name: mongodb
+    hostname: mongodb
+    restart: always
+    volumes:
+      - ./mongodb:/data/db
+    ports:
+      - "${PRIVATE_NETWORK_IP}:27017:27017"
+    networks:
+      - vhost_network

@@ -1,0 +1,7 @@
+*.yaml
+*.yml
+!.gitignore
+!README.md
+!empty.yaml
+!*.example.yaml
+!*.example.yml

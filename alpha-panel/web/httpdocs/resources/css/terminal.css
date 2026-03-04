@@ -1,0 +1,180 @@
+/* Terminal Window */
+.terminal-window {
+    position: fixed;
+    z-index: 10000;
+    width: 720px;
+    height: 450px;
+    min-width: 400px;
+    min-height: 250px;
+    background: #1e1e1e;
+    border: 1px solid #444;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    resize: both;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.terminal-window.is-active {
+    border-color: #4ec9b0;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(78, 201, 176, 0.35);
+}
+
+.terminal-window.maximized {
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    border-radius: 0;
+    resize: none;
+}
+
+/* Title Bar */
+.terminal-titlebar {
+    display: flex;
+    align-items: center;
+    padding: 6px 12px;
+    background: #2d2d2d;
+    border-bottom: 1px solid #444;
+    cursor: move;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.terminal-titlebar .terminal-title {
+    flex: 1;
+    color: #ccc;
+    font-size: 13px;
+    font-family: 'Segoe UI', sans-serif;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.terminal-titlebar .terminal-title i {
+    margin-right: 6px;
+    color: #4ec9b0;
+}
+
+.terminal-titlebar .terminal-controls {
+    display: flex;
+    gap: 6px;
+    margin-left: 8px;
+}
+
+.terminal-titlebar .terminal-controls button {
+    background: none;
+    border: none;
+    color: #999;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 2px 4px;
+    line-height: 1;
+    border-radius: 3px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.terminal-titlebar .terminal-controls button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.terminal-titlebar .terminal-controls .terminal-close:hover {
+    background: #e81123;
+    color: #fff;
+}
+
+/* Terminal Body */
+.terminal-body {
+    flex: 1;
+    padding: 4px;
+    overflow: hidden;
+}
+
+.terminal-body .xterm {
+    height: 100%;
+}
+
+/* Minimized Bar */
+.terminal-minimized-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    display: flex;
+    gap: 4px;
+    padding: 0 8px;
+    pointer-events: none;
+}
+
+.terminal-minimized-bar:empty {
+    display: none;
+}
+
+.terminal-minimized-tab {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: #2d2d2d;
+    border: 1px solid #444;
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    color: #ccc;
+    font-size: 12px;
+    font-family: 'Segoe UI', sans-serif;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+    max-width: 200px;
+}
+
+.terminal-minimized-tab:hover {
+    background: #3d3d3d;
+}
+
+.terminal-minimized-tab i {
+    color: #4ec9b0;
+}
+
+.terminal-minimized-tab .tab-close {
+    margin-left: auto;
+    color: #666;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.terminal-minimized-tab .tab-close:hover {
+    color: #e81123;
+}
+
+/* Connection status dot */
+.terminal-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 4px;
+}
+
+.terminal-status-dot.connected {
+    background: #4ec9b0;
+}
+
+.terminal-status-dot.disconnected {
+    background: #f44;
+}
+
+.terminal-status-dot.connecting {
+    background: #fa0;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}

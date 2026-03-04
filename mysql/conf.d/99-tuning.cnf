@@ -1,0 +1,19 @@
+[mysqld]
+# Buffer pool: RAM’in %35–50 bandı (MySQL tek başına değilse)
+innodb_buffer_pool_size = 5G
+innodb_buffer_pool_instances = 5   # (1G başına 1 instance gibi düşün)
+
+# Geçici tablolar / sort (per-connection RAM tüketir!)
+tmp_table_size = 128M
+max_heap_table_size = 128M
+sort_buffer_size = 1M
+join_buffer_size = 1M
+
+# Bağlantı yönetimi
+max_connections = 120
+wait_timeout = 30
+interactive_timeout = 30
+
+# Dayanıklılık / performans dengesi
+innodb_flush_log_at_trx_commit = 2
+innodb_flush_method = O_DIRECT

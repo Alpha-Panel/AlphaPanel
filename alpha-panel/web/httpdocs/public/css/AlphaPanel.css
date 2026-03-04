@@ -1,0 +1,81 @@
+.grecaptcha-badge {
+    bottom: 100px !important;
+}
+#domains-table{
+    width: 100% !important;
+}
+
+.domain-options ul{
+    margin: 0;
+    padding: 0;
+    list-style-type: none;
+}
+
+.domain-options ul li{
+    display: inline-flex;
+    margin-right: 10px;
+    margin-top: 15px;
+    margin-bottom:35px;
+}
+
+.domain-options ul li a{
+    padding: 15px 20px 15px 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 12px;
+    transition: color 0.5s ease-out 50ms,
+                background 1s ease-out 100ms;
+    text-align: center;
+}
+
+.domain-options ul li a:hover{
+    background: #ccc;
+    color: #000;
+}
+
+.domain-options ul li a i{
+    font-size: 24px;
+    margin-bottom:4px;
+}
+.domain-options ul li a span{
+    display: block;
+}
+#settings-board i{
+    font-size: 1.5em;
+    margin-right: 5px;
+    margin-top:5px;
+}
+#settings-board ul{
+    margin: 0;
+    padding: 0;
+    list-style-type: none;
+}
+#settings-board ul li{
+    display: block;
+    margin-top: 3px;
+    margin-bottom:3px;
+}
+#fullscreen-loading{
+    width: 100%;
+    height: 100%;
+    top: 0;
+    position: fixed;
+    z-index: 9999;
+    background: #9c9b9b3d;
+    display: none;
+}
+#fullscreen-loading .spinner-border{
+    position: absolute;
+    top: 50%;
+    left: 50%;
+}
+#webauthn_list ul li:last-child{
+    border: none !important;
+}
+
+.card-header h1, .card-header h2, .card-header h3, .card-header h4, .card-header h5, .card-header h6{
+    float:left;
+}
+.card-header a, .card-header ul{
+    float:right;
+}

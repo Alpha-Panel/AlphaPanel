@@ -1,0 +1,176 @@
+(common-headers) {
+	tls /etc/letsencrypt/live/{$BASE_DOMAIN}/fullchain.pem /etc/letsencrypt/live/{$BASE_DOMAIN}/privkey.pem # certbot-managed
+	encode zstd br gzip
+	log {
+		output file /var/log/caddy/server.log
+		format console
+	}
+	header {
+		X-Frame-Options "SAMEORIGIN"
+		X-XSS-Protection "1; mode=block"
+		X-Content-Type-Options "nosniff"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+		-x-powered-by
+		X-Powered-By "Cryptograph"
+
+		-via
+		Via "Cryptograph"
+
+		-server
+		Server "Cryptograph"
+	}
+	# Statik dosyalar için uzun cache (1 yıl)
+	@static {
+		path *.css *.js *.mjs *.map
+		path *.png *.jpg *.jpeg *.gif *.webp *.svg *.ico
+		path *.woff *.woff2 *.ttf *.otf *.eot
+		path *.mp4 *.webm *.avif
+	}
+	header @static Cache-Control "public, max-age=31536000, immutable"
+
+	# HTML için cache kapat / azalt (Laravel / PHP siteleri için güvenli)
+	@html {
+		header Content-Type *text/html*
+	}
+	header @html Cache-Control "no-cache, no-store, must-revalidate"
+	header @html Pragma "no-cache"
+	header @html Expires "0"
+}
+
+{
+	email {env.ADMIN_EMAIL}
+	#acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+	frankenphp
+	#debug
+}
+
+{$PANEL_DOMAIN}:443 {
+	encode zstd br gzip
+	root * /var/www/AlphaPanel/httpdocs/public
+	@websocket {
+		path /app/*
+	}
+	reverse_proxy @websocket http://localhost:6001 {
+		header_up Host {http.request.host}
+		header_up X-Real-IP {http.request.remote.host}
+		header_up X-Forwarded-For {http.request.remote.host}
+		header_up X-Forwarded-Proto {http.request.scheme}
+		header_up Upgrade {http.request.header.Upgrade}
+		header_up Connection {http.request.header.Connection}
+
+		transport http {
+			versions 1.1
+		}
+	}
+	php_server {
+		root /var/www/AlphaPanel/httpdocs/public
+		worker {
+			file frankenphp-worker.php
+			num 3
+		}
+	}
+	file_server
+	import common-headers
+}
+
+{$CODE_SERVER_DOMAIN}:443 {
+	import common-headers
+	reverse_proxy http://php-code-server:8080 {
+		# preserve host
+		header_up Host {http.request.host}
+		# forward original client IPs
+		header_up X-Real-IP {http.request.remote.host}
+		header_up X-Forwarded-For {http.request.remote.host}
+		header_up X-Forwarded-Proto {http.request.scheme}
+		# *** the two magic lines for WebSockets ***
+		header_up Upgrade {http.request.header.Upgrade}
+		header_up Connection {http.request.header.Connection}
+		# *** forward the cookie so ServiceWorker fetches don't 401 ***
+		header_up Cookie {http.request.header.Cookie}
+		# if you have any Authorization headers (e.g. basic auth), forward them too
+		header_up Authorization {http.request.header.Authorization}
+
+		# force HTTP/1.1 upstream so websockets can Upgrade
+		transport http {
+			versions 1.1
+		}
+	}
+}
+
+{$PMA_DOMAIN}:443 {
+	import common-headers
+	reverse_proxy http://phpmyadmin:80 {
+		# preserve host
+		header_up Host {http.request.host}
+		# forward original client IPs
+		header_up X-Real-IP {http.request.remote.host}
+		header_up X-Forwarded-For {http.request.remote.host}
+		header_up X-Forwarded-Proto {http.request.scheme}
+		# *** the two magic lines for WebSockets ***
+		header_up Upgrade {http.request.header.Upgrade}
+		header_up Connection {http.request.header.Connection}
+		# *** forward the cookie so ServiceWorker fetches don't 401 ***
+		header_up Cookie {http.request.header.Cookie}
+		# if you have any Authorization headers (e.g. basic auth), forward them too
+		header_up Authorization {http.request.header.Authorization}
+	}
+}
+
+{$VAULTWARDEN_DOMAIN}:443 {
+	import common-headers
+	reverse_proxy http://password:80 {
+		# preserve host
+		header_up Host {http.request.host}
+		# forward original client IPs
+		header_up X-Real-IP {http.request.remote.host}
+		header_up X-Forwarded-For {http.request.remote.host}
+		header_up X-Forwarded-Proto {http.request.scheme}
+		# *** the two magic lines for WebSockets ***
+		header_up Upgrade {http.request.header.Upgrade}
+		header_up Connection {http.request.header.Connection}
+		# *** forward the cookie so ServiceWorker fetches don't 401 ***
+		header_up Cookie {http.request.header.Cookie}
+		# if you have any Authorization headers (e.g. basic auth), forward them too
+		header_up Authorization {http.request.header.Authorization}
+	}
+}
+
+{$N8N_DOMAIN}:443 {
+	import common-headers
+	reverse_proxy http://n8n:8443 {
+		# Host'u port'suz gönder (Caddy placeholder'ı host-only)
+		header_up Host {http.request.host}
+		header_up X-Forwarded-Host {http.request.host}
+		header_up X-Forwarded-Proto https
+		header_up X-Forwarded-Port 8443
+
+		# 🔥 ASIL OLAY: Origin / Referer port'suz olsun
+		header_up Origin {http.request.scheme}://{http.request.host}
+		header_up Referer {http.request.scheme}://{http.request.host}{http.request.uri}
+
+		transport http {
+			versions 1.1
+		}
+	}
+}
+
+{$PORTAINER_DOMAIN}:443 {
+	import common-headers
+
+	reverse_proxy http://portainer:9000 {
+		# Host'u port'suz gönder (Caddy placeholder'ı host-only)
+		header_up Host {http.request.host}
+		header_up X-Forwarded-Host {http.request.host}
+		header_up X-Forwarded-Proto https
+		header_up X-Forwarded-Port 443
+
+		# 🔥 ASIL OLAY: Origin / Referer port'suz olsun
+		header_up Origin {http.request.scheme}://{http.request.host}
+		header_up Referer {http.request.scheme}://{http.request.host}{http.request.uri}
+
+		transport http {
+			versions 1.1
+		}
+	}
+}

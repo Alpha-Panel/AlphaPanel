@@ -1,0 +1,29 @@
+# =============================================================================
+# server_info.sh — Sunucu & Veritabanı Bağlantı Bilgileri
+# =============================================================================
+# Bu dosyayı kopyalayarak server_info.sh adıyla kaydedin ve doldurun:
+#   cp server_info.sh.example server_info.sh
+#
+# server_info.sh asla git'e commit'lenmez.
+# =============================================================================
+
+# Web dosyalarının bulunduğu kök dizin
+websites_path="/var/www/vhosts"
+
+# Yedekleme dışında tutulacak site dizinleri (pipe ile ayrılır)
+websites_excepts='virtfs|ubuntu|.cpan|.cpcpan|0_README_BEFORE_DELETING_VIRTFS'
+
+# Sunucu adı (yedek dosya adlarında kullanılır)
+server_name='server.example.com'
+
+# MySQL bağlantı bilgileri
+mysql_username="backup_admin"
+mysql_password='MYSQL_BACKUP_PASSWORD'
+mysql_excepts='information_schema|performance_schema|mysql|sys'
+mysql_host='mysql'
+
+# MongoDB bağlantı bilgileri (kullanılmıyorsa boş bırakın)
+mongodb_host="mongodb"
+mongodb_username=""
+mongodb_password=""
+mongodb_port=27017

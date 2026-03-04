@@ -1,0 +1,564 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Requests\StoreDomainRequest;
+use App\Http\Requests\UpdateDomainRequest;
+use App\Jobs\DeleteDomainJob;
+use App\Jobs\ProvisionDomainJob;
+use App\Jobs\RenameDomainJob;
+use App\Jobs\SslActivateJob;
+use App\Models\AuditLog;
+use App\Models\Domain;
+use App\Models\PhpVersion;
+use App\Models\User;
+use App\Notifications\DomainNotification;
+use App\Services\CloudflareDnsService;
+use App\Services\FtpUserService;
+use App\Services\ServerNetworkInfoService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class DomainController extends Controller
+{
+    public function index(Request $request, ServerNetworkInfoService $serverNetworkInfoService): Response
+    {
+        $phpVersions = PhpVersion::where('is_enabled', true)->orderBy('sort_order')->get();
+        $users = $request->user()->isAdmin()
+            ? User::query()->orderBy('name')->get(['id', 'name', 'email'])
+            : collect();
+        $serverNetworkIps = $serverNetworkInfoService->getServerIpAddresses();
+
+        return Inertia::render('Domains/Index', [
+            'phpVersions' => $phpVersions,
+            'users' => $users,
+            'server_network_ips' => $serverNetworkIps,
+        ]);
+    }
+
+    public function create(Request $request, ServerNetworkInfoService $serverNetworkInfoService): Response
+    {
+        $user = $request->user();
+        $phpVersions = PhpVersion::where('is_enabled', true)->orderBy('sort_order')->get();
+        $serverNetworkIps = $serverNetworkInfoService->getServerIpAddresses();
+
+        $parentDomains = Domain::query()
+            ->whereNull('parent_domain_id')
+            ->when(! $user->isAdmin(), fn ($q) => $q->where('owner_user_id', $user->id))
+            ->orderBy('fqdn')
+            ->get();
+
+        $users = $user->isAdmin() ? User::orderBy('name')->get() : collect();
+
+        return Inertia::render('Domains/Create', [
+            'phpVersions' => $phpVersions,
+            'parentDomains' => $parentDomains,
+            'users' => $users,
+            'server_network_ips' => $serverNetworkIps,
+        ]);
+    }
+
+    public function store(
+        StoreDomainRequest $request,
+        FtpUserService $ftpUserService,
+        CloudflareDnsService $cloudflareDnsService,
+        ServerNetworkInfoService $serverNetworkInfoService,
+    ): RedirectResponse {
+        $data = $request->validated();
+        $parentDomainId = (int) ($data['parent_domain_id'] ?? 0);
+        $cloudflareMode = (string) ($data['cloudflare_mode'] ?? 'skip');
+        $requestedSubdomainDnsRecord = (bool) ($data['create_dns_record'] ?? false);
+        $dnsTargetIp = isset($data['dns_target_ip']) ? trim((string) $data['dns_target_ip']) : '';
+        $dnsTargetIp = $dnsTargetIp !== '' ? $dnsTargetIp : null;
+        $serverNetworkIps = $serverNetworkInfoService->getServerIpAddresses();
+        $dnsTargetScope = $dnsTargetIp !== null
+            ? $this->resolveDnsTargetScope($dnsTargetIp, $serverNetworkIps)
+            : null;
+        $createDnsRecord = false;
+        $dnsRecordShouldBeProxied = false;
+
+        if ($parentDomainId > 0) {
+            $parentDomain = Domain::query()
+                ->select(['id', 'fqdn', 'owner_user_id', 'cloudflare_enabled'])
+                ->findOrFail($parentDomainId);
+            $this->authorize('view', $parentDomain);
+            $data['owner_user_id'] = $parentDomain->owner_user_id;
+
+            $parentCloudflareManaged = $parentDomain->cloudflare_enabled;
+            if ($parentCloudflareManaged === null) {
+                $zoneSummary = $cloudflareDnsService->getZoneSummary($parentDomain->fqdn);
+                $parentCloudflareManaged = (bool) ($zoneSummary['exists'] ?? false);
+            }
+
+            $data['cloudflare_enabled'] = $parentCloudflareManaged;
+            $createDnsRecord = $parentCloudflareManaged && $requestedSubdomainDnsRecord;
+
+            if ($createDnsRecord && ($dnsTargetIp === null || $dnsTargetScope === null)) {
+                return back()
+                    ->withInput()
+                    ->withErrors([
+                        'dns_target_ip' => __('Selected DNS target IP is not valid for this server.'),
+                    ]);
+            }
+
+            $dnsRecordShouldBeProxied = $createDnsRecord && $dnsTargetScope === 'public';
+        } elseif ($request->user()->isAdmin() && ! empty($data['owner_user_id'])) {
+            // Admin chose an owner
+        } else {
+            $data['owner_user_id'] = $request->user()->id;
+        }
+
+        $shouldCreateApexDnsRecords = $parentDomainId === 0 && $cloudflareMode === 'add';
+
+        if ($shouldCreateApexDnsRecords && ($dnsTargetIp === null || $dnsTargetScope === null)) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'dns_target_ip' => __('Selected DNS target IP is not valid for this server.'),
+                ]);
+        }
+
+        if ($parentDomainId === 0 && $cloudflareMode === 'add') {
+            try {
+                $cloudflareDnsService->ensureZoneExists((string) $data['fqdn']);
+            } catch (\Throwable $exception) {
+                return back()
+                    ->withInput()
+                    ->withErrors([
+                        'cloudflare_mode' => __('Cloudflare zone could not be added: :message', ['message' => $exception->getMessage()]),
+                    ]);
+            }
+
+            if ($shouldCreateApexDnsRecords) {
+                $synced = $cloudflareDnsService->syncApexBootstrapRecords(
+                    (string) $data['fqdn'],
+                    (string) $dnsTargetIp,
+                    $dnsTargetScope === 'public',
+                );
+
+                if (! $synced) {
+                    return back()
+                        ->withInput()
+                        ->withErrors([
+                            'dns_target_ip' => __('Cloudflare DNS records could not be created. Please try again.'),
+                        ]);
+                }
+            }
+        }
+
+        if ($parentDomainId === 0) {
+            $data['cloudflare_enabled'] = in_array($cloudflareMode, ['add', 'existing'], true);
+        }
+
+        $ftpUsername = $data['ftp_username'] ?? null;
+        $ftpPassword = $data['ftp_password'] ?? null;
+        unset($data['ftp_username'], $data['ftp_password'], $data['create_dns_record'], $data['cloudflare_mode'], $data['dns_target_ip']);
+
+        $domain = Domain::create($data);
+
+        if ($ftpUsername && $ftpPassword) {
+            $ftpUserService->addUser($domain, $ftpUsername, $ftpPassword);
+        }
+
+        ProvisionDomainJob::dispatch(
+            $domain,
+            triggeredBy: $request->user()->id,
+            createDnsRecord: $createDnsRecord,
+            locale: app()->getLocale(),
+            dnsTargetIp: $createDnsRecord ? $dnsTargetIp : null,
+            dnsProxied: $dnsRecordShouldBeProxied,
+            actorIpAddress: $request->ip(),
+            actorPort: is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+        );
+
+        return redirect()
+            ->route('domains.show', $domain)
+            ->with('success', "Domain {$domain->fqdn} created successfully.");
+    }
+
+    public function show(
+        Request $request,
+        Domain $domain,
+        CloudflareDnsService $cloudflareDnsService,
+        ServerNetworkInfoService $serverNetworkInfoService,
+    ): Response|RedirectResponse {
+        $this->authorize('view', $domain);
+
+        if ($domain->isSubdomain()) {
+            $domain->loadMissing('parentDomain');
+
+            if ($domain->parentDomain) {
+                $this->authorize('view', $domain->parentDomain);
+
+                return redirect()->route('domains.show', $domain->parentDomain);
+            }
+        }
+
+        $domain->load([
+            'owner',
+            'phpVersion',
+            'subdomains',
+            'ftpUser',
+            'applyRuns' => fn ($q) => $q->latest()->limit(10),
+            'managedDatabases.databaseUsers',
+        ]);
+
+        $phpVersions = PhpVersion::where('is_enabled', true)->orderBy('sort_order')->get();
+        $cloudflareZone = $cloudflareDnsService->getZoneSummary($domain->getApexDomain());
+        $serverNetworkIps = $serverNetworkInfoService->getServerIpAddresses();
+
+        return Inertia::render('Domains/Show', [
+            'domain' => $domain,
+            'phpVersions' => $phpVersions,
+            'cloudflare_zone' => $cloudflareZone,
+            'server_network_ips' => $serverNetworkIps,
+        ]);
+    }
+
+    public function edit(Request $request, Domain $domain): Response
+    {
+        $this->authorize('update', $domain);
+
+        $user = $request->user();
+        $domain->load('ftpUser');
+        $phpVersions = PhpVersion::where('is_enabled', true)->orderBy('sort_order')->get();
+        $users = $user->isAdmin() ? User::orderBy('name')->get() : collect();
+
+        return Inertia::render('Domains/Edit', [
+            'domain' => $domain,
+            'phpVersions' => $phpVersions,
+            'users' => $users,
+        ]);
+    }
+
+    public function update(UpdateDomainRequest $request, Domain $domain): RedirectResponse
+    {
+        $this->authorize('update', $domain);
+
+        $oldFqdn = $domain->fqdn;
+        $validated = $request->validated();
+
+        if ($domain->parent_domain_id !== null) {
+            $validated['owner_user_id'] = (int) ($domain->parentDomain()->value('owner_user_id') ?? $domain->owner_user_id);
+        } elseif (! $request->user()->isAdmin() || empty($validated['owner_user_id'])) {
+            unset($validated['owner_user_id']);
+        }
+
+        if (($validated['type'] ?? null) !== 'apache_reverse_proxy') {
+            $validated['php_version_id'] = null;
+        }
+
+        $domain->update($validated);
+
+        $fqdnChanged = $oldFqdn !== $domain->fqdn;
+
+        $configChanged = $fqdnChanged || $domain->wasChanged([
+            'type', 'root_path', 'enable_www_redirect', 'additional_hostnames',
+            'enable_worker', 'worker_num', 'worker_watch', 'php_version_id',
+        ]);
+
+        if ($fqdnChanged) {
+            RenameDomainJob::dispatch(
+                $domain,
+                $oldFqdn,
+                $request->user()->id,
+                app()->getLocale(),
+                $request->ip(),
+                is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+            );
+        } elseif ($configChanged) {
+            ProvisionDomainJob::dispatch(
+                $domain,
+                $request->user()->id,
+                false,
+                app()->getLocale(),
+                actorIpAddress: $request->ip(),
+                actorPort: is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+            );
+        }
+
+        return redirect()
+            ->route('domains.show', $domain)
+            ->with('success', "Domain {$domain->fqdn} updated successfully.");
+    }
+
+    public function destroy(Request $request, Domain $domain): RedirectResponse|JsonResponse
+    {
+        $this->authorize('delete', $domain);
+
+        $fqdn = $domain->fqdn;
+        $deleteDnsRecord = $request->boolean('delete_dns_record');
+
+        DeleteDomainJob::dispatch(
+            $domain,
+            $request->user()->id,
+            app()->getLocale(),
+            $deleteDnsRecord,
+            $request->ip(),
+            is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+        );
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['message' => "Domain {$fqdn} deletion in progress."]);
+        }
+
+        return redirect()
+            ->route('domains.index')
+            ->with('success', "Domain {$fqdn} deletion in progress.");
+    }
+
+    /**
+     * Update FTP user for a domain (password change or create).
+     */
+    public function updateFtp(Request $request, Domain $domain, FtpUserService $ftpUserService): RedirectResponse
+    {
+        $this->authorize('update', $domain);
+
+        $validated = $request->validate([
+            'ftp_username' => ['nullable', 'string', 'max:32', 'alpha_dash'],
+            'ftp_password' => ['required', 'string', 'min:8', 'max:128'],
+        ]);
+
+        $domain->load('ftpUser');
+
+        if ($domain->ftpUser) {
+            $ftpUserService->updateUser(
+                $domain->ftpUser,
+                password: $validated['ftp_password'],
+                username: $validated['ftp_username'] ?? null,
+            );
+            $message = __('FTP password updated successfully.');
+        } else {
+            $username = $validated['ftp_username'] ?? str_replace('.', '', $domain->fqdn);
+            $ftpUserService->addUser($domain, $username, $validated['ftp_password']);
+            $message = __('FTP user created successfully.');
+        }
+
+        $request->user()->notify(new DomainNotification(
+            level: 'success',
+            title: __('FTP Updated'),
+            body: "{$message} ({$domain->fqdn})",
+            domainId: $domain->id,
+            url: route('domains.show', $domain),
+            icon: 'bx bx-user-check',
+        ));
+
+        return redirect()
+            ->route('domains.show', $domain)
+            ->with('success', $message);
+    }
+
+    /**
+     * Activate or renew SSL certificate for a domain.
+     */
+    public function sslActivate(Request $request, Domain $domain): RedirectResponse
+    {
+        $this->authorize('update', $domain);
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'ssl_queued',
+            'domain_id' => $domain->id,
+            'summary' => "SSL certificate operation queued for {$domain->fqdn}.",
+            'ip_address' => $request->ip(),
+            'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+        ]);
+
+        SslActivateJob::dispatch(
+            $domain,
+            $request->user()->id,
+            app()->getLocale(),
+            $request->ip(),
+            is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+        );
+
+        return redirect()
+            ->route('domains.show', $domain)
+            ->with('success', __('SSL certificate operation started. You will be notified when complete.'));
+    }
+
+    /**
+     * Lightweight search endpoint for global domain lookup in header.
+     */
+    public function search(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $query = trim((string) $request->input('q', ''));
+        $limit = max(1, min((int) $request->input('limit', 10), 20));
+
+        if ($query === '') {
+            return response()->json(['data' => []]);
+        }
+
+        $domains = Domain::query()
+            ->select(['id', 'fqdn', 'type', 'status', 'parent_domain_id'])
+            ->when(! $user->isAdmin(), fn ($builder) => $builder->where('owner_user_id', $user->id))
+            ->where('fqdn', 'like', "%{$query}%")
+            ->orderByRaw(
+                'CASE WHEN fqdn = ? THEN 0 WHEN fqdn LIKE ? THEN 1 ELSE 2 END',
+                [$query, "{$query}%"],
+            )
+            ->orderBy('fqdn')
+            ->limit($limit)
+            ->get();
+
+        $data = $domains->map(fn (Domain $domain) => [
+            'id' => $domain->id,
+            'fqdn' => $domain->fqdn,
+            'type' => $domain->type->value,
+            'type_label' => $domain->type->label(),
+            'status' => $domain->status->value,
+            'status_label' => $domain->status->label(),
+            'is_subdomain' => $domain->isSubdomain(),
+            'show_url' => route('domains.show', $domain->parent_domain_id ?: $domain->id),
+        ]);
+
+        return response()->json(['data' => $data]);
+    }
+
+    /**
+     * JSON endpoint for DataTables (server-side processing).
+     */
+    public function json(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $draw = (int) $request->input('draw', 1);
+        $start = (int) $request->input('start', 0);
+        $length = (int) $request->input('length', 25);
+        $searchValue = $request->input('search.value', '');
+
+        $columnMap = ['fqdn', 'type', 'status', 'php_version', 'worker', 'created_at', 'actions'];
+
+        $totalQuery = Domain::query()
+            ->whereNull('parent_domain_id')
+            ->when(! $user->isAdmin(), fn ($q) => $q->where('owner_user_id', $user->id));
+        $recordsTotal = $totalQuery->count();
+
+        if ($searchValue !== '') {
+            $ids = null;
+
+            try {
+                $builder = Domain::search($searchValue);
+
+                if (! $user->isAdmin()) {
+                    $builder->where('owner_user_id', $user->id);
+                }
+
+                $searchResults = $builder->take(10000)->get();
+                $ids = $searchResults->pluck('id')->toArray();
+            } catch (\Throwable) {
+                // Meilisearch unavailable — fallback to SQL LIKE
+            }
+
+            if ($ids !== null) {
+                $recordsFiltered = count($ids);
+
+                if (empty($ids)) {
+                    return response()->json([
+                        'draw' => $draw,
+                        'recordsTotal' => $recordsTotal,
+                        'recordsFiltered' => 0,
+                        'data' => [],
+                    ]);
+                }
+
+                $query = Domain::query()
+                    ->with(['owner', 'phpVersion'])
+                    ->whereIn('id', $ids);
+
+                $orderColumn = (int) $request->input('order.0.column', 0);
+                $orderDir = $request->input('order.0.dir', 'asc') === 'desc' ? 'desc' : 'asc';
+
+                if (isset($columnMap[$orderColumn]) && in_array($columnMap[$orderColumn], ['fqdn', 'type', 'status', 'created_at'])) {
+                    $query->orderBy($columnMap[$orderColumn], $orderDir);
+                } else {
+                    $query->orderByRaw('FIELD(id, '.implode(',', $ids).')');
+                }
+            } else {
+                $query = Domain::query()
+                    ->with(['owner', 'phpVersion'])
+                    ->whereNull('parent_domain_id')
+                    ->where(function ($q) use ($searchValue) {
+                        $q->where('fqdn', 'like', "%{$searchValue}%")
+                            ->orWhereHas('subdomains', fn ($sub) => $sub->where('fqdn', 'like', "%{$searchValue}%"));
+                    })
+                    ->when(! $user->isAdmin(), fn ($q) => $q->where('owner_user_id', $user->id));
+
+                $recordsFiltered = $query->count();
+
+                $orderColumn = (int) $request->input('order.0.column', 0);
+                $orderDir = $request->input('order.0.dir', 'asc') === 'desc' ? 'desc' : 'asc';
+
+                if (isset($columnMap[$orderColumn]) && in_array($columnMap[$orderColumn], ['fqdn', 'type', 'status', 'created_at'])) {
+                    $query->orderBy($columnMap[$orderColumn], $orderDir);
+                } else {
+                    $query->latest();
+                }
+            }
+        } else {
+            $query = Domain::query()
+                ->with(['owner', 'phpVersion'])
+                ->whereNull('parent_domain_id')
+                ->when(! $user->isAdmin(), fn ($q) => $q->where('owner_user_id', $user->id));
+
+            $recordsFiltered = $query->count();
+
+            $orderColumn = (int) $request->input('order.0.column', 0);
+            $orderDir = $request->input('order.0.dir', 'asc') === 'desc' ? 'desc' : 'asc';
+
+            if (isset($columnMap[$orderColumn]) && in_array($columnMap[$orderColumn], ['fqdn', 'type', 'status', 'created_at'])) {
+                $query->orderBy($columnMap[$orderColumn], $orderDir);
+            } else {
+                $query->latest();
+            }
+        }
+
+        $domains = $query->skip($start)->take($length)->get();
+
+        $data = $domains->map(fn (Domain $domain) => [
+            'id' => $domain->id,
+            'fqdn' => $domain->fqdn,
+            'type' => $domain->type->value,
+            'type_label' => $domain->type->label(),
+            'status' => $domain->status->value,
+            'status_label' => $domain->status->label(),
+            'status_badge' => $domain->status->badgeHtml(),
+            'type_badge' => $domain->type->badgeHtml(),
+            'php_version' => $domain->phpVersion->slug ?? '-',
+            'worker' => $domain->type === \App\Enums\DomainType::CaddyWebServer
+                ? ($domain->enable_worker ? __('Enabled') : __('Disabled'))
+                : '-',
+            'created_at' => $domain->created_at?->format(config('app.display_datetime_format', 'd.m.Y H:i:s')) ?? '-',
+            'owner_name' => $domain->owner->name ?? '-',
+            'show_url' => route('domains.show', $domain),
+            'edit_url' => route('domains.edit', $domain),
+            'destroy_url' => route('domains.destroy', $domain),
+        ]);
+
+        return response()->json([
+            'draw' => $draw,
+            'recordsTotal' => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'data' => $data,
+        ]);
+    }
+
+    /**
+     * @param  array{public: array<int, string>, private: array<int, string>}  $serverNetworkIps
+     */
+    private function resolveDnsTargetScope(string $dnsTargetIp, array $serverNetworkIps): ?string
+    {
+        if (in_array($dnsTargetIp, $serverNetworkIps['public'] ?? [], true)) {
+            return 'public';
+        }
+
+        if (in_array($dnsTargetIp, $serverNetworkIps['private'] ?? [], true)) {
+            return 'private';
+        }
+
+        return null;
+    }
+}
