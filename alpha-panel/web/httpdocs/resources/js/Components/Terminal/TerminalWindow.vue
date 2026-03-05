@@ -40,6 +40,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import type { TerminalSession } from '@/Composables/useTerminal';
+import { useTerminal } from '@/Composables/useTerminal';
 import { useI18n } from '@/Composables/useI18n';
 
 type TerminalRuntime = {
@@ -68,6 +69,7 @@ const loadTerminalRuntime = async (): Promise<TerminalRuntime> => {
 
 const props = defineProps<{ session: TerminalSession }>();
 const { t } = useI18n();
+const { getPersistentTerminal, setPersistentTerminal, parkTerminal } = useTerminal();
 
 const emit = defineEmits<{
     activate: [];
@@ -132,11 +134,40 @@ function activateWindow() {
     nextTick(() => terminal?.focus());
 }
 
+function setupResizeObserver() {
+    resizeObserver?.disconnect();
+
+    resizeObserver = new ResizeObserver(() => {
+        const host = windowElement.value;
+        if (host && !props.session.isMaximized && !props.session.isMinimized) {
+            const w = `${Math.round(host.getBoundingClientRect().width)}px`;
+            const h = `${Math.round(host.getBoundingClientRect().height)}px`;
+            if (props.session.size.width !== w || props.session.size.height !== h) {
+                props.session.size.width = w;
+                props.session.size.height = h;
+            }
+        }
+        if (fitAddon && !props.session.isMinimized) {
+            fitAddon.fit();
+        }
+    });
+
+    if (windowElement.value) {
+        resizeObserver.observe(windowElement.value);
+    }
+}
+
 function openWebSocket() {
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const url = `${proto}//${location.host}/terminal/ws?token=${props.session.wsToken}`;
     ws = new WebSocket(url);
     ws.binaryType = 'arraybuffer';
+
+    // Update persistent reference
+    const pt = getPersistentTerminal(props.session.sessionId);
+    if (pt) {
+        pt.ws = ws;
+    }
 
     ws.onopen = () => {
         connected.value = true;
@@ -164,6 +195,39 @@ function openWebSocket() {
 }
 
 async function initTerminal() {
+    const existing = getPersistentTerminal(props.session.sessionId);
+
+    if (existing?.terminal?.element) {
+        // Reattach existing terminal — session survives navigation
+        terminal = existing.terminal;
+        fitAddon = existing.fitAddon;
+        ws = existing.ws;
+
+        if (terminalBody.value) {
+            terminalBody.value.appendChild(terminal.element);
+        }
+
+        connected.value = ws !== null && ws.readyState === WebSocket.OPEN;
+
+        // Re-bind ws handlers to use this component's connected ref
+        if (ws) {
+            ws.onopen = () => { connected.value = true; };
+            ws.onclose = () => {
+                connected.value = false;
+                terminal?.write('\r\n\x1b[33m[Connection closed]\x1b[0m\r\n');
+            };
+            ws.onerror = () => { connected.value = false; };
+        }
+
+        setupResizeObserver();
+        nextTick(() => {
+            fitAddon?.fit();
+            terminal?.focus();
+        });
+        return;
+    }
+
+    // Create new terminal
     const { Terminal, FitAddon, WebLinksAddon } = await loadTerminalRuntime();
 
     fitAddon = new FitAddon();
@@ -199,25 +263,10 @@ async function initTerminal() {
         }
     });
 
-    resizeObserver = new ResizeObserver(() => {
-        const host = windowElement.value;
-        if (host && !props.session.isMaximized && !props.session.isMinimized) {
-            const w = `${Math.round(host.getBoundingClientRect().width)}px`;
-            const h = `${Math.round(host.getBoundingClientRect().height)}px`;
-            if (props.session.size.width !== w || props.session.size.height !== h) {
-                props.session.size.width = w;
-                props.session.size.height = h;
-            }
-        }
-        if (fitAddon && !props.session.isMinimized) {
-            fitAddon.fit();
-        }
-    });
+    // Store persistent reference (ws is null here, openWebSocket updates it)
+    setPersistentTerminal(props.session.sessionId, { terminal, fitAddon, ws: null });
 
-    if (windowElement.value) {
-        resizeObserver.observe(windowElement.value);
-    }
-
+    setupResizeObserver();
     openWebSocket();
 }
 
@@ -254,9 +303,9 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-    ws?.close();
     resizeObserver?.disconnect();
-    terminal?.dispose();
+    // Park terminal element — DON'T close ws or dispose terminal
+    parkTerminal(props.session.sessionId);
 });
 </script>
 

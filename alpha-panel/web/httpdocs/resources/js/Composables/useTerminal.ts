@@ -15,11 +15,32 @@ export interface TerminalSession {
     isActive: boolean;
 }
 
+export interface PersistentTerminal {
+    terminal: any;
+    fitAddon: any;
+    ws: WebSocket | null;
+}
+
 const sessions = reactive(new Map<string, TerminalSession>());
 const minimizedSessions = ref<string[]>([]);
 const pendingOpenRequests = reactive(new Set<string>());
 let pendingHostRequest = false;
 let nextZIndex = 200000;
+
+// Persistent terminal instances survive Inertia navigations
+const persistentTerminals = new Map<string, PersistentTerminal>();
+
+let hiddenPark: HTMLElement | null = null;
+
+function getHiddenPark(): HTMLElement {
+    if (!hiddenPark) {
+        hiddenPark = document.createElement('div');
+        hiddenPark.style.cssText =
+            'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none';
+        document.body.appendChild(hiddenPark);
+    }
+    return hiddenPark;
+}
 
 export function useTerminal() {
     const { t } = useI18n();
@@ -56,6 +77,38 @@ export function useTerminal() {
             throw new Error(err.response?.data?.message || err.message || t('Failed to open terminal'));
         } finally {
             pendingOpenRequests.delete(containerId);
+        }
+    }
+
+    async function openHostTerminal() {
+        const existingSession = Array.from(sessions.values()).find(
+            (session) => session.containerName === 'Host Terminal',
+        );
+        if (existingSession) {
+            restoreSession(existingSession.sessionId);
+            activateSession(existingSession.sessionId);
+            return existingSession.sessionId;
+        }
+
+        if (pendingHostRequest) {
+            return null;
+        }
+
+        pendingHostRequest = true;
+
+        try {
+            const res = await axios.post(route('terminal.start-ssh'));
+
+            if (!res.data.session_id || !res.data.ws_token) {
+                throw new Error(res.data.error || t('Failed to start terminal session'));
+            }
+
+            createSession(res.data.session_id, res.data.ws_token, res.data.container_name);
+            return res.data.session_id;
+        } catch (err: any) {
+            throw new Error(err.response?.data?.message || err.message || t('Failed to open terminal'));
+        } finally {
+            pendingHostRequest = false;
         }
     }
 
@@ -154,6 +207,14 @@ export function useTerminal() {
         sessions.delete(sessionId);
         updateMinimizedList();
 
+        // Clean up persistent terminal instance
+        const pt = persistentTerminals.get(sessionId);
+        if (pt) {
+            pt.ws?.close();
+            pt.terminal?.dispose();
+            persistentTerminals.delete(sessionId);
+        }
+
         void axios
             .post(route('terminal.stop'), { session_id: sessionId }, { timeout: 2500 })
             .catch(() => {});
@@ -165,35 +226,18 @@ export function useTerminal() {
             .map(([id]) => id);
     }
 
-    async function openHostTerminal() {
-        const existingSession = Array.from(sessions.values()).find(
-            (session) => session.containerName === 'Host Terminal',
-        );
-        if (existingSession) {
-            restoreSession(existingSession.sessionId);
-            activateSession(existingSession.sessionId);
-            return existingSession.sessionId;
-        }
+    function getPersistentTerminal(sessionId: string): PersistentTerminal | undefined {
+        return persistentTerminals.get(sessionId);
+    }
 
-        if (pendingHostRequest) {
-            return null;
-        }
+    function setPersistentTerminal(sessionId: string, pt: PersistentTerminal): void {
+        persistentTerminals.set(sessionId, pt);
+    }
 
-        pendingHostRequest = true;
-
-        try {
-            const res = await axios.post(route('terminal.start-ssh'));
-
-            if (!res.data.session_id || !res.data.ws_token) {
-                throw new Error(res.data.error || t('Failed to start terminal session'));
-            }
-
-            createSession(res.data.session_id, res.data.ws_token, res.data.container_name);
-            return res.data.session_id;
-        } catch (err: any) {
-            throw new Error(err.response?.data?.message || err.message || t('Failed to open terminal'));
-        } finally {
-            pendingHostRequest = false;
+    function parkTerminal(sessionId: string): void {
+        const pt = persistentTerminals.get(sessionId);
+        if (pt?.terminal?.element) {
+            getHiddenPark().appendChild(pt.terminal.element);
         }
     }
 
@@ -208,5 +252,8 @@ export function useTerminal() {
         restoreSession,
         toggleMaximize,
         stopAndRemove,
+        getPersistentTerminal,
+        setPersistentTerminal,
+        parkTerminal,
     };
 }
