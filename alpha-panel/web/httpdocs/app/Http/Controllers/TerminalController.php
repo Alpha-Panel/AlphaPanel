@@ -52,6 +52,34 @@ class TerminalController extends Controller
     }
 
     /**
+     * Create an SSH session to the host machine and return a short-lived WebSocket token.
+     */
+    public function startSsh(Request $request): JsonResponse
+    {
+        $sessionId = Str::uuid()->toString();
+        $wsToken = Str::random(40);
+
+        Cache::put(self::CACHE_PREFIX.'ws:'.$wsToken, [
+            'type' => 'ssh',
+            'session_id' => $sessionId,
+            'container_name' => 'Host Terminal',
+            'ssh_host' => config('panel.ssh_host'),
+            'ssh_port' => config('panel.ssh_port'),
+            'ssh_user' => config('panel.ssh_user'),
+            'ssh_key_path' => config('panel.ssh_key_path'),
+            'user_id' => $request->user()->id,
+        ], now()->addSeconds(30));
+
+        Log::info("[Terminal] Created SSH session {$sessionId} for user {$request->user()->id}");
+
+        return response()->json([
+            'session_id' => $sessionId,
+            'ws_token' => $wsToken,
+            'container_name' => 'Host Terminal',
+        ]);
+    }
+
+    /**
      * Terminate a terminal session (informational — the proxy closes when the WS closes).
      */
     public function stop(Request $request): JsonResponse

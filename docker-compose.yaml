@@ -68,6 +68,7 @@ services:
       - ./vhosts:/var/www/vhosts
       - ./letsencrypt:/etc/letsencrypt
       - ./secrets/cloudflare.ini:/secrets/cloudflare.ini:ro
+      - ./alpha-panel/web/ssh-keys:/root/.ssh:ro
       - ./alpha-panel/supervisor:/etc/supervisor/conf.d:ro
       - ./apache/sites-enabled:/etc/apache2/sites-enabled
       - ./ftp-config/users.env:/etc/users.env

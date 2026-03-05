@@ -382,6 +382,12 @@ PANEL_DB_PORT=3306
 PANEL_DB_NAME=${PANEL_DB_NAME}
 PANEL_DB_USER=${PANEL_DB_USER}
 PANEL_DB_PASS=${PANEL_DB_PASS}
+
+# ─── SSH Terminal ─────────────────────────────────────────────
+PANEL_SSH_HOST=${DOCKER_HOST_IP:-172.17.0.1}
+PANEL_SSH_PORT=22
+PANEL_SSH_USER=root
+PANEL_SSH_KEY_PATH=/root/.ssh/alphapanel_ed25519
 EOF
 ok "Alpha Panel .env created."
 
@@ -405,6 +411,48 @@ say "Setting permissions on data directories..."
 chmod -R u+rwX,g+rwX deploy_cache n8n 2>/dev/null || true
 chown -R 1000:1000 deploy_cache n8n 2>/dev/null || true
 ok "Permissions set."
+
+# ─── SSH Key for Host Terminal Access ─────────────────────────
+say "Generating SSH key for host terminal access..."
+SSH_KEY_DIR="alpha-panel/web/ssh-keys"
+SSH_KEY_PATH="${SSH_KEY_DIR}/alphapanel_ed25519"
+mkdir -p "$SSH_KEY_DIR"
+if [ ! -f "$SSH_KEY_PATH" ]; then
+    ssh-keygen -t ed25519 -f "$SSH_KEY_PATH" -N "" -C "alphapanel-terminal@$(hostname)" >/dev/null 2>&1
+    chmod 600 "$SSH_KEY_PATH"
+    chmod 644 "${SSH_KEY_PATH}.pub"
+    ok "SSH key pair generated: ${SSH_KEY_PATH}"
+else
+    ok "SSH key already exists: ${SSH_KEY_PATH}"
+fi
+
+# Add public key to host authorized_keys
+HOST_AUTH_KEYS="/root/.ssh/authorized_keys"
+mkdir -p /root/.ssh
+chmod 700 /root/.ssh
+PUB_KEY=$(cat "${SSH_KEY_PATH}.pub")
+if ! grep -qF "$PUB_KEY" "$HOST_AUTH_KEYS" 2>/dev/null; then
+    echo "$PUB_KEY" >> "$HOST_AUTH_KEYS"
+    chmod 600 "$HOST_AUTH_KEYS"
+    ok "Public key added to host ${HOST_AUTH_KEYS}"
+else
+    ok "Public key already in host authorized_keys."
+fi
+
+# Detect host IP accessible from container (docker bridge gateway)
+DOCKER_HOST_IP=$(docker network inspect bridge --format '{{range .IPAM.Config}}{{.Gateway}}{{end}}' 2>/dev/null || echo "172.17.0.1")
+[ -z "$DOCKER_HOST_IP" ] && DOCKER_HOST_IP="172.17.0.1"
+ok "Docker host gateway IP: ${DOCKER_HOST_IP}"
+
+# Ensure sshd is running on the host
+if command -v systemctl &>/dev/null; then
+    if ! systemctl is-active --quiet sshd 2>/dev/null && ! systemctl is-active --quiet ssh 2>/dev/null; then
+        warn "SSH server (sshd) is not running on the host. Starting it..."
+        install_pkg openssh-server
+        systemctl enable --now sshd 2>/dev/null || systemctl enable --now ssh 2>/dev/null || true
+    fi
+    ok "Host SSH server is running."
+fi
 
 # ─── Summary before launch ────────────────────────────────────
 echo ""

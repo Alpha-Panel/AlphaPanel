@@ -108,6 +108,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | SSH Terminal (Host Machine Access)
+    |--------------------------------------------------------------------------
+    | SSH connection from the container to the host machine.
+    | The container connects via SSH key authentication.
+    */
+    'ssh_host' => env('PANEL_SSH_HOST', 'host.docker.internal'),
+    'ssh_port' => (int) env('PANEL_SSH_PORT', 22),
+    'ssh_user' => env('PANEL_SSH_USER', 'root'),
+    'ssh_key_path' => env('PANEL_SSH_KEY_PATH', '/root/.ssh/alphapanel_ed25519'),
+
+    /*
+    |--------------------------------------------------------------------------
     | WebAuthn
     |--------------------------------------------------------------------------
     */

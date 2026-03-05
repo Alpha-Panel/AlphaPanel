@@ -18,6 +18,9 @@ secrets/
 ftp-config/users.env
 !ftp-config/users.env.example
 
+# SSH keys for terminal access (private key)
+alpha-panel/web/ssh-keys/
+
 # Laravel application environment
 alpha-panel/web/httpdocs/.env
 !alpha-panel/web/httpdocs/.env.example

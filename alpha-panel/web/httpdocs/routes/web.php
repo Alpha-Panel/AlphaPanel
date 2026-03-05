@@ -209,6 +209,7 @@ Route::middleware('auth')->group(function (): void {
 
         // Docker Terminal (WebSocket proxy via terminal:serve command on port 2999)
         Route::post('terminal/start', [TerminalController::class, 'start'])->name('terminal.start');
+        Route::post('terminal/start-ssh', [TerminalController::class, 'startSsh'])->name('terminal.start-ssh');
         Route::post('terminal/stop', [TerminalController::class, 'stop'])->name('terminal.stop');
 
         Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');

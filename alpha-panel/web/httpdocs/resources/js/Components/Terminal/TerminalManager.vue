@@ -42,6 +42,10 @@ const openTerminalHandler = ((event: CustomEvent) => {
     terminal.openTerminal(event.detail.containerId, event.detail.containerName);
 }) as EventListener;
 
+const openHostTerminalHandler = (() => {
+    terminal.openHostTerminal();
+}) as EventListener;
+
 onMounted(() => {
     void Promise.all([
         import('@xterm/xterm'),
@@ -51,9 +55,11 @@ onMounted(() => {
     ]);
 
     document.addEventListener('open-terminal', openTerminalHandler);
+    document.addEventListener('open-host-terminal', openHostTerminalHandler);
 });
 
 onBeforeUnmount(() => {
     document.removeEventListener('open-terminal', openTerminalHandler);
+    document.removeEventListener('open-host-terminal', openHostTerminalHandler);
 });
 </script>

@@ -18,6 +18,7 @@ export interface TerminalSession {
 const sessions = reactive(new Map<string, TerminalSession>());
 const minimizedSessions = ref<string[]>([]);
 const pendingOpenRequests = reactive(new Set<string>());
+let pendingHostRequest = false;
 let nextZIndex = 200000;
 
 export function useTerminal() {
@@ -164,10 +165,43 @@ export function useTerminal() {
             .map(([id]) => id);
     }
 
+    async function openHostTerminal() {
+        const existingSession = Array.from(sessions.values()).find(
+            (session) => session.containerName === 'Host Terminal',
+        );
+        if (existingSession) {
+            restoreSession(existingSession.sessionId);
+            activateSession(existingSession.sessionId);
+            return existingSession.sessionId;
+        }
+
+        if (pendingHostRequest) {
+            return null;
+        }
+
+        pendingHostRequest = true;
+
+        try {
+            const res = await axios.post(route('terminal.start-ssh'));
+
+            if (!res.data.session_id || !res.data.ws_token) {
+                throw new Error(res.data.error || t('Failed to start terminal session'));
+            }
+
+            createSession(res.data.session_id, res.data.ws_token, res.data.container_name);
+            return res.data.session_id;
+        } catch (err: any) {
+            throw new Error(err.response?.data?.message || err.message || t('Failed to open terminal'));
+        } finally {
+            pendingHostRequest = false;
+        }
+    }
+
     return {
         sessions,
         minimizedSessions,
         openTerminal,
+        openHostTerminal,
         createSession,
         activateSession,
         minimizeSession,

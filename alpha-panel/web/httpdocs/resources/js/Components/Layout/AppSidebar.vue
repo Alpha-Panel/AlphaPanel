@@ -94,6 +94,27 @@
                                         ]"
                                     />
                                 </button>
+                                <button
+                                    v-else-if="item.action"
+                                    @click="item.action()"
+                                    :class="[
+                                        'menu-item group menu-item-inactive',
+                                        !isExpanded && !isHovered
+                                            ? 'lg:justify-center'
+                                            : 'lg:justify-start',
+                                    ]"
+                                >
+                                    <span class="menu-item-icon-inactive">
+                                        <component v-if="item.icon" :is="item.icon" />
+                                        <i v-else-if="item.iconClass" :class="[item.iconClass, 'text-base']"></i>
+                                    </span>
+                                    <span
+                                        v-if="isExpanded || isHovered || isMobileOpen"
+                                        class="menu-item-text"
+                                    >
+                                        {{ item.name }}
+                                    </span>
+                                </button>
                                 <a
                                     v-else-if="item.href && item.external"
                                     :href="item.href"
@@ -247,6 +268,7 @@ interface SidebarMenuItem {
     name: string;
     href?: string;
     external?: boolean;
+    action?: () => void;
     subItems?: Array<{ name: string; href: string }>;
 }
 
@@ -278,6 +300,11 @@ const menuGroups = computed(() => [
                     icon: UserCircleIcon,
                     name: t('Users'),
                     href: route('users.list'),
+                },
+                {
+                    iconClass: 'fa-solid fa-terminal',
+                    name: t('Terminal'),
+                    action: () => document.dispatchEvent(new CustomEvent('open-host-terminal')),
                 },
                 {
                     iconClass: 'lni lni-mysql',

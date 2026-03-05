@@ -50,15 +50,29 @@ class TerminalServeCommand extends Command
         $pendingBrowserData = '';
         $sessionId = 'unknown';
 
+        // SSH session state
+        $sessionType = 'portainer';
+        $sshProcess = null;
+        $sshPipes = [];
+        $sshWsBuffer = '';
+
         // Register close/error at the top level so they always fire
-        $conn->on('close', function () use (&$portainerConn, &$sessionId) {
+        $conn->on('close', function () use (&$portainerConn, &$sessionId, &$sessionType, &$sshProcess, &$sshPipes, $loop) {
             Log::info("[TerminalServe] Browser disconnected (session={$sessionId})");
-            $portainerConn?->close();
+            if ($sessionType === 'ssh') {
+                $this->cleanupSsh($sshProcess, $sshPipes, $loop);
+            } else {
+                $portainerConn?->close();
+            }
         });
 
-        $conn->on('error', function (\Throwable $e) use (&$portainerConn, &$sessionId) {
+        $conn->on('error', function (\Throwable $e) use (&$portainerConn, &$sessionId, &$sessionType, &$sshProcess, &$sshPipes, $loop) {
             Log::warning("[TerminalServe] Browser error (session={$sessionId}): ".$e->getMessage());
-            $portainerConn?->close();
+            if ($sessionType === 'ssh') {
+                $this->cleanupSsh($sshProcess, $sshPipes, $loop);
+            } else {
+                $portainerConn?->close();
+            }
         });
 
         $conn->on('data', function (string $chunk) use (
@@ -70,9 +84,32 @@ class TerminalServeCommand extends Command
             &$portainerConn,
             &$pendingBrowserData,
             &$sessionId,
+            &$sessionType,
+            &$sshProcess,
+            &$sshPipes,
+            &$sshWsBuffer,
         ) {
             if ($handshakeDone) {
-                // Both handshakes complete — raw proxy
+                if ($sessionType === 'ssh') {
+                    // Decode WebSocket frames from browser, write payload to SSH stdin
+                    $sshWsBuffer .= $chunk;
+                    while (($frame = $this->decodeWsFrame($sshWsBuffer)) !== null) {
+                        if ($frame['opcode'] === 0x08) {
+                            $this->cleanupSsh($sshProcess, $sshPipes, $loop);
+                            $conn->close();
+
+                            return;
+                        }
+                        if (($frame['opcode'] === 0x01 || $frame['opcode'] === 0x02)
+                            && isset($sshPipes[0]) && is_resource($sshPipes[0])) {
+                            @fwrite($sshPipes[0], $frame['payload']);
+                        }
+                    }
+
+                    return;
+                }
+
+                // Both handshakes complete — raw proxy (Portainer)
                 if ($proxyActive && $portainerConn !== null) {
                     $portainerConn->write($chunk);
                 } else {
@@ -125,8 +162,7 @@ class TerminalServeCommand extends Command
             Cache::forget($cacheKey);
 
             $sessionId = $sessionData['session_id'];
-            $portainerWsUrl = $sessionData['ws_url'];
-            $portainerApiKey = $sessionData['api_key'];
+            $sessionType = $sessionData['type'] ?? 'portainer';
             $containerName = $sessionData['container_name'];
 
             // Extract browser's Sec-WebSocket-Key
@@ -144,6 +180,21 @@ class TerminalServeCommand extends Command
 
                 return;
             }
+
+            // ── SSH session: spawn SSH process with PTY ──
+            if ($sessionType === 'ssh') {
+                Log::info("[TerminalServe] Session {$sessionId} ({$containerName}) — starting SSH bridge");
+                $this->startSshBridge(
+                    $conn, $loop, $sessionData, $wsKey, $sessionId,
+                    $sshProcess, $sshPipes,
+                );
+
+                return;
+            }
+
+            // ── Portainer session: connect to Portainer WebSocket ──
+            $portainerWsUrl = $sessionData['ws_url'];
+            $portainerApiKey = $sessionData['api_key'];
 
             Log::info("[TerminalServe] Session {$sessionId} ({$containerName}) — connecting to Portainer");
 
@@ -277,5 +328,191 @@ class TerminalServeCommand extends Command
                 }
             );
         });
+    }
+
+    /**
+     * Bridge the browser WebSocket to a host SSH process via PTY.
+     *
+     * @param  array<string, mixed>  $sessionData
+     * @param  resource|null  $sshProcess
+     * @param  array<int, resource>  $sshPipes
+     */
+    private function startSshBridge(
+        ConnectionInterface $conn,
+        mixed $loop,
+        array $sessionData,
+        string $wsKey,
+        string $sessionId,
+        mixed &$sshProcess,
+        array &$sshPipes,
+    ): void {
+        // Complete browser WebSocket handshake immediately
+        $accept = base64_encode(sha1($wsKey.'258EAFA5-E914-47DA-95CA-C5AB0DC85B11', true));
+        $conn->write(
+            "HTTP/1.1 101 Switching Protocols\r\n".
+            "Upgrade: websocket\r\n".
+            "Connection: Upgrade\r\n".
+            "Sec-WebSocket-Accept: {$accept}\r\n\r\n"
+        );
+
+        $sshHost = $sessionData['ssh_host'];
+        $sshPort = (int) $sessionData['ssh_port'];
+        $sshUser = $sessionData['ssh_user'];
+        $sshKeyPath = $sessionData['ssh_key_path'];
+
+        $cmd = sprintf(
+            'ssh -tt -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p %d -i %s %s@%s',
+            $sshPort,
+            escapeshellarg($sshKeyPath),
+            escapeshellarg($sshUser),
+            escapeshellarg($sshHost),
+        );
+
+        $env = getenv();
+        $env['TERM'] = 'xterm-256color';
+        $env['HOME'] = '/root';
+
+        $process = @proc_open($cmd, [['pty'], ['pty'], ['pty']], $pipes, null, $env);
+
+        if (! is_resource($process)) {
+            Log::error("[TerminalServe] Failed to spawn SSH process for session {$sessionId}");
+            $errMsg = "\033[31m[Failed to start SSH connection]\033[0m\r\n";
+            $conn->write($this->encodeWsFrame($errMsg, 0x01));
+            $conn->close();
+
+            return;
+        }
+
+        $sshProcess = $process;
+        $sshPipes = $pipes;
+
+        stream_set_blocking($pipes[1], false);
+
+        // Read SSH PTY output → encode as WebSocket frame → send to browser
+        $loop->addReadStream($pipes[1], function ($stream) use ($conn, &$sshProcess, &$sshPipes, $loop, $sessionId) {
+            $data = @fread($stream, 65535);
+            if ($data === false || $data === '') {
+                if (! is_resource($stream) || @feof($stream)) {
+                    Log::info("[TerminalServe] SSH process ended (session={$sessionId})");
+                    $msg = "\r\n\033[33m[SSH connection closed]\033[0m\r\n";
+                    $conn->write($this->encodeWsFrame($msg, 0x01));
+                    $this->cleanupSsh($sshProcess, $sshPipes, $loop);
+                    $conn->close();
+                }
+
+                return;
+            }
+
+            $conn->write($this->encodeWsFrame($data));
+        });
+
+        Log::info("[TerminalServe] SSH bridge active for session {$sessionId}");
+    }
+
+    /**
+     * Clean up SSH process and pipes.
+     *
+     * @param  resource|null  $process
+     * @param  array<int, resource>  $pipes
+     */
+    private function cleanupSsh(mixed &$process, array &$pipes, mixed $loop): void
+    {
+        if (isset($pipes[1]) && is_resource($pipes[1])) {
+            $loop->removeReadStream($pipes[1]);
+        }
+
+        foreach ($pipes as $pipe) {
+            if (is_resource($pipe)) {
+                @fclose($pipe);
+            }
+        }
+
+        if (is_resource($process)) {
+            @proc_terminate($process, 9);
+            @proc_close($process);
+        }
+
+        $process = null;
+        $pipes = [];
+    }
+
+    /**
+     * Encode data into a WebSocket frame (server → client, unmasked).
+     */
+    private function encodeWsFrame(string $payload, int $opcode = 0x02): string
+    {
+        $len = strlen($payload);
+        $frame = chr(0x80 | $opcode); // FIN + opcode
+
+        if ($len < 126) {
+            $frame .= chr($len);
+        } elseif ($len < 65536) {
+            $frame .= chr(126).pack('n', $len);
+        } else {
+            $frame .= chr(127).pack('J', $len);
+        }
+
+        return $frame.$payload;
+    }
+
+    /**
+     * Decode one WebSocket frame from the buffer (client → server, masked).
+     *
+     * Returns null if the buffer doesn't contain a complete frame yet.
+     *
+     * @return array{opcode: int, payload: string}|null
+     */
+    private function decodeWsFrame(string &$buffer): ?array
+    {
+        $len = strlen($buffer);
+        if ($len < 2) {
+            return null;
+        }
+
+        $byte1 = ord($buffer[0]);
+        $byte2 = ord($buffer[1]);
+
+        $opcode = $byte1 & 0x0F;
+        $masked = ($byte2 >> 7) & 1;
+        $payloadLen = $byte2 & 0x7F;
+        $offset = 2;
+
+        if ($payloadLen === 126) {
+            if ($len < 4) {
+                return null;
+            }
+            $payloadLen = unpack('n', substr($buffer, 2, 2))[1];
+            $offset = 4;
+        } elseif ($payloadLen === 127) {
+            if ($len < 10) {
+                return null;
+            }
+            $payloadLen = unpack('J', substr($buffer, 2, 8))[1];
+            $offset = 10;
+        }
+
+        if ($masked) {
+            if ($len < $offset + 4) {
+                return null;
+            }
+            $mask = substr($buffer, $offset, 4);
+            $offset += 4;
+        }
+
+        if ($len < $offset + $payloadLen) {
+            return null;
+        }
+
+        $payload = substr($buffer, $offset, $payloadLen);
+
+        if ($masked) {
+            for ($i = 0; $i < $payloadLen; $i++) {
+                $payload[$i] = $payload[$i] ^ $mask[$i % 4];
+            }
+        }
+
+        $buffer = substr($buffer, $offset + $payloadLen);
+
+        return ['opcode' => $opcode, 'payload' => $payload];
     }
 }
