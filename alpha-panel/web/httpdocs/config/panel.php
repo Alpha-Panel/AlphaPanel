@@ -98,6 +98,16 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Terminal WebSocket Proxy
+    |--------------------------------------------------------------------------
+    | Port that `php artisan terminal:serve` listens on.
+    | In local dev the browser connects directly: ws://127.0.0.1:{port}
+    | In production Caddy proxies /terminal/ws → localhost:{port}
+    */
+    'terminal_ws_port' => (int) env('TERMINAL_WS_PORT', 2999),
+
+    /*
+    |--------------------------------------------------------------------------
     | WebAuthn
     |--------------------------------------------------------------------------
     */

@@ -13,8 +13,10 @@
             @dblclick="$emit('maximize')"
         >
             <div class="flex items-center gap-2 text-xs text-gray-300">
-                <span :class="['inline-block h-2 w-2 rounded-full', connected ? 'bg-green-500' : 'bg-yellow-500 animate-pulse']"></span>
-                <svg class="h-3.5 w-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                <span :class="['inline-block h-2 w-2 rounded-full transition-colors', connected ? 'bg-green-500' : 'bg-yellow-500 animate-pulse']"></span>
+                <svg class="h-3.5 w-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
                 {{ session.containerName }}
             </div>
             <div class="flex items-center gap-1">
@@ -37,7 +39,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
-import axios from 'axios';
 import type { TerminalSession } from '@/Composables/useTerminal';
 import { useI18n } from '@/Composables/useI18n';
 
@@ -62,13 +63,10 @@ const loadTerminalRuntime = async (): Promise<TerminalRuntime> => {
             WebLinksAddon: links.WebLinksAddon,
         }));
     }
-
     return terminalRuntimePromise;
 };
 
-const props = defineProps<{
-    session: TerminalSession;
-}>();
+const props = defineProps<{ session: TerminalSession }>();
 const { t } = useI18n();
 
 const emit = defineEmits<{
@@ -76,7 +74,6 @@ const emit = defineEmits<{
     minimize: [];
     maximize: [];
     close: [];
-    input: [data: string];
 }>();
 
 const windowElement = ref<HTMLElement>();
@@ -85,9 +82,9 @@ const connected = ref(false);
 
 let terminal: any = null;
 let fitAddon: any = null;
+let ws: WebSocket | null = null;
 let resizeObserver: ResizeObserver | null = null;
-let echoChannel: any = null;
-let connectRetryTimer: ReturnType<typeof setTimeout> | null = null;
+const encoder = new TextEncoder();
 
 const windowStyle = ref<Record<string, string>>({});
 
@@ -113,10 +110,7 @@ function updateWindowStyle() {
 }
 
 watch(() => props.session.zIndex, (zIndex) => {
-    windowStyle.value = {
-        ...windowStyle.value,
-        zIndex: String(zIndex),
-    };
+    windowStyle.value = { ...windowStyle.value, zIndex: String(zIndex) };
 });
 
 watch(() => [props.session.isMaximized, props.session.position, props.session.size], () => {
@@ -124,9 +118,49 @@ watch(() => [props.session.isMaximized, props.session.position, props.session.si
     nextTick(() => fitAddon?.fit());
 }, { deep: true });
 
+watch(() => props.session.isMinimized, (minimized) => {
+    if (!minimized) {
+        nextTick(() => {
+            fitAddon?.fit();
+            terminal?.focus();
+        });
+    }
+});
+
 function activateWindow() {
     emit('activate');
     nextTick(() => terminal?.focus());
+}
+
+function openWebSocket() {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = `${proto}//${location.host}/terminal/ws?token=${props.session.wsToken}`;
+    ws = new WebSocket(url);
+    ws.binaryType = 'arraybuffer';
+
+    ws.onopen = () => {
+        connected.value = true;
+    };
+
+    ws.onclose = () => {
+        connected.value = false;
+        if (terminal) {
+            terminal.write('\r\n\x1b[33m[Connection closed]\x1b[0m\r\n');
+        }
+    };
+
+    ws.onerror = () => {
+        connected.value = false;
+    };
+
+    ws.onmessage = (event: MessageEvent) => {
+        if (!terminal) return;
+        if (event.data instanceof ArrayBuffer) {
+            terminal.write(new Uint8Array(event.data));
+        } else if (typeof event.data === 'string') {
+            terminal.write(event.data);
+        }
+    };
 }
 
 async function initTerminal() {
@@ -158,91 +192,33 @@ async function initTerminal() {
 
     terminal.write(`\x1b[90m${t('Connecting to container...')}\x1b[0m\r\n`);
 
+    // Send input directly over WebSocket as binary
     terminal.onData((data: string) => {
-        emit('input', data);
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(encoder.encode(data).buffer);
+        }
     });
 
-    // Resize observer
     resizeObserver = new ResizeObserver(() => {
-        const windowHost = windowElement.value;
-        if (windowHost && !props.session.isMaximized && !props.session.isMinimized) {
-            const width = `${Math.round(windowHost.getBoundingClientRect().width)}px`;
-            const height = `${Math.round(windowHost.getBoundingClientRect().height)}px`;
-
-            if (props.session.size.width !== width || props.session.size.height !== height) {
-                props.session.size.width = width;
-                props.session.size.height = height;
+        const host = windowElement.value;
+        if (host && !props.session.isMaximized && !props.session.isMinimized) {
+            const w = `${Math.round(host.getBoundingClientRect().width)}px`;
+            const h = `${Math.round(host.getBoundingClientRect().height)}px`;
+            if (props.session.size.width !== w || props.session.size.height !== h) {
+                props.session.size.width = w;
+                props.session.size.height = h;
             }
         }
-
         if (fitAddon && !props.session.isMinimized) {
             fitAddon.fit();
         }
     });
+
     if (windowElement.value) {
         resizeObserver.observe(windowElement.value);
     }
 
-    subscribeChannel();
-    await hydrateBuffer();
-}
-
-function subscribeChannel() {
-    if (typeof window.Echo === 'undefined') {
-        connectRetryTimer = setTimeout(() => subscribeChannel(), 200);
-        return;
-    }
-
-    echoChannel = window.Echo.private(`terminal.${props.session.sessionId}`);
-
-    if (typeof echoChannel.subscribed === 'function') {
-        echoChannel.subscribed(() => {
-            connected.value = true;
-        });
-    } else {
-        connected.value = true;
-    }
-
-    if (typeof echoChannel.error === 'function') {
-        echoChannel.error(() => {
-            connected.value = false;
-        });
-    }
-
-    echoChannel.listen('.App\\Events\\TerminalOutput', (e: any) => {
-        if (e.output && terminal) {
-            try {
-                const decoded = atob(e.output);
-                terminal.write(decoded);
-            } catch {
-                // ignore decode errors
-            }
-        }
-    });
-
-    if (connectRetryTimer) {
-        clearTimeout(connectRetryTimer);
-        connectRetryTimer = null;
-    }
-}
-
-async function hydrateBuffer() {
-    try {
-        const response = await axios.post(route('terminal.reconnect'), {
-            session_id: props.session.sessionId,
-        });
-
-        if (response.data?.buffer && terminal) {
-            const decoded = atob(response.data.buffer);
-            if (decoded) {
-                terminal.write(decoded);
-            }
-        }
-
-        connected.value = true;
-    } catch {
-        // ignore; websocket stream may still connect shortly after
-    }
+    openWebSocket();
 }
 
 function startDrag(e: MouseEvent) {
@@ -258,8 +234,8 @@ function startDrag(e: MouseEvent) {
     const offsetY = e.clientY - rect.top;
 
     const onMove = (ev: MouseEvent) => {
-        props.session.position.left = (ev.clientX - offsetX) + 'px';
-        props.session.position.top = (ev.clientY - offsetY) + 'px';
+        props.session.position.left = ev.clientX - offsetX + 'px';
+        props.session.position.top = ev.clientY - offsetY + 'px';
         updateWindowStyle();
     };
 
@@ -272,35 +248,15 @@ function startDrag(e: MouseEvent) {
     document.addEventListener('mouseup', onUp);
 }
 
-// When restored from minimized, refit
-watch(() => props.session.isMinimized, (minimized) => {
-    if (!minimized) {
-        nextTick(() => {
-            fitAddon?.fit();
-            terminal?.focus();
-        });
-    }
-});
-
 onMounted(() => {
     updateWindowStyle();
     initTerminal();
 });
 
 onBeforeUnmount(() => {
-    if (connectRetryTimer) {
-        clearTimeout(connectRetryTimer);
-        connectRetryTimer = null;
-    }
-    if (echoChannel && window.Echo) {
-        window.Echo.leave(`terminal.${props.session.sessionId}`);
-    }
-    if (resizeObserver) {
-        resizeObserver.disconnect();
-    }
-    if (terminal) {
-        terminal.dispose();
-    }
+    ws?.close();
+    resizeObserver?.disconnect();
+    terminal?.dispose();
 });
 </script>
 

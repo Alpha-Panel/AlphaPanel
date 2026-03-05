@@ -9,7 +9,6 @@
             @minimize="terminal.minimizeSession(sessionId)"
             @maximize="terminal.toggleMaximize(sessionId)"
             @close="terminal.stopAndRemove(sessionId)"
-            @input="terminal.sendInput(sessionId, $event)"
         />
 
         <!-- Minimized Bar -->
@@ -51,9 +50,6 @@ onMounted(() => {
         import('@xterm/xterm/css/xterm.css'),
     ]);
 
-    void terminal.reconnectSessions();
-
-    // Listen for open-terminal custom events (from domain show page, etc.)
     document.addEventListener('open-terminal', openTerminalHandler);
 });
 

@@ -207,12 +207,9 @@ Route::middleware('auth')->group(function (): void {
         Route::put('users/{user}', [\App\Http\Controllers\UserAccountsController::class, 'update'])->name('users.update');
         Route::delete('users/{user}', [\App\Http\Controllers\UserAccountsController::class, 'destroy'])->name('users.destroy');
 
-        // Docker Terminal
+        // Docker Terminal (WebSocket proxy via terminal:serve command on port 2999)
         Route::post('terminal/start', [TerminalController::class, 'start'])->name('terminal.start');
-        Route::post('terminal/input', [TerminalController::class, 'input'])->name('terminal.input');
-        Route::post('terminal/reconnect', [TerminalController::class, 'reconnect'])->name('terminal.reconnect');
         Route::post('terminal/stop', [TerminalController::class, 'stop'])->name('terminal.stop');
-        Route::get('terminal/sessions', [TerminalController::class, 'sessions'])->name('terminal.sessions');
 
         Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
         Route::get('audit-logs/json', [AuditLogController::class, 'json'])->name('audit-logs.json');

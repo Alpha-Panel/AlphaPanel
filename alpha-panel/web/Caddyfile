@@ -48,10 +48,29 @@
 {$PANEL_DOMAIN}:443 {
 	encode zstd br gzip
 	root * /var/www/AlphaPanel/httpdocs/public
+
+	# Reverb WebSocket (Laravel broadcasting)
 	@websocket {
 		path /app/*
 	}
 	reverse_proxy @websocket http://localhost:6001 {
+		header_up Host {http.request.host}
+		header_up X-Real-IP {http.request.remote.host}
+		header_up X-Forwarded-For {http.request.remote.host}
+		header_up X-Forwarded-Proto {http.request.scheme}
+		header_up Upgrade {http.request.header.Upgrade}
+		header_up Connection {http.request.header.Connection}
+
+		transport http {
+			versions 1.1
+		}
+	}
+
+	# Terminal WebSocket proxy (php artisan terminal:serve --port=2999)
+	@terminal_ws {
+		path /terminal/ws
+	}
+	reverse_proxy @terminal_ws http://localhost:2999 {
 		header_up Host {http.request.host}
 		header_up X-Real-IP {http.request.remote.host}
 		header_up X-Forwarded-For {http.request.remote.host}
