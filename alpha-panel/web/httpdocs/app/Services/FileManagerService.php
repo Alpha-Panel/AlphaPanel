@@ -93,49 +93,22 @@ class FileManagerService
         // we resolve it to the real target path via the parent listing.
         $resolvedPath = $this->resolveSymlinksInPath($path);
 
-        // Get raw FTP listing for permissions and timestamps
+        // Use raw FTP listing as primary source — includes hidden files via -a flag
         $rawData = $this->getRawListingData($resolvedPath);
 
-        $contents = $this->filesystem->listContents($resolvedPath, false);
         $items = [];
 
-        /** @var StorageAttributes $item */
-        foreach ($contents as $item) {
-            $itemPath = $item->path();
-            $isSymlink = str_contains($itemPath, ' -> ');
-
-            if ($isSymlink) {
-                [$linkName, $target] = $this->parseSymlinkEntry($itemPath);
-                $name = $linkName;
-                $itemPath = $path === '' ? $name : $path.'/'.$name;
-                $type = 'directory';
-            } else {
-                $name = basename($itemPath);
-                $itemPath = $path === '' ? $name : $path.'/'.$name;
-                $type = $item->isDir() ? 'directory' : 'file';
-            }
-
-            // Merge permissions, timestamps, and size from raw FTP listing
-            $raw = $rawData[$name] ?? null;
-
-            $size = $raw['size'] ?? null;
-
-            if ($type === 'file' && $size === null) {
-                try {
-                    $size = $this->filesystem->fileSize($item->path());
-                } catch (\Throwable) {
-                    $type = 'directory';
-                }
-            }
+        foreach ($rawData as $name => $raw) {
+            $itemPath = $path === '' ? $name : $path.'/'.$name;
 
             $items[] = [
                 'name' => $name,
                 'path' => $itemPath,
-                'type' => $type,
-                'size' => $size,
-                'lastModified' => $raw['lastModified'] ?? $item->lastModified(),
-                'permissions' => $raw['permissions'] ?? null,
-                'permissionsOctal' => $raw['permissionsOctal'] ?? null,
+                'type' => $raw['type'],
+                'size' => $raw['size'],
+                'lastModified' => $raw['lastModified'],
+                'permissions' => $raw['permissions'],
+                'permissionsOctal' => $raw['permissionsOctal'],
             ];
         }
 
@@ -268,9 +241,9 @@ class FileManagerService
     }
 
     /**
-     * Get raw FTP listing data (permissions, timestamps, size) for a directory.
+     * Get raw FTP listing data (permissions, timestamps, size, type) for a directory.
      *
-     * @return array<string, array{permissions: string, permissionsOctal: string, lastModified: int|null, size: int|null}>
+     * @return array<string, array{type: string, permissions: string, permissionsOctal: string, lastModified: int|null, size: int|null}>
      */
     private function getRawListingData(string $path): array
     {
@@ -283,7 +256,8 @@ class FileManagerService
         try {
             $ftpPath = $path === '' ? '/' : '/'.$path;
 
-            // Try listing with and without -a flag for server compatibility
+            // Use -a flag to include hidden files (dotfiles).
+            // vsftpd also needs force_dot_files=YES in its config.
             $rawList = @ftp_rawlist($conn, '-a '.$ftpPath);
 
             if ($rawList === false || $rawList === []) {
@@ -339,7 +313,11 @@ class FileManagerService
                 // Ignore
             }
 
+            $isDir = $perms[0] === 'd';
+            $type = $isDir ? 'directory' : ($isSymlink ? 'directory' : 'file');
+
             $data[$name] = [
+                'type' => $type,
                 'permissions' => $rwx,
                 'permissionsOctal' => $octal,
                 'lastModified' => $lastModified,
