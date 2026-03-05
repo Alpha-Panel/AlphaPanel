@@ -133,14 +133,25 @@
                         </div>
 
                         <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] xl:col-span-7">
-                            <div class="mb-4 flex items-center">
+                            <div class="mb-4 flex items-center gap-3">
                                 <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
                                     <i class="bx bx-box mr-1"></i>
                                     {{ t('Docker Services') }}
                                 </h4>
-                                <span class="ml-auto inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                                    {{ containers.length }} {{ t('containers') }}
-                                </span>
+                                <div class="ml-auto flex items-center gap-2">
+                                    <div class="relative">
+                                        <i class="bx bx-search absolute left-2 top-1/2 -translate-y-1/2 text-sm text-gray-400"></i>
+                                        <input
+                                            v-model="containerSearch"
+                                            type="text"
+                                            :placeholder="t('Filter...')"
+                                            class="h-7 w-36 rounded border border-gray-300 bg-transparent pl-7 pr-2 text-xs text-gray-700 placeholder-gray-400 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-gray-300 dark:placeholder-gray-500"
+                                        />
+                                    </div>
+                                    <span class="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                                        {{ filteredContainers.length }} / {{ containers.length }}
+                                    </span>
+                                </div>
                             </div>
 
                             <div v-if="dockerServices?.has_error" class="py-6 text-center text-gray-500 dark:text-gray-400">
@@ -161,7 +172,7 @@
                                     </thead>
                                     <tbody>
                                         <tr
-                                            v-for="container in containers"
+                                            v-for="container in filteredContainers"
                                             :key="container.id"
                                             class="border-b border-gray-100 last:border-0 dark:border-gray-800"
                                         >
@@ -311,6 +322,7 @@
                                             <th class="pb-3">{{ t('Type') }}</th>
                                             <th class="pb-3">{{ t('Status') }}</th>
                                             <th class="pb-3">{{ t('Created') }}</th>
+                                            <th class="pb-3 text-center">{{ t('Actions') }}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -318,7 +330,7 @@
                                             v-if="recentDomains.length === 0"
                                             class="border-b border-gray-100 dark:border-gray-800"
                                         >
-                                            <td colspan="4" class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                                            <td colspan="5" class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
                                                 {{ t('No domains yet.') }}
                                             </td>
                                         </tr>
@@ -362,6 +374,38 @@
                                             </td>
                                             <td class="py-3 align-top text-xs text-gray-500 dark:text-gray-400">
                                                 {{ domain.created_ago }}
+                                            </td>
+                                            <td class="py-3 align-top text-center">
+                                                <div class="flex justify-center gap-1">
+                                                    <Link
+                                                        :href="route('domains.files.index', domain.id)"
+                                                        class="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-brand-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-brand-400"
+                                                        :title="t('File Manager')"
+                                                    >
+                                                        <i class="bx bx-folder text-sm"></i>
+                                                    </Link>
+                                                    <Link
+                                                        :href="route('domains.dns.index', domain.id)"
+                                                        class="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-blue-light-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-blue-light-400"
+                                                        :title="t('DNS')"
+                                                    >
+                                                        <i class="bx bx-globe text-sm"></i>
+                                                    </Link>
+                                                    <Link
+                                                        :href="route('domains.cloudflare.manage', domain.id)"
+                                                        class="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-warning-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-warning-400"
+                                                        :title="t('Cloudflare')"
+                                                    >
+                                                        <i class="bx bx-cloud text-sm"></i>
+                                                    </Link>
+                                                    <Link
+                                                        :href="route('domains.cloudflare.status', domain.id)"
+                                                        class="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-error-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-error-400"
+                                                        :title="t('Under Attack Mode')"
+                                                    >
+                                                        <i class="bx bx-shield text-sm"></i>
+                                                    </Link>
+                                                </div>
                                             </td>
                                         </tr>
                                     </tbody>
@@ -582,6 +626,7 @@ const HIDDEN_DASHBOARD_POLL_MS = 60000;
 const dashboard = ref<DashboardPayload>(props.dashboard);
 const showSleeping = ref<boolean>(dashboard.value.mysql_monitor?.show_sleeping ?? false);
 const dockerActionLoading = ref<string | null>(null);
+const containerSearch = ref('');
 const cpuHistory = ref<number[]>([]);
 const hasShownRefreshError = ref(false);
 
@@ -597,6 +642,15 @@ const dockerServices = computed(() => dashboard.value.docker_services);
 const mysqlMonitor = computed(() => dashboard.value.mysql_monitor);
 const recentDomains = computed(() => dashboard.value.recent_domains ?? []);
 const containers = computed(() => dockerServices.value?.containers ?? []);
+const filteredContainers = computed(() => {
+    const q = containerSearch.value.toLowerCase().trim();
+    if (!q) {
+        return containers.value;
+    }
+    return containers.value.filter(
+        (c) => c.name.toLowerCase().includes(q) || c.image.toLowerCase().includes(q),
+    );
+});
 const processes = computed(() => mysqlMonitor.value?.processes ?? []);
 
 let cpuChart: ApexChartInstance | null = null;
