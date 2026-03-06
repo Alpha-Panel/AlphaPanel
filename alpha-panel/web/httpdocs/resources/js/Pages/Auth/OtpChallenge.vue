@@ -167,6 +167,7 @@ const onLocaleChange = (event: Event): void => {
         return;
     }
 
+    localStorage.setItem('locale', target.value);
     router.post(route('locale.set'), { locale: target.value }, {
         preserveScroll: true,
         preserveState: false,

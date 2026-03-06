@@ -511,6 +511,7 @@ const switchLocale = (lang: string): void => {
 
     isLocaleMenuOpen.value = false;
     localeSearchQuery.value = '';
+    localStorage.setItem('locale', lang);
     router.post(route('locale.set'), { locale: lang }, {
         preserveScroll: true,
         onSuccess: () => {

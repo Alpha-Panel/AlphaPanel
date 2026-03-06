@@ -29,14 +29,17 @@ Route::post('/locale', function (Request $request) {
         'locale' => ['required', 'string', Rule::in($supportedLocales)],
     ]);
 
-    $request->session()->put('locale', $validated['locale']);
-    app()->setLocale($validated['locale']);
+    $locale = $validated['locale'];
+    $request->session()->put('locale', $locale);
+    app()->setLocale($locale);
+
+    $cookie = cookie('locale', $locale, 60 * 24 * 365, '/', null, null, false);
 
     if ($request->expectsJson()) {
-        return response()->json(['locale' => app()->getLocale()]);
+        return response()->json(['locale' => app()->getLocale()])->cookie($cookie);
     }
 
-    return back();
+    return back()->cookie($cookie);
 })->name('locale.set');
 /*
 |--------------------------------------------------------------------------

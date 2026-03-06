@@ -17,7 +17,9 @@ class SetLocale
             $request->session()->put('locale', $queryLocale);
         }
 
-        $locale = $request->session()->get('locale', config('app.locale', 'en'));
+        $locale = $request->cookie('locale')
+            ?? $request->session()->get('locale')
+            ?? config('app.locale', 'en');
 
         if (! is_string($locale) || ! in_array($locale, $supportedLocales, true)) {
             $locale = (string) config('app.locale', 'en');
