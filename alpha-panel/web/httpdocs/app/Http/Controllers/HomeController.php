@@ -6,6 +6,7 @@ use App\Enums\DomainStatus;
 use App\Models\Domain;
 use App\Models\ManagedDatabase;
 use App\Models\User;
+use App\Services\CloudflareDnsService;
 use App\Services\HostMetricsService;
 use App\Services\MysqlAdminService;
 use App\Services\PortainerService;
@@ -144,13 +145,18 @@ class HomeController extends Controller
      */
     private function buildRecentDomains(User $user): array
     {
-        return Domain::query()
+        $domains = Domain::query()
             ->with('phpVersion')
             ->whereNull('parent_domain_id')
             ->when(! $user->isAdmin(), fn ($query) => $query->where('owner_user_id', $user->id))
             ->latest()
             ->limit(8)
-            ->get()
+            ->get();
+
+        $cloudflare = app(CloudflareDnsService::class);
+        $underAttackMap = $this->getUnderAttackStatuses($domains, $cloudflare);
+
+        return $domains
             ->map(fn (Domain $domain): array => [
                 'id' => $domain->id,
                 'fqdn' => $domain->fqdn,
@@ -161,9 +167,48 @@ class HomeController extends Controller
                 'php_version' => $domain->phpVersion?->slug,
                 'created_ago' => $domain->created_at?->diffForHumans(short: true),
                 'show_url' => route('domains.show', $domain),
+                'cloudflare_enabled' => (bool) $domain->cloudflare_enabled,
+                'under_attack' => $underAttackMap[$domain->id] ?? null,
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Collection<int, Domain>  $domains
+     * @return array<int, bool|null>
+     */
+    private function getUnderAttackStatuses($domains, CloudflareDnsService $cloudflare): array
+    {
+        $map = [];
+
+        foreach ($domains as $domain) {
+            if (! $domain->cloudflare_enabled) {
+                $map[$domain->id] = null;
+
+                continue;
+            }
+
+            $cacheKey = "dashboard:under-attack:{$domain->id}";
+
+            $map[$domain->id] = Cache::remember($cacheKey, now()->addMinutes(2), function () use ($domain, $cloudflare): ?bool {
+                try {
+                    $zoneSummary = $cloudflare->getZoneSummary($domain->fqdn);
+
+                    if (! ($zoneSummary['exists'] ?? false) || ! is_string($zoneSummary['zone_id'] ?? null)) {
+                        return null;
+                    }
+
+                    $setting = $cloudflare->getZoneSetting($zoneSummary['zone_id'], 'security_level');
+
+                    return ($setting['value'] ?? null) === 'under_attack';
+                } catch (\Throwable) {
+                    return null;
+                }
+            });
+        }
+
+        return $map;
     }
 
     /**

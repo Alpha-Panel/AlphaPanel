@@ -314,7 +314,7 @@
                                 </Link>
                             </div>
 
-                            <div class="max-h-[320px] overflow-auto">
+                            <div class="max-h-80 overflow-x-hidden overflow-y-auto">
                                 <table class="w-full text-sm">
                                     <thead>
                                         <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
@@ -398,13 +398,28 @@
                                                     >
                                                         <i class="bx bx-cloud text-sm"></i>
                                                     </Link>
-                                                    <Link
-                                                        :href="route('domains.cloudflare.status', domain.id)"
-                                                        class="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-error-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-error-400"
-                                                        v-tooltip="t('Under Attack Mode')"
+                                                    <button
+                                                        v-if="domain.cloudflare_enabled"
+                                                        :key="`ua-${domain.id}-${domain.under_attack}`"
+                                                        @click="toggleUnderAttack(domain)"
+                                                        :disabled="underAttackLoading === domain.id"
+                                                        :class="[
+                                                            'inline-flex h-6 w-6 items-center justify-center rounded disabled:opacity-50',
+                                                            domain.under_attack
+                                                                ? 'bg-error-500/20 text-error-600 hover:bg-error-500/30 dark:text-error-400'
+                                                                : 'text-gray-500 hover:bg-gray-100 hover:text-error-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-error-400',
+                                                        ]"
+                                                        v-tooltip="t('Under Attack Mode') + '\n' + (domain.under_attack ? t('On') : t('Off'))"
+                                                    >
+                                                        <i :class="['bx text-sm', underAttackLoading === domain.id ? 'bx-loader-alt animate-spin' : 'bx-shield']"></i>
+                                                    </button>
+                                                    <span
+                                                        v-else
+                                                        class="inline-flex h-6 w-6 items-center justify-center rounded text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                                                        v-tooltip="t('Cloudflare is not active for this domain.')"
                                                     >
                                                         <i class="bx bx-shield text-sm"></i>
-                                                    </Link>
+                                                    </span>
                                                 </div>
                                             </td>
                                         </tr>
@@ -569,6 +584,8 @@ interface RecentDomain {
     php_version: string | null;
     created_ago: string;
     show_url: string;
+    cloudflare_enabled: boolean;
+    under_attack: boolean | null;
 }
 
 interface MysqlProcess {
@@ -652,6 +669,27 @@ const filteredContainers = computed(() => {
     );
 });
 const processes = computed(() => mysqlMonitor.value?.processes ?? []);
+const underAttackLoading = ref<number | null>(null);
+
+const toggleUnderAttack = async (domain: RecentDomain): Promise<void> => {
+    if (underAttackLoading.value !== null) return;
+    underAttackLoading.value = domain.id;
+
+    try {
+        const newValue = !domain.under_attack;
+        const response = await axios.post(route('domains.cloudflare.setting', domain.id), {
+            setting: 'under_attack',
+            value: newValue,
+        });
+        domain.under_attack = newValue;
+        addToast('success', response.data.message ?? t('Cloudflare setting updated.'));
+    } catch (error: any) {
+        const message = error?.response?.data?.message ?? t('Cloudflare setting update failed.');
+        addToast('error', String(message));
+    } finally {
+        underAttackLoading.value = null;
+    }
+};
 
 let cpuChart: ApexChartInstance | null = null;
 let ramChart: ApexChartInstance | null = null;
