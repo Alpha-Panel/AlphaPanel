@@ -597,5 +597,13 @@
     "Redis queue dashboard and manager with auto-balancing.": "Avtomatik balanslaşdırma ilə Redis növbə paneli və meneceri.",
     ":process enabled successfully.": ":process uğurla aktivləşdirildi.",
     ":process disabled successfully.": ":process uğurla deaktiv edildi.",
-    "Failed to update supervisor configuration: :error": "Supervisor konfiqurasiyası yenilənə bilmədi: :error"
+    "Failed to update supervisor configuration: :error": "Supervisor konfiqurasiyası yenilənə bilmədi: :error",
+    "Terminal Logs": "Terminal Logları",
+    "Search commands, containers...": "Əmr, konteyner axtar...",
+    "All Types": "Bütün Tiplər",
+    "Container": "Konteyner",
+    "Command": "Əmr",
+    "Output": "Çıxış",
+    "No output captured.": "Çıxış qeydə alınmadı.",
+    "Failed to load output.": "Çıxış yüklənə bilmədi."
 }

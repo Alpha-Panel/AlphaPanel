@@ -597,5 +597,13 @@
     "Redis queue dashboard and manager with auto-balancing.": "Redis queue dashboard and manager with auto-balancing.",
     ":process enabled successfully.": ":process enabled successfully.",
     ":process disabled successfully.": ":process disabled successfully.",
-    "Failed to update supervisor configuration: :error": "Failed to update supervisor configuration: :error"
+    "Failed to update supervisor configuration: :error": "Failed to update supervisor configuration: :error",
+    "Terminal Logs": "Terminal Logs",
+    "Search commands, containers...": "Search commands, containers...",
+    "All Types": "All Types",
+    "Container": "Container",
+    "Command": "Command",
+    "Output": "Output",
+    "No output captured.": "No output captured.",
+    "Failed to load output.": "Failed to load output."
 }

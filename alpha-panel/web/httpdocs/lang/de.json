@@ -597,5 +597,13 @@
     "Redis queue dashboard and manager with auto-balancing.": "Redis-Warteschlangen-Dashboard und -Manager mit automatischem Ausgleich.",
     ":process enabled successfully.": ":process erfolgreich aktiviert.",
     ":process disabled successfully.": ":process erfolgreich deaktiviert.",
-    "Failed to update supervisor configuration: :error": "Supervisor-Konfiguration konnte nicht aktualisiert werden: :error"
+    "Failed to update supervisor configuration: :error": "Supervisor-Konfiguration konnte nicht aktualisiert werden: :error",
+    "Terminal Logs": "Terminal-Protokolle",
+    "Search commands, containers...": "Befehle, Container suchen...",
+    "All Types": "Alle Typen",
+    "Container": "Container",
+    "Command": "Befehl",
+    "Output": "Ausgabe",
+    "No output captured.": "Keine Ausgabe erfasst.",
+    "Failed to load output.": "Ausgabe konnte nicht geladen werden."
 }

@@ -597,5 +597,13 @@
     "Redis queue dashboard and manager with auto-balancing.": "Панель управления очередями Redis с автобалансировкой.",
     ":process enabled successfully.": ":process успешно включён.",
     ":process disabled successfully.": ":process успешно отключён.",
-    "Failed to update supervisor configuration: :error": "Не удалось обновить конфигурацию supervisor: :error"
+    "Failed to update supervisor configuration: :error": "Не удалось обновить конфигурацию supervisor: :error",
+    "Terminal Logs": "Логи терминала",
+    "Search commands, containers...": "Поиск команд, контейнеров...",
+    "All Types": "Все типы",
+    "Container": "Контейнер",
+    "Command": "Команда",
+    "Output": "Вывод",
+    "No output captured.": "Вывод не записан.",
+    "Failed to load output.": "Не удалось загрузить вывод."
 }

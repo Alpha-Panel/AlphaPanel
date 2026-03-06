@@ -597,5 +597,13 @@
     "Redis queue dashboard and manager with auto-balancing.": "Panel y gestor de colas Redis con equilibrio automático.",
     ":process enabled successfully.": ":process activado correctamente.",
     ":process disabled successfully.": ":process desactivado correctamente.",
-    "Failed to update supervisor configuration: :error": "Error al actualizar la configuración del supervisor: :error"
+    "Failed to update supervisor configuration: :error": "Error al actualizar la configuración del supervisor: :error",
+    "Terminal Logs": "Registros de Terminal",
+    "Search commands, containers...": "Buscar comandos, contenedores...",
+    "All Types": "Todos los Tipos",
+    "Container": "Contenedor",
+    "Command": "Comando",
+    "Output": "Salida",
+    "No output captured.": "No se capturó salida.",
+    "Failed to load output.": "Error al cargar la salida."
 }

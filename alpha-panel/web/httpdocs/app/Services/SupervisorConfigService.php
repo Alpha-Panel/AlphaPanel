@@ -59,7 +59,7 @@ class SupervisorConfigService
         $fqdn = $domain->fqdn;
         $slug = str_replace('.', '-', $fqdn);
         $type = $supervisor->type;
-        $httpdocs = "/var/www/vhosts/{$fqdn}/httpdocs";
+        $httpdocs = $domain->getBasePath().'/httpdocs';
 
         $programName = $slug.'-'.$type->programSuffix();
         $command = "/usr/local/bin/php {$httpdocs}/artisan {$type->artisanCommand()}";

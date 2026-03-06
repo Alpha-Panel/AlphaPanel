@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Services\PortainerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -40,9 +41,17 @@ class TerminalController extends Controller
             'api_key' => $portainer->getExecWebSocketHeaders()['X-API-Key'],
             'container_name' => $containerName,
             'user_id' => $request->user()->id,
+            'ip_address' => $request->ip(),
+            'port' => $request->server('REMOTE_PORT'),
         ], now()->addSeconds(30));
 
         Log::info("[Terminal] Created session {$sessionId} for {$containerName} (exec={$execId})");
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'terminal_opened',
+            'summary' => "Container: {$containerName}",
+        ]);
 
         return response()->json([
             'session_id' => $sessionId,
@@ -68,9 +77,17 @@ class TerminalController extends Controller
             'ssh_user' => config('panel.ssh_user'),
             'ssh_key_path' => config('panel.ssh_key_path'),
             'user_id' => $request->user()->id,
+            'ip_address' => $request->ip(),
+            'port' => $request->server('REMOTE_PORT'),
         ], now()->addSeconds(30));
 
         Log::info("[Terminal] Created SSH session {$sessionId} for user {$request->user()->id}");
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'terminal_opened',
+            'summary' => 'Host Terminal (SSH)',
+        ]);
 
         return response()->json([
             'session_id' => $sessionId,
@@ -89,6 +106,12 @@ class TerminalController extends Controller
         ]);
 
         Log::info('[Terminal] Stop requested for session '.$request->input('session_id'));
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'terminal_closed',
+            'summary' => 'Session: '.$request->input('session_id'),
+        ]);
 
         return response()->json(['ok' => true]);
     }

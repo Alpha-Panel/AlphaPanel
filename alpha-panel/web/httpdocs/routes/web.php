@@ -12,6 +12,7 @@ use App\Http\Controllers\FileManagerController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PhpSettingsController;
 use App\Http\Controllers\TerminalController;
+use App\Http\Controllers\TerminalLogController;
 use App\Http\Controllers\TwoFactorAuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WebAuthn\WebAuthnLoginController;
@@ -225,6 +226,11 @@ Route::middleware('auth')->group(function (): void {
         Route::get('audit-logs/options/users', [AuditLogController::class, 'usersOptions'])->name('audit-logs.options.users');
         Route::get('audit-logs/options/actions', [AuditLogController::class, 'actionsOptions'])->name('audit-logs.options.actions');
         Route::get('audit-logs/options/domains', [AuditLogController::class, 'domainsOptions'])->name('audit-logs.options.domains');
+
+        Route::get('terminal-logs', [TerminalLogController::class, 'index'])->name('terminal-logs.index');
+        Route::get('terminal-logs/json', [TerminalLogController::class, 'json'])->name('terminal-logs.json');
+        Route::get('terminal-logs/options/users', [TerminalLogController::class, 'usersOptions'])->name('terminal-logs.options.users');
+        Route::get('terminal-logs/{terminalLog}', [TerminalLogController::class, 'show'])->name('terminal-logs.show');
     });
 
     Route::get('/pma/domain/{domain}/database/{database}/sso', [\App\Http\Controllers\PmaSsoController::class, 'database'])

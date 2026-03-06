@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\DomainStatus;
+use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Models\ManagedDatabase;
 use App\Models\User;
@@ -93,6 +94,14 @@ class HomeController extends Controller
             'restart' => __('restarted'),
             default => $action,
         };
+
+        AuditLog::create([
+            'user_id' => $user->id,
+            'action' => "docker_{$action}",
+            'summary' => $result
+                ? "{$containerName} {$label}"
+                : "{$containerName} — action failed",
+        ]);
 
         return response()->json([
             'success' => $result,

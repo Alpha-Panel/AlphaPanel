@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\TerminalLog;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -56,8 +57,18 @@ class TerminalServeCommand extends Command
         $sshPipes = [];
         $sshWsBuffer = '';
 
+        // Terminal command logging
+        $commandBuffer = '';
+        $outputBuffer = '';
+        $lastLogId = null;
+        $userId = null;
+        $containerName = 'unknown';
+        $clientIp = null;
+        $clientPort = null;
+
         // Register close/error at the top level so they always fire
-        $conn->on('close', function () use (&$portainerConn, &$sessionId, &$sessionType, &$sshProcess, &$sshPipes, $loop) {
+        $conn->on('close', function () use (&$portainerConn, &$sessionId, &$sessionType, &$sshProcess, &$sshPipes, $loop, &$outputBuffer, &$lastLogId) {
+            $this->flushOutput($outputBuffer, $lastLogId);
             Log::info("[TerminalServe] Browser disconnected (session={$sessionId})");
             if ($sessionType === 'ssh') {
                 $this->cleanupSsh($sshProcess, $sshPipes, $loop);
@@ -88,6 +99,13 @@ class TerminalServeCommand extends Command
             &$sshProcess,
             &$sshPipes,
             &$sshWsBuffer,
+            &$commandBuffer,
+            &$outputBuffer,
+            &$lastLogId,
+            &$userId,
+            &$containerName,
+            &$clientIp,
+            &$clientPort,
         ) {
             if ($handshakeDone) {
                 if ($sessionType === 'ssh') {
@@ -103,6 +121,7 @@ class TerminalServeCommand extends Command
                         if (($frame['opcode'] === 0x01 || $frame['opcode'] === 0x02)
                             && isset($sshPipes[0]) && is_resource($sshPipes[0])) {
                             @fwrite($sshPipes[0], $frame['payload']);
+                            $this->bufferCommand($commandBuffer, $frame['payload'], $userId, $sessionId, $sessionType, $containerName, $clientIp, $clientPort, $outputBuffer, $lastLogId);
                         }
                     }
 
@@ -111,6 +130,7 @@ class TerminalServeCommand extends Command
 
                 // Both handshakes complete — raw proxy (Portainer)
                 if ($proxyActive && $portainerConn !== null) {
+                    $this->captureFromWsFrames($commandBuffer, $chunk, $userId, $sessionId, $sessionType, $containerName, $clientIp, $clientPort, $outputBuffer, $lastLogId);
                     $portainerConn->write($chunk);
                 } else {
                     // Portainer TCP open but its WS handshake pending; buffer
@@ -164,6 +184,9 @@ class TerminalServeCommand extends Command
             $sessionId = $sessionData['session_id'];
             $sessionType = $sessionData['type'] ?? 'portainer';
             $containerName = $sessionData['container_name'];
+            $userId = $sessionData['user_id'] ?? null;
+            $clientIp = $sessionData['ip_address'] ?? null;
+            $clientPort = $sessionData['port'] ?? null;
 
             // Extract browser's Sec-WebSocket-Key
             $wsKey = '';
@@ -186,7 +209,7 @@ class TerminalServeCommand extends Command
                 Log::info("[TerminalServe] Session {$sessionId} ({$containerName}) — starting SSH bridge");
                 $this->startSshBridge(
                     $conn, $loop, $sessionData, $wsKey, $sessionId,
-                    $sshProcess, $sshPipes,
+                    $sshProcess, $sshPipes, $outputBuffer, $lastLogId,
                 );
 
                 return;
@@ -227,6 +250,8 @@ class TerminalServeCommand extends Command
                     $wsKey,
                     $leftover,
                     $sessionId,
+                    &$outputBuffer,
+                    &$lastLogId,
                 ) {
                     $portainerConn = $pConn;
 
@@ -256,9 +281,12 @@ class TerminalServeCommand extends Command
                         $wsKey,
                         $leftover,
                         $sessionId,
+                        &$outputBuffer,
+                        &$lastLogId,
                     ) {
                         if ($pHandshakeDone) {
                             // Raw proxy: Portainer → browser
+                            $this->appendOutput($outputBuffer, $lastLogId, $data);
                             $conn->write($data);
 
                             return;
@@ -345,6 +373,8 @@ class TerminalServeCommand extends Command
         string $sessionId,
         mixed &$sshProcess,
         array &$sshPipes,
+        string &$outputBuffer,
+        ?int &$lastLogId,
     ): void {
         // Complete browser WebSocket handshake immediately
         $accept = base64_encode(sha1($wsKey.'258EAFA5-E914-47DA-95CA-C5AB0DC85B11', true));
@@ -389,7 +419,7 @@ class TerminalServeCommand extends Command
         stream_set_blocking($pipes[1], false);
 
         // Read SSH PTY output → encode as WebSocket frame → send to browser
-        $loop->addReadStream($pipes[1], function ($stream) use ($conn, &$sshProcess, &$sshPipes, $loop, $sessionId) {
+        $loop->addReadStream($pipes[1], function ($stream) use ($conn, &$sshProcess, &$sshPipes, $loop, $sessionId, &$outputBuffer, &$lastLogId) {
             $data = @fread($stream, 65535);
             if ($data === false || $data === '') {
                 if (! is_resource($stream) || @feof($stream)) {
@@ -403,6 +433,7 @@ class TerminalServeCommand extends Command
                 return;
             }
 
+            $this->appendOutput($outputBuffer, $lastLogId, $data);
             $conn->write($this->encodeWsFrame($data));
         });
 
@@ -434,6 +465,151 @@ class TerminalServeCommand extends Command
 
         $process = null;
         $pipes = [];
+    }
+
+    /**
+     * Buffer keystrokes and log when Enter (\r) is pressed.
+     */
+    private function bufferCommand(
+        string &$buffer,
+        string $payload,
+        ?int $userId,
+        string $sessionId,
+        string $sessionType,
+        string $containerName,
+        ?string $clientIp,
+        mixed $clientPort,
+        string &$outputBuffer,
+        ?int &$lastLogId,
+    ): void {
+        for ($i = 0; $i < strlen($payload); $i++) {
+            $char = $payload[$i];
+
+            if ($char === "\r" || $char === "\n") {
+                $command = trim($buffer);
+                $buffer = '';
+
+                if ($command !== '' && $userId !== null) {
+                    // Flush output from previous command before logging new one
+                    $this->flushOutput($outputBuffer, $lastLogId);
+
+                    $lastLogId = $this->logTerminalCommand(
+                        $userId, $sessionId, $sessionType, $containerName, $command, $clientIp, $clientPort,
+                    );
+                    $outputBuffer = '';
+                }
+
+                continue;
+            }
+
+            // Handle backspace
+            if ($char === "\x7f" || $char === "\x08") {
+                $buffer = mb_substr($buffer, 0, -1);
+
+                continue;
+            }
+
+            // Ignore control characters (except printable ones)
+            if (ord($char) < 32 && $char !== "\t") {
+                continue;
+            }
+
+            $buffer .= $char;
+        }
+    }
+
+    /**
+     * Try to decode WebSocket frames from raw proxy data and capture commands.
+     */
+    private function captureFromWsFrames(
+        string &$commandBuffer,
+        string $chunk,
+        ?int $userId,
+        string $sessionId,
+        string $sessionType,
+        string $containerName,
+        ?string $clientIp,
+        mixed $clientPort,
+        string &$outputBuffer,
+        ?int &$lastLogId,
+    ): void {
+        // Make a copy to decode without mutating the forwarded data
+        $tempBuffer = $chunk;
+
+        while (($frame = $this->decodeWsFrame($tempBuffer)) !== null) {
+            if ($frame['opcode'] === 0x01 || $frame['opcode'] === 0x02) {
+                $this->bufferCommand(
+                    $commandBuffer, $frame['payload'], $userId, $sessionId,
+                    $sessionType, $containerName, $clientIp, $clientPort,
+                    $outputBuffer, $lastLogId,
+                );
+            }
+        }
+    }
+
+    /**
+     * Append server output to buffer (max 50KB to avoid memory issues).
+     */
+    private function appendOutput(string &$outputBuffer, ?int $lastLogId, string $data): void
+    {
+        if ($lastLogId === null) {
+            return;
+        }
+
+        // Strip ANSI escape codes for cleaner storage
+        $clean = preg_replace('/\x1B\[[0-9;]*[A-Za-z]/', '', $data) ?? $data;
+
+        if (strlen($outputBuffer) < 51200) {
+            $outputBuffer .= $clean;
+        }
+    }
+
+    /**
+     * Save buffered output to the most recent terminal log entry.
+     */
+    private function flushOutput(string &$outputBuffer, ?int &$lastLogId): void
+    {
+        if ($lastLogId === null || $outputBuffer === '') {
+            return;
+        }
+
+        try {
+            TerminalLog::query()
+                ->whereKey($lastLogId)
+                ->update(['output' => mb_substr(trim($outputBuffer), 0, 50000)]);
+        } catch (\Throwable $e) {
+            Log::warning("[TerminalServe] Failed to save output: {$e->getMessage()}");
+        }
+
+        $outputBuffer = '';
+    }
+
+    private function logTerminalCommand(
+        int $userId,
+        string $sessionId,
+        string $sessionType,
+        string $containerName,
+        string $command,
+        ?string $clientIp,
+        mixed $clientPort,
+    ): ?int {
+        try {
+            $log = TerminalLog::create([
+                'user_id' => $userId,
+                'session_id' => $sessionId,
+                'session_type' => $sessionType,
+                'container_name' => $containerName,
+                'command' => mb_substr($command, 0, 5000),
+                'ip_address' => $clientIp,
+                'port' => is_numeric($clientPort) ? (int) $clientPort : null,
+            ]);
+
+            return $log->id;
+        } catch (\Throwable $e) {
+            Log::warning("[TerminalServe] Failed to log command: {$e->getMessage()}");
+
+            return null;
+        }
     }
 
     /**

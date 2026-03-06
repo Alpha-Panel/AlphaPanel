@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\SupervisorType;
+use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Models\DomainSupervisor;
 use App\Services\SupervisorConfigService;
@@ -71,6 +72,16 @@ class DomainSupervisorController extends Controller
         try {
             $configService->syncSingle($supervisor);
 
+            $action = $validated['enabled'] ? 'supervisor_enabled' : 'supervisor_disabled';
+            $summary = $type->label().($type->supportsNumProcs() ? " (workers: {$supervisor->num_procs})" : '');
+
+            AuditLog::create([
+                'user_id' => $request->user()->id,
+                'action' => $action,
+                'domain_id' => $domain->id,
+                'summary' => $summary,
+            ]);
+
             return response()->json([
                 'status' => 'success',
                 'message' => $validated['enabled']
@@ -81,6 +92,13 @@ class DomainSupervisorController extends Controller
             ]);
         } catch (\Throwable $e) {
             Log::error("Supervisor update failed for {$domain->fqdn}/{$type->value}: {$e->getMessage()}");
+
+            AuditLog::create([
+                'user_id' => $request->user()->id,
+                'action' => 'supervisor_update_failed',
+                'domain_id' => $domain->id,
+                'summary' => "{$type->label()}: {$e->getMessage()}",
+            ]);
 
             return response()->json([
                 'status' => 'error',

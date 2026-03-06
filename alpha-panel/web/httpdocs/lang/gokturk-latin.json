@@ -597,5 +597,13 @@
     "Redis queue dashboard and manager with auto-balancing.": "Otomatik dengeleme ile Redis kuyruk panosu ve yöneticisi.",
     ":process enabled successfully.": ":process başarıyla etkinleştirildi.",
     ":process disabled successfully.": ":process başarıyla devre dışı bırakıldı.",
-    "Failed to update supervisor configuration: :error": "Supervisor yapılandırması güncellenemedi: :error"
+    "Failed to update supervisor configuration: :error": "Supervisor yapılandırması güncellenemedi: :error",
+    "Terminal Logs": "Terminal Logları",
+    "Search commands, containers...": "Komut, container ara...",
+    "All Types": "Tüm Tipler",
+    "Container": "Container",
+    "Command": "Komut",
+    "Output": "Çıktı",
+    "No output captured.": "Çıktı kaydedilmedi.",
+    "Failed to load output.": "Çıktı yüklenemedi."
 }

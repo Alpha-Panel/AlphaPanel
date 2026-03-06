@@ -316,6 +316,18 @@ class AuditLogController extends Controller
             return '<span class="inline-flex rounded-full bg-warning-500/15 px-2 py-0.5 text-xs font-semibold text-warning-700 dark:text-warning-300">'.$label.'</span>';
         }
 
+        if (str_starts_with($action, 'docker_')) {
+            return '<span class="inline-flex rounded-full bg-blue-light-500/15 px-2 py-0.5 text-xs font-semibold text-blue-light-700 dark:text-blue-light-300">'.$label.'</span>';
+        }
+
+        if (str_starts_with($action, 'terminal_')) {
+            return '<span class="inline-flex rounded-full bg-warning-500/15 px-2 py-0.5 text-xs font-semibold text-warning-700 dark:text-warning-300">'.$label.'</span>';
+        }
+
+        if (str_starts_with($action, 'supervisor_')) {
+            return '<span class="inline-flex rounded-full bg-purple-500/15 px-2 py-0.5 text-xs font-semibold text-purple-700 dark:text-purple-300">'.$label.'</span>';
+        }
+
         if (in_array($action, ['deleted', 'renamed'], true)) {
             return '<span class="inline-flex rounded-full bg-error-500/15 px-2 py-0.5 text-xs font-semibold text-error-700 dark:text-error-300">'.$label.'</span>';
         }

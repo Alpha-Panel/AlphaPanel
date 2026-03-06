@@ -234,6 +234,33 @@
                         {{ t('Audit Log') }}
                     </span>
                 </Link>
+                <Link
+                    :href="route('terminal-logs.index')"
+                    :class="[
+                        'menu-item group mt-1',
+                        {
+                            'menu-item-active': isActive(route('terminal-logs.index')),
+                            'menu-item-inactive': !isActive(route('terminal-logs.index')),
+                        },
+                        !isExpanded && !isHovered ? 'lg:justify-center' : 'lg:justify-start',
+                    ]"
+                >
+                    <span
+                        :class="[
+                            isActive(route('terminal-logs.index'))
+                                ? 'menu-item-icon-active'
+                                : 'menu-item-icon-inactive',
+                        ]"
+                    >
+                        <i class="fa-solid fa-terminal text-base"></i>
+                    </span>
+                    <span
+                        v-if="isExpanded || isHovered || isMobileOpen"
+                        class="menu-item-text"
+                    >
+                        {{ t('Terminal Logs') }}
+                    </span>
+                </Link>
             </div>
         </div>
     </aside>
