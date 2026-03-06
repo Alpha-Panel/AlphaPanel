@@ -57,16 +57,26 @@
                                 </div>
 
                                 <div class="flex items-center gap-3">
-                                    <div v-if="process.supports_num_procs && process.enabled" class="flex items-center gap-2">
-                                        <label class="text-xs font-medium text-gray-600 dark:text-gray-400">{{ t('Workers') }}</label>
-                                        <select
-                                            v-model.number="process.num_procs"
-                                            @change="updateProcess(process)"
-                                            :disabled="actionLoading === process.type"
-                                            class="h-8 w-16 rounded border border-gray-300 bg-transparent px-2 text-xs text-gray-700 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-gray-300"
-                                        >
-                                            <option v-for="n in 10" :key="n" :value="n">{{ n }}</option>
-                                        </select>
+                                    <div
+                                        v-if="process.supports_num_procs && process.enabled"
+                                        class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white/80 px-2.5 py-1.5 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900/70"
+                                    >
+                                        <label class="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                            {{ t('Workers') }}
+                                        </label>
+                                        <div class="relative">
+                                            <select
+                                                v-model.number="process.num_procs"
+                                                @change="updateProcess(process)"
+                                                :disabled="actionLoading === process.type"
+                                                class="h-8 w-[4.5rem] appearance-none rounded-md border border-gray-300 bg-white pl-2.5 pr-7 text-sm font-semibold text-gray-700 transition focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                                            >
+                                                <option v-for="n in 10" :key="n" :value="n">{{ n }}</option>
+                                            </select>
+                                            <i
+                                                class="bx bx-chevron-down pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-base text-gray-400 dark:text-gray-500"
+                                            ></i>
+                                        </div>
                                     </div>
 
                                     <button
