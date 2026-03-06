@@ -90,6 +90,11 @@ class Domain extends Model
         return $this->hasOne(PhpSetting::class);
     }
 
+    public function supervisors(): HasMany
+    {
+        return $this->hasMany(DomainSupervisor::class);
+    }
+
     public function searchableAs(): string
     {
         return 'domains';

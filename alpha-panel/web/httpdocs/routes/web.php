@@ -7,6 +7,7 @@ use App\Http\Controllers\DnsController;
 use App\Http\Controllers\DomainCloudflareController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\DomainProvisionController;
+use App\Http\Controllers\DomainSupervisorController;
 use App\Http\Controllers\FileManagerController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PhpSettingsController;
@@ -157,6 +158,10 @@ Route::middleware('auth')->group(function (): void {
     // PHP Settings (per domain)
     Route::get('domains/{domain}/php', [PhpSettingsController::class, 'index'])->name('domains.php.index');
     Route::put('domains/{domain}/php', [PhpSettingsController::class, 'update'])->name('domains.php.update');
+
+    // Laravel Supervisor (per domain)
+    Route::get('domains/{domain}/supervisor', [DomainSupervisorController::class, 'index'])->name('domains.supervisor.index');
+    Route::post('domains/{domain}/supervisor', [DomainSupervisorController::class, 'update'])->name('domains.supervisor.update');
 
     // File Manager (per domain)
     Route::prefix('domains/{domain}/files')->name('domains.files.')->group(function (): void {
