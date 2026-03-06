@@ -135,8 +135,9 @@ const actionLoading = ref<string | null>(null);
 const localProcesses = reactive<Process[]>(props.processes.map((p) => ({ ...p })));
 
 const breadcrumbs = computed(() => [
-    { title: t('Domains'), href: route('domains.index') },
-    { title: props.domain.fqdn, href: route('domains.show', props.domain.id) },
+    { label: t('Domains'), href: route('domains.index') },
+    { label: props.domain.fqdn, href: route('domains.show', props.domain.id) },
+    { label: t('Laravel Processes') },
 ]);
 
 const processIcon = (type: string): string => {
