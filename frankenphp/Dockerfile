@@ -8,6 +8,9 @@ COPY --from=caddy:builder /usr/bin/xcaddy /usr/bin/xcaddy
 # git + ca-certs lazım (repo çekeceğiz)
 RUN apt-get update && apt-get install -y --no-install-recommends \
       git ca-certificates \
+      openssh-client \
+      npm \
+      vim \
     && rm -rf /var/lib/apt/lists/*
 
 # En güncel FrankenPHP kaynaklarını çek

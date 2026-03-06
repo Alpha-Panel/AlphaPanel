@@ -56,6 +56,8 @@ class TerminalServeCommand extends Command
         $sshProcess = null;
         $sshPipes = [];
         $sshWsBuffer = '';
+        $sshEphemeralKeyPath = null;
+        $sshOutputSeen = false;
 
         // Terminal command logging
         $commandBuffer = '';
@@ -67,20 +69,20 @@ class TerminalServeCommand extends Command
         $clientPort = null;
 
         // Register close/error at the top level so they always fire
-        $conn->on('close', function () use (&$portainerConn, &$sessionId, &$sessionType, &$sshProcess, &$sshPipes, $loop, &$outputBuffer, &$lastLogId) {
+        $conn->on('close', function () use (&$portainerConn, &$sessionId, &$sessionType, &$sshProcess, &$sshPipes, &$sshEphemeralKeyPath, $loop, &$outputBuffer, &$lastLogId) {
             $this->flushOutput($outputBuffer, $lastLogId);
             Log::info("[TerminalServe] Browser disconnected (session={$sessionId})");
             if ($sessionType === 'ssh') {
-                $this->cleanupSsh($sshProcess, $sshPipes, $loop);
+                $this->cleanupSsh($sshProcess, $sshPipes, $loop, $sshEphemeralKeyPath);
             } else {
                 $portainerConn?->close();
             }
         });
 
-        $conn->on('error', function (\Throwable $e) use (&$portainerConn, &$sessionId, &$sessionType, &$sshProcess, &$sshPipes, $loop) {
+        $conn->on('error', function (\Throwable $e) use (&$portainerConn, &$sessionId, &$sessionType, &$sshProcess, &$sshPipes, &$sshEphemeralKeyPath, $loop) {
             Log::warning("[TerminalServe] Browser error (session={$sessionId}): ".$e->getMessage());
             if ($sessionType === 'ssh') {
-                $this->cleanupSsh($sshProcess, $sshPipes, $loop);
+                $this->cleanupSsh($sshProcess, $sshPipes, $loop, $sshEphemeralKeyPath);
             } else {
                 $portainerConn?->close();
             }
@@ -99,6 +101,8 @@ class TerminalServeCommand extends Command
             &$sshProcess,
             &$sshPipes,
             &$sshWsBuffer,
+            &$sshEphemeralKeyPath,
+            &$sshOutputSeen,
             &$commandBuffer,
             &$outputBuffer,
             &$lastLogId,
@@ -113,7 +117,7 @@ class TerminalServeCommand extends Command
                     $sshWsBuffer .= $chunk;
                     while (($frame = $this->decodeWsFrame($sshWsBuffer)) !== null) {
                         if ($frame['opcode'] === 0x08) {
-                            $this->cleanupSsh($sshProcess, $sshPipes, $loop);
+                            $this->cleanupSsh($sshProcess, $sshPipes, $loop, $sshEphemeralKeyPath);
                             $conn->close();
 
                             return;
@@ -209,7 +213,7 @@ class TerminalServeCommand extends Command
                 Log::info("[TerminalServe] Session {$sessionId} ({$containerName}) — starting SSH bridge");
                 $this->startSshBridge(
                     $conn, $loop, $sessionData, $wsKey, $sessionId,
-                    $sshProcess, $sshPipes, $outputBuffer, $lastLogId,
+                    $sshProcess, $sshPipes, $sshEphemeralKeyPath, $sshOutputSeen, $outputBuffer, $lastLogId,
                 );
 
                 return;
@@ -373,6 +377,8 @@ class TerminalServeCommand extends Command
         string $sessionId,
         mixed &$sshProcess,
         array &$sshPipes,
+        ?string &$sshEphemeralKeyPath,
+        bool &$sshOutputSeen,
         string &$outputBuffer,
         ?int &$lastLogId,
     ): void {
@@ -385,17 +391,52 @@ class TerminalServeCommand extends Command
             "Sec-WebSocket-Accept: {$accept}\r\n\r\n"
         );
 
-        $sshHost = $sessionData['ssh_host'];
+        $sshHost = is_string($sessionData['ssh_host'] ?? null)
+            ? trim((string) $sessionData['ssh_host'])
+            : '';
         $sshPort = (int) $sessionData['ssh_port'];
         $sshUser = $sessionData['ssh_user'];
-        $sshKeyPath = $sessionData['ssh_key_path'];
+        $sshKeyPath = is_string($sessionData['ssh_key_path'] ?? null)
+            ? trim((string) $sessionData['ssh_key_path'])
+            : '';
+
+        $sshHostCandidates = $this->buildSshHostCandidates($sshHost);
+        $resolvedSshHost = $this->resolveReachableSshHost($sshHostCandidates, $sshPort);
+
+        if ($resolvedSshHost === null) {
+            Log::error(sprintf(
+                '[TerminalServe] No reachable SSH host on port %d (session=%s, candidates=%s)',
+                $sshPort,
+                $sessionId,
+                implode(', ', $sshHostCandidates),
+            ));
+            $errMsg = sprintf(
+                "\033[31m[SSH host unreachable on port %d: %s]\033[0m\r\n",
+                $sshPort,
+                implode(', ', $sshHostCandidates),
+            );
+            $this->sendWsMessageAndClose($conn, $loop, $errMsg);
+
+            return;
+        }
+
+        $resolvedSshKeyPath = $this->resolveSshPrivateKeyPath($sshKeyPath);
+        if ($resolvedSshKeyPath === null) {
+            Log::error("[TerminalServe] SSH key not found/readable for session {$sessionId}");
+            $errMsg = "\033[31m[SSH private key not found/readable]\033[0m\r\n";
+            $this->sendWsMessageAndClose($conn, $loop, $errMsg);
+
+            return;
+        }
+
+        $sshEphemeralKeyPath = $resolvedSshKeyPath;
+        $sshTarget = sprintf('%s@%s', $sshUser, $resolvedSshHost);
 
         $cmd = sprintf(
-            'ssh -tt -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p %d -i %s %s@%s',
+            'ssh -tt -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p %d -i %s %s 2>&1',
             $sshPort,
-            escapeshellarg($sshKeyPath),
-            escapeshellarg($sshUser),
-            escapeshellarg($sshHost),
+            escapeshellarg($resolvedSshKeyPath),
+            escapeshellarg($sshTarget),
         );
 
         $env = getenv();
@@ -406,9 +447,12 @@ class TerminalServeCommand extends Command
 
         if (! is_resource($process)) {
             Log::error("[TerminalServe] Failed to spawn SSH process for session {$sessionId}");
+            if ($sshEphemeralKeyPath !== null && $sshEphemeralKeyPath !== '') {
+                @unlink($sshEphemeralKeyPath);
+                $sshEphemeralKeyPath = null;
+            }
             $errMsg = "\033[31m[Failed to start SSH connection]\033[0m\r\n";
-            $conn->write($this->encodeWsFrame($errMsg, 0x01));
-            $conn->close();
+            $this->sendWsMessageAndClose($conn, $loop, $errMsg);
 
             return;
         }
@@ -417,22 +461,33 @@ class TerminalServeCommand extends Command
         $sshPipes = $pipes;
 
         stream_set_blocking($pipes[1], false);
+        $sshOutputSeen = false;
 
         // Read SSH PTY output → encode as WebSocket frame → send to browser
-        $loop->addReadStream($pipes[1], function ($stream) use ($conn, &$sshProcess, &$sshPipes, $loop, $sessionId, &$outputBuffer, &$lastLogId) {
+        $loop->addReadStream($pipes[1], function ($stream) use ($conn, &$sshProcess, &$sshPipes, &$sshEphemeralKeyPath, &$sshOutputSeen, $loop, $sessionId, &$outputBuffer, &$lastLogId) {
             $data = @fread($stream, 65535);
             if ($data === false || $data === '') {
                 if (! is_resource($stream) || @feof($stream)) {
-                    Log::info("[TerminalServe] SSH process ended (session={$sessionId})");
-                    $msg = "\r\n\033[33m[SSH connection closed]\033[0m\r\n";
-                    $conn->write($this->encodeWsFrame($msg, 0x01));
-                    $this->cleanupSsh($sshProcess, $sshPipes, $loop);
-                    $conn->close();
+                    $status = is_resource($sshProcess) ? @proc_get_status($sshProcess) : false;
+                    $exitCode = is_array($status) && isset($status['exitcode']) ? (int) $status['exitcode'] : null;
+
+                    Log::info("[TerminalServe] SSH process ended (session={$sessionId}, exit_code=".($exitCode ?? -1).')');
+
+                    if (! $sshOutputSeen) {
+                        $msg = "\r\n\033[31m[SSH process closed before interactive session started]\033[0m\r\n";
+                        $msg .= "\033[33m[Check host SSH daemon, firewall and authorized_keys]\033[0m\r\n";
+                    } else {
+                        $msg = "\r\n\033[33m[SSH connection closed]\033[0m\r\n";
+                    }
+
+                    $this->sendWsMessageAndClose($conn, $loop, $msg);
+                    $this->cleanupSsh($sshProcess, $sshPipes, $loop, $sshEphemeralKeyPath);
                 }
 
                 return;
             }
 
+            $sshOutputSeen = true;
             $this->appendOutput($outputBuffer, $lastLogId, $data);
             $conn->write($this->encodeWsFrame($data));
         });
@@ -441,12 +496,124 @@ class TerminalServeCommand extends Command
     }
 
     /**
+     * @return list<string>
+     */
+    private function buildSshHostCandidates(string $configuredHost): array
+    {
+        $candidates = [];
+
+        foreach (explode(',', $configuredHost) as $host) {
+            $trimmedHost = trim($host);
+            if ($trimmedHost === '') {
+                continue;
+            }
+
+            if (! in_array($trimmedHost, $candidates, true)) {
+                $candidates[] = $trimmedHost;
+            }
+        }
+
+        if (! in_array('host.docker.internal', $candidates, true)) {
+            $candidates[] = 'host.docker.internal';
+        }
+
+        $defaultGateway = $this->resolveDefaultGatewayIp();
+        if ($defaultGateway !== null && ! in_array($defaultGateway, $candidates, true)) {
+            $candidates[] = $defaultGateway;
+        }
+
+        return $candidates;
+    }
+
+    /**
+     * @param  list<string>  $hosts
+     */
+    private function resolveReachableSshHost(array $hosts, int $port): ?string
+    {
+        foreach ($hosts as $host) {
+            if ($this->canConnectToHostPort($host, $port)) {
+                return $host;
+            }
+        }
+
+        return null;
+    }
+
+    private function canConnectToHostPort(string $host, int $port, float $timeoutSeconds = 1.5): bool
+    {
+        if ($port <= 0 || $port > 65535 || trim($host) === '') {
+            return false;
+        }
+
+        $errno = 0;
+        $errstr = '';
+        $stream = @fsockopen($host, $port, $errno, $errstr, $timeoutSeconds);
+
+        if (! is_resource($stream)) {
+            return false;
+        }
+
+        @fclose($stream);
+
+        return true;
+    }
+
+    private function resolveDefaultGatewayIp(): ?string
+    {
+        $routes = @file('/proc/net/route', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (! is_array($routes) || count($routes) < 2) {
+            return null;
+        }
+
+        foreach (array_slice($routes, 1) as $line) {
+            $parts = preg_split('/\s+/', trim($line));
+            if (! is_array($parts) || count($parts) < 3) {
+                continue;
+            }
+
+            $destination = strtoupper($parts[1]);
+            $gatewayHex = strtoupper($parts[2]);
+
+            if ($destination !== '00000000' || strlen($gatewayHex) !== 8 || ! ctype_xdigit($gatewayHex)) {
+                continue;
+            }
+
+            $ipParts = [];
+            for ($index = 0; $index < 4; $index++) {
+                $byteHex = substr($gatewayHex, $index * 2, 2);
+                $ipParts[] = (string) hexdec($byteHex);
+            }
+
+            $ip = implode('.', array_reverse($ipParts));
+
+            return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : null;
+        }
+
+        return null;
+    }
+
+    private function sendWsMessageAndClose(ConnectionInterface $conn, mixed $loop, string $message): void
+    {
+        $conn->write($this->encodeWsFrame($message, 0x01));
+
+        if (is_object($loop) && method_exists($loop, 'addTimer')) {
+            $loop->addTimer(0.15, function () use ($conn) {
+                $conn->close();
+            });
+
+            return;
+        }
+
+        $conn->close();
+    }
+
+    /**
      * Clean up SSH process and pipes.
      *
      * @param  resource|null  $process
      * @param  array<int, resource>  $pipes
      */
-    private function cleanupSsh(mixed &$process, array &$pipes, mixed $loop): void
+    private function cleanupSsh(mixed &$process, array &$pipes, mixed $loop, ?string &$ephemeralKeyPath = null): void
     {
         if (isset($pipes[1]) && is_resource($pipes[1])) {
             $loop->removeReadStream($pipes[1]);
@@ -463,8 +630,60 @@ class TerminalServeCommand extends Command
             @proc_close($process);
         }
 
+        if ($ephemeralKeyPath !== null && $ephemeralKeyPath !== '') {
+            @unlink($ephemeralKeyPath);
+        }
+
         $process = null;
         $pipes = [];
+        $ephemeralKeyPath = null;
+    }
+
+    /**
+     * Resolve SSH private key path and copy it to a strict-permission temp file.
+     */
+    private function resolveSshPrivateKeyPath(string $configuredPath): ?string
+    {
+        $candidates = [];
+
+        if ($configuredPath !== '') {
+            $candidates[] = $configuredPath;
+        }
+
+        $fallbackPath = base_path('../ssh-keys/alphapanel_ed25519');
+        if (! in_array($fallbackPath, $candidates, true)) {
+            $candidates[] = $fallbackPath;
+        }
+
+        foreach ($candidates as $candidatePath) {
+            $path = trim((string) $candidatePath);
+
+            if ($path === '' || ! is_file($path) || ! is_readable($path)) {
+                continue;
+            }
+
+            $keyContents = @file_get_contents($path);
+            if ($keyContents === false || trim($keyContents) === '') {
+                continue;
+            }
+
+            $tempPath = tempnam(sys_get_temp_dir(), 'ap-ssh-key-');
+            if ($tempPath === false) {
+                continue;
+            }
+
+            if (@file_put_contents($tempPath, $keyContents) === false) {
+                @unlink($tempPath);
+
+                continue;
+            }
+
+            @chmod($tempPath, 0600);
+
+            return $tempPath;
+        }
+
+        return null;
     }
 
     /**
