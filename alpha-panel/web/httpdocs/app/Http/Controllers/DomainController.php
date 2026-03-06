@@ -19,6 +19,7 @@ use App\Services\ServerNetworkInfoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -518,6 +519,9 @@ class DomainController extends Controller
 
         $domains = $query->skip($start)->take($length)->get();
 
+        $cloudflare = app(CloudflareDnsService::class);
+        $underAttackMap = $this->getUnderAttackStatuses($domains, $cloudflare);
+
         $data = $domains->map(fn (Domain $domain) => [
             'id' => $domain->id,
             'fqdn' => $domain->fqdn,
@@ -533,6 +537,8 @@ class DomainController extends Controller
                 : '-',
             'created_at' => $domain->created_at?->format(config('app.display_datetime_format', 'd.m.Y H:i:s')) ?? '-',
             'owner_name' => $domain->owner->name ?? '-',
+            'cloudflare_enabled' => (bool) $domain->cloudflare_enabled,
+            'under_attack' => $underAttackMap[$domain->id] ?? null,
             'show_url' => route('domains.show', $domain),
             'edit_url' => route('domains.edit', $domain),
             'destroy_url' => route('domains.destroy', $domain),
@@ -544,6 +550,43 @@ class DomainController extends Controller
             'recordsFiltered' => $recordsFiltered,
             'data' => $data,
         ]);
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Collection<int, Domain>  $domains
+     * @return array<int, bool|null>
+     */
+    private function getUnderAttackStatuses($domains, CloudflareDnsService $cloudflare): array
+    {
+        $map = [];
+
+        foreach ($domains as $domain) {
+            if (! $domain->cloudflare_enabled) {
+                $map[$domain->id] = null;
+
+                continue;
+            }
+
+            $cacheKey = "dashboard:under-attack:{$domain->id}";
+
+            $map[$domain->id] = Cache::remember($cacheKey, now()->addMinutes(2), function () use ($domain, $cloudflare): ?bool {
+                try {
+                    $zoneSummary = $cloudflare->getZoneSummary($domain->fqdn);
+
+                    if (! ($zoneSummary['exists'] ?? false) || ! is_string($zoneSummary['zone_id'] ?? null)) {
+                        return null;
+                    }
+
+                    $setting = $cloudflare->getZoneSetting($zoneSummary['zone_id'], 'security_level');
+
+                    return ($setting['value'] ?? null) === 'under_attack';
+                } catch (\Throwable) {
+                    return null;
+                }
+            });
+        }
+
+        return $map;
     }
 
     /**

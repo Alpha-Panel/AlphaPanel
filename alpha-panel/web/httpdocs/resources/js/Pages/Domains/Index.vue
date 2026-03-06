@@ -110,27 +110,73 @@
                                         {{ domain.created_at }}
                                     </td>
                                     <td class="px-5 py-4 text-right md:px-6">
-                                        <div class="flex items-center justify-end gap-2">
+                                        <div class="flex items-center justify-end gap-1.5">
+                                            <Link
+                                                :href="route('domains.files.index', domain.id as number)"
+                                                class="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-300 text-gray-500 hover:bg-gray-100 hover:text-brand-500 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-brand-400"
+                                                v-tooltip="t('File Manager')"
+                                            >
+                                                <i class="bx bx-folder text-sm"></i>
+                                            </Link>
+                                            <Link
+                                                :href="route('domains.dns.index', domain.id as number)"
+                                                class="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-300 text-gray-500 hover:bg-gray-100 hover:text-blue-light-500 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-blue-light-400"
+                                                v-tooltip="t('DNS')"
+                                            >
+                                                <i class="bx bx-globe text-sm"></i>
+                                            </Link>
+                                            <Link
+                                                :href="route('domains.cloudflare.manage', domain.id as number)"
+                                                class="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-300 text-gray-500 hover:bg-gray-100 hover:text-warning-500 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-warning-400"
+                                                v-tooltip="t('Cloudflare')"
+                                            >
+                                                <i class="bx bx-cloud text-sm"></i>
+                                            </Link>
+                                            <button
+                                                v-if="domain.cloudflare_enabled"
+                                                :key="`ua-${domain.id}-${domain.under_attack}`"
+                                                @click="toggleUnderAttack(domain)"
+                                                :disabled="underAttackLoading === (domain.id as number)"
+                                                :class="[
+                                                    'inline-flex h-7 w-7 items-center justify-center rounded border disabled:opacity-50',
+                                                    domain.under_attack
+                                                        ? 'border-error-500/40 bg-error-500/20 text-error-600 hover:bg-error-500/30 dark:text-error-400'
+                                                        : 'border-gray-300 text-gray-500 hover:bg-gray-100 hover:text-error-500 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-error-400',
+                                                ]"
+                                                v-tooltip="t('Under Attack Mode') + '\n' + (domain.under_attack ? t('On') : t('Off'))"
+                                            >
+                                                <i :class="['bx text-sm', underAttackLoading === (domain.id as number) ? 'bx-loader-alt animate-spin' : 'bx-shield']"></i>
+                                            </button>
+                                            <span
+                                                v-else
+                                                class="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-200 text-gray-300 dark:border-gray-800 dark:text-gray-600 cursor-not-allowed"
+                                                v-tooltip="t('Cloudflare is not active for this domain.')"
+                                            >
+                                                <i class="bx bx-shield text-sm"></i>
+                                            </span>
+
+                                            <span class="mx-0.5 h-5 w-px bg-gray-200 dark:bg-gray-700"></span>
+
                                             <Link
                                                 :href="(domain.show_url as string)"
-                                                class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-blue-light-500 text-white hover:bg-blue-light-600"
+                                                class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-blue-light-500 text-white hover:bg-blue-light-600"
                                                 v-tooltip="t('View')"
                                             >
-                                                <i class="bx bx-show text-base"></i>
+                                                <i class="bx bx-show text-sm"></i>
                                             </Link>
                                             <Link
                                                 :href="(domain.edit_url as string)"
-                                                class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-warning-500 text-white hover:bg-warning-600"
+                                                class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-warning-500 text-white hover:bg-warning-600"
                                                 v-tooltip="t('Edit')"
                                             >
-                                                <i class="bx bx-edit text-base"></i>
+                                                <i class="bx bx-edit text-sm"></i>
                                             </Link>
                                             <button
                                                 @click="deleteDomain(domain)"
-                                                class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-error-500 text-white hover:bg-error-600"
+                                                class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-error-500 text-white hover:bg-error-600"
                                                 v-tooltip="t('Delete')"
                                             >
-                                                <i class="bx bx-trash text-base"></i>
+                                                <i class="bx bx-trash text-sm"></i>
                                             </button>
                                         </div>
                                     </td>
@@ -182,6 +228,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import axios from 'axios';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
 import SidebarProvider from '@/Components/Layout/SidebarProvider.vue';
 import AdminLayout from '@/Components/Layout/AdminLayout.vue';
@@ -190,6 +237,7 @@ import Toast from '@/Components/UI/Toast.vue';
 import { useDataTable } from '@/Composables/useDataTable';
 import DomainCreateModal from '@/Components/Domains/DomainCreateModal.vue';
 import { useI18n } from '@/Composables/useI18n';
+import { useToast } from '@/Composables/useToast';
 
 defineProps<{
     phpVersions: Array<Record<string, any>>;
@@ -203,6 +251,30 @@ defineProps<{
 const searchInput = ref('');
 const showCreateDomainModal = ref(false);
 const { t } = useI18n();
+const { addToast } = useToast();
+const underAttackLoading = ref<number | null>(null);
+
+const toggleUnderAttack = async (domain: Record<string, unknown>): Promise<void> => {
+    const id = domain.id as number;
+    if (underAttackLoading.value !== null) return;
+    underAttackLoading.value = id;
+
+    const current = domain.under_attack as boolean;
+
+    try {
+        const response = await axios.post(route('domains.cloudflare.setting', id), {
+            setting: 'under_attack',
+            value: !current,
+        });
+        domain.under_attack = !current;
+        addToast('success', response.data.message ?? t('Cloudflare setting updated.'));
+    } catch (error: any) {
+        const message = error?.response?.data?.message ?? t('Cloudflare setting update failed.');
+        addToast('error', String(message));
+    } finally {
+        underAttackLoading.value = null;
+    }
+};
 
 const table = useDataTable({
     url: route('domains.json'),
