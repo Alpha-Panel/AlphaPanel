@@ -254,7 +254,7 @@
                                                         <button
                                                             @click="openTerminal(container)"
                                                             class="inline-flex h-7 w-7 items-center justify-center rounded border border-blue-light-500/40 text-blue-light-600 hover:bg-blue-light-500/10 dark:text-blue-light-300"
-                                                            :title="t('Terminal')"
+                                                            v-tooltip="t('Terminal')"
                                                         >
                                                             <i class="bx bx-terminal text-base"></i>
                                                         </button>
@@ -262,7 +262,7 @@
                                                             @click="performDockerAction('restart', container)"
                                                             :disabled="isDockerActionLoading('restart', container.id)"
                                                             class="inline-flex h-7 w-7 items-center justify-center rounded border border-warning-500/40 text-warning-600 hover:bg-warning-500/10 disabled:opacity-50 dark:text-warning-300"
-                                                            :title="t('Restart')"
+                                                            v-tooltip="t('Restart')"
                                                         >
                                                             <i class="bx bx-revision text-base"></i>
                                                         </button>
@@ -270,7 +270,7 @@
                                                             @click="performDockerAction('stop', container)"
                                                             :disabled="isDockerActionLoading('stop', container.id)"
                                                             class="inline-flex h-7 w-7 items-center justify-center rounded border border-error-500/40 text-error-600 hover:bg-error-500/10 disabled:opacity-50 dark:text-error-300"
-                                                            :title="t('Stop')"
+                                                            v-tooltip="t('Stop')"
                                                         >
                                                             <i class="bx bx-stop text-base"></i>
                                                         </button>
@@ -280,7 +280,7 @@
                                                         @click="performDockerAction('start', container)"
                                                         :disabled="isDockerActionLoading('start', container.id)"
                                                         class="inline-flex h-7 w-7 items-center justify-center rounded border border-success-500/40 text-success-600 hover:bg-success-500/10 disabled:opacity-50 dark:text-success-300"
-                                                        :title="t('Start')"
+                                                        v-tooltip="t('Start')"
                                                     >
                                                         <i class="bx bx-play text-base"></i>
                                                     </button>
@@ -380,28 +380,28 @@
                                                     <Link
                                                         :href="route('domains.files.index', domain.id)"
                                                         class="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-brand-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-brand-400"
-                                                        :title="t('File Manager')"
+                                                        v-tooltip="t('File Manager')"
                                                     >
                                                         <i class="bx bx-folder text-sm"></i>
                                                     </Link>
                                                     <Link
                                                         :href="route('domains.dns.index', domain.id)"
                                                         class="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-blue-light-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-blue-light-400"
-                                                        :title="t('DNS')"
+                                                        v-tooltip="t('DNS')"
                                                     >
                                                         <i class="bx bx-globe text-sm"></i>
                                                     </Link>
                                                     <Link
                                                         :href="route('domains.cloudflare.manage', domain.id)"
                                                         class="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-warning-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-warning-400"
-                                                        :title="t('Cloudflare')"
+                                                        v-tooltip="t('Cloudflare')"
                                                     >
                                                         <i class="bx bx-cloud text-sm"></i>
                                                     </Link>
                                                     <Link
                                                         :href="route('domains.cloudflare.status', domain.id)"
                                                         class="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-error-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-error-400"
-                                                        :title="t('Under Attack Mode')"
+                                                        v-tooltip="t('Under Attack Mode')"
                                                     >
                                                         <i class="bx bx-shield text-sm"></i>
                                                     </Link>

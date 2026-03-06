@@ -272,79 +272,83 @@ interface SidebarMenuItem {
     subItems?: Array<{ name: string; href: string }>;
 }
 
-const menuGroups = computed(() => [
-    {
-        title: t('Main'),
-        items: [
-            {
-                icon: GridIcon,
-                name: t('Dashboard'),
-                href: route('home'),
-            },
-            {
-                icon: TableIcon,
-                name: t('Domains'),
-                href: route('domains.index'),
-            },
-        ] as SidebarMenuItem[],
-    },
-    {
-        title: t('Management'),
-        items: (() => {
-            if (!isAdmin.value) {
-                return [];
-            }
-
-            const items: SidebarMenuItem[] = [
+const menuGroups = computed(() => {
+    const groups = [
+        {
+            title: t('Main'),
+            items: [
                 {
-                    icon: UserCircleIcon,
-                    name: t('Users'),
-                    href: route('users.list'),
+                    icon: GridIcon,
+                    name: t('Dashboard'),
+                    href: route('home'),
                 },
                 {
-                    iconClass: 'fa-solid fa-terminal',
-                    name: t('Terminal'),
-                    action: () => document.dispatchEvent(new CustomEvent('open-host-terminal')),
+                    icon: TableIcon,
+                    name: t('Domains'),
+                    href: route('domains.index'),
                 },
-                {
-                    iconClass: 'lni lni-mysql',
-                    name: t('phpMyAdmin'),
-                    href: route('pma.admin.sso'),
-                    external: true,
-                },
-            ];
+            ] as SidebarMenuItem[],
+        },
+        {
+            title: t('Management'),
+            items: (() => {
+                if (!isAdmin.value) {
+                    return [];
+                }
 
-            if (externalLinks.value.file_manager) {
-                items.push({
-                    iconClass: 'fa-solid fa-folder-open',
-                    name: t('File Manager'),
-                    href: externalLinks.value.file_manager,
-                    external: true,
-                });
-            }
+                const items: SidebarMenuItem[] = [
+                    {
+                        icon: UserCircleIcon,
+                        name: t('Users'),
+                        href: route('users.list'),
+                    },
+                    {
+                        iconClass: 'fa-solid fa-terminal',
+                        name: t('Terminal'),
+                        action: () => document.dispatchEvent(new CustomEvent('open-host-terminal')),
+                    },
+                    {
+                        iconClass: 'lni lni-mysql',
+                        name: t('phpMyAdmin'),
+                        href: route('pma.admin.sso'),
+                        external: true,
+                    },
+                ];
 
-            if (externalLinks.value.jenkins) {
-                items.push({
-                    iconClass: 'fa-brands fa-jenkins',
-                    name: t('Jenkins'),
-                    href: externalLinks.value.jenkins,
-                    external: true,
-                });
-            }
+                if (externalLinks.value.file_manager) {
+                    items.push({
+                        iconClass: 'fa-solid fa-folder-open',
+                        name: t('File Manager'),
+                        href: externalLinks.value.file_manager,
+                        external: true,
+                    });
+                }
 
-            if (externalLinks.value.n8n) {
-                items.push({
-                    iconClass: 'lni lni-n8n',
-                    name: t('N8N'),
-                    href: externalLinks.value.n8n,
-                    external: true,
-                });
-            }
+                if (externalLinks.value.jenkins) {
+                    items.push({
+                        iconClass: 'fa-brands fa-jenkins',
+                        name: t('Jenkins'),
+                        href: externalLinks.value.jenkins,
+                        external: true,
+                    });
+                }
 
-            return items;
-        })(),
-    },
-]);
+                if (externalLinks.value.n8n) {
+                    items.push({
+                        iconClass: 'lni lni-n8n',
+                        name: t('N8N'),
+                        href: externalLinks.value.n8n,
+                        external: true,
+                    });
+                }
+
+                return items;
+            })(),
+        },
+    ];
+
+    return groups.filter((group) => group.items.length > 0);
+});
 
 const currentUrl = computed(() => page.url);
 

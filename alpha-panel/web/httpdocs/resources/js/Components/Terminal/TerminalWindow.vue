@@ -20,13 +20,13 @@
                 {{ session.containerName }}
             </div>
             <div class="flex items-center gap-1">
-                <button @click.stop="$emit('minimize')" class="rounded p-0.5 text-gray-400 hover:bg-gray-700 hover:text-white" :title="t('Minimize')">
+                <button @click.stop="$emit('minimize')" class="rounded p-0.5 text-gray-400 hover:bg-gray-700 hover:text-white" v-tooltip="t('Minimize')">
                     <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
                 </button>
-                <button @click.stop="$emit('maximize')" class="rounded p-0.5 text-gray-400 hover:bg-gray-700 hover:text-white" :title="t('Maximize')">
+                <button @click.stop="$emit('maximize')" class="rounded p-0.5 text-gray-400 hover:bg-gray-700 hover:text-white" v-tooltip="t('Maximize')">
                     <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
                 </button>
-                <button @click.stop="$emit('close')" class="rounded p-0.5 text-gray-400 hover:bg-red-600 hover:text-white" :title="t('Close')">
+                <button @click.stop="$emit('close')" class="rounded p-0.5 text-gray-400 hover:bg-red-600 hover:text-white" v-tooltip="t('Close')">
                     <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </div>

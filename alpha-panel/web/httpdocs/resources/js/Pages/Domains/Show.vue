@@ -18,7 +18,7 @@
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 shadow-theme-xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/3"
-                                    :title="t('Preview')"
+                                    v-tooltip="t('Preview')"
                                 >
                                     <i class="fa-solid fa-globe text-sm"></i>
                                 </a>
@@ -28,14 +28,14 @@
                                     :disabled="!isCloudflareManagedForDns || cloudflareActionLoading"
                                     @click="purgeCloudflareCache"
                                     class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 shadow-theme-xs hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/3"
-                                    :title="!isCloudflareManagedForDns ? t('Cloudflare is not active for this domain.') : t('Cloudflare')"
+                                    v-tooltip="!isCloudflareManagedForDns ? t('Cloudflare is not active for this domain.') : t('Purge Cache')"
                                 >
                                     <i class="fa-solid fa-broom text-sm"></i>
                                 </button>
                                 <Link
                                     :href="route('domains.edit', domain.id)"
                                     class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 shadow-theme-xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/3"
-                                    :title="t('Edit')"
+                                    v-tooltip="t('Edit')"
                                 >
                                     <i class="fa-solid fa-gears text-sm"></i>
                                 </Link>
@@ -43,7 +43,7 @@
                                     type="button"
                                     @click="deleteDomain(domain.id, false, domain.fqdn)"
                                     class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-error-500/40 text-error-600 hover:bg-error-500/10 dark:text-error-300"
-                                    :title="t('Delete')"
+                                    v-tooltip="t('Delete')"
                                 >
                                     <i class="fa-solid fa-trash text-sm"></i>
                                 </button>
@@ -113,7 +113,7 @@
                                     type="button"
                                     @click="showFtpModal = true"
                                     class="quick-link"
-                                    :title="t('FTP user with stored password required. Update FTP password first.')"
+                                    v-tooltip="t('FTP user with stored password required. Update FTP password first.')"
                                 >
                                     <i class="fa-solid fa-folder-open quick-link-icon"></i>
                                     <span class="quick-link-label">{{ t('File Manager') }}</span>
@@ -154,7 +154,7 @@
                                 type="button"
                                 disabled
                                 class="quick-link quick-link-disabled"
-                                :title="t('DNS management is locked because this domain is not managed on Cloudflare.')"
+                                v-tooltip="t('DNS management is locked because this domain is not managed on Cloudflare.')"
                             >
                                 <i class="fa-solid fa-globe quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('DNS') }}</span>
@@ -184,7 +184,7 @@
                                 type="button"
                                 :disabled="!isCloudflareManagedForDns || cloudflareActionLoading"
                                 class="quick-link"
-                                :title="!isCloudflareManagedForDns ? t('Cloudflare is not active for this domain.') : t('Toggle Under Attack mode')"
+                                v-tooltip="!isCloudflareManagedForDns ? t('Cloudflare is not active for this domain.') : t('Toggle Under Attack mode')"
                                 @click="toggleUnderAttackQuick"
                             >
                                 <i class="fa-solid fa-shield-halved quick-link-icon"></i>
@@ -242,14 +242,14 @@
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/3"
-                                        :title="t('Preview')"
+                                        v-tooltip="t('Preview')"
                                     >
                                         <i class="fa-solid fa-globe text-xs"></i>
                                     </a>
                                     <Link
                                         :href="route('domains.edit', subdomain.id)"
                                         class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/3"
-                                        :title="t('Edit')"
+                                        v-tooltip="t('Edit')"
                                     >
                                         <i class="fa-solid fa-gears text-xs"></i>
                                     </Link>
@@ -257,7 +257,7 @@
                                         type="button"
                                         @click="deleteDomain(subdomain.id, true, subdomain.fqdn)"
                                         class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-error-500/40 text-error-600 hover:bg-error-500/10 dark:text-error-300"
-                                        :title="t('Delete')"
+                                        v-tooltip="t('Delete')"
                                     >
                                         <i class="fa-solid fa-trash text-xs"></i>
                                     </button>
@@ -377,10 +377,10 @@
                                         minlength="8"
                                     />
                                     <div class="absolute inset-y-0 right-1 flex items-center gap-1">
-                                        <button type="button" class="ftp-icon-btn" @click="showFtpPassword = !showFtpPassword" :title="t('Show/Hide')">
+                                        <button type="button" class="ftp-icon-btn" @click="showFtpPassword = !showFtpPassword" v-tooltip="t('Show/Hide')">
                                             <i :class="showFtpPassword ? 'bx bx-show' : 'bx bx-hide'"></i>
                                         </button>
-                                        <button type="button" class="ftp-icon-btn" @click="generateFtpPassword" :title="t('Generate')">
+                                        <button type="button" class="ftp-icon-btn" @click="generateFtpPassword" v-tooltip="t('Generate')">
                                             <i class="bx bx-refresh"></i>
                                         </button>
                                         <button
@@ -389,7 +389,7 @@
                                             class="ftp-icon-btn"
                                             :class="{ 'ftp-icon-btn-success': ftpCopiedPassword }"
                                             @click="copyFtpPassword"
-                                            :title="t('Copy')"
+                                            v-tooltip="t('Copy')"
                                         >
                                             <i :class="ftpCopiedPassword ? 'bx bx-check' : 'bx bx-copy'"></i>
                                         </button>

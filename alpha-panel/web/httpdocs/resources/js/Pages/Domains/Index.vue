@@ -114,21 +114,21 @@
                                             <Link
                                                 :href="(domain.show_url as string)"
                                                 class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-blue-light-500 text-white hover:bg-blue-light-600"
-                                                :title="t('View')"
+                                                v-tooltip="t('View')"
                                             >
                                                 <i class="bx bx-show text-base"></i>
                                             </Link>
                                             <Link
                                                 :href="(domain.edit_url as string)"
                                                 class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-warning-500 text-white hover:bg-warning-600"
-                                                :title="t('Edit')"
+                                                v-tooltip="t('Edit')"
                                             >
                                                 <i class="bx bx-edit text-base"></i>
                                             </Link>
                                             <button
                                                 @click="deleteDomain(domain)"
                                                 class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-error-500 text-white hover:bg-error-600"
-                                                :title="t('Delete')"
+                                                v-tooltip="t('Delete')"
                                             >
                                                 <i class="bx bx-trash text-base"></i>
                                             </button>
