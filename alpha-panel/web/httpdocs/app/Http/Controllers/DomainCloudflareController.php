@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreCloudflareFirewallRuleRequest;
 use App\Http\Requests\UpdateCloudflareDnssecRequest;
 use App\Http\Requests\UpdateCloudflareSettingRequest;
+use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Services\CloudflareDnsService;
 use Illuminate\Http\JsonResponse;
@@ -146,6 +147,11 @@ class DomainCloudflareController extends Controller
         $this->authorize('view', $domain);
         $targetDomain = $this->resolveTargetDomain($domain);
         $zoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
+        $beforeState = [
+            'cloudflare_enabled' => $targetDomain->cloudflare_enabled,
+            'zone_exists' => (bool) ($zoneSummary['exists'] ?? false),
+            'zone_id' => $zoneSummary['zone_id'] ?? null,
+        ];
         $exists = (bool) ($zoneSummary['exists'] ?? false);
         $zoneCreatedBySync = false;
 
@@ -154,6 +160,17 @@ class DomainCloudflareController extends Controller
                 $cloudflare->ensureZoneExists($targetDomain->fqdn);
                 $zoneCreatedBySync = true;
             } catch (\Throwable $exception) {
+                $this->logCloudflareAudit(
+                    $request,
+                    $targetDomain,
+                    'cloudflare_sync_failed',
+                    $beforeState,
+                    [
+                        ...$beforeState,
+                        'error' => $exception->getMessage(),
+                    ],
+                );
+
                 return response()->json([
                     'status' => 'error',
                     'message' => __('Cloudflare zone could not be added: :message', ['message' => $exception->getMessage()]),
@@ -167,6 +184,19 @@ class DomainCloudflareController extends Controller
         $targetDomain->update([
             'cloudflare_enabled' => $exists,
         ]);
+
+        $this->logCloudflareAudit(
+            $request,
+            $targetDomain,
+            'cloudflare_sync',
+            $beforeState,
+            [
+                'cloudflare_enabled' => $targetDomain->cloudflare_enabled,
+                'zone_exists' => $exists,
+                'zone_id' => $zoneSummary['zone_id'] ?? null,
+                'zone_created_by_sync' => $zoneCreatedBySync,
+            ],
+        );
 
         if ($zoneCreatedBySync && $exists) {
             $message = __('Domain added to Cloudflare successfully.');
@@ -189,10 +219,27 @@ class DomainCloudflareController extends Controller
     {
         $this->authorize('view', $domain);
         $targetDomain = $this->resolveTargetDomain($domain);
+        $beforeZoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
+        $beforeState = [
+            'cloudflare_enabled' => $targetDomain->cloudflare_enabled,
+            'zone_exists' => (bool) ($beforeZoneSummary['exists'] ?? false),
+            'zone_id' => $beforeZoneSummary['zone_id'] ?? null,
+        ];
 
         try {
             $cloudflare->ensureZoneExists($targetDomain->fqdn);
         } catch (\Throwable $exception) {
+            $this->logCloudflareAudit(
+                $request,
+                $targetDomain,
+                'cloudflare_zone_add_failed',
+                $beforeState,
+                [
+                    ...$beforeState,
+                    'error' => $exception->getMessage(),
+                ],
+            );
+
             return response()->json([
                 'status' => 'error',
                 'message' => __('Cloudflare zone could not be added: :message', ['message' => $exception->getMessage()]),
@@ -203,6 +250,18 @@ class DomainCloudflareController extends Controller
         $targetDomain->update([
             'cloudflare_enabled' => true,
         ]);
+
+        $this->logCloudflareAudit(
+            $request,
+            $targetDomain,
+            'cloudflare_zone_add',
+            $beforeState,
+            [
+                'cloudflare_enabled' => true,
+                'zone_exists' => (bool) ($zoneSummary['exists'] ?? false),
+                'zone_id' => $zoneSummary['zone_id'] ?? null,
+            ],
+        );
 
         return response()->json([
             'status' => 'success',
@@ -217,8 +276,24 @@ class DomainCloudflareController extends Controller
         $this->authorize('view', $domain);
         $targetDomain = $this->resolveTargetDomain($domain);
         $zoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
+        $beforeState = [
+            'zone_exists' => (bool) ($zoneSummary['exists'] ?? false),
+            'zone_id' => $zoneSummary['zone_id'] ?? null,
+            'cache_purge' => 'idle',
+        ];
 
         if (! ($zoneSummary['exists'] ?? false) || ! is_string($zoneSummary['zone_id'])) {
+            $this->logCloudflareAudit(
+                $request,
+                $targetDomain,
+                'cloudflare_cache_purge_failed',
+                $beforeState,
+                [
+                    ...$beforeState,
+                    'error' => 'zone_not_found',
+                ],
+            );
+
             return response()->json([
                 'status' => 'error',
                 'message' => __('Cloudflare zone was not found for this domain.'),
@@ -227,11 +302,33 @@ class DomainCloudflareController extends Controller
 
         $purged = $cloudflare->purgeZoneCache($zoneSummary['zone_id']);
         if (! $purged) {
+            $this->logCloudflareAudit(
+                $request,
+                $targetDomain,
+                'cloudflare_cache_purge_failed',
+                $beforeState,
+                [
+                    ...$beforeState,
+                    'cache_purge' => 'failed',
+                ],
+            );
+
             return response()->json([
                 'status' => 'error',
                 'message' => __('Cloudflare cache purge failed.'),
             ], 422);
         }
+
+        $this->logCloudflareAudit(
+            $request,
+            $targetDomain,
+            'cloudflare_cache_purge',
+            $beforeState,
+            [
+                ...$beforeState,
+                'cache_purge' => 'requested',
+            ],
+        );
 
         return response()->json([
             'status' => 'success',
@@ -249,6 +346,14 @@ class DomainCloudflareController extends Controller
         $zoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
 
         if (! ($zoneSummary['exists'] ?? false) || ! is_string($zoneSummary['zone_id'])) {
+            $this->logCloudflareAudit(
+                $request,
+                $targetDomain,
+                'cloudflare_setting_update_failed',
+                ['zone_exists' => false, 'zone_id' => null],
+                ['error' => 'zone_not_found'],
+            );
+
             return response()->json([
                 'status' => 'error',
                 'message' => __('Cloudflare zone was not found for this domain.'),
@@ -258,6 +363,7 @@ class DomainCloudflareController extends Controller
         $validated = $request->validated();
         $setting = (string) $validated['setting'];
         $value = $validated['value'] ?? null;
+        $requestedSetting = $setting;
 
         if ($setting === 'under_attack') {
             $setting = 'security_level';
@@ -276,8 +382,28 @@ class DomainCloudflareController extends Controller
             $value = $value ? 'on' : 'off';
         }
 
+        $previousSetting = $cloudflare->getZoneSetting($zoneSummary['zone_id'], $setting);
+        $beforeState = [
+            'setting' => $setting,
+            'requested_setting' => $requestedSetting,
+            'value' => $previousSetting['value'] ?? null,
+        ];
+
         $updatedSetting = $cloudflare->updateZoneSetting($zoneSummary['zone_id'], $setting, $value);
         if (! is_array($updatedSetting)) {
+            $this->logCloudflareAudit(
+                $request,
+                $targetDomain,
+                'cloudflare_setting_update_failed',
+                $beforeState,
+                [
+                    'setting' => $setting,
+                    'requested_setting' => $requestedSetting,
+                    'value' => $value,
+                    'error' => 'update_failed',
+                ],
+            );
+
             return response()->json([
                 'status' => 'error',
                 'message' => __('Cloudflare setting could not be updated.'),
@@ -287,6 +413,18 @@ class DomainCloudflareController extends Controller
         if ($setting === 'security_level') {
             Cache::forget("dashboard:under-attack:{$domain->id}");
         }
+
+        $this->logCloudflareAudit(
+            $request,
+            $targetDomain,
+            'cloudflare_setting_update',
+            $beforeState,
+            [
+                'setting' => $setting,
+                'requested_setting' => $requestedSetting,
+                'value' => $updatedSetting['value'] ?? null,
+            ],
+        );
 
         return response()->json([
             'status' => 'success',
@@ -306,19 +444,54 @@ class DomainCloudflareController extends Controller
         $zoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
 
         if (! ($zoneSummary['exists'] ?? false) || ! is_string($zoneSummary['zone_id'])) {
+            $this->logCloudflareAudit(
+                $request,
+                $targetDomain,
+                'cloudflare_dnssec_update_failed',
+                ['zone_exists' => false, 'zone_id' => null],
+                ['error' => 'zone_not_found'],
+            );
+
             return response()->json([
                 'status' => 'error',
                 'message' => __('Cloudflare zone was not found for this domain.'),
             ], 422);
         }
 
-        $result = $cloudflare->updateDnssecStatus($zoneSummary['zone_id'], (string) $request->validated('status'));
+        $previousDnssec = $cloudflare->getDnssecStatus($zoneSummary['zone_id']);
+        $requestedStatus = (string) $request->validated('status');
+        $beforeState = [
+            'status' => $previousDnssec['status'] ?? null,
+        ];
+
+        $result = $cloudflare->updateDnssecStatus($zoneSummary['zone_id'], $requestedStatus);
         if (! is_array($result)) {
+            $this->logCloudflareAudit(
+                $request,
+                $targetDomain,
+                'cloudflare_dnssec_update_failed',
+                $beforeState,
+                [
+                    'status' => $requestedStatus,
+                    'error' => 'update_failed',
+                ],
+            );
+
             return response()->json([
                 'status' => 'error',
                 'message' => __('Cloudflare DNSSEC setting could not be updated.'),
             ], 422);
         }
+
+        $this->logCloudflareAudit(
+            $request,
+            $targetDomain,
+            'cloudflare_dnssec_update',
+            $beforeState,
+            [
+                'status' => $result['status'] ?? null,
+            ],
+        );
 
         return response()->json([
             'status' => 'success',
@@ -337,6 +510,14 @@ class DomainCloudflareController extends Controller
         $zoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
 
         if (! ($zoneSummary['exists'] ?? false) || ! is_string($zoneSummary['zone_id'])) {
+            $this->logCloudflareAudit(
+                $request,
+                $targetDomain,
+                'cloudflare_firewall_rule_create_failed',
+                ['zone_exists' => false, 'zone_id' => null],
+                ['error' => 'zone_not_found'],
+            );
+
             return response()->json([
                 'status' => 'error',
                 'message' => __('Cloudflare zone was not found for this domain.'),
@@ -344,6 +525,7 @@ class DomainCloudflareController extends Controller
         }
 
         $validated = $request->validated();
+        $beforeRules = $cloudflare->listFirewallRules($zoneSummary['zone_id']);
         $created = $cloudflare->createFirewallRule(
             $zoneSummary['zone_id'],
             (string) $validated['expression'],
@@ -353,11 +535,39 @@ class DomainCloudflareController extends Controller
         );
 
         if (! $created) {
+            $this->logCloudflareAudit(
+                $request,
+                $targetDomain,
+                'cloudflare_firewall_rule_create_failed',
+                [
+                    'rules_count' => count($beforeRules),
+                ],
+                [
+                    'rules_count' => count($beforeRules),
+                    'requested_rule' => $validated,
+                    'error' => 'create_failed',
+                ],
+            );
+
             return response()->json([
                 'status' => 'error',
                 'message' => __('Cloudflare firewall rule could not be created.'),
             ], 422);
         }
+
+        $afterRules = $cloudflare->listFirewallRules($zoneSummary['zone_id']);
+        $this->logCloudflareAudit(
+            $request,
+            $targetDomain,
+            'cloudflare_firewall_rule_create',
+            [
+                'rules_count' => count($beforeRules),
+            ],
+            [
+                'rules_count' => count($afterRules),
+                'requested_rule' => $validated,
+            ],
+        );
 
         return response()->json([
             'status' => 'success',
@@ -376,19 +586,62 @@ class DomainCloudflareController extends Controller
         $zoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
 
         if (! ($zoneSummary['exists'] ?? false) || ! is_string($zoneSummary['zone_id'])) {
+            $this->logCloudflareAudit(
+                $request,
+                $targetDomain,
+                'cloudflare_firewall_rule_delete_failed',
+                ['zone_exists' => false, 'zone_id' => null, 'rule_id' => $ruleId],
+                ['error' => 'zone_not_found'],
+            );
+
             return response()->json([
                 'status' => 'error',
                 'message' => __('Cloudflare zone was not found for this domain.'),
             ], 422);
         }
 
+        $beforeRules = $cloudflare->listFirewallRules($zoneSummary['zone_id']);
+        $beforeRule = $this->findFirewallRuleById($beforeRules, $ruleId);
         $deleted = $cloudflare->deleteFirewallRule($zoneSummary['zone_id'], $ruleId);
         if (! $deleted) {
+            $this->logCloudflareAudit(
+                $request,
+                $targetDomain,
+                'cloudflare_firewall_rule_delete_failed',
+                [
+                    'rule_id' => $ruleId,
+                    'rule' => $beforeRule,
+                    'rules_count' => count($beforeRules),
+                ],
+                [
+                    'rule_id' => $ruleId,
+                    'rules_count' => count($beforeRules),
+                    'error' => 'delete_failed',
+                ],
+            );
+
             return response()->json([
                 'status' => 'error',
                 'message' => __('Cloudflare firewall rule could not be deleted.'),
             ], 422);
         }
+
+        $afterRules = $cloudflare->listFirewallRules($zoneSummary['zone_id']);
+        $this->logCloudflareAudit(
+            $request,
+            $targetDomain,
+            'cloudflare_firewall_rule_delete',
+            [
+                'rule_id' => $ruleId,
+                'rule' => $beforeRule,
+                'rules_count' => count($beforeRules),
+            ],
+            [
+                'rule_id' => $ruleId,
+                'rule_deleted' => $this->findFirewallRuleById($afterRules, $ruleId) === null,
+                'rules_count' => count($afterRules),
+            ],
+        );
 
         return response()->json([
             'status' => 'success',
@@ -516,5 +769,55 @@ class DomainCloudflareController extends Controller
             'cloudflare_effective_enabled' => $effectiveCloudflareEnabled,
             'zone' => $zoneSummary,
         ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rules
+     * @return array<string, mixed>|null
+     */
+    private function findFirewallRuleById(array $rules, string $ruleId): ?array
+    {
+        foreach ($rules as $rule) {
+            if ((string) ($rule['id'] ?? '') === $ruleId) {
+                return $rule;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $oldState
+     * @param  array<string, mixed>  $newState
+     */
+    private function logCloudflareAudit(
+        Request $request,
+        Domain $targetDomain,
+        string $action,
+        array $oldState,
+        array $newState,
+    ): void {
+        AuditLog::create([
+            'user_id' => $request->user()?->id,
+            'action' => $action,
+            'domain_id' => $targetDomain->id,
+            'summary' => sprintf(
+                'Old: %s | New: %s',
+                $this->encodeAuditState($oldState),
+                $this->encodeAuditState($newState),
+            ),
+            'ip_address' => $request->ip(),
+            'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $state
+     */
+    private function encodeAuditState(array $state): string
+    {
+        $json = json_encode($state, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        return $json === false ? '{}' : $json;
     }
 }
