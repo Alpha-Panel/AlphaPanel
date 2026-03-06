@@ -127,6 +127,23 @@ class Domain extends Model
         return $this->parent_domain_id !== null;
     }
 
+    public function sharesWebRootWithParent(): bool
+    {
+        if (! $this->isSubdomain()) {
+            return false;
+        }
+
+        $this->loadMissing('parentDomain');
+        if (! $this->parentDomain instanceof self) {
+            return false;
+        }
+
+        $domainWebRoot = $this->normalizePath($this->getWebRootPath());
+        $parentWebRoot = $this->normalizePath($this->parentDomain->getWebRootPath());
+
+        return $domainWebRoot !== '' && $domainWebRoot === $parentWebRoot;
+    }
+
     /**
      * Derive the apex domain from fqdn.
      */
@@ -197,5 +214,20 @@ class Domain extends Model
         }
 
         return "{$base}/httpdocs";
+    }
+
+    private function normalizePath(string $path): string
+    {
+        $trimmed = trim($path);
+        if ($trimmed === '') {
+            return '';
+        }
+
+        $normalized = preg_replace('#/+#', '/', $trimmed);
+        if (! is_string($normalized)) {
+            return rtrim($trimmed, '/');
+        }
+
+        return rtrim($normalized, '/');
     }
 }

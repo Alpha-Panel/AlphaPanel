@@ -83,10 +83,17 @@ class DomainController extends Controller
 
         if ($parentDomainId > 0) {
             $parentDomain = Domain::query()
-                ->select(['id', 'fqdn', 'owner_user_id', 'cloudflare_enabled'])
+                ->select(['id', 'fqdn', 'owner_user_id', 'cloudflare_enabled', 'root_path', 'type'])
                 ->findOrFail($parentDomainId);
             $this->authorize('view', $parentDomain);
             $data['owner_user_id'] = $parentDomain->owner_user_id;
+
+            $requestedRootPath = trim((string) ($data['root_path'] ?? ''));
+            if ($requestedRootPath === '') {
+                $data['root_path'] = $parentDomain->getWebRootPath();
+            } else {
+                $data['root_path'] = $requestedRootPath;
+            }
 
             $parentCloudflareManaged = $parentDomain->cloudflare_enabled;
             if ($parentCloudflareManaged === null) {

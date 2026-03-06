@@ -163,6 +163,8 @@ Route::middleware('auth')->group(function (): void {
     // Laravel Supervisor (per domain)
     Route::get('domains/{domain}/supervisor', [DomainSupervisorController::class, 'index'])->name('domains.supervisor.index');
     Route::post('domains/{domain}/supervisor', [DomainSupervisorController::class, 'update'])->name('domains.supervisor.update');
+    Route::post('domains/{domain}/supervisor/restart', [DomainSupervisorController::class, 'restart'])->name('domains.supervisor.restart');
+    Route::post('domains/{domain}/supervisor/workers/restart', [DomainSupervisorController::class, 'restartFrankenphpWorkers'])->name('domains.supervisor.workers.restart');
 
     // File Manager (per domain)
     Route::prefix('domains/{domain}/files')->name('domains.files.')->group(function (): void {

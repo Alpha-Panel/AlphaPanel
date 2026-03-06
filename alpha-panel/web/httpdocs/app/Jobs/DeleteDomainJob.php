@@ -141,6 +141,7 @@ class DeleteDomainJob implements ShouldQueue
                 $requiresApacheReload = true;
             }
 
+            $subdomain->setRelation('parentDomain', $parent);
             $this->removeDomainResources($subdomain, $configService, $cloudflareDnsService);
             $subdomain->delete();
 
@@ -171,7 +172,11 @@ class DeleteDomainJob implements ShouldQueue
         }
 
         $configService->removeConfigs($domain);
-        $this->removeCertificateFiles($domain->fqdn);
+        if ($domain->sharesWebRootWithParent()) {
+            Log::info("Skipped filesystem cleanup for {$domain->fqdn} because it shares web root with parent domain.");
+        } else {
+            $this->removeCertificateFiles($domain->fqdn);
+        }
 
         if ($domain->ftpUser) {
             $domain->ftpUser->delete();

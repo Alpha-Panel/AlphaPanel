@@ -92,6 +92,12 @@ class AuditLogController extends Controller
     {
         $searchValue = trim((string) $request->input('q', ''));
         $selectedActions = $this->normalizeStringArray($request->input('selected', []));
+        $knownActions = collect([
+            'supervisor_restarted',
+            'supervisor_restart_failed',
+            'frankenphp_workers_restart_signaled',
+            'frankenphp_workers_restart_failed',
+        ]);
 
         $actions = AuditLog::query()
             ->select('action')
@@ -104,9 +110,18 @@ class AuditLogController extends Controller
             ->map(fn ($action) => (string) $action)
             ->values();
 
-        if ($selectedActions !== []) {
-            $actions = collect($selectedActions)->concat($actions)->unique()->values();
+        if ($searchValue !== '') {
+            $searchNeedle = strtolower($searchValue);
+            $knownActions = $knownActions->filter(
+                fn (string $action): bool => str_contains(strtolower($action), $searchNeedle),
+            )->values();
         }
+
+        $actions = $knownActions
+            ->concat($selectedActions)
+            ->concat($actions)
+            ->unique()
+            ->values();
 
         $data = $actions->map(fn (string $action): array => [
             'value' => $action,
@@ -322,6 +337,10 @@ class AuditLogController extends Controller
 
         if (str_starts_with($action, 'terminal_')) {
             return '<span class="inline-flex rounded-full bg-warning-500/15 px-2 py-0.5 text-xs font-semibold text-warning-700 dark:text-warning-300">'.$label.'</span>';
+        }
+
+        if (str_starts_with($action, 'frankenphp_')) {
+            return '<span class="inline-flex rounded-full bg-blue-light-500/15 px-2 py-0.5 text-xs font-semibold text-blue-light-700 dark:text-blue-light-300">'.$label.'</span>';
         }
 
         if (str_starts_with($action, 'supervisor_')) {

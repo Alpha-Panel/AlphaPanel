@@ -605,5 +605,10 @@
     "Command": "Komut",
     "Output": "Çıktı",
     "No output captured.": "Çıktı kaydedilmedi.",
-    "Failed to load output.": "Çıktı yüklenemedi."
+    "Failed to load output.": "Çıktı yüklenemedi.",
+    "Restart FrankenPHP Workers": "FrankenPHP Worker'larını Yeniden Başlat",
+    ":process restart signal sent.": ":process yeniden başlatma sinyali gönderildi.",
+    "Failed to restart :process: :error": ":process yeniden başlatılamadı: :error",
+    "FrankenPHP workers restart signal sent.": "FrankenPHP worker'larına yeniden başlatma sinyali gönderildi.",
+    "Failed to send FrankenPHP workers restart signal: :error": "FrankenPHP worker yeniden başlatma sinyali gönderilemedi: :error"
 }

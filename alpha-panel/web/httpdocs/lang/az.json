@@ -605,5 +605,10 @@
     "Command": "Əmr",
     "Output": "Çıxış",
     "No output captured.": "Çıxış qeydə alınmadı.",
-    "Failed to load output.": "Çıxış yüklənə bilmədi."
+    "Failed to load output.": "Çıxış yüklənə bilmədi.",
+    "Restart FrankenPHP Workers": "Restart FrankenPHP Workers",
+    ":process restart signal sent.": ":process restart signal sent.",
+    "Failed to restart :process: :error": "Failed to restart :process: :error",
+    "FrankenPHP workers restart signal sent.": "FrankenPHP workers restart signal sent.",
+    "Failed to send FrankenPHP workers restart signal: :error": "Failed to send FrankenPHP workers restart signal: :error"
 }

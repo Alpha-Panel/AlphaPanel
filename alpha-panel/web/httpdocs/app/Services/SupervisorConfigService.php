@@ -54,14 +54,38 @@ class SupervisorConfigService
         $this->reloadSupervisord();
     }
 
+    public function restartProcess(Domain $domain, SupervisorType $type): void
+    {
+        $programName = $this->programName($domain, $type);
+
+        /** @var PortainerService $portainer */
+        $portainer = app(PortainerService::class);
+        $result = $portainer->execInContainer(
+            self::FRANKENPHP_CONTAINER,
+            ['supervisorctl', 'restart', "{$programName}:*"],
+        );
+
+        if (! $result->isSuccessful()) {
+            $errorMessage = trim($result->errorOutput);
+            if ($errorMessage === '') {
+                $errorMessage = trim($result->output);
+            }
+            if ($errorMessage === '') {
+                $errorMessage = 'Unknown error while restarting supervisor process.';
+            }
+
+            throw new \RuntimeException($errorMessage);
+        }
+
+        Log::info("Supervisor process restarted for {$domain->fqdn}/{$type->value}");
+    }
+
     private function writeConf(Domain $domain, DomainSupervisor $supervisor): void
     {
-        $fqdn = $domain->fqdn;
-        $slug = str_replace('.', '-', $fqdn);
         $type = $supervisor->type;
         $httpdocs = $domain->getBasePath().'/httpdocs';
 
-        $programName = $slug.'-'.$type->programSuffix();
+        $programName = $this->programName($domain, $type);
         $command = "/usr/local/bin/php {$httpdocs}/artisan {$type->artisanCommand()}";
         $logFile = "{$httpdocs}/storage/logs/{$type->logFile()}";
         $numProcs = $type->supportsNumProcs() ? $supervisor->num_procs : 1;
@@ -85,6 +109,13 @@ class SupervisorConfigService
         file_put_contents($confPath, $conf);
 
         Log::info("Supervisor conf written: {$confPath}");
+    }
+
+    private function programName(Domain $domain, SupervisorType $type): string
+    {
+        $slug = str_replace('.', '-', $domain->fqdn);
+
+        return $slug.'-'.$type->programSuffix();
     }
 
     private function removeConf(string $confPath): void
