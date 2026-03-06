@@ -610,5 +610,8 @@
     ":process restart signal sent.": ":process yeniden başlatma sinyali gönderildi.",
     "Failed to restart :process: :error": ":process yeniden başlatılamadı: :error",
     "FrankenPHP workers restart signal sent.": "FrankenPHP worker'larına yeniden başlatma sinyali gönderildi.",
-    "Failed to send FrankenPHP workers restart signal: :error": "FrankenPHP worker yeniden başlatma sinyali gönderilemedi: :error"
+    "Failed to send FrankenPHP workers restart signal: :error": "FrankenPHP worker yeniden başlatma sinyali gönderilemedi: :error",
+    "Inherit main domain path": "Ana domain yolunu miras al",
+    "Main domain path: :path": "Ana domain yolu: :path",
+    "Root Path (Optional)": "Root Dizin (Opsiyonel)"
 }

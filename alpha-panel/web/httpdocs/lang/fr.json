@@ -606,9 +606,12 @@
     "Output": "Sortie",
     "No output captured.": "Aucune sortie capturée.",
     "Failed to load output.": "Échec du chargement de la sortie.",
-    "Restart FrankenPHP Workers": "Restart FrankenPHP Workers",
-    ":process restart signal sent.": ":process restart signal sent.",
-    "Failed to restart :process: :error": "Failed to restart :process: :error",
-    "FrankenPHP workers restart signal sent.": "FrankenPHP workers restart signal sent.",
-    "Failed to send FrankenPHP workers restart signal: :error": "Failed to send FrankenPHP workers restart signal: :error"
+    "Restart FrankenPHP Workers": "Redémarrer les workers FrankenPHP",
+    ":process restart signal sent.": "Signal de redémarrage envoyé pour :process.",
+    "Failed to restart :process: :error": "Impossible de redémarrer :process : :error",
+    "FrankenPHP workers restart signal sent.": "Signal de redémarrage envoyé aux workers FrankenPHP.",
+    "Failed to send FrankenPHP workers restart signal: :error": "Impossible d’envoyer le signal de redémarrage des workers FrankenPHP : :error",
+    "Inherit main domain path": "Hériter du chemin du domaine principal",
+    "Main domain path: :path": "Chemin du domaine principal : :path",
+    "Root Path (Optional)": "Chemin racine (optionnel)"
 }
