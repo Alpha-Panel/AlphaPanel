@@ -58,6 +58,28 @@
                         </select>
                     </FormField>
 
+                    <div v-if="isSubdomain" class="space-y-3 rounded-lg border border-white/10 bg-white/5 p-3">
+                        <label class="flex items-center gap-2 text-sm text-white/80">
+                            <input v-model="form.inherit_parent_root_path" type="checkbox" class="form-checkbox" />
+                            {{ t('Inherit main domain path') }}
+                        </label>
+                        <p v-if="parentDomainRootPath !== ''" class="text-xs text-white/60">
+                            {{ t('Main domain path: :path', { path: parentDomainRootPath }) }}
+                        </p>
+                        <FormField
+                            v-if="!form.inherit_parent_root_path"
+                            :label="t('Root Path (Optional)')"
+                            :error="form.errors.root_path"
+                        >
+                            <input
+                                v-model="form.root_path"
+                                type="text"
+                                :placeholder="t('/var/www/vhosts/example.com/subdomains/app/httpdocs/public')"
+                                class="form-input"
+                            />
+                        </FormField>
+                    </div>
+
                     <div class="flex flex-wrap items-center gap-4">
                         <label class="flex items-center gap-2 text-sm text-white/80">
                             <input v-model="form.enable_www_redirect" type="checkbox" class="form-checkbox" />
@@ -162,7 +184,8 @@
 
 <script setup lang="ts">
 import { computed, watch } from 'vue';
-import { useForm } from '@inertiajs/vue3';
+import axios from 'axios';
+import { router, useForm } from '@inertiajs/vue3';
 import FormField from '@/Components/UI/FormField.vue';
 import { useI18n } from '@/Composables/useI18n';
 
@@ -172,6 +195,7 @@ const props = withDefaults(defineProps<{
     users?: Array<Record<string, any>>;
     parentDomainId?: number | null;
     parentDomainFqdn?: string | null;
+    parentDomainRootPath?: string | null;
     parentCloudflareManaged?: boolean;
     serverNetworkIps?: {
         public: string[];
@@ -181,6 +205,7 @@ const props = withDefaults(defineProps<{
     users: () => [],
     parentDomainId: null,
     parentDomainFqdn: null,
+    parentDomainRootPath: null,
     parentCloudflareManaged: false,
     serverNetworkIps: () => ({ public: [], private: [] }),
 });
@@ -192,6 +217,7 @@ const emit = defineEmits<{
 const isSubdomain = computed(() => props.parentDomainId !== null && props.parentDomainId !== undefined);
 const showOwnerField = computed(() => !isSubdomain.value && props.users.length > 0);
 const showSubdomainDnsOption = computed(() => isSubdomain.value && props.parentCloudflareManaged);
+const parentDomainRootPath = computed(() => (props.parentDomainRootPath ?? '').trim());
 const publicIps = computed(() => Array.isArray(props.serverNetworkIps?.public) ? props.serverNetworkIps.public : []);
 const privateIps = computed(() => Array.isArray(props.serverNetworkIps?.private) ? props.serverNetworkIps.private : []);
 const showDnsTargetIpSelect = computed(() => {
@@ -209,6 +235,8 @@ const form = useForm({
     parent_domain_id: props.parentDomainId as number | null,
     php_version_id: null as number | null,
     owner_user_id: null as number | null,
+    root_path: '',
+    inherit_parent_root_path: false,
     enable_www_redirect: true,
     enable_worker: false,
     worker_num: 2,
@@ -256,6 +284,14 @@ const hasUnsavedInput = computed(() => {
         return true;
     }
 
+    if (isSubdomain.value && form.inherit_parent_root_path !== false) {
+        return true;
+    }
+
+    if (form.root_path.trim() !== '') {
+        return true;
+    }
+
     if (form.dns_target_ip.trim() !== '') {
         return true;
     }
@@ -274,6 +310,8 @@ const resetFormState = (): void => {
         parent_domain_id: props.parentDomainId,
         php_version_id: null,
         owner_user_id: null,
+        root_path: '',
+        inherit_parent_root_path: false,
         enable_www_redirect: true,
         enable_worker: false,
         worker_num: 2,
@@ -291,6 +329,8 @@ const resetFormState = (): void => {
 
 watch(() => props.parentDomainId, (parentDomainId) => {
     form.parent_domain_id = parentDomainId;
+    form.root_path = '';
+    form.inherit_parent_root_path = false;
 });
 
 watch(() => props.modelValue, (isOpen) => {
@@ -325,6 +365,12 @@ watch(() => form.create_dns_record, (createDnsRecord) => {
     }
 });
 
+watch(() => form.inherit_parent_root_path, (inheritParentRootPath) => {
+    if (inheritParentRootPath) {
+        form.root_path = '';
+    }
+});
+
 const attemptClose = (): void => {
     if (form.processing) {
         return;
@@ -346,6 +392,8 @@ const submit = (): void => {
         form.cloudflare_mode = 'skip';
     } else {
         form.create_dns_record = false;
+        form.root_path = '';
+        form.inherit_parent_root_path = false;
     }
 
     if (!showSubdomainDnsOption.value) {
@@ -354,6 +402,38 @@ const submit = (): void => {
 
     if (!showDnsTargetIpSelect.value) {
         form.dns_target_ip = '';
+    }
+
+    if (isSubdomain.value) {
+        form.clearErrors();
+        form.processing = true;
+
+        axios.post(route('domains.store'), form.data(), {
+            headers: {
+                Accept: 'application/json',
+            },
+        }).then(() => {
+            emit('update:modelValue', false);
+            resetFormState();
+            router.reload({ preserveScroll: true });
+        }).catch((error: any) => {
+            const errors = error?.response?.data?.errors;
+            if (!errors || typeof errors !== 'object') {
+                return;
+            }
+
+            for (const [field, messages] of Object.entries(errors)) {
+                if (Array.isArray(messages)) {
+                    form.setError(field, String(messages[0] ?? ''));
+                } else {
+                    form.setError(field, String(messages ?? ''));
+                }
+            }
+        }).finally(() => {
+            form.processing = false;
+        });
+
+        return;
     }
 
     form.post(route('domains.store'), {

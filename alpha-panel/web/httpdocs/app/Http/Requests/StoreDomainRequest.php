@@ -18,11 +18,20 @@ class StoreDomainRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'owner_user_id' => ['sometimes', 'exists:users,id'],
+            'owner_user_id' => [
+                Rule::excludeIf(fn () => $this->filled('parent_domain_id')),
+                'nullable',
+                'exists:users,id',
+            ],
             'fqdn' => ['required', 'string', 'max:255', 'unique:domains,fqdn'],
             'parent_domain_id' => ['nullable', 'exists:domains,id'],
             'type' => ['required', new Enum(DomainType::class)],
             'root_path' => ['nullable', 'string', 'max:500'],
+            'inherit_parent_root_path' => [
+                'sometimes',
+                'boolean',
+                Rule::prohibitedIf(fn () => ! $this->filled('parent_domain_id')),
+            ],
             'enable_www_redirect' => ['boolean'],
             'additional_hostnames' => ['nullable', 'array'],
             'additional_hostnames.*' => ['string', 'max:255'],

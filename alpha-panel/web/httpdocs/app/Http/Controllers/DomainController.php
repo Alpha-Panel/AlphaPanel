@@ -67,9 +67,10 @@ class DomainController extends Controller
         FtpUserService $ftpUserService,
         CloudflareDnsService $cloudflareDnsService,
         ServerNetworkInfoService $serverNetworkInfoService,
-    ): RedirectResponse {
+    ): RedirectResponse|JsonResponse {
         $data = $request->validated();
         $parentDomainId = (int) ($data['parent_domain_id'] ?? 0);
+        $inheritParentRootPath = (bool) ($data['inherit_parent_root_path'] ?? false);
         $cloudflareMode = (string) ($data['cloudflare_mode'] ?? 'skip');
         $requestedSubdomainDnsRecord = (bool) ($data['create_dns_record'] ?? false);
         $dnsTargetIp = isset($data['dns_target_ip']) ? trim((string) $data['dns_target_ip']) : '';
@@ -89,8 +90,10 @@ class DomainController extends Controller
             $data['owner_user_id'] = $parentDomain->owner_user_id;
 
             $requestedRootPath = trim((string) ($data['root_path'] ?? ''));
-            if ($requestedRootPath === '') {
+            if ($inheritParentRootPath) {
                 $data['root_path'] = $parentDomain->getWebRootPath();
+            } elseif ($requestedRootPath === '') {
+                $data['root_path'] = null;
             } else {
                 $data['root_path'] = $requestedRootPath;
             }
@@ -105,11 +108,11 @@ class DomainController extends Controller
             $createDnsRecord = $parentCloudflareManaged && $requestedSubdomainDnsRecord;
 
             if ($createDnsRecord && ($dnsTargetIp === null || $dnsTargetScope === null)) {
-                return back()
-                    ->withInput()
-                    ->withErrors([
-                        'dns_target_ip' => __('Selected DNS target IP is not valid for this server.'),
-                    ]);
+                return $this->storeValidationErrorResponse(
+                    $request,
+                    field: 'dns_target_ip',
+                    message: __('Selected DNS target IP is not valid for this server.'),
+                );
             }
 
             $dnsRecordShouldBeProxied = $createDnsRecord && $dnsTargetScope === 'public';
@@ -119,25 +122,30 @@ class DomainController extends Controller
             $data['owner_user_id'] = $request->user()->id;
         }
 
+        if ($parentDomainId === 0) {
+            $requestedRootPath = trim((string) ($data['root_path'] ?? ''));
+            $data['root_path'] = $requestedRootPath === '' ? null : $requestedRootPath;
+        }
+
         $shouldCreateApexDnsRecords = $parentDomainId === 0 && $cloudflareMode === 'add';
 
         if ($shouldCreateApexDnsRecords && ($dnsTargetIp === null || $dnsTargetScope === null)) {
-            return back()
-                ->withInput()
-                ->withErrors([
-                    'dns_target_ip' => __('Selected DNS target IP is not valid for this server.'),
-                ]);
+            return $this->storeValidationErrorResponse(
+                $request,
+                field: 'dns_target_ip',
+                message: __('Selected DNS target IP is not valid for this server.'),
+            );
         }
 
         if ($parentDomainId === 0 && $cloudflareMode === 'add') {
             try {
                 $cloudflareDnsService->ensureZoneExists((string) $data['fqdn']);
             } catch (\Throwable $exception) {
-                return back()
-                    ->withInput()
-                    ->withErrors([
-                        'cloudflare_mode' => __('Cloudflare zone could not be added: :message', ['message' => $exception->getMessage()]),
-                    ]);
+                return $this->storeValidationErrorResponse(
+                    $request,
+                    field: 'cloudflare_mode',
+                    message: __('Cloudflare zone could not be added: :message', ['message' => $exception->getMessage()]),
+                );
             }
 
             if ($shouldCreateApexDnsRecords) {
@@ -148,11 +156,11 @@ class DomainController extends Controller
                 );
 
                 if (! $synced) {
-                    return back()
-                        ->withInput()
-                        ->withErrors([
-                            'dns_target_ip' => __('Cloudflare DNS records could not be created. Please try again.'),
-                        ]);
+                    return $this->storeValidationErrorResponse(
+                        $request,
+                        field: 'dns_target_ip',
+                        message: __('Cloudflare DNS records could not be created. Please try again.'),
+                    );
                 }
             }
         }
@@ -163,7 +171,7 @@ class DomainController extends Controller
 
         $ftpUsername = $data['ftp_username'] ?? null;
         $ftpPassword = $data['ftp_password'] ?? null;
-        unset($data['ftp_username'], $data['ftp_password'], $data['create_dns_record'], $data['cloudflare_mode'], $data['dns_target_ip']);
+        unset($data['ftp_username'], $data['ftp_password'], $data['create_dns_record'], $data['cloudflare_mode'], $data['dns_target_ip'], $data['inherit_parent_root_path']);
 
         $domain = Domain::create($data);
 
@@ -181,6 +189,15 @@ class DomainController extends Controller
             actorIpAddress: $request->ip(),
             actorPort: is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
         );
+
+        if ($parentDomainId > 0 && $request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'queued' => true,
+                'domain_id' => $domain->id,
+                'domain_fqdn' => $domain->fqdn,
+            ]);
+        }
 
         return redirect()
             ->route('domains.show', $domain)
@@ -610,5 +627,27 @@ class DomainController extends Controller
         }
 
         return null;
+    }
+
+    private function storeValidationErrorResponse(
+        Request $request,
+        string $field,
+        string $message,
+    ): RedirectResponse|JsonResponse {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+                'errors' => [
+                    $field => [$message],
+                ],
+            ], 422);
+        }
+
+        return back()
+            ->withInput()
+            ->withErrors([
+                $field => $message,
+            ]);
     }
 }

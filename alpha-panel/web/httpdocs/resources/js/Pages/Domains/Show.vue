@@ -340,6 +340,7 @@
                     :php-versions="phpVersions"
                     :parent-domain-id="Number(domain.id)"
                     :parent-domain-fqdn="domain.fqdn"
+                    :parent-domain-root-path="parentDomainWebRootPath"
                     :parent-cloudflare-managed="isCloudflareManagedForDns"
                     :server-network-ips="server_network_ips"
                 />
@@ -573,6 +574,23 @@ const { addToast } = useToast();
 const { t } = useI18n();
 
 const domain = computed(() => props.domain);
+const parentDomainWebRootPath = computed(() => {
+    const customRootPath = String(domain.value.root_path ?? '').trim();
+    if (customRootPath !== '') {
+        return customRootPath;
+    }
+
+    const fqdn = String(domain.value.fqdn ?? '').trim();
+    if (fqdn === '') {
+        return '';
+    }
+
+    if (domain.value.type === 'apache_reverse_proxy') {
+        return `/var/www/vhosts/${fqdn}/httpdocs`;
+    }
+
+    return `/var/www/vhosts/${fqdn}/httpdocs/public`;
+});
 const breadcrumbs = computed(() => [
     { label: t('Domains'), href: route('domains.index') },
     { label: domain.value.fqdn },

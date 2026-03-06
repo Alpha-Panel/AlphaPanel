@@ -285,6 +285,103 @@ class DomainTest extends TestCase
         Queue::assertPushed(ProvisionDomainJob::class, fn (ProvisionDomainJob $job): bool => $job->createDnsRecord === true);
     }
 
+    public function test_subdomain_creation_without_inherit_parent_root_path_keeps_default_subdomain_path(): void
+    {
+        Queue::fake();
+        $owner = User::factory()->create();
+
+        $parent = Domain::factory()->create([
+            'fqdn' => 'example.com',
+            'owner_user_id' => $owner->id,
+            'type' => DomainType::CaddyWebServer,
+            'root_path' => '/var/www/vhosts/example.com/httpdocs/custom',
+        ]);
+
+        $response = $this->actingAs($owner)->post(route('domains.store'), [
+            'fqdn' => 'panel.example.com',
+            'type' => 'caddy_web_server',
+            'parent_domain_id' => $parent->id,
+            'enable_www_redirect' => true,
+            'enable_worker' => false,
+            'worker_watch' => false,
+            'create_dns_record' => false,
+        ]);
+
+        $response->assertSessionHasNoErrors();
+
+        $subdomain = Domain::query()->where('fqdn', 'panel.example.com')->firstOrFail();
+        $this->assertNull($subdomain->root_path);
+        $this->assertSame('/var/www/vhosts/example.com/subdomains/panel/httpdocs/public', $subdomain->getWebRootPath());
+    }
+
+    public function test_subdomain_creation_with_inherit_parent_root_path_uses_parent_path(): void
+    {
+        Queue::fake();
+        $owner = User::factory()->create();
+
+        $parent = Domain::factory()->create([
+            'fqdn' => 'example.com',
+            'owner_user_id' => $owner->id,
+            'type' => DomainType::CaddyWebServer,
+            'root_path' => '/var/www/vhosts/example.com/httpdocs/shared',
+        ]);
+
+        $response = $this->actingAs($owner)->post(route('domains.store'), [
+            'fqdn' => 'api.example.com',
+            'type' => 'caddy_web_server',
+            'parent_domain_id' => $parent->id,
+            'inherit_parent_root_path' => true,
+            'enable_www_redirect' => true,
+            'enable_worker' => false,
+            'worker_watch' => false,
+            'create_dns_record' => false,
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('domains', [
+            'fqdn' => 'api.example.com',
+            'parent_domain_id' => $parent->id,
+            'root_path' => '/var/www/vhosts/example.com/httpdocs/shared',
+        ]);
+    }
+
+    public function test_subdomain_creation_returns_json_success_without_redirect_when_json_is_expected(): void
+    {
+        Queue::fake();
+        $owner = User::factory()->create();
+
+        $parent = Domain::factory()->create([
+            'fqdn' => 'example.com',
+            'owner_user_id' => $owner->id,
+            'type' => DomainType::CaddyWebServer,
+            'cloudflare_enabled' => false,
+        ]);
+
+        $response = $this->actingAs($owner)->postJson(route('domains.store'), [
+            'fqdn' => 'panel.example.com',
+            'type' => 'caddy_web_server',
+            'parent_domain_id' => $parent->id,
+            'enable_www_redirect' => true,
+            'enable_worker' => false,
+            'worker_watch' => false,
+            'create_dns_record' => false,
+        ]);
+
+        $response->assertOk();
+        $response->assertJson([
+            'success' => true,
+            'queued' => true,
+            'domain_fqdn' => 'panel.example.com',
+        ]);
+
+        $this->assertDatabaseHas('domains', [
+            'fqdn' => 'panel.example.com',
+            'parent_domain_id' => $parent->id,
+            'owner_user_id' => $owner->id,
+        ]);
+        Queue::assertPushed(ProvisionDomainJob::class);
+    }
+
     public function test_delete_request_passes_delete_dns_record_flag_to_job(): void
     {
         Queue::fake();

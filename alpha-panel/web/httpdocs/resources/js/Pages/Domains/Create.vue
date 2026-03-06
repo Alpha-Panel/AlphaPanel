@@ -46,6 +46,28 @@
                             </FormField>
                         </div>
 
+                        <div v-if="isSubdomainCreate" class="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-white/5">
+                            <label class="flex items-center gap-2">
+                                <input v-model="form.inherit_parent_root_path" type="checkbox" class="form-checkbox" />
+                                <span class="text-sm text-gray-700 dark:text-gray-400">{{ t('Inherit main domain path') }}</span>
+                            </label>
+                            <p v-if="selectedParentDomainWebRootPath !== ''" class="text-xs text-gray-600 dark:text-gray-400">
+                                {{ t('Main domain path: :path', { path: selectedParentDomainWebRootPath }) }}
+                            </p>
+                            <FormField
+                                v-if="!form.inherit_parent_root_path"
+                                :label="t('Root Path (Optional)')"
+                                :error="form.errors.root_path"
+                            >
+                                <input
+                                    v-model="form.root_path"
+                                    type="text"
+                                    :placeholder="t('/var/www/vhosts/example.com/subdomains/app/httpdocs/public')"
+                                    class="form-input"
+                                />
+                            </FormField>
+                        </div>
+
                         <div class="flex items-center gap-3">
                             <label class="flex items-center gap-2">
                                 <input v-model="form.enable_www_redirect" type="checkbox" class="form-checkbox" />
@@ -172,7 +194,8 @@ const form = useForm({
     parent_domain_id: null as number | null,
     php_version_id: null as number | null,
     owner_user_id: null as number | null,
-    root_path: null,
+    root_path: '',
+    inherit_parent_root_path: false,
     enable_www_redirect: true,
     enable_worker: false,
     worker_num: 2,
@@ -185,12 +208,34 @@ const form = useForm({
 });
 
 const isSubdomainCreate = computed(() => form.parent_domain_id !== null);
+const selectedParentDomain = computed(() => props.parentDomains.find((domain) => Number(domain.id) === Number(form.parent_domain_id)) ?? null);
+const selectedParentDomainWebRootPath = computed(() => {
+    if (!selectedParentDomain.value) {
+        return '';
+    }
+
+    const customRootPath = String(selectedParentDomain.value.root_path ?? '').trim();
+    if (customRootPath !== '') {
+        return customRootPath;
+    }
+
+    const fqdn = String(selectedParentDomain.value.fqdn ?? '').trim();
+    if (fqdn === '') {
+        return '';
+    }
+
+    if (selectedParentDomain.value.type === 'apache_reverse_proxy') {
+        return `/var/www/vhosts/${fqdn}/httpdocs`;
+    }
+
+    return `/var/www/vhosts/${fqdn}/httpdocs/public`;
+});
 const shouldShowSubdomainDnsOption = computed(() => {
     if (!isSubdomainCreate.value) {
         return false;
     }
 
-    const parentDomain = props.parentDomains.find((domain) => Number(domain.id) === Number(form.parent_domain_id));
+    const parentDomain = selectedParentDomain.value;
     if (!parentDomain) {
         return false;
     }
@@ -212,6 +257,8 @@ const submit = () => {
         form.cloudflare_mode = 'skip';
     } else {
         form.create_dns_record = false;
+        form.root_path = '';
+        form.inherit_parent_root_path = false;
     }
 
     if (!shouldShowSubdomainDnsOption.value) {
@@ -237,6 +284,8 @@ watch(() => form.parent_domain_id, (parentDomainId) => {
         form.cloudflare_mode = 'skip';
     } else {
         form.create_dns_record = false;
+        form.root_path = '';
+        form.inherit_parent_root_path = false;
     }
 });
 
@@ -255,6 +304,12 @@ watch(() => form.cloudflare_mode, (cloudflareMode) => {
 watch(() => form.create_dns_record, (createDnsRecord) => {
     if (!createDnsRecord && isSubdomainCreate.value) {
         form.dns_target_ip = '';
+    }
+});
+
+watch(() => form.inherit_parent_root_path, (inheritParentRootPath) => {
+    if (inheritParentRootPath) {
+        form.root_path = '';
     }
 });
 
