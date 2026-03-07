@@ -97,6 +97,16 @@ class AuditLogController extends Controller
             'supervisor_restart_failed',
             'frankenphp_workers_restart_signaled',
             'frankenphp_workers_restart_failed',
+            'laravel_optimize_refreshed',
+            'laravel_optimize_refresh_failed',
+            'npm_install_executed',
+            'npm_install_failed',
+            'npm_build_executed',
+            'npm_build_failed',
+            'composer_install_executed',
+            'composer_install_failed',
+            'composer_update_executed',
+            'composer_update_failed',
         ]);
 
         $actions = AuditLog::query()

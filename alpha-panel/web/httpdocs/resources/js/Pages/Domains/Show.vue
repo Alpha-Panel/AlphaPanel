@@ -179,6 +179,12 @@
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
+                            <Link :href="route('domains.packages.index', domain.id)" class="quick-link">
+                                <i class="fa-solid fa-box-open quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('Package Manager') }}</span>
+                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                            </Link>
+
                             <button type="button" @click="openJenkinsModal(domain.fqdn)" class="quick-link">
                                 <i class="fa-brands fa-jenkins quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('Jenkins file') }}</span>
@@ -301,6 +307,12 @@
                                 <Link :href="route('domains.supervisor.index', subdomain.id)" class="quick-link">
                                     <i class="fa-brands fa-laravel quick-link-icon"></i>
                                     <span class="quick-link-label">{{ t('Laravel Processes') }}</span>
+                                    <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                                </Link>
+
+                                <Link :href="route('domains.packages.index', subdomain.id)" class="quick-link">
+                                    <i class="fa-solid fa-box-open quick-link-icon"></i>
+                                    <span class="quick-link-label">{{ t('Package Manager') }}</span>
                                     <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                                 </Link>
 

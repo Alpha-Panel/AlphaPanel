@@ -23,18 +23,32 @@
                         <p class="text-sm text-gray-500 dark:text-gray-400">
                             {{ t('Manage background processes for your Laravel application. Changes are applied immediately to the server.') }}
                         </p>
-                        <button
-                            type="button"
-                            @click="restartFrankenphpWorkers"
-                            :disabled="workersRestartLoading || actionLoading !== null || processRestartLoading !== null"
-                            class="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border border-blue-light-500/40 bg-blue-light-500/10 px-3 text-sm font-medium text-blue-light-700 shadow-theme-xs transition-colors hover:bg-blue-light-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:text-blue-light-300"
-                        >
-                            <i v-if="workersRestartLoading" class="bx bx-loader-alt animate-spin text-base"></i>
-                            <template v-else>
-                                <i class="bx bx-refresh text-base"></i>
-                                {{ t('Restart FrankenPHP Workers') }}
-                            </template>
-                        </button>
+                        <div class="flex shrink-0 flex-wrap items-center gap-2">
+                            <button
+                                type="button"
+                                @click="runOptimize"
+                                :disabled="optimizeLoading || workersRestartLoading || actionLoading !== null || processRestartLoading !== null"
+                                class="inline-flex h-9 items-center gap-2 rounded-lg border border-success-500/40 bg-success-500/10 px-3 text-sm font-medium text-success-700 shadow-theme-xs transition-colors hover:bg-success-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:text-success-300"
+                            >
+                                <i v-if="optimizeLoading" class="bx bx-loader-alt animate-spin text-base"></i>
+                                <template v-else>
+                                    <i class="bx bx-rocket text-base"></i>
+                                    {{ t('Optimize Laravel') }}
+                                </template>
+                            </button>
+                            <button
+                                type="button"
+                                @click="restartFrankenphpWorkers"
+                                :disabled="workersRestartLoading || optimizeLoading || actionLoading !== null || processRestartLoading !== null"
+                                class="inline-flex h-9 items-center gap-2 rounded-lg border border-blue-light-500/40 bg-blue-light-500/10 px-3 text-sm font-medium text-blue-light-700 shadow-theme-xs transition-colors hover:bg-blue-light-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:text-blue-light-300"
+                            >
+                                <i v-if="workersRestartLoading" class="bx bx-loader-alt animate-spin text-base"></i>
+                                <template v-else>
+                                    <i class="bx bx-refresh text-base"></i>
+                                    {{ t('Restart FrankenPHP Workers') }}
+                                </template>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="space-y-4">
@@ -82,7 +96,7 @@
                                             <select
                                                 v-model.number="process.num_procs"
                                                 @change="updateProcess(process)"
-                                                :disabled="actionLoading === process.type || processRestartLoading === process.type || workersRestartLoading"
+                                                :disabled="actionLoading === process.type || processRestartLoading === process.type || workersRestartLoading || optimizeLoading"
                                                 class="h-8 w-[4.5rem] appearance-none rounded-md border border-gray-300 bg-white pl-2.5 pr-7 text-sm font-semibold text-gray-700 transition focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
                                             >
                                                 <option v-for="n in 10" :key="n" :value="n">{{ n }}</option>
@@ -97,7 +111,7 @@
                                         v-if="process.enabled"
                                         type="button"
                                         @click="restartProcess(process)"
-                                        :disabled="actionLoading !== null || processRestartLoading === process.type || workersRestartLoading"
+                                        :disabled="actionLoading !== null || processRestartLoading === process.type || workersRestartLoading || optimizeLoading"
                                         class="inline-flex h-9 items-center gap-2 rounded-lg border border-brand-500/35 bg-brand-500/10 px-3 text-sm font-medium text-brand-700 shadow-theme-xs transition-colors hover:bg-brand-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:text-brand-300"
                                     >
                                         <i v-if="processRestartLoading === process.type" class="bx bx-loader-alt animate-spin text-base"></i>
@@ -109,7 +123,7 @@
 
                                     <button
                                         @click="toggleProcess(process)"
-                                        :disabled="actionLoading === process.type || processRestartLoading !== null || workersRestartLoading"
+                                        :disabled="actionLoading === process.type || processRestartLoading !== null || workersRestartLoading || optimizeLoading"
                                         class="inline-flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium shadow-theme-xs transition-colors disabled:opacity-50"
                                         :class="process.enabled
                                             ? 'border border-error-500/40 text-error-600 hover:bg-error-500/10 dark:text-error-400'
@@ -171,6 +185,7 @@ const { addToast } = useToast();
 const actionLoading = ref<string | null>(null);
 const processRestartLoading = ref<string | null>(null);
 const workersRestartLoading = ref(false);
+const optimizeLoading = ref(false);
 
 const localProcesses = reactive<Process[]>(props.processes.map((p) => ({ ...p })));
 
@@ -201,7 +216,7 @@ const processDescription = (type: string): string => {
 };
 
 const toggleProcess = async (process: Process): Promise<void> => {
-    if (actionLoading.value !== null || processRestartLoading.value !== null || workersRestartLoading.value) return;
+    if (actionLoading.value !== null || processRestartLoading.value !== null || workersRestartLoading.value || optimizeLoading.value) return;
     actionLoading.value = process.type;
 
     try {
@@ -222,7 +237,7 @@ const toggleProcess = async (process: Process): Promise<void> => {
 };
 
 const updateProcess = async (process: Process): Promise<void> => {
-    if (actionLoading.value !== null || processRestartLoading.value !== null || workersRestartLoading.value) return;
+    if (actionLoading.value !== null || processRestartLoading.value !== null || workersRestartLoading.value || optimizeLoading.value) return;
     actionLoading.value = process.type;
 
     try {
@@ -242,7 +257,7 @@ const updateProcess = async (process: Process): Promise<void> => {
 };
 
 const restartProcess = async (process: Process): Promise<void> => {
-    if (actionLoading.value !== null || processRestartLoading.value !== null || workersRestartLoading.value) return;
+    if (actionLoading.value !== null || processRestartLoading.value !== null || workersRestartLoading.value || optimizeLoading.value) return;
     processRestartLoading.value = process.type;
 
     try {
@@ -259,7 +274,7 @@ const restartProcess = async (process: Process): Promise<void> => {
 };
 
 const restartFrankenphpWorkers = async (): Promise<void> => {
-    if (actionLoading.value !== null || processRestartLoading.value !== null || workersRestartLoading.value) return;
+    if (actionLoading.value !== null || processRestartLoading.value !== null || workersRestartLoading.value || optimizeLoading.value) return;
     workersRestartLoading.value = true;
 
     try {
@@ -269,6 +284,20 @@ const restartFrankenphpWorkers = async (): Promise<void> => {
         addToast('error', error.response?.data?.message ?? t('Operation failed.'));
     } finally {
         workersRestartLoading.value = false;
+    }
+};
+
+const runOptimize = async (): Promise<void> => {
+    if (actionLoading.value !== null || processRestartLoading.value !== null || workersRestartLoading.value || optimizeLoading.value) return;
+    optimizeLoading.value = true;
+
+    try {
+        const response = await axios.post(route('domains.supervisor.optimize', props.domain.id));
+        addToast('success', response.data.message);
+    } catch (error: any) {
+        addToast('error', error.response?.data?.message ?? t('Operation failed.'));
+    } finally {
+        optimizeLoading.value = false;
     }
 };
 </script>

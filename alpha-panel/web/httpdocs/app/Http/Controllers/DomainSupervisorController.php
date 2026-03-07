@@ -6,6 +6,7 @@ use App\Enums\SupervisorType;
 use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Models\DomainSupervisor;
+use App\Services\PortainerService;
 use App\Services\SupervisorConfigService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -184,6 +185,74 @@ class DomainSupervisorController extends Controller
                 ]),
             ], 500);
         }
+    }
+
+    public function runOptimize(Request $request, Domain $domain, PortainerService $portainer): JsonResponse
+    {
+        $this->authorize('update', $domain);
+
+        try {
+            $result = $portainer->execInContainer(
+                'frankenphp',
+                ['sh', '-lc', $this->buildAppCommandScript($domain, 'php artisan optimize:clear && php artisan optimize')],
+                300,
+            );
+
+            if (! $result->isSuccessful()) {
+                $error = trim($result->errorOutput) !== '' ? trim($result->errorOutput) : trim($result->output);
+                if ($error === '') {
+                    $error = 'Unknown error.';
+                }
+
+                throw new \RuntimeException($error);
+            }
+
+            $this->createAuditLog(
+                $request,
+                $domain,
+                'laravel_optimize_refreshed',
+                'Laravel optimize cache cleared and rebuilt.',
+            );
+
+            return response()->json([
+                'status' => 'success',
+                'message' => __('Laravel optimize cache cleared and rebuilt successfully.'),
+            ]);
+        } catch (\Throwable $exception) {
+            Log::error("Laravel optimize refresh failed for {$domain->fqdn}: {$exception->getMessage()}");
+
+            $this->createAuditLog(
+                $request,
+                $domain,
+                'laravel_optimize_refresh_failed',
+                $exception->getMessage(),
+            );
+
+            return response()->json([
+                'status' => 'error',
+                'message' => __('Failed to run Laravel optimize commands: :error', [
+                    'error' => $exception->getMessage(),
+                ]),
+            ], 500);
+        }
+    }
+
+    private function buildAppCommandScript(Domain $domain, string $command): string
+    {
+        $webRoot = escapeshellarg($domain->getWebRootPath());
+
+        return <<<SH
+WEB_ROOT={$webRoot}
+APP_DIR="\$WEB_ROOT"
+PARENT_DIR=\$(dirname "\$WEB_ROOT")
+
+if [ -f "\$PARENT_DIR/artisan" ]; then
+  APP_DIR="\$PARENT_DIR"
+fi
+
+cd "\$APP_DIR"
+{$command}
+SH;
     }
 
     private function createAuditLog(Request $request, Domain $domain, string $action, string $summary): void

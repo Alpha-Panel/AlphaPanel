@@ -6,6 +6,7 @@ use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\DnsController;
 use App\Http\Controllers\DomainCloudflareController;
 use App\Http\Controllers\DomainController;
+use App\Http\Controllers\DomainPackageManagerController;
 use App\Http\Controllers\DomainProvisionController;
 use App\Http\Controllers\DomainSupervisorController;
 use App\Http\Controllers\FileManagerController;
@@ -166,6 +167,16 @@ Route::middleware('auth')->group(function (): void {
     Route::post('domains/{domain}/supervisor', [DomainSupervisorController::class, 'update'])->name('domains.supervisor.update');
     Route::post('domains/{domain}/supervisor/restart', [DomainSupervisorController::class, 'restart'])->name('domains.supervisor.restart');
     Route::post('domains/{domain}/supervisor/workers/restart', [DomainSupervisorController::class, 'restartFrankenphpWorkers'])->name('domains.supervisor.workers.restart');
+    Route::post('domains/{domain}/supervisor/optimize', [DomainSupervisorController::class, 'runOptimize'])->name('domains.supervisor.optimize');
+
+    // Package Manager (per domain)
+    Route::get('domains/{domain}/package-manager', [DomainPackageManagerController::class, 'index'])->name('domains.packages.index');
+    Route::get('domains/{domain}/package-manager/npm/packages', [DomainPackageManagerController::class, 'listNpmPackages'])->name('domains.packages.npm.packages');
+    Route::post('domains/{domain}/package-manager/npm/install', [DomainPackageManagerController::class, 'npmInstall'])->name('domains.packages.npm.install');
+    Route::post('domains/{domain}/package-manager/npm/build', [DomainPackageManagerController::class, 'npmBuild'])->name('domains.packages.npm.build');
+    Route::get('domains/{domain}/package-manager/composer/packages', [DomainPackageManagerController::class, 'listComposerPackages'])->name('domains.packages.composer.packages');
+    Route::post('domains/{domain}/package-manager/composer/install', [DomainPackageManagerController::class, 'composerInstall'])->name('domains.packages.composer.install');
+    Route::post('domains/{domain}/package-manager/composer/update', [DomainPackageManagerController::class, 'composerUpdate'])->name('domains.packages.composer.update');
 
     // File Manager (per domain)
     Route::prefix('domains/{domain}/files')->name('domains.files.')->group(function (): void {
