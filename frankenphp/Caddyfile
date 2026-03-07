@@ -36,9 +36,18 @@
 		directives `
 			Include @owasp_crs/*.conf
 			Include @coraza.conf-recommended
-			SecRuleEngine DetectionOnly
+			SecRuleEngine on
         `
 	}
+}
+(waf-common-detection-only) {
+	waf {
+			directives `
+			Include @owasp_crs/*.conf
+			Include @coraza.conf-recommended
+			SecRuleEngine DetectionOnly
+        `
+		}
 }
 (common-tls) {
 	# tls {
