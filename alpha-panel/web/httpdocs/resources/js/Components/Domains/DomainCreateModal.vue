@@ -87,23 +87,6 @@
                         </label>
                     </div>
 
-                    <div class="space-y-3 border-t border-white/10 pt-4">
-                        <h6 class="text-sm font-medium text-white">{{ t('ModSecurity') }}</h6>
-                        <div class="flex flex-wrap items-center gap-4">
-                            <label class="flex items-center gap-2 text-sm text-white/80">
-                                <input v-model="form.modsecurity_enabled" type="checkbox" class="form-checkbox" />
-                                {{ t('Enable ModSecurity') }}
-                            </label>
-                        </div>
-
-                        <FormField v-if="form.modsecurity_enabled" :label="t('ModSecurity Mode')" :error="form.errors.modsecurity_mode">
-                            <select v-model="form.modsecurity_mode" class="form-input">
-                                <option value="active">{{ t('Active') }}</option>
-                                <option value="detection_only">{{ t('Detection Only') }}</option>
-                            </select>
-                        </FormField>
-                    </div>
-
                     <FormField
                         v-if="!isSubdomain"
                         :label="t('Cloudflare Status')"
@@ -258,8 +241,6 @@ const form = useForm({
     enable_worker: false,
     worker_num: 2,
     worker_watch: false,
-    modsecurity_enabled: false,
-    modsecurity_mode: 'active' as 'active' | 'detection_only' | null,
     cloudflare_mode: 'skip' as 'add' | 'skip' | 'existing',
     create_dns_record: false,
     dns_target_ip: '',
@@ -292,14 +273,6 @@ const hasUnsavedInput = computed(() => {
     }
 
     if (form.enable_worker !== false || form.worker_num !== 2 || form.worker_watch !== false) {
-        return true;
-    }
-
-    if (form.modsecurity_enabled !== false) {
-        return true;
-    }
-
-    if (form.modsecurity_mode !== null && form.modsecurity_mode !== 'active') {
         return true;
     }
 
@@ -343,8 +316,6 @@ const resetFormState = (): void => {
         enable_worker: false,
         worker_num: 2,
         worker_watch: false,
-        modsecurity_enabled: false,
-        modsecurity_mode: 'active',
         cloudflare_mode: 'skip',
         create_dns_record: false,
         dns_target_ip: '',
@@ -400,18 +371,6 @@ watch(() => form.inherit_parent_root_path, (inheritParentRootPath) => {
     }
 });
 
-watch(() => form.modsecurity_enabled, (enabled) => {
-    if (enabled) {
-        if (form.modsecurity_mode !== 'active' && form.modsecurity_mode !== 'detection_only') {
-            form.modsecurity_mode = 'active';
-        }
-
-        return;
-    }
-
-    form.modsecurity_mode = null;
-});
-
 const attemptClose = (): void => {
     if (form.processing) {
         return;
@@ -443,12 +402,6 @@ const submit = (): void => {
 
     if (!showDnsTargetIpSelect.value) {
         form.dns_target_ip = '';
-    }
-
-    if (!form.modsecurity_enabled) {
-        form.modsecurity_mode = null;
-    } else if (form.modsecurity_mode !== 'active' && form.modsecurity_mode !== 'detection_only') {
-        form.modsecurity_mode = 'active';
     }
 
     if (isSubdomain.value) {

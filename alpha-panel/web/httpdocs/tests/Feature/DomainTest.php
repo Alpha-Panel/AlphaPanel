@@ -247,7 +247,7 @@ class DomainTest extends TestCase
         $this->assertDatabaseHas('domains', ['fqdn' => 'modern-test.com']);
     }
 
-    public function test_modsecurity_settings_are_persisted_on_store(): void
+    public function test_new_domains_default_to_modsecurity_detection_only(): void
     {
         Queue::fake();
         $owner = User::factory()->create();
@@ -259,8 +259,6 @@ class DomainTest extends TestCase
             'enable_www_redirect' => false,
             'enable_worker' => false,
             'worker_watch' => false,
-            'modsecurity_enabled' => true,
-            'modsecurity_mode' => 'detection_only',
         ]);
 
         $response->assertSessionHasNoErrors();
@@ -282,24 +280,19 @@ class DomainTest extends TestCase
             'modsecurity_mode' => 'active',
         ]);
 
-        $response = $this->actingAs($owner)->put(route('domains.update', $domain), [
-            'fqdn' => $domain->fqdn,
-            'type' => $domain->type->value,
-            'root_path' => $domain->root_path,
-            'enable_www_redirect' => (bool) $domain->enable_www_redirect,
-            'enable_worker' => (bool) $domain->enable_worker,
-            'worker_watch' => (bool) $domain->worker_watch,
+        $response = $this->actingAs($owner)->put(route('domains.modsecurity.update', $domain), [
             'modsecurity_enabled' => false,
             'modsecurity_mode' => 'detection_only',
         ]);
 
         $response->assertSessionHasNoErrors();
-        $response->assertRedirect(route('domains.show', $domain));
+        $response->assertRedirect(route('domains.modsecurity.index', $domain));
         $this->assertDatabaseHas('domains', [
             'id' => $domain->id,
             'modsecurity_enabled' => false,
             'modsecurity_mode' => null,
         ]);
+        Queue::assertPushed(ProvisionDomainJob::class);
     }
 
     public function test_subdomain_creation_auto_enables_dns_sync_when_cloudflare_zone_exists(): void

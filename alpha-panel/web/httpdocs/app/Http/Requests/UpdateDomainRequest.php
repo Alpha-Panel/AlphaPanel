@@ -42,13 +42,6 @@ class UpdateDomainRequest extends FormRequest
                 Rule::excludeIf(fn () => ! $this->boolean('enable_worker')),
                 'boolean',
             ],
-            'modsecurity_enabled' => ['boolean'],
-            'modsecurity_mode' => [
-                Rule::excludeIf(fn () => ! $this->boolean('modsecurity_enabled')),
-                'nullable',
-                'string',
-                Rule::in(['active', 'detection_only']),
-            ],
             'php_version_id' => [
                 'nullable',
                 'exists:php_versions,id',

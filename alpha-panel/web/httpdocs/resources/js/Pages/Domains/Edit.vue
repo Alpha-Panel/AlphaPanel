@@ -58,23 +58,6 @@
                             <span class="text-sm text-gray-700 dark:text-gray-400">{{ t('Enable www redirect') }}</span>
                         </label>
 
-                        <div class="pt-5 border-t border-gray-200 dark:border-gray-800">
-                            <h4 class="mb-3 text-sm font-medium text-gray-800 dark:text-white/90">{{ t('ModSecurity') }}</h4>
-                            <div class="flex items-center gap-4 mb-4">
-                                <label class="flex items-center gap-2">
-                                    <input v-model="form.modsecurity_enabled" type="checkbox" class="form-checkbox" />
-                                    <span class="text-sm text-gray-700 dark:text-gray-400">{{ t('Enable ModSecurity') }}</span>
-                                </label>
-                            </div>
-
-                            <FormField v-if="form.modsecurity_enabled" :label="t('ModSecurity Mode')" :error="form.errors.modsecurity_mode">
-                                <select v-model="form.modsecurity_mode" class="form-input">
-                                    <option value="active">{{ t('Active') }}</option>
-                                    <option value="detection_only">{{ t('Detection Only') }}</option>
-                                </select>
-                            </FormField>
-                        </div>
-
                         <!-- Worker Section -->
                         <div v-if="form.type === 'caddy_web_server'" class="pt-5 border-t border-gray-200 dark:border-gray-800">
                             <h4 class="mb-3 text-sm font-medium text-gray-800 dark:text-white/90">{{ t('Worker Settings') }}</h4>
@@ -151,8 +134,6 @@ const form = useForm({
     enable_worker: props.domain.enable_worker,
     worker_num: props.domain.worker_num ?? 2,
     worker_watch: props.domain.worker_watch,
-    modsecurity_enabled: Boolean(props.domain.modsecurity_enabled),
-    modsecurity_mode: props.domain.modsecurity_mode ?? 'active',
 });
 
 watch(() => form.type, (type) => {
@@ -161,27 +142,9 @@ watch(() => form.type, (type) => {
     }
 });
 
-watch(() => form.modsecurity_enabled, (enabled) => {
-    if (enabled) {
-        if (form.modsecurity_mode !== 'active' && form.modsecurity_mode !== 'detection_only') {
-            form.modsecurity_mode = 'active';
-        }
-
-        return;
-    }
-
-    form.modsecurity_mode = null;
-});
-
 const submit = () => {
     if (form.type !== 'apache_reverse_proxy') {
         form.php_version_id = null;
-    }
-
-    if (!form.modsecurity_enabled) {
-        form.modsecurity_mode = null;
-    } else if (form.modsecurity_mode !== 'active' && form.modsecurity_mode !== 'detection_only') {
-        form.modsecurity_mode = 'active';
     }
 
     form.post(route('domains.update', props.domain.id));

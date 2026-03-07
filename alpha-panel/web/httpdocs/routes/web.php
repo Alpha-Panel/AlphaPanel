@@ -6,6 +6,7 @@ use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\DnsController;
 use App\Http\Controllers\DomainCloudflareController;
 use App\Http\Controllers\DomainController;
+use App\Http\Controllers\DomainModSecurityController;
 use App\Http\Controllers\DomainPackageManagerController;
 use App\Http\Controllers\DomainProvisionController;
 use App\Http\Controllers\DomainSupervisorController;
@@ -121,6 +122,12 @@ Route::middleware('auth')->group(function (): void {
     // SSL Activation / Renewal
     Route::post('domains/{domain}/ssl', [DomainController::class, 'sslActivate'])
         ->name('domains.ssl.activate');
+
+    // ModSecurity Management (per domain)
+    Route::get('domains/{domain}/modsecurity', [DomainModSecurityController::class, 'index'])
+        ->name('domains.modsecurity.index');
+    Route::put('domains/{domain}/modsecurity', [DomainModSecurityController::class, 'update'])
+        ->name('domains.modsecurity.update');
 
     // DNS Management (per domain)
     Route::get('domains/{domain}/dns', [DnsController::class, 'index'])->name('domains.dns.index');

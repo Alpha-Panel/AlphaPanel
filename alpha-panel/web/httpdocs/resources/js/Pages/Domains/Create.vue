@@ -75,23 +75,6 @@
                             </label>
                         </div>
 
-                        <div class="pt-5 border-t border-gray-200 dark:border-gray-800">
-                            <h4 class="mb-3 text-sm font-medium text-gray-800 dark:text-white/90">{{ t('ModSecurity') }}</h4>
-                            <div class="flex items-center gap-4 mb-4">
-                                <label class="flex items-center gap-2">
-                                    <input v-model="form.modsecurity_enabled" type="checkbox" class="form-checkbox" />
-                                    <span class="text-sm text-gray-700 dark:text-gray-400">{{ t('Enable ModSecurity') }}</span>
-                                </label>
-                            </div>
-
-                            <FormField v-if="form.modsecurity_enabled" :label="t('ModSecurity Mode')" :error="form.errors.modsecurity_mode">
-                                <select v-model="form.modsecurity_mode" class="form-input">
-                                    <option value="active">{{ t('Active') }}</option>
-                                    <option value="detection_only">{{ t('Detection Only') }}</option>
-                                </select>
-                            </FormField>
-                        </div>
-
                         <FormField
                             v-if="!isSubdomainCreate"
                             :label="t('Cloudflare Status')"
@@ -217,8 +200,6 @@ const form = useForm({
     enable_worker: false,
     worker_num: 2,
     worker_watch: false,
-    modsecurity_enabled: false,
-    modsecurity_mode: 'active' as 'active' | 'detection_only' | null,
     cloudflare_mode: 'skip' as 'add' | 'skip' | 'existing',
     create_dns_record: false,
     dns_target_ip: '',
@@ -288,12 +269,6 @@ const submit = () => {
         form.dns_target_ip = '';
     }
 
-    if (!form.modsecurity_enabled) {
-        form.modsecurity_mode = null;
-    } else if (form.modsecurity_mode !== 'active' && form.modsecurity_mode !== 'detection_only') {
-        form.modsecurity_mode = 'active';
-    }
-
     form.post(route('domains.store'));
 };
 
@@ -336,18 +311,6 @@ watch(() => form.inherit_parent_root_path, (inheritParentRootPath) => {
     if (inheritParentRootPath) {
         form.root_path = '';
     }
-});
-
-watch(() => form.modsecurity_enabled, (enabled) => {
-    if (enabled) {
-        if (form.modsecurity_mode !== 'active' && form.modsecurity_mode !== 'detection_only') {
-            form.modsecurity_mode = 'active';
-        }
-
-        return;
-    }
-
-    form.modsecurity_mode = null;
 });
 
 onMounted(() => {
