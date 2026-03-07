@@ -29,6 +29,8 @@ class Domain extends Model
         'worker_watch',
         'php_version_id',
         'cloudflare_enabled',
+        'modsecurity_enabled',
+        'modsecurity_mode',
     ];
 
     /** @return array<string, string> */
@@ -42,6 +44,7 @@ class Domain extends Model
             'enable_worker' => 'boolean',
             'worker_watch' => 'boolean',
             'cloudflare_enabled' => 'boolean',
+            'modsecurity_enabled' => 'boolean',
         ];
     }
 

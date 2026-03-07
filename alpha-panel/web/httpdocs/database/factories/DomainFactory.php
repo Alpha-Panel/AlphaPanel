@@ -34,6 +34,8 @@ class DomainFactory extends Factory
             'worker_num' => null,
             'worker_watch' => false,
             'php_version_id' => null,
+            'modsecurity_enabled' => false,
+            'modsecurity_mode' => null,
         ];
     }
 

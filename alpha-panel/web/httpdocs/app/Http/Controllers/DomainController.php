@@ -169,6 +169,8 @@ class DomainController extends Controller
             $data['cloudflare_enabled'] = in_array($cloudflareMode, ['add', 'existing'], true);
         }
 
+        $this->normalizeModSecuritySettings($data);
+
         $ftpUsername = $data['ftp_username'] ?? null;
         $ftpPassword = $data['ftp_password'] ?? null;
         unset($data['ftp_username'], $data['ftp_password'], $data['create_dns_record'], $data['cloudflare_mode'], $data['dns_target_ip'], $data['inherit_parent_root_path']);
@@ -276,6 +278,8 @@ class DomainController extends Controller
             $validated['php_version_id'] = null;
         }
 
+        $this->normalizeModSecuritySettings($validated);
+
         $domain->update($validated);
 
         $fqdnChanged = $oldFqdn !== $domain->fqdn;
@@ -283,6 +287,7 @@ class DomainController extends Controller
         $configChanged = $fqdnChanged || $domain->wasChanged([
             'type', 'root_path', 'enable_www_redirect', 'additional_hostnames',
             'enable_worker', 'worker_num', 'worker_watch', 'php_version_id',
+            'modsecurity_enabled', 'modsecurity_mode',
         ]);
 
         if ($fqdnChanged) {
@@ -672,6 +677,24 @@ class DomainController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function normalizeModSecuritySettings(array &$payload): void
+    {
+        $enabled = (bool) ($payload['modsecurity_enabled'] ?? false);
+        $payload['modsecurity_enabled'] = $enabled;
+
+        if (! $enabled) {
+            $payload['modsecurity_mode'] = null;
+
+            return;
+        }
+
+        $mode = (string) ($payload['modsecurity_mode'] ?? 'active');
+        $payload['modsecurity_mode'] = $mode === 'detection_only' ? 'detection_only' : 'active';
     }
 
     private function storeValidationErrorResponse(

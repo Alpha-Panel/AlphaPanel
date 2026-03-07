@@ -123,7 +123,7 @@ class DomainConfigService
 
         // Snippet definition
         $lines[] = "(reverse-proxy-{$slug}) {";
-        $lines[] = '    import common-headers';
+        $this->appendCommonHeaderImports($lines, '    ', $domain);
         $lines[] = "    tls {$certPath} {$keyPath}";
         $lines[] = '    encode zstd br gzip';
 
@@ -146,7 +146,7 @@ class DomainConfigService
 
         // HTTP → HTTPS redirect
         $lines[] = "{$fqdn}:80 {";
-        $lines[] = '        import common-headers';
+        $this->appendCommonHeaderImports($lines, '        ', $domain);
         $lines[] = "        redir https://{$fqdn}{uri}";
         $lines[] = '}';
         $lines[] = '';
@@ -154,7 +154,7 @@ class DomainConfigService
         // WWW redirects
         if ($domain->enable_www_redirect && ! str_starts_with($fqdn, 'www.')) {
             $lines[] = "www.{$fqdn}:80 {";
-            $lines[] = '    import common-headers';
+            $this->appendCommonHeaderImports($lines, '    ', $domain);
             $lines[] = "    redir https://{$fqdn}{uri}";
             $lines[] = '}';
             $lines[] = '';
@@ -170,7 +170,7 @@ class DomainConfigService
         $additionalHostnames = $domain->additional_hostnames ?? [];
         foreach ($additionalHostnames as $hostname) {
             $lines[] = "{$hostname}:80 {";
-            $lines[] = '    import common-headers';
+            $this->appendCommonHeaderImports($lines, '    ', $domain);
             $lines[] = "    redir https://{$fqdn}{uri}";
             $lines[] = '}';
             $lines[] = '';
@@ -213,7 +213,7 @@ class DomainConfigService
         $isLegacy = $domain->type === DomainType::ApacheReverseProxy;
 
         $lines[] = "{$fqdn}:80 {";
-        $lines[] = '    import common-headers';
+        $this->appendCommonHeaderImports($lines, '    ', $domain);
         $lines[] = '    encode zstd br gzip';
 
         if (! $isLegacy) {
@@ -233,6 +233,30 @@ class DomainConfigService
         $lines[] = '}';
 
         return $lines;
+    }
+
+    /**
+     * @param  array<int, string>  $lines
+     */
+    private function appendCommonHeaderImports(array &$lines, string $indent, Domain $domain): void
+    {
+        $lines[] = "{$indent}import common-headers";
+
+        $wafImport = $this->resolveWafImport($domain);
+        if ($wafImport !== null) {
+            $lines[] = "{$indent}{$wafImport}";
+        }
+    }
+
+    private function resolveWafImport(Domain $domain): ?string
+    {
+        if (! $domain->modsecurity_enabled) {
+            return null;
+        }
+
+        return $domain->modsecurity_mode === 'detection_only'
+            ? 'import waf-common-detection-only'
+            : 'import waf-common';
     }
 
     /**

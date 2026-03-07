@@ -210,6 +210,60 @@ class DomainConfigRendererTest extends TestCase
         $this->assertStringNotContainsString('worker {', $capturedContent);
     }
 
+    public function test_renderer_includes_active_waf_import_when_modsecurity_is_enabled(): void
+    {
+        $owner = User::factory()->create();
+        $domain = Domain::factory()->make([
+            'fqdn' => 'waf-active.com',
+            'owner_user_id' => $owner->id,
+            'type' => DomainType::CaddyWebServer,
+            'enable_www_redirect' => false,
+            'additional_hostnames' => [],
+            'enable_worker' => false,
+            'modsecurity_enabled' => true,
+            'modsecurity_mode' => 'active',
+        ]);
+
+        $capturedContent = null;
+
+        File::shouldReceive('put')
+            ->once()
+            ->with(Mockery::any(), Mockery::capture($capturedContent));
+        File::shouldReceive('move')->once();
+
+        $this->service->renderWithoutTls($domain);
+
+        $this->assertStringContainsString("import common-headers\n    import waf-common", $capturedContent);
+        $this->assertStringNotContainsString('import waf-common-detection-only', $capturedContent);
+    }
+
+    public function test_renderer_includes_detection_only_waf_import_when_mode_is_detection_only(): void
+    {
+        $owner = User::factory()->create();
+        $domain = Domain::factory()->make([
+            'fqdn' => 'waf-detection-only.com',
+            'owner_user_id' => $owner->id,
+            'type' => DomainType::CaddyWebServer,
+            'enable_www_redirect' => false,
+            'additional_hostnames' => [],
+            'enable_worker' => false,
+            'modsecurity_enabled' => true,
+            'modsecurity_mode' => 'detection_only',
+        ]);
+
+        $capturedContent = null;
+
+        File::shouldReceive('put')
+            ->once()
+            ->with(Mockery::any(), Mockery::capture($capturedContent));
+        File::shouldReceive('move')->once();
+
+        $this->service->renderWithoutTls($domain);
+
+        $this->assertStringContainsString('import waf-common-detection-only', $capturedContent);
+        $this->assertStringNotContainsString("import waf-common\n", $capturedContent);
+    }
+
     public function test_subdomain_path_in_caddy_config(): void
     {
         $this->seed(\Database\Seeders\PhpVersionSeeder::class);

@@ -42,7 +42,7 @@
 }
 (waf-common-detection-only) {
 	waf {
-			directives `
+		directives `
 			Include @owasp_crs/*.conf
 			Include @coraza.conf-recommended
 			SecRuleEngine DetectionOnly

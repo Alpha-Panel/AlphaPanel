@@ -247,6 +247,61 @@ class DomainTest extends TestCase
         $this->assertDatabaseHas('domains', ['fqdn' => 'modern-test.com']);
     }
 
+    public function test_modsecurity_settings_are_persisted_on_store(): void
+    {
+        Queue::fake();
+        $owner = User::factory()->create();
+
+        $response = $this->actingAs($owner)->post(route('domains.store'), [
+            'fqdn' => 'waf-store-test.com',
+            'type' => 'caddy_web_server',
+            'cloudflare_mode' => 'skip',
+            'enable_www_redirect' => false,
+            'enable_worker' => false,
+            'worker_watch' => false,
+            'modsecurity_enabled' => true,
+            'modsecurity_mode' => 'detection_only',
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('domains', [
+            'fqdn' => 'waf-store-test.com',
+            'modsecurity_enabled' => true,
+            'modsecurity_mode' => 'detection_only',
+        ]);
+    }
+
+    public function test_disabling_modsecurity_clears_mode_on_update(): void
+    {
+        Queue::fake();
+        $owner = User::factory()->create();
+        $domain = Domain::factory()->create([
+            'owner_user_id' => $owner->id,
+            'type' => DomainType::CaddyWebServer,
+            'modsecurity_enabled' => true,
+            'modsecurity_mode' => 'active',
+        ]);
+
+        $response = $this->actingAs($owner)->put(route('domains.update', $domain), [
+            'fqdn' => $domain->fqdn,
+            'type' => $domain->type->value,
+            'root_path' => $domain->root_path,
+            'enable_www_redirect' => (bool) $domain->enable_www_redirect,
+            'enable_worker' => (bool) $domain->enable_worker,
+            'worker_watch' => (bool) $domain->worker_watch,
+            'modsecurity_enabled' => false,
+            'modsecurity_mode' => 'detection_only',
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect(route('domains.show', $domain));
+        $this->assertDatabaseHas('domains', [
+            'id' => $domain->id,
+            'modsecurity_enabled' => false,
+            'modsecurity_mode' => null,
+        ]);
+    }
+
     public function test_subdomain_creation_auto_enables_dns_sync_when_cloudflare_zone_exists(): void
     {
         Queue::fake();
