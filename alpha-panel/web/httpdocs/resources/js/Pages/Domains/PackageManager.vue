@@ -55,6 +55,15 @@
                                     <i :class="npmActionLoading === 'build' ? 'bx bx-loader-alt animate-spin' : 'bx bx-play'" class="text-base"></i>
                                     {{ t('npm run build') }}
                                 </button>
+                                <button
+                                    type="button"
+                                    :disabled="npmListingLoading || npmActionLoading !== null || composerActionLoading !== null"
+                                    class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-warning-500 px-3 text-sm font-medium text-white hover:bg-warning-600 disabled:opacity-60"
+                                    @click="runNpmAuditFix"
+                                >
+                                    <i :class="npmActionLoading === 'audit_fix' ? 'bx bx-loader-alt animate-spin' : 'bx bx-shield-quarter'" class="text-base"></i>
+                                    {{ t('npm audit fix') }}
+                                </button>
                             </div>
 
                             <div v-if="!npmHasPackageJson" class="rounded-lg border border-warning-500/30 bg-warning-500/10 px-3 py-2 text-sm text-warning-700 dark:text-warning-300">
@@ -126,6 +135,15 @@
                                 >
                                     <i :class="composerActionLoading === 'update' ? 'bx bx-loader-alt animate-spin' : 'bx bx-sync'" class="text-base"></i>
                                     {{ t('composer update') }}
+                                </button>
+                                <button
+                                    type="button"
+                                    :disabled="composerListingLoading || composerActionLoading !== null || npmActionLoading !== null"
+                                    class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-light-500 px-3 text-sm font-medium text-white hover:bg-blue-light-600 disabled:opacity-60"
+                                    @click="runComposerDumpAutoload"
+                                >
+                                    <i :class="composerActionLoading === 'dump_autoload' ? 'bx bx-loader-alt animate-spin' : 'bx bx-link-alt'" class="text-base"></i>
+                                    {{ t('composer dump-autoloads') }}
                                 </button>
                             </div>
 
@@ -218,8 +236,8 @@ const npmPackages = ref<PackageRow[]>([]);
 const composerPackages = ref<PackageRow[]>([]);
 const npmListingLoading = ref(false);
 const composerListingLoading = ref(false);
-const npmActionLoading = ref<'install' | 'build' | null>(null);
-const composerActionLoading = ref<'install' | 'update' | null>(null);
+const npmActionLoading = ref<'install' | 'build' | 'audit_fix' | null>(null);
+const composerActionLoading = ref<'install' | 'update' | 'dump_autoload' | null>(null);
 const composerNoDev = ref(false);
 const npmHasPackageJson = ref(true);
 const composerHasComposerJson = ref(true);
@@ -305,6 +323,22 @@ const runNpmBuild = async (): Promise<void> => {
     }
 };
 
+const runNpmAuditFix = async (): Promise<void> => {
+    npmActionLoading.value = 'audit_fix';
+
+    try {
+        const response = await axios.post(route('domains.packages.npm.audit-fix', domain.value.id));
+        addToast('success', response.data?.message ?? t('NPM audit fix completed successfully.'));
+        setCommandOutput('npm audit fix', String(response.data?.output ?? ''), Boolean(response.data?.output_truncated ?? false));
+        await fetchNpmPackages();
+    } catch (error: any) {
+        addToast('error', error.response?.data?.message ?? t('NPM audit fix failed.'));
+        setCommandOutput('npm audit fix', String(error.response?.data?.output ?? ''), Boolean(error.response?.data?.output_truncated ?? false));
+    } finally {
+        npmActionLoading.value = null;
+    }
+};
+
 const runComposerInstall = async (): Promise<void> => {
     composerActionLoading.value = 'install';
 
@@ -336,6 +370,21 @@ const runComposerUpdate = async (): Promise<void> => {
     } catch (error: any) {
         addToast('error', error.response?.data?.message ?? t('Composer update failed.'));
         setCommandOutput('composer update', String(error.response?.data?.output ?? ''), Boolean(error.response?.data?.output_truncated ?? false));
+    } finally {
+        composerActionLoading.value = null;
+    }
+};
+
+const runComposerDumpAutoload = async (): Promise<void> => {
+    composerActionLoading.value = 'dump_autoload';
+
+    try {
+        const response = await axios.post(route('domains.packages.composer.dump-autoload', domain.value.id));
+        addToast('success', response.data?.message ?? t('Composer dump-autoload completed successfully.'));
+        setCommandOutput('composer dump-autoload', String(response.data?.output ?? ''), Boolean(response.data?.output_truncated ?? false));
+    } catch (error: any) {
+        addToast('error', error.response?.data?.message ?? t('Composer dump-autoload failed.'));
+        setCommandOutput('composer dump-autoload', String(error.response?.data?.output ?? ''), Boolean(error.response?.data?.output_truncated ?? false));
     } finally {
         composerActionLoading.value = null;
     }

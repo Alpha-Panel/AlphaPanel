@@ -96,6 +96,46 @@ class DomainMaintenanceToolsTest extends TestCase
         ]);
     }
 
+    public function test_npm_audit_fix_runs_and_logs_audit(): void
+    {
+        $owner = User::factory()->create();
+        $domain = Domain::factory()->create([
+            'owner_user_id' => $owner->id,
+        ]);
+
+        $this->mock(PortainerService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('execInContainer')
+                ->once()
+                ->with(
+                    'php-code-server',
+                    Mockery::on(function (mixed $command): bool {
+                        if (! is_array($command) || count($command) < 3) {
+                            return false;
+                        }
+
+                        return $command[0] === 'sh'
+                            && $command[1] === '-lc'
+                            && is_string($command[2])
+                            && str_contains($command[2], 'npm audit fix');
+                    }),
+                    1800,
+                )
+                ->andReturn(new ExecResult(exitCode: 0, output: 'fixed', errorOutput: ''));
+        });
+
+        $response = $this->actingAs($owner)->post(route('domains.packages.npm.audit-fix', $domain));
+
+        $response->assertOk()
+            ->assertJson([
+                'status' => 'success',
+            ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'domain_id' => $domain->id,
+            'action' => 'npm_audit_fix_executed',
+        ]);
+    }
+
     public function test_composer_install_no_dev_runs_and_logs_audit(): void
     {
         $owner = User::factory()->create();
@@ -135,6 +175,46 @@ class DomainMaintenanceToolsTest extends TestCase
         $this->assertDatabaseHas('audit_logs', [
             'domain_id' => $domain->id,
             'action' => 'composer_install_executed',
+        ]);
+    }
+
+    public function test_composer_dump_autoload_runs_and_logs_audit(): void
+    {
+        $owner = User::factory()->create();
+        $domain = Domain::factory()->create([
+            'owner_user_id' => $owner->id,
+        ]);
+
+        $this->mock(PortainerService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('execInContainer')
+                ->once()
+                ->with(
+                    'php-code-server',
+                    Mockery::on(function (mixed $command): bool {
+                        if (! is_array($command) || count($command) < 3) {
+                            return false;
+                        }
+
+                        return $command[0] === 'sh'
+                            && $command[1] === '-lc'
+                            && is_string($command[2])
+                            && str_contains($command[2], 'composer dump-autoload --no-interaction');
+                    }),
+                    1800,
+                )
+                ->andReturn(new ExecResult(exitCode: 0, output: 'generated', errorOutput: ''));
+        });
+
+        $response = $this->actingAs($owner)->post(route('domains.packages.composer.dump-autoload', $domain));
+
+        $response->assertOk()
+            ->assertJson([
+                'status' => 'success',
+            ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'domain_id' => $domain->id,
+            'action' => 'composer_dump_autoload_executed',
         ]);
     }
 

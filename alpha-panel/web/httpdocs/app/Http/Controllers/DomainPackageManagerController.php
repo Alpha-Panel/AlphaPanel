@@ -124,6 +124,19 @@ class DomainPackageManagerController extends Controller
         );
     }
 
+    public function npmAuditFix(Request $request, Domain $domain, PortainerService $portainer): JsonResponse
+    {
+        return $this->runCommand(
+            $request,
+            $domain,
+            $portainer,
+            command: 'npm audit fix',
+            action: 'npm_audit_fix',
+            successMessage: __('NPM audit fix completed successfully.'),
+            timeout: 1800,
+        );
+    }
+
     public function listComposerPackages(Domain $domain, PortainerService $portainer): JsonResponse
     {
         $this->authorize('update', $domain);
@@ -226,6 +239,19 @@ class DomainPackageManagerController extends Controller
             successMessage: $noDev
                 ? __('Composer update (--no-dev) completed successfully.')
                 : __('Composer update completed successfully.'),
+            timeout: 1800,
+        );
+    }
+
+    public function composerDumpAutoload(Request $request, Domain $domain, PortainerService $portainer): JsonResponse
+    {
+        return $this->runCommand(
+            $request,
+            $domain,
+            $portainer,
+            command: 'composer dump-autoload --no-interaction',
+            action: 'composer_dump_autoload',
+            successMessage: __('Composer dump-autoload completed successfully.'),
             timeout: 1800,
         );
     }

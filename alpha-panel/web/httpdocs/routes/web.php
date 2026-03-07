@@ -174,9 +174,11 @@ Route::middleware('auth')->group(function (): void {
     Route::get('domains/{domain}/package-manager/npm/packages', [DomainPackageManagerController::class, 'listNpmPackages'])->name('domains.packages.npm.packages');
     Route::post('domains/{domain}/package-manager/npm/install', [DomainPackageManagerController::class, 'npmInstall'])->name('domains.packages.npm.install');
     Route::post('domains/{domain}/package-manager/npm/build', [DomainPackageManagerController::class, 'npmBuild'])->name('domains.packages.npm.build');
+    Route::post('domains/{domain}/package-manager/npm/audit-fix', [DomainPackageManagerController::class, 'npmAuditFix'])->name('domains.packages.npm.audit-fix');
     Route::get('domains/{domain}/package-manager/composer/packages', [DomainPackageManagerController::class, 'listComposerPackages'])->name('domains.packages.composer.packages');
     Route::post('domains/{domain}/package-manager/composer/install', [DomainPackageManagerController::class, 'composerInstall'])->name('domains.packages.composer.install');
     Route::post('domains/{domain}/package-manager/composer/update', [DomainPackageManagerController::class, 'composerUpdate'])->name('domains.packages.composer.update');
+    Route::post('domains/{domain}/package-manager/composer/dump-autoload', [DomainPackageManagerController::class, 'composerDumpAutoload'])->name('domains.packages.composer.dump-autoload');
 
     // File Manager (per domain)
     Route::prefix('domains/{domain}/files')->name('domains.files.')->group(function (): void {

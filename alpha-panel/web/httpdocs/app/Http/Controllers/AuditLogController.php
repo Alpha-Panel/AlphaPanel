@@ -103,10 +103,14 @@ class AuditLogController extends Controller
             'npm_install_failed',
             'npm_build_executed',
             'npm_build_failed',
+            'npm_audit_fix_executed',
+            'npm_audit_fix_failed',
             'composer_install_executed',
             'composer_install_failed',
             'composer_update_executed',
             'composer_update_failed',
+            'composer_dump_autoload_executed',
+            'composer_dump_autoload_failed',
         ]);
 
         $actions = AuditLog::query()
