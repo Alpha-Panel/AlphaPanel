@@ -143,7 +143,7 @@
                                                         ? 'border-error-500/40 bg-error-500/20 text-error-600 hover:bg-error-500/30 dark:text-error-400'
                                                         : 'border-gray-300 text-gray-500 hover:bg-gray-100 hover:text-error-500 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-error-400',
                                                 ]"
-                                                v-tooltip="t('Under Attack Mode') + '\n' + (domain.under_attack ? t('On') : t('Off'))"
+                                                v-tooltip="typeof domain.under_attack === 'boolean' ? t('Under Attack Mode') + '\n' + (domain.under_attack ? t('On') : t('Off')) : t('Loading...')"
                                             >
                                                 <i :class="['bx text-sm', underAttackLoading === (domain.id as number) ? 'bx-loader-alt animate-spin' : 'bx-shield']"></i>
                                             </button>
@@ -226,7 +226,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
@@ -253,13 +253,17 @@ const showCreateDomainModal = ref(false);
 const { t } = useI18n();
 const { addToast } = useToast();
 const underAttackLoading = ref<number | null>(null);
+let underAttackRequestController: AbortController | null = null;
 
 const toggleUnderAttack = async (domain: Record<string, unknown>): Promise<void> => {
     const id = domain.id as number;
-    if (underAttackLoading.value !== null) return;
-    underAttackLoading.value = id;
+    const current = domain.under_attack === true;
 
-    const current = domain.under_attack as boolean;
+    if (underAttackLoading.value !== null) {
+        return;
+    }
+
+    underAttackLoading.value = id;
 
     try {
         const response = await axios.post(route('domains.cloudflare.setting', id), {
@@ -282,6 +286,63 @@ const table = useDataTable({
     defaultOrderColumn: 5,
     defaultOrderDir: 'desc',
 });
+
+const fetchUnderAttackStatuses = async (): Promise<void> => {
+    const domainIds = table.data.value
+        .filter((domain) => Boolean(domain.cloudflare_enabled))
+        .map((domain) => Number(domain.id))
+        .filter((domainId) => Number.isInteger(domainId) && domainId > 0);
+
+    if (domainIds.length === 0) {
+        return;
+    }
+
+    underAttackRequestController?.abort();
+    const controller = new AbortController();
+    underAttackRequestController = controller;
+
+    try {
+        const response = await axios.get(route('domains.under-attack-statuses'), {
+            params: { domain_ids: domainIds },
+            signal: controller.signal,
+        });
+
+        const payload = response.data?.data ?? {};
+
+        table.data.value.forEach((domain) => {
+            const domainId = Number(domain.id);
+            if (! Number.isInteger(domainId) || domainId <= 0) {
+                return;
+            }
+
+            const value = payload[domainId] ?? payload[String(domainId)];
+            if (typeof value === 'boolean' || value === null) {
+                domain.under_attack = value;
+            }
+        });
+    } catch (error: any) {
+        if (error?.code === 'ERR_CANCELED') {
+            return;
+        }
+
+        addToast('error', t('Cloudflare status could not be loaded.'));
+    } finally {
+        if (underAttackRequestController === controller) {
+            underAttackRequestController = null;
+        }
+    }
+};
+
+watch(
+    () => table.loading.value,
+    (loading) => {
+        if (loading) {
+            return;
+        }
+
+        void fetchUnderAttackStatuses();
+    },
+);
 
 const toggleSort = (column: number) => {
     if (table.orderColumn.value === column) {

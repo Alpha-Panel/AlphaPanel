@@ -444,6 +444,54 @@ class DomainController extends Controller
         return response()->json(['data' => $data]);
     }
 
+    public function underAttackStatuses(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $rawDomainIds = $request->input('domain_ids', []);
+
+        if (is_string($rawDomainIds)) {
+            $rawDomainIds = explode(',', $rawDomainIds);
+        }
+
+        if (! is_array($rawDomainIds)) {
+            $rawDomainIds = [];
+        }
+
+        $domainIds = array_values(array_unique(array_filter(
+            array_map(static fn (mixed $value): int => (int) $value, $rawDomainIds),
+            static fn (int $value): bool => $value > 0,
+        )));
+
+        $domainIds = array_slice($domainIds, 0, 100);
+
+        if ($domainIds === []) {
+            return response()->json(['data' => []]);
+        }
+
+        $statusMap = [];
+        foreach ($domainIds as $domainId) {
+            $statusMap[$domainId] = null;
+        }
+
+        $domains = Domain::query()
+            ->select(['id', 'fqdn', 'cloudflare_enabled'])
+            ->whereNull('parent_domain_id')
+            ->whereIn('id', $domainIds)
+            ->when(! $user->isAdmin(), fn ($query) => $query->where('owner_user_id', $user->id))
+            ->get();
+
+        $cloudflare = app(CloudflareDnsService::class);
+        $underAttackMap = $this->getUnderAttackStatuses($domains, $cloudflare);
+
+        foreach ($underAttackMap as $domainId => $status) {
+            $statusMap[(int) $domainId] = $status;
+        }
+
+        return response()->json([
+            'data' => $statusMap,
+        ]);
+    }
+
     /**
      * JSON endpoint for DataTables (server-side processing).
      */
@@ -543,9 +591,6 @@ class DomainController extends Controller
 
         $domains = $query->skip($start)->take($length)->get();
 
-        $cloudflare = app(CloudflareDnsService::class);
-        $underAttackMap = $this->getUnderAttackStatuses($domains, $cloudflare);
-
         $data = $domains->map(fn (Domain $domain) => [
             'id' => $domain->id,
             'fqdn' => $domain->fqdn,
@@ -562,7 +607,7 @@ class DomainController extends Controller
             'created_at' => $domain->created_at?->format(config('app.display_datetime_format', 'd.m.Y H:i:s')) ?? '-',
             'owner_name' => $domain->owner->name ?? '-',
             'cloudflare_enabled' => (bool) $domain->cloudflare_enabled,
-            'under_attack' => $underAttackMap[$domain->id] ?? null,
+            'under_attack' => null,
             'show_url' => route('domains.show', $domain),
             'edit_url' => route('domains.edit', $domain),
             'destroy_url' => route('domains.destroy', $domain),

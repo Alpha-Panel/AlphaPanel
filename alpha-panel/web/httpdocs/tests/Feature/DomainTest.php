@@ -502,6 +502,86 @@ class DomainTest extends TestCase
         $jsonResponse->assertJsonCount($existingCount + 5, 'data');
     }
 
+    public function test_under_attack_statuses_endpoint_returns_status_for_owned_domain(): void
+    {
+        $owner = User::factory()->create();
+        $domain = Domain::factory()->create([
+            'fqdn' => 'owned-status-check.com',
+            'owner_user_id' => $owner->id,
+            'cloudflare_enabled' => true,
+        ]);
+
+        $this->mock(CloudflareDnsService::class, function (MockInterface $mock) use ($domain): void {
+            $mock->shouldReceive('getZoneSummary')
+                ->once()
+                ->with($domain->fqdn)
+                ->andReturn([
+                    'exists' => true,
+                    'zone_id' => 'zone-owned',
+                    'zone_name' => $domain->fqdn,
+                    'status' => 'active',
+                    'name_servers' => [],
+                    'original_name_servers' => [],
+                ]);
+
+            $mock->shouldReceive('getZoneSetting')
+                ->once()
+                ->with('zone-owned', 'security_level')
+                ->andReturn(['value' => 'under_attack']);
+        });
+
+        $response = $this->actingAs($owner)
+            ->getJson(route('domains.under-attack-statuses', ['domain_ids' => [$domain->id]]));
+
+        $response->assertOk();
+        $response->assertJsonPath("data.{$domain->id}", true);
+    }
+
+    public function test_under_attack_statuses_endpoint_does_not_expose_other_users_domains(): void
+    {
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+
+        $ownedDomain = Domain::factory()->create([
+            'fqdn' => 'owner-visible-status.com',
+            'owner_user_id' => $owner->id,
+            'cloudflare_enabled' => true,
+        ]);
+
+        $otherDomain = Domain::factory()->create([
+            'fqdn' => 'other-hidden-status.com',
+            'owner_user_id' => $other->id,
+            'cloudflare_enabled' => true,
+        ]);
+
+        $this->mock(CloudflareDnsService::class, function (MockInterface $mock) use ($ownedDomain): void {
+            $mock->shouldReceive('getZoneSummary')
+                ->once()
+                ->with($ownedDomain->fqdn)
+                ->andReturn([
+                    'exists' => true,
+                    'zone_id' => 'zone-owner-only',
+                    'zone_name' => $ownedDomain->fqdn,
+                    'status' => 'active',
+                    'name_servers' => [],
+                    'original_name_servers' => [],
+                ]);
+
+            $mock->shouldReceive('getZoneSetting')
+                ->once()
+                ->with('zone-owner-only', 'security_level')
+                ->andReturn(['value' => 'high']);
+        });
+
+        $response = $this->actingAs($owner)->getJson(route('domains.under-attack-statuses', [
+            'domain_ids' => [$ownedDomain->id, $otherDomain->id],
+        ]));
+
+        $response->assertOk();
+        $response->assertJsonPath("data.{$ownedDomain->id}", false);
+        $response->assertJsonPath("data.{$otherDomain->id}", null);
+    }
+
     public function test_unauthenticated_cannot_access_domains(): void
     {
         $response = $this->get(route('domains.index'));

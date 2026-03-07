@@ -106,6 +106,7 @@ Route::middleware('auth')->group(function (): void {
     // Domains CRUD
     Route::resource('domains', DomainController::class)->names('domains');
     Route::get('domains-json', [DomainController::class, 'json'])->name('domains.json');
+    Route::get('domains-under-attack-statuses', [DomainController::class, 'underAttackStatuses'])->name('domains.under-attack-statuses');
     Route::get('domains-search', [DomainController::class, 'search'])->name('domains.search');
 
     // Domain FTP Management
