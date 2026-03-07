@@ -31,7 +31,15 @@
 	header @html Pragma "no-cache"
 	header @html Expires "0"
 }
-
+(waf-common) {
+	waf {
+		directives `
+			Include @owasp_crs/*.conf
+			Include @coraza.conf-recommended
+			SecRuleEngine DetectionOnly
+        `
+	}
+}
 (common-tls) {
 	# tls {
 	#     dns cloudflare {env.CF_API_TOKEN}

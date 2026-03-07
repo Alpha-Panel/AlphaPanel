@@ -32,7 +32,8 @@ RUN CGO_ENABLED=1 \
         --with github.com/caddy-dns/cloudflare \
         --with github.com/WeidiDeng/caddy-cloudflare-ip \
         --with github.com/Javex/caddy-fail2ban@main \
-        --with github.com/lanrat/caddy-dynamic-remoteip
+        --with github.com/lanrat/caddy-dynamic-remoteip \
+        --with github.com/corazawaf/coraza-caddy/v2
 
 FROM dunglas/frankenphp
 
