@@ -92,6 +92,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
 import SidebarProvider from '@/Components/Layout/SidebarProvider.vue';
@@ -109,7 +110,7 @@ interface GlobalRule {
 
 const props = defineProps<{ rules: GlobalRule[] }>();
 const { t } = useI18n();
-const rules = props.rules ?? [];
+const rules = computed(() => props.rules ?? []);
 
 const createForm = useForm({
     ip_or_cidr: '',

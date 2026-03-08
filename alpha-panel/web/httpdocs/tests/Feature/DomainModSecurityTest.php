@@ -6,8 +6,10 @@ use App\Enums\DomainType;
 use App\Jobs\ProvisionDomainJob;
 use App\Models\Domain;
 use App\Models\User;
+use App\Services\WafLogService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Queue;
+use Mockery\MockInterface;
 use Tests\TestCase;
 
 class DomainModSecurityTest extends TestCase
@@ -66,5 +68,41 @@ class DomainModSecurityTest extends TestCase
         ]);
 
         $response->assertSessionHasErrors('modsecurity_mode');
+    }
+
+    public function test_owner_can_fetch_modsecurity_logs_json(): void
+    {
+        $owner = User::factory()->create();
+        $domain = Domain::factory()->create([
+            'owner_user_id' => $owner->id,
+            'type' => DomainType::CaddyWebServer,
+        ]);
+
+        $this->mock(WafLogService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('getDomainEntries')
+                ->once()
+                ->andReturn([
+                    [
+                        'ts' => now()->toIso8601String(),
+                        'host' => 'example.com',
+                        'ip' => '127.0.0.1',
+                        'method' => 'GET',
+                        'uri' => '/test',
+                        'rule_id' => '949110',
+                        'message' => 'test',
+                        'action' => 'deny',
+                    ],
+                ]);
+        });
+
+        $response = $this->actingAs($owner)->get(route('domains.modsecurity.logs', $domain));
+
+        $response->assertOk();
+        $response->assertJsonStructure([
+            'entries' => [
+                ['ts', 'host', 'ip', 'method', 'uri', 'rule_id', 'message', 'action'],
+            ],
+            'server_time',
+        ]);
     }
 }

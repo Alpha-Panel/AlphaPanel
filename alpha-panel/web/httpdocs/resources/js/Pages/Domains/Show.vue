@@ -232,6 +232,64 @@
                         </div>
                     </div>
 
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                        <div class="mb-3 flex items-center gap-2">
+                            <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">{{ t('WAF Logs') }}</h4>
+                            <span class="ml-auto text-xs text-gray-500 dark:text-gray-400">{{ t('Auto refresh every 5s') }}</span>
+                        </div>
+
+                        <div v-if="wafLogsError !== ''" class="mb-3 rounded-lg border border-error-500/40 bg-error-500/10 px-3 py-2 text-xs text-error-700 dark:text-error-300">
+                            {{ wafLogsError }}
+                        </div>
+
+                        <div v-if="wafLogs.length === 0" class="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                            {{ wafLogsLoading ? t('Loading logs...') : t('No recent WAF logs found.') }}
+                        </div>
+
+                        <div v-else class="max-h-80 overflow-auto rounded-lg border border-gray-200 dark:border-gray-800">
+                            <table class="w-full min-w-[860px] text-sm">
+                                <thead>
+                                    <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                                        <th class="px-3 py-2">{{ t('Time') }}</th>
+                                        <th class="px-3 py-2">{{ t('IP') }}</th>
+                                        <th class="px-3 py-2">{{ t('Request') }}</th>
+                                        <th class="px-3 py-2">{{ t('Rule') }}</th>
+                                        <th class="px-3 py-2">{{ t('Action') }}</th>
+                                        <th class="px-3 py-2">{{ t('Message') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="entry in wafLogs" :key="`${entry.ts}-${entry.ip}-${entry.rule_id}-${entry.uri}`" class="border-b border-gray-100 align-top last:border-0 dark:border-gray-800">
+                                        <td class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">{{ formatWafDate(entry.ts) }}</td>
+                                        <td class="px-3 py-2 font-mono text-xs text-gray-700 dark:text-gray-300">{{ entry.ip }}</td>
+                                        <td class="px-3 py-2 text-xs text-gray-700 dark:text-gray-300"><span class="font-semibold">{{ entry.method }}</span> {{ entry.uri }}</td>
+                                        <td class="px-3 py-2 font-mono text-xs text-gray-700 dark:text-gray-300">{{ entry.rule_id }}</td>
+                                        <td class="px-3 py-2">
+                                            <span
+                                                :class="[
+                                                    'inline-flex rounded-full px-2 py-0.5 text-xs font-semibold',
+                                                    ['deny', 'block'].includes(entry.action)
+                                                        ? 'bg-error-500/15 text-error-700 dark:text-error-300'
+                                                        : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+                                                ]"
+                                            >
+                                                {{ entry.action }}
+                                            </span>
+                                        </td>
+                                        <td class="px-3 py-2 text-xs text-gray-600 dark:text-gray-400">{{ entry.message }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-3 flex justify-end">
+                            <Link :href="route('domains.modsecurity.index', domain.id)" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/3">
+                                <i class="fa-solid fa-shield-halved text-xs"></i>
+                                {{ t('Open Full ModSecurity Logs') }}
+                            </Link>
+                        </div>
+                    </div>
+
                     <div v-if="!isSubdomain" class="space-y-3">
                         <div class="flex items-center">
                             <h4 class="text-lg font-semibold text-gray-800 dark:text-white/90">{{ t('Subdomains') }}</h4>
@@ -543,6 +601,16 @@ interface CloudflareFirewallRule {
     description: string;
 }
 
+interface WafLogEntry {
+    ts: string | null;
+    ip: string;
+    method: string;
+    uri: string;
+    rule_id: string;
+    message: string;
+    action: string;
+}
+
 type CloudflareToggleSettingKey =
     | 'always_use_https'
     | 'automatic_https_rewrites'
@@ -666,6 +734,11 @@ const jenkinsRepoUrl = ref('');
 const jenkinsBranch = ref('*/main');
 const jenkinsOutput = ref('');
 const jenkinsCopied = ref(false);
+const wafLogs = ref<WafLogEntry[]>([]);
+const wafLogsLoading = ref(false);
+const wafLogsError = ref('');
+const wafLogsLastSeenTs = ref('');
+let wafLogsTimer: ReturnType<typeof setInterval> | null = null;
 
 const cloudflareStateLoading = ref(false);
 const cloudflareActionLoading = ref(false);
@@ -1610,8 +1683,59 @@ const copyJenkinsfile = async () => {
     }, 2000);
 };
 
+const fetchWafLogs = async (): Promise<void> => {
+    try {
+        wafLogsLoading.value = true;
+        const response = await axios.get(route('domains.modsecurity.logs', domain.value.id), {
+            params: {
+                max_lines: 1200,
+                since: wafLogsLastSeenTs.value,
+            },
+        });
+
+        const entries = Array.isArray(response.data?.entries) ? response.data.entries as WafLogEntry[] : [];
+        if (entries.length > 0) {
+            const merged = [...entries, ...wafLogs.value];
+            const seen = new Set<string>();
+            wafLogs.value = merged.filter((entry) => {
+                const key = `${entry.ts}-${entry.ip}-${entry.rule_id}-${entry.uri}`;
+                if (seen.has(key)) {
+                    return false;
+                }
+
+                seen.add(key);
+
+                return true;
+            }).slice(0, 150);
+
+            const firstTs = wafLogs.value[0]?.ts;
+            if (typeof firstTs === 'string' && firstTs !== '') {
+                wafLogsLastSeenTs.value = firstTs;
+            }
+        }
+
+        wafLogsError.value = '';
+    } catch {
+        wafLogsError.value = t('WAF logs could not be loaded.');
+    } finally {
+        wafLogsLoading.value = false;
+    }
+};
+
+const formatWafDate = (value: string | null): string => {
+    if (typeof value !== 'string' || value.trim() === '') {
+        return '-';
+    }
+
+    return formatDateTime(value);
+};
+
 onMounted(() => {
     void fetchCloudflareStatus();
+    void fetchWafLogs();
+    wafLogsTimer = setInterval(() => {
+        void fetchWafLogs();
+    }, 5000);
 
     if (typeof window.Echo === 'undefined') {
         return;
@@ -1642,6 +1766,11 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    if (wafLogsTimer) {
+        clearInterval(wafLogsTimer);
+        wafLogsTimer = null;
+    }
+
     if (typeof window.Echo === 'undefined') {
         return;
     }
