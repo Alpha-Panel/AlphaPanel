@@ -274,6 +274,20 @@ Route::middleware('auth')->group(function (): void {
         Route::post('security/waf-global-rules', [WafGlobalRuleController::class, 'store'])->name('security.waf-global.store');
         Route::put('security/waf-global-rules/{rule}', [WafGlobalRuleController::class, 'update'])->name('security.waf-global.update');
         Route::delete('security/waf-global-rules/{rule}', [WafGlobalRuleController::class, 'destroy'])->name('security.waf-global.destroy');
+
+        // Google Drive Backup
+        Route::prefix('backups')->name('backups.')->group(function (): void {
+            Route::get('/', [\App\Http\Controllers\BackupController::class, 'index'])->name('index');
+            Route::get('/connect', [\App\Http\Controllers\BackupController::class, 'connect'])->name('connect');
+            Route::get('/callback', [\App\Http\Controllers\BackupController::class, 'callback'])->name('callback');
+            Route::post('/disconnect', [\App\Http\Controllers\BackupController::class, 'disconnect'])->name('disconnect');
+            Route::post('/settings', [\App\Http\Controllers\BackupController::class, 'updateSettings'])->name('settings');
+            Route::get('/folders', [\App\Http\Controllers\BackupController::class, 'folders'])->name('folders');
+            Route::post('/folder', [\App\Http\Controllers\BackupController::class, 'setFolder'])->name('folder');
+            Route::post('/create-folder', [\App\Http\Controllers\BackupController::class, 'createFolder'])->name('create-folder');
+            Route::post('/run', [\App\Http\Controllers\BackupController::class, 'run'])->name('run');
+            Route::get('/history', [\App\Http\Controllers\BackupController::class, 'history'])->name('history');
+        });
     });
 
     Route::get('/pma/domain/{domain}/database/{database}/sso', [\App\Http\Controllers\PmaSsoController::class, 'database'])

@@ -22,6 +22,4 @@ done <databaseslist.txt
 rm -f databaseslist.txt
 
 cd $current_directory
-python3 drivebackup.py --upload_path $server_name/$datetime/mysql --local_path $dirname/mysql --local_auth
-sleep 3
-rm -rf $dirname/mysql
+# Upload handled separately by alpha_panel_web artisan command

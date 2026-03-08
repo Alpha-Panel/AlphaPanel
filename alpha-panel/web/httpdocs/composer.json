@@ -24,6 +24,7 @@
         "spatie/laravel-honeypot": "^4.6",
         "textalk/websocket": "^1.6",
         "tightenco/ziggy": "^2.6",
+        "google/apiclient": "^2.16",
         "yajra/laravel-datatables": "^12.0"
     },
     "require-dev": {

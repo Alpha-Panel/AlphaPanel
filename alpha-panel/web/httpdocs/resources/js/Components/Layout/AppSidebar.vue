@@ -340,6 +340,11 @@ const menuGroups = computed(() => {
                         href: route('security.waf-global.index'),
                     },
                     {
+                        iconClass: 'fa-solid fa-cloud-arrow-up',
+                        name: t('Backups'),
+                        href: route('backups.index'),
+                    },
+                    {
                         iconClass: 'fa-solid fa-terminal',
                         name: t('Terminal'),
                         action: () => document.dispatchEvent(new CustomEvent('open-host-terminal')),
