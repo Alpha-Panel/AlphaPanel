@@ -193,7 +193,7 @@
 
                             <Link :href="route('domains.modsecurity.index', domain.id)" class="quick-link">
                                 <i class="fa-solid fa-shield-halved quick-link-icon"></i>
-                                <span class="quick-link-label">{{ t('ModSecurity') }}</span>
+                                <span class="quick-link-label">{{ t('WAF') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
@@ -336,7 +336,7 @@
 
                                 <Link :href="route('domains.modsecurity.index', subdomain.id)" class="quick-link">
                                     <i class="fa-solid fa-shield-halved quick-link-icon"></i>
-                                    <span class="quick-link-label">{{ t('ModSecurity') }}</span>
+                                    <span class="quick-link-label">{{ t('WAF') }}</span>
                                     <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                                 </Link>
 

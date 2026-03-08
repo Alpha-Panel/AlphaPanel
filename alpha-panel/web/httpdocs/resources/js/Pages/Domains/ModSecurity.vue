@@ -1,10 +1,10 @@
 <template>
-    <Head :title="`${t('ModSecurity')} - ${domain.fqdn}`" />
+    <Head :title="`${t('WAF')} - ${domain.fqdn}`" />
     <ThemeProvider>
         <SidebarProvider>
             <AdminLayout>
                 <PageBreadcrumb
-                    :pageTitle="t('ModSecurity')"
+                    :pageTitle="t('WAF')"
                     :items="breadcrumbs"
                     :backHref="route('domains.show', domain.parent_domain_id ?? domain.id)"
                 />
@@ -12,7 +12,7 @@
                 <div class="space-y-4 md:space-y-6">
                     <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
                         <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">
-                            {{ t('ModSecurity') }}
+                            {{ t('WAF') }}
                         </h3>
                         <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
                             {{ t('Manage WAF mode, domain-specific rules and live logs for this domain.') }}
@@ -52,12 +52,12 @@
                         <form class="space-y-5" @submit.prevent="submit">
                             <label class="flex items-center gap-2">
                                 <input v-model="form.modsecurity_enabled" type="checkbox" class="form-checkbox" />
-                                <span class="text-sm text-gray-700 dark:text-gray-300">{{ t('Enable ModSecurity') }}</span>
+                                <span class="text-sm text-gray-700 dark:text-gray-300">{{ t('Enable WAF') }}</span>
                             </label>
 
                             <FormField
                                 v-if="form.modsecurity_enabled"
-                                :label="t('ModSecurity Mode')"
+                                :label="t('WAF Mode')"
                                 :error="form.errors.modsecurity_mode"
                             >
                                 <select v-model="form.modsecurity_mode" class="form-input">
@@ -261,7 +261,7 @@ const globalRules = computed(() => props.globalRules ?? []);
 const breadcrumbs = computed(() => [
     { label: t('Domains'), href: route('domains.index') },
     { label: domain.value.fqdn, href: route('domains.show', domain.value.parent_domain_id ?? domain.value.id) },
-    { label: t('ModSecurity') },
+    { label: t('WAF') },
 ]);
 
 const form = useForm({
@@ -277,7 +277,7 @@ const form = useForm({
 const allowlistText = ref((form.modsecurity_ip_allowlist ?? []).join('\n'));
 const blocklistText = ref((form.modsecurity_ip_blocklist ?? []).join('\n'));
 const disabledRulesText = ref((form.modsecurity_disabled_rule_ids ?? []).join(','));
-const customRulesPlaceholder = '# raw ModSecurity directives\nSecRule REQUEST_URI "@contains /health" "id:200001,phase:1,pass,nolog"';
+const customRulesPlaceholder = '# raw Coraza directives\nSecRule REQUEST_URI "@contains /health" "id:200001,phase:1,pass,nolog"';
 
 const parseLines = (value: string): string[] => {
     return value

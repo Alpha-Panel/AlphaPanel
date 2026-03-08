@@ -315,7 +315,7 @@ const parseApacheErrorLine = (line: string): DomainLogEntry | null => {
 };
 
 const parseStreamLine = (line: string): DomainLogEntry | null => {
-    return parseJsonLogLine(line)
+    const parsed = parseJsonLogLine(line)
         ?? parseApacheAccessLine(line)
         ?? parseApacheErrorLine(line)
         ?? {
@@ -328,6 +328,15 @@ const parseStreamLine = (line: string): DomainLogEntry | null => {
             message: line,
             source: '/stream',
         };
+
+    if (parsed.ts && parsed.ts !== '') {
+        return parsed;
+    }
+
+    return {
+        ...parsed,
+        ts: new Date().toISOString(),
+    };
 };
 
 const matchesFilters = (entry: DomainLogEntry): boolean => {
@@ -387,17 +396,36 @@ const decodeChunk = (data: string | ArrayBuffer): string => {
     return textDecoder.decode(new Uint8Array(data), { stream: true });
 };
 
+const ensureEntryTimestamp = (entry: DomainLogEntry, fallback: string): DomainLogEntry => {
+    const normalized = normalizeDateInput(entry.ts);
+    if (normalized !== null) {
+        return {
+            ...entry,
+            ts: normalized,
+        };
+    }
+
+    const fallbackTs = normalizeDateInput(fallback) ?? new Date().toISOString();
+
+    return {
+        ...entry,
+        ts: fallbackTs,
+    };
+};
+
 const consumeStreamChunk = (chunk: string): void => {
     streamBuffer.value += chunk;
 
     const lines = streamBuffer.value.split(/\r\n|\n|\r/);
     streamBuffer.value = lines.pop() ?? '';
+    const fallbackTs = new Date().toISOString();
 
     const parsed = lines
         .map((line) => line.trim())
         .filter((line) => line !== '')
         .map((line) => parseStreamLine(line))
         .filter((entry): entry is DomainLogEntry => entry !== null)
+        .map((entry) => ensureEntryTimestamp(entry, fallbackTs))
         .filter((entry) => matchesFilters(entry));
 
     if (parsed.length === 0) {
@@ -553,7 +581,11 @@ const loadLogs = async (reset: boolean): Promise<void> => {
             },
         });
 
-        const payload = Array.isArray(response.data?.entries) ? response.data.entries as DomainLogEntry[] : [];
+        const fallbackTs = typeof response.data?.server_time === 'string'
+            ? response.data.server_time
+            : new Date().toISOString();
+        const payload = (Array.isArray(response.data?.entries) ? response.data.entries as DomainLogEntry[] : [])
+            .map((entry) => ensureEntryTimestamp(entry, fallbackTs));
 
         if (reset) {
             entries.value = payload;
