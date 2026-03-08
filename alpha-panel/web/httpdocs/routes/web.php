@@ -2,11 +2,12 @@
 
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\CrowdSecController;
+use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\DnsController;
 use App\Http\Controllers\DomainCloudflareController;
 use App\Http\Controllers\DomainController;
+use App\Http\Controllers\DomainLogController;
 use App\Http\Controllers\DomainModSecurityController;
 use App\Http\Controllers\DomainPackageManagerController;
 use App\Http\Controllers\DomainProvisionController;
@@ -132,6 +133,12 @@ Route::middleware('auth')->group(function (): void {
         ->name('domains.modsecurity.update');
     Route::get('domains/{domain}/modsecurity/logs', [DomainModSecurityController::class, 'logs'])
         ->name('domains.modsecurity.logs');
+
+    // Domain Logs (per domain / subdomain)
+    Route::get('domains/{domain}/logs', [DomainLogController::class, 'index'])
+        ->name('domains.logs.index');
+    Route::get('domains/{domain}/logs/entries', [DomainLogController::class, 'entries'])
+        ->name('domains.logs.entries');
 
     // DNS Management (per domain)
     Route::get('domains/{domain}/dns', [DnsController::class, 'index'])->name('domains.dns.index');
