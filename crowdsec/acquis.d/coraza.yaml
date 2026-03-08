@@ -1,0 +1,4 @@
+filenames:
+  - /var/log/coraza/audit.log
+labels:
+  type: modsecurity

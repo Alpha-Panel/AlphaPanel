@@ -10,7 +10,7 @@
                     <div
                         :class="[
                             'grid grid-cols-1 gap-4 md:gap-6',
-                            isAdmin ? 'sm:grid-cols-2 xl:grid-cols-4' : 'sm:grid-cols-2 xl:grid-cols-3',
+                            isAdmin ? 'sm:grid-cols-2 xl:grid-cols-5' : 'sm:grid-cols-2 xl:grid-cols-3',
                         ]"
                     >
                         <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
@@ -80,6 +80,54 @@
                                         {{ stats.total_users }}
                                     </h3>
                                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('Registered') }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="isAdmin"
+                            class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]"
+                        >
+                            <div class="flex items-center gap-4">
+                                <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-error-50 text-error-600 dark:bg-error-500/20 dark:text-error-300">
+                                    <i class="bx bx-shield-quarter text-2xl"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('CrowdSec') }}</p>
+                                    <h3 class="text-2xl font-semibold text-gray-800 dark:text-white/90">
+                                        {{ crowdsec?.active_decisions ?? 0 }}
+                                    </h3>
+                                    <p class="truncate text-xs text-gray-500 dark:text-gray-400">
+                                        {{ t('Alerts 24h') }}: {{ crowdsec?.recent_alerts_24h ?? 0 }}
+                                        <span v-if="crowdsecTopScenario"> • {{ crowdsecTopScenario }}</span>
+                                    </p>
+                                    <div class="mt-1 flex items-center gap-2">
+                                        <span
+                                            :class="[
+                                                'inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                                                crowdsec?.configured && crowdsec?.lapi_online
+                                                    ? 'bg-success-500/15 text-success-600 dark:text-success-300'
+                                                    : crowdsec?.configured
+                                                        ? 'bg-warning-500/15 text-warning-700 dark:text-warning-300'
+                                                        : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+                                            ]"
+                                        >
+                                            {{
+                                                !crowdsec?.configured
+                                                    ? t('Not configured')
+                                                    : crowdsec?.lapi_online
+                                                        ? t('Live')
+                                                        : t('Unavailable')
+                                            }}
+                                        </span>
+                                        <Link
+                                            :href="route('security.crowdsec.index')"
+                                            class="inline-flex items-center gap-1 text-xs font-medium text-brand-500 hover:text-brand-600"
+                                        >
+                                            {{ t('Details') }}
+                                            <i class="bx bx-right-arrow-alt text-sm"></i>
+                                        </Link>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -604,6 +652,17 @@ interface MysqlMonitor {
     processes: MysqlProcess[];
 }
 
+interface CrowdSecSummary {
+    configured: boolean;
+    has_error: boolean;
+    lapi_online: boolean;
+    status_code: number | null;
+    active_decisions: number;
+    recent_alerts_24h: number;
+    top_scenarios: Array<{ name: string; count: number }>;
+    last_sync_at: string;
+}
+
 interface DashboardPayload {
     is_admin: boolean;
     stats: DashboardStats;
@@ -611,6 +670,7 @@ interface DashboardPayload {
     host_metrics: HostMetrics | null;
     docker_services: DockerServices | null;
     mysql_monitor: MysqlMonitor | null;
+    crowdsec: CrowdSecSummary | null;
 }
 
 interface DockerActionResponse {
@@ -657,7 +717,16 @@ const stats = computed(() => dashboard.value.stats);
 const hostMetrics = computed(() => dashboard.value.host_metrics);
 const dockerServices = computed(() => dashboard.value.docker_services);
 const mysqlMonitor = computed(() => dashboard.value.mysql_monitor);
+const crowdsec = computed(() => dashboard.value.crowdsec);
 const recentDomains = computed(() => dashboard.value.recent_domains ?? []);
+const crowdsecTopScenario = computed(() => {
+    const top = crowdsec.value?.top_scenarios?.[0];
+    if (!top || !top.name || top.name === '-') {
+        return '';
+    }
+
+    return `${top.name} (${top.count})`;
+});
 const containers = computed(() => dockerServices.value?.containers ?? []);
 const filteredContainers = computed(() => {
     const q = containerSearch.value.toLowerCase().trim();

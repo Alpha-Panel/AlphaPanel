@@ -330,6 +330,11 @@ const menuGroups = computed(() => {
                         href: route('users.list'),
                     },
                     {
+                        iconClass: 'fa-solid fa-shield-halved',
+                        name: t('Security'),
+                        href: route('security.crowdsec.index'),
+                    },
+                    {
                         iconClass: 'fa-solid fa-terminal',
                         name: t('Terminal'),
                         action: () => document.dispatchEvent(new CustomEvent('open-host-terminal')),

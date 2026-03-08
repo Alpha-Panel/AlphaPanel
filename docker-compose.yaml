@@ -98,6 +98,8 @@ services:
       CF_API_TOKEN: ${CF_API_TOKEN}
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       DOCKER_HOST: tcp://docker-socket-proxy:2375
+      CROWDSEC_LAPI_URL: ${CROWDSEC_LAPI_URL}
+      CROWDSEC_DASHBOARD_API_KEY: ${CROWDSEC_DASHBOARD_API_KEY}
     ports:
       - "${PRIVATE_NETWORK_IP}:8443:443"
     networks:
@@ -142,6 +144,7 @@ services:
         - ./vhosts:/var/www/vhosts
         - ./php-code-server/run/:/run/php/
         - ./frankenphp/logs:/var/log/caddy/
+        - ./frankenphp/coraza-logs:/var/log/coraza
         - ./frankenphp/_github_hooks_allowlist.caddy:/etc/frankenphp/_github_hooks_allowlist.caddy
         - ./scripts/git-webhook-ip-blocks.sh:/etc/frankenphp/git-webhook-ip-blocks.sh
         - ./php-code-server/8.0/fpm.d/:/etc/php/8.0/fpm/pool.d/
@@ -162,6 +165,28 @@ services:
       - "${PUBLIC_NETWORK_IP}:80:80"
       - "443:443"
       - "${PRIVATE_NETWORK_IP}:2019:2019"
+
+  crowdsec:
+    image: crowdsecurity/crowdsec:latest
+    container_name: crowdsec
+    restart: unless-stopped
+    depends_on:
+      - frankenphp
+    environment:
+      TZ: Europe/Istanbul
+      COLLECTIONS: "crowdsecurity/modsecurity crowdsecurity/base-http-scenarios crowdsecurity/http-cve"
+      LOCAL_API_URL: "http://0.0.0.0:8080"
+      BOUNCER_KEY_firewall: ${CROWDSEC_FIREWALL_BOUNCER_KEY}
+      BOUNCER_KEY_dashboard: ${CROWDSEC_DASHBOARD_API_KEY}
+    volumes:
+      - ./crowdsec/config:/etc/crowdsec
+      - ./crowdsec/data:/var/lib/crowdsec/data
+      - ./crowdsec/acquis.d:/etc/crowdsec/acquis.d:ro
+      - ./frankenphp/coraza-logs:/var/log/coraza:ro
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks:
+      - vhost_network
 
   php-code-server:
     build:

@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DatabaseController;
+use App\Http\Controllers\CrowdSecController;
 use App\Http\Controllers\DnsController;
 use App\Http\Controllers\DomainCloudflareController;
 use App\Http\Controllers\DomainController;
@@ -254,6 +255,9 @@ Route::middleware('auth')->group(function (): void {
         Route::get('terminal-logs/json', [TerminalLogController::class, 'json'])->name('terminal-logs.json');
         Route::get('terminal-logs/options/users', [TerminalLogController::class, 'usersOptions'])->name('terminal-logs.options.users');
         Route::get('terminal-logs/{terminalLog}', [TerminalLogController::class, 'show'])->name('terminal-logs.show');
+
+        Route::get('security/crowdsec', [CrowdSecController::class, 'index'])->name('security.crowdsec.index');
+        Route::get('security/crowdsec/data', [CrowdSecController::class, 'data'])->name('security.crowdsec.data');
     });
 
     Route::get('/pma/domain/{domain}/database/{database}/sso', [\App\Http\Controllers\PmaSsoController::class, 'database'])

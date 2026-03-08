@@ -8,6 +8,7 @@ use App\Models\Domain;
 use App\Models\ManagedDatabase;
 use App\Models\User;
 use App\Services\CloudflareDnsService;
+use App\Services\CrowdSecService;
 use App\Services\HostMetricsService;
 use App\Services\MysqlAdminService;
 use App\Services\PortainerService;
@@ -25,11 +26,15 @@ class HomeController extends Controller
 
     private const MYSQL_PROCESS_LIST_CACHE_KEY = 'dashboard:mysql-process-list:v1';
 
+    private const CROWDSEC_SUMMARY_CACHE_KEY = 'dashboard:crowdsec-summary:v1';
+
     private const HOST_METRICS_CACHE_SECONDS = 15;
 
     private const DOCKER_SERVICES_CACHE_SECONDS = 20;
 
     private const MYSQL_PROCESS_LIST_CACHE_SECONDS = 15;
+
+    private const CROWDSEC_SUMMARY_CACHE_SECONDS = 20;
 
     public function index(Request $request): Response
     {
@@ -124,6 +129,7 @@ class HomeController extends Controller
             'host_metrics' => $user->isAdmin() ? $this->buildHostMetrics($useCache) : null,
             'docker_services' => $user->isAdmin() ? $this->buildDockerServices($useCache) : null,
             'mysql_monitor' => $user->isAdmin() ? $this->buildMysqlMonitor($showSleeping, $useCache) : null,
+            'crowdsec' => $user->isAdmin() ? $this->buildCrowdSecSummary($useCache) : null,
         ];
     }
 
@@ -327,10 +333,41 @@ class HomeController extends Controller
         }
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildCrowdSecSummary(bool $useCache): array
+    {
+        try {
+            /** @var CrowdSecService $crowdSec */
+            $crowdSec = app(CrowdSecService::class);
+
+            return $useCache
+                ? Cache::remember(
+                    self::CROWDSEC_SUMMARY_CACHE_KEY,
+                    now()->addSeconds(self::CROWDSEC_SUMMARY_CACHE_SECONDS),
+                    fn (): array => $crowdSec->getSummary(),
+                )
+                : $crowdSec->getSummary();
+        } catch (\Throwable) {
+            return [
+                'configured' => false,
+                'has_error' => true,
+                'lapi_online' => false,
+                'status_code' => null,
+                'active_decisions' => 0,
+                'recent_alerts_24h' => 0,
+                'top_scenarios' => [],
+                'last_sync_at' => now()->toIso8601String(),
+            ];
+        }
+    }
+
     private function clearDashboardMetricCache(): void
     {
         Cache::forget(self::HOST_METRICS_CACHE_KEY);
         Cache::forget(self::DOCKER_SERVICES_CACHE_KEY);
         Cache::forget(self::MYSQL_PROCESS_LIST_CACHE_KEY);
+        Cache::forget(self::CROWDSEC_SUMMARY_CACHE_KEY);
     }
 }

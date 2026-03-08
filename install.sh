@@ -204,6 +204,8 @@ VAULTWARDEN_DB_PASSWORD=$(gen_secret 16)
 PANEL_DB_NAME=AlphaPanel
 PANEL_DB_USER=alphapanel
 PANEL_DB_PASS=$(gen_secret 16)
+CROWDSEC_FIREWALL_BOUNCER_KEY=$(gen_secret)
+CROWDSEC_DASHBOARD_API_KEY=$(gen_secret)
 REVERB_APP_ID=$(gen_secret 4)
 REVERB_APP_KEY=$(gen_secret 16)
 REVERB_APP_SECRET=$(gen_secret)
@@ -313,6 +315,11 @@ PANEL_DB_NAME=${PANEL_DB_NAME}
 PANEL_DB_USER=${PANEL_DB_USER}
 PANEL_DB_PASS=${PANEL_DB_PASS}
 PMA_URL=https://${PMA_DOMAIN}:8443/index.php?server=2
+
+# ─── CrowdSec / Coraza ────────────────────────────────────────
+CROWDSEC_FIREWALL_BOUNCER_KEY=${CROWDSEC_FIREWALL_BOUNCER_KEY}
+CROWDSEC_DASHBOARD_API_KEY=${CROWDSEC_DASHBOARD_API_KEY}
+CROWDSEC_LAPI_URL=http://crowdsec:8080
 EOF
 ok "Root .env created."
 
@@ -382,6 +389,10 @@ PANEL_DB_PORT=3306
 PANEL_DB_NAME=${PANEL_DB_NAME}
 PANEL_DB_USER=${PANEL_DB_USER}
 PANEL_DB_PASS=${PANEL_DB_PASS}
+
+# ─── CrowdSec ─────────────────────────────────────────────────
+CROWDSEC_LAPI_URL=http://crowdsec:8080
+CROWDSEC_DASHBOARD_API_KEY=${CROWDSEC_DASHBOARD_API_KEY}
 
 # ─── SSH Terminal ─────────────────────────────────────────────
 PANEL_SSH_HOST=${DOCKER_HOST_IP:-172.17.0.1}

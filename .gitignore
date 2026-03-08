@@ -138,7 +138,11 @@ scripts/backup/token.json
 # =============================================================================
 
 frankenphp/logs/
+frankenphp/coraza-logs/*
+!frankenphp/coraza-logs/.gitkeep
 alpha-panel/web/logs/
+crowdsec/data/*
+!crowdsec/data/.gitkeep
 *.log
 
 

@@ -49,4 +49,10 @@ return [
         'token_ttl_seconds' => (int) env('PMA_SSO_TOKEN_TTL', 120),
     ],
 
+    'crowdsec' => [
+        'lapi_url' => env('CROWDSEC_LAPI_URL', 'http://crowdsec:8080'),
+        'api_key' => env('CROWDSEC_DASHBOARD_API_KEY', ''),
+        'timeout' => (int) env('CROWDSEC_LAPI_TIMEOUT', 5),
+    ],
+
 ];

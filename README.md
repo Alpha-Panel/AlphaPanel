@@ -131,6 +131,35 @@ cp external-services/backlink_service.example.yaml external-services/backlink_se
 Edit those copied files as needed.  
 `includeservices/*.yaml` and `includeservices/*.yml` files are ignored by git, so they will not be pushed.
 
+## 🛡️ Coraza + CrowdSec + nftables
+
+Bu repoda Coraza (OWASP CRS) `frankenphp` içinde çalışır ve audit loglarını host'a yazar:
+
+- Container path: `/var/log/coraza/audit.log`
+- Host path: `./frankenphp/coraza-logs/audit.log`
+
+CrowdSec servisi bu logu `crowdsec/acquis.d/coraza.yaml` üzerinden okuyacak şekilde eklendi.
+
+1. `.env` dosyanıza `CROWDSEC_FIREWALL_BOUNCER_KEY` ekleyin.
+2. Servisleri başlatın:
+   ```bash
+   docker compose up -d frankenphp crowdsec
+   ```
+3. CrowdSec parser/scenario yüklerini kontrol edin:
+   ```bash
+   docker compose exec crowdsec cscli collections list
+   docker compose exec crowdsec cscli metrics
+   ```
+4. Host üzerinde nftables bouncer kurmak için:
+   ```bash
+   ./scripts/crowdsec/install-host-nft-bouncer.sh
+   ```
+
+Notlar:
+- `niyazi.net` için WAF `DetectionOnly` yerine blocking moduna alındı (`import waf-common`).
+- Firewall bouncer host üzerinde çalışır; bu yüzden nftables kararları doğrudan sunucu firewall'una uygulanır.
+- LAPI (`crowdsec:8080`) public'e açılmamalıdır; bu repoda yalnızca iç ağ/localhost erişiminde kalır.
+
 ## 📦 Services Included
 
 - **FrankenPHP Caddy Web Server**  

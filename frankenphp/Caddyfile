@@ -32,22 +32,34 @@
 	header @html Expires "0"
 }
 (waf-common) {
-	waf {
-		directives `
-			Include @owasp_crs/*.conf
-			Include @coraza.conf-recommended
-			SecRuleEngine on
-        `
+	route {
+		coraza_waf {
+			load_owasp_crs
+			directives `
+				SecRuleEngine On
+				SecAuditEngine RelevantOnly
+				SecAuditLog /var/log/coraza/audit.log
+				SecAuditLogFormat JSON
+				SecAuditLogType Serial
+				SecAuditLogParts ABIJDEFHZ
+	        `
+		}
 	}
 }
 (waf-common-detection-only) {
-	waf {
-		directives `
-			Include @owasp_crs/*.conf
-			Include @coraza.conf-recommended
-			SecRuleEngine DetectionOnly
-        `
+	route {
+		coraza_waf {
+			load_owasp_crs
+			directives `
+				SecRuleEngine DetectionOnly
+				SecAuditEngine RelevantOnly
+				SecAuditLog /var/log/coraza/audit.log
+				SecAuditLogFormat JSON
+				SecAuditLogType Serial
+				SecAuditLogParts ABIJDEFHZ
+	        `
 		}
+	}
 }
 (common-tls) {
 	# tls {
