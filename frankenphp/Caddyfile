@@ -42,6 +42,8 @@
 				SecAuditLogFormat JSON
 				SecAuditLogType Serial
 				SecAuditLogParts ABIJDEFHZ
+				Include /etc/frankenphp/waf/generated/global.conf
+				Include /etc/frankenphp/waf/generated/domains/*.conf
 	        `
 		}
 	}
@@ -57,6 +59,8 @@
 				SecAuditLogFormat JSON
 				SecAuditLogType Serial
 				SecAuditLogParts ABIJDEFHZ
+				Include /etc/frankenphp/waf/generated/global.conf
+				Include /etc/frankenphp/waf/generated/domains/*.conf
 	        `
 		}
 	}

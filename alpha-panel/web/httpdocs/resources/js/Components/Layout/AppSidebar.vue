@@ -331,8 +331,13 @@ const menuGroups = computed(() => {
                     },
                     {
                         iconClass: 'fa-solid fa-shield-halved',
-                        name: t('Security'),
+                        name: t('CrowdSec'),
                         href: route('security.crowdsec.index'),
+                    },
+                    {
+                        iconClass: 'fa-solid fa-shield-virus',
+                        name: t('WAF Rules'),
+                        href: route('security.waf-global.index'),
                     },
                     {
                         iconClass: 'fa-solid fa-terminal',

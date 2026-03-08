@@ -18,6 +18,7 @@ use App\Http\Controllers\TerminalController;
 use App\Http\Controllers\TerminalLogController;
 use App\Http\Controllers\TwoFactorAuthController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\WafGlobalRuleController;
 use App\Http\Controllers\WebAuthn\WebAuthnLoginController;
 use App\Http\Controllers\WebAuthn\WebAuthnRegisterController;
 use App\Http\Controllers\WebAuthnController;
@@ -129,6 +130,8 @@ Route::middleware('auth')->group(function (): void {
         ->name('domains.modsecurity.index');
     Route::put('domains/{domain}/modsecurity', [DomainModSecurityController::class, 'update'])
         ->name('domains.modsecurity.update');
+    Route::get('domains/{domain}/modsecurity/logs', [DomainModSecurityController::class, 'logs'])
+        ->name('domains.modsecurity.logs');
 
     // DNS Management (per domain)
     Route::get('domains/{domain}/dns', [DnsController::class, 'index'])->name('domains.dns.index');
@@ -258,6 +261,10 @@ Route::middleware('auth')->group(function (): void {
 
         Route::get('security/crowdsec', [CrowdSecController::class, 'index'])->name('security.crowdsec.index');
         Route::get('security/crowdsec/data', [CrowdSecController::class, 'data'])->name('security.crowdsec.data');
+        Route::get('security/waf-global-rules', [WafGlobalRuleController::class, 'index'])->name('security.waf-global.index');
+        Route::post('security/waf-global-rules', [WafGlobalRuleController::class, 'store'])->name('security.waf-global.store');
+        Route::put('security/waf-global-rules/{rule}', [WafGlobalRuleController::class, 'update'])->name('security.waf-global.update');
+        Route::delete('security/waf-global-rules/{rule}', [WafGlobalRuleController::class, 'destroy'])->name('security.waf-global.destroy');
     });
 
     Route::get('/pma/domain/{domain}/database/{database}/sso', [\App\Http\Controllers\PmaSsoController::class, 'database'])

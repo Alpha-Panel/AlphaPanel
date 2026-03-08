@@ -23,6 +23,13 @@ class UpdateDomainModSecurityRequest extends FormRequest
                 'string',
                 Rule::in(['active', 'detection_only']),
             ],
+            'modsecurity_ip_allowlist' => ['nullable', 'array'],
+            'modsecurity_ip_allowlist.*' => ['string', 'max:64'],
+            'modsecurity_ip_blocklist' => ['nullable', 'array'],
+            'modsecurity_ip_blocklist.*' => ['string', 'max:64'],
+            'modsecurity_disabled_rule_ids' => ['nullable', 'array'],
+            'modsecurity_disabled_rule_ids.*' => ['integer', 'min:1'],
+            'modsecurity_custom_rules' => ['nullable', 'string', 'max:20000'],
         ];
     }
 }

@@ -36,6 +36,10 @@ class DomainFactory extends Factory
             'php_version_id' => null,
             'modsecurity_enabled' => false,
             'modsecurity_mode' => null,
+            'modsecurity_ip_allowlist' => [],
+            'modsecurity_ip_blocklist' => [],
+            'modsecurity_disabled_rule_ids' => [],
+            'modsecurity_custom_rules' => null,
         ];
     }
 

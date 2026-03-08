@@ -140,6 +140,11 @@ scripts/backup/token.json
 frankenphp/logs/
 frankenphp/coraza-logs/*
 !frankenphp/coraza-logs/.gitkeep
+frankenphp/waf/generated/*
+!frankenphp/waf/generated/global.conf
+!frankenphp/waf/generated/domains/
+!frankenphp/waf/generated/domains/.gitkeep
+!frankenphp/waf/generated/domains/000-default.conf
 alpha-panel/web/logs/
 crowdsec/data/*
 !crowdsec/data/.gitkeep

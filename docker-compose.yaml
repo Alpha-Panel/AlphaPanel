@@ -140,6 +140,7 @@ services:
         - ./frankenphp/php.local.ini:/usr/local/etc/php/conf.d/100-local.ini:ro
         - ./frankenphp/supervisor:/etc/supervisor/conf.d:ro
         - ./frankenphp/caddy_data:/data
+        - ./frankenphp/waf:/etc/frankenphp/waf
         - ./letsencrypt:/etc/letsencrypt:ro
         - ./vhosts:/var/www/vhosts
         - ./php-code-server/run/:/run/php/

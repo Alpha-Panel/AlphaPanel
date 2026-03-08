@@ -31,6 +31,10 @@ class Domain extends Model
         'cloudflare_enabled',
         'modsecurity_enabled',
         'modsecurity_mode',
+        'modsecurity_ip_allowlist',
+        'modsecurity_ip_blocklist',
+        'modsecurity_disabled_rule_ids',
+        'modsecurity_custom_rules',
     ];
 
     /** @return array<string, string> */
@@ -45,6 +49,9 @@ class Domain extends Model
             'worker_watch' => 'boolean',
             'cloudflare_enabled' => 'boolean',
             'modsecurity_enabled' => 'boolean',
+            'modsecurity_ip_allowlist' => 'array',
+            'modsecurity_ip_blocklist' => 'array',
+            'modsecurity_disabled_rule_ids' => 'array',
         ];
     }
 
