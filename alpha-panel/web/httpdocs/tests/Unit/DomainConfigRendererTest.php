@@ -210,6 +210,34 @@ class DomainConfigRendererTest extends TestCase
         $this->assertStringNotContainsString('worker {', $capturedContent);
     }
 
+    public function test_apache_reverse_proxy_forwards_client_ip_headers_using_client_ip_placeholder(): void
+    {
+        $owner = User::factory()->create();
+        $domain = Domain::factory()->make([
+            'fqdn' => 'legacy-client-ip.test',
+            'owner_user_id' => $owner->id,
+            'type' => DomainType::ApacheReverseProxy,
+            'enable_www_redirect' => false,
+            'additional_hostnames' => [],
+        ]);
+
+        $capturedContent = null;
+
+        File::shouldReceive('put')
+            ->once()
+            ->with(Mockery::on(fn (string $path): bool => str_contains($path, "{$this->caddySitesBasePath}/{$domain->fqdn}/Caddyfile.tmp.")), Mockery::capture($capturedContent))
+            ->andReturn(true);
+        File::shouldReceive('move')->twice();
+
+        $this->service->renderWithTls($domain);
+
+        $this->assertNotNull($capturedContent);
+        $this->assertStringContainsString('header_up X-Forwarded-For  {client_ip}', $capturedContent);
+        $this->assertStringContainsString('header_up X-Real-IP        {client_ip}', $capturedContent);
+        $this->assertStringContainsString('header_up X-Remote-Addr    {client_ip}', $capturedContent);
+        $this->assertStringContainsString('header_up CF-Connecting-IP {client_ip}', $capturedContent);
+    }
+
     public function test_renderer_includes_active_waf_import_when_modsecurity_is_enabled(): void
     {
         $owner = User::factory()->create();

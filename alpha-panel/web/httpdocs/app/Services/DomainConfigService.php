@@ -290,10 +290,10 @@ class DomainConfigService
             $lines[] = "{$indent}    header_up X-Forwarded-Port 80";
             $lines[] = "{$indent}    header_up X-Forwarded-Proto https";
             $lines[] = '';
-            $lines[] = "{$indent}    header_up X-Forwarded-For  {http.request.remote.host}";
-            $lines[] = "{$indent}    header_up X-Real-IP        {http.request.remote.host}";
-            $lines[] = "{$indent}    header_up X-Remote-Addr    {http.request.remote.host}";
-            $lines[] = "{$indent}    header_up CF-Connecting-IP {http.request.header.CF-Connecting-IP}";
+            $lines[] = "{$indent}    header_up X-Forwarded-For  {client_ip}";
+            $lines[] = "{$indent}    header_up X-Real-IP        {client_ip}";
+            $lines[] = "{$indent}    header_up X-Remote-Addr    {client_ip}";
+            $lines[] = "{$indent}    header_up CF-Connecting-IP {client_ip}";
             $lines[] = "{$indent}}";
         }
 

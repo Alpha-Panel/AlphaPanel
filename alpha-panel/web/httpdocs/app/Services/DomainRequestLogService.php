@@ -210,9 +210,7 @@ class DomainRequestLogService
             return null;
         }
 
-        $ip = $this->stringOrNull($decoded['request']['remote_ip'] ?? null)
-            ?? $this->stringOrNull($decoded['remote_ip'] ?? null)
-            ?? '-';
+        $ip = $this->resolveJsonRequestIp($decoded);
         $method = $this->stringOrNull($decoded['request']['method'] ?? null) ?? '-';
         $uri = $this->stringOrNull($decoded['request']['uri'] ?? null) ?? '-';
         $statusCode = $this->stringOrNull($decoded['status'] ?? $decoded['status_code'] ?? null) ?? '-';
@@ -231,6 +229,75 @@ class DomainRequestLogService
             'message' => $message,
             'source' => $source,
         ];
+    }
+
+    private function resolveJsonRequestIp(array $decoded): string
+    {
+        $ip = $this->stringOrNull($decoded['request']['client_ip'] ?? null)
+            ?? $this->stringOrNull($decoded['request']['remote_ip'] ?? null)
+            ?? $this->stringOrNull($decoded['remote_ip'] ?? null)
+            ?? $this->extractRequestHeaderIp($decoded, 'CF-Connecting-IP')
+            ?? $this->extractRequestHeaderIp($decoded, 'X-Forwarded-For', useFirstCsvToken: true);
+
+        return $ip ?? '-';
+    }
+
+    private function extractRequestHeaderIp(array $decoded, string $headerName, bool $useFirstCsvToken = false): ?string
+    {
+        $headers = $decoded['request']['headers'] ?? null;
+        if (! is_array($headers)) {
+            return null;
+        }
+
+        $headerValue = null;
+        foreach ($headers as $key => $value) {
+            if (! is_string($key) || strcasecmp($key, $headerName) !== 0) {
+                continue;
+            }
+
+            $headerValue = $value;
+            break;
+        }
+
+        if ($headerValue === null) {
+            return null;
+        }
+
+        $normalized = $this->normalizeHeaderValue($headerValue);
+        if ($normalized === null) {
+            return null;
+        }
+
+        if (! $useFirstCsvToken) {
+            return $normalized;
+        }
+
+        $firstToken = trim(explode(',', $normalized)[0] ?? '');
+
+        return $firstToken !== '' ? $firstToken : null;
+    }
+
+    private function normalizeHeaderValue(mixed $value): ?string
+    {
+        if (is_array($value)) {
+            foreach ($value as $item) {
+                $normalized = $this->normalizeHeaderValue($item);
+                if ($normalized !== null) {
+                    return $normalized;
+                }
+            }
+
+            return null;
+        }
+
+        $stringValue = $this->stringOrNull($value);
+        if ($stringValue === null) {
+            return null;
+        }
+
+        $stringValue = trim($stringValue);
+
+        return $stringValue !== '' ? $stringValue : null;
     }
 
     /**
