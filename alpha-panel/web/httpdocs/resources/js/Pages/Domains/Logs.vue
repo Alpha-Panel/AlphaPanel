@@ -156,16 +156,379 @@ const autoRefresh = ref(false);
 const hasMore = ref(true);
 const beforeCursor = ref<string | null>(null);
 const tableContainerRef = ref<HTMLElement | null>(null);
+const streamSocket = ref<WebSocket | null>(null);
+const streamConnected = ref(false);
+const streamBuffer = ref('');
+const streamManualClose = ref(false);
 const filters = reactive({
     q: '',
     ip: '',
 });
-let timer: ReturnType<typeof setInterval> | null = null;
+let streamReconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 const PAGE_LIMIT = 100;
+const MAX_STREAM_ENTRIES = 2000;
+const textDecoder = new TextDecoder();
+
+const entryKey = (entry: DomainLogEntry): string => `${entry.ts}-${entry.source}-${entry.ip}-${entry.request}-${entry.status}-${entry.message}`;
+
+const normalizeDateInput = (value: unknown): string | null => {
+    if (typeof value !== 'string' && typeof value !== 'number') {
+        return null;
+    }
+
+    const date = new Date(String(value));
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+
+    return date.toISOString();
+};
+
+const stringOrNull = (value: unknown): string | null => {
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        return trimmed !== '' ? trimmed : null;
+    }
+
+    if (typeof value === 'number') {
+        return String(value);
+    }
+
+    return null;
+};
+
+const extractHeaderValue = (headers: unknown, headerName: string, useFirstCsvToken = false): string | null => {
+    if (typeof headers !== 'object' || headers === null) {
+        return null;
+    }
+
+    const map = headers as Record<string, unknown>;
+    const key = Object.keys(map).find((item) => item.toLowerCase() === headerName.toLowerCase());
+    if (!key) {
+        return null;
+    }
+
+    let value: string | null = null;
+    const raw = map[key];
+
+    if (Array.isArray(raw)) {
+        const firstString = raw.find((item): item is string => typeof item === 'string' && item.trim() !== '');
+        value = firstString ? firstString.trim() : null;
+    } else {
+        value = stringOrNull(raw);
+    }
+
+    if (!value) {
+        return null;
+    }
+
+    if (!useFirstCsvToken) {
+        return value;
+    }
+
+    const firstToken = value.split(',')[0]?.trim() ?? '';
+    return firstToken !== '' ? firstToken : null;
+};
+
+const parseJsonLogLine = (line: string): DomainLogEntry | null => {
+    let decoded: Record<string, unknown>;
+
+    try {
+        decoded = JSON.parse(line) as Record<string, unknown>;
+    } catch {
+        return null;
+    }
+
+    if (typeof decoded !== 'object' || decoded === null) {
+        return null;
+    }
+
+    const request = (typeof decoded.request === 'object' && decoded.request !== null)
+        ? decoded.request as Record<string, unknown>
+        : {};
+    const requestHeaders = request.headers;
+
+    const ip = stringOrNull(request.client_ip)
+        ?? stringOrNull(request.remote_ip)
+        ?? stringOrNull(decoded.remote_ip)
+        ?? extractHeaderValue(requestHeaders, 'CF-Connecting-IP')
+        ?? extractHeaderValue(requestHeaders, 'X-Forwarded-For', true)
+        ?? '-';
+
+    const method = stringOrNull(request.method) ?? '-';
+    const uri = stringOrNull(request.uri) ?? '-';
+    const status = stringOrNull(decoded.status ?? decoded.status_code) ?? '-';
+    const level = (stringOrNull(decoded.level) ?? 'info').toLowerCase();
+    const message = stringOrNull(decoded.msg ?? decoded.message) ?? '-';
+    const ts = normalizeDateInput(decoded.ts ?? decoded.time ?? decoded.timestamp);
+
+    return {
+        ts,
+        type: level.includes('error') ? 'error' : 'access',
+        level,
+        ip,
+        request: `${method} ${uri}`.trim(),
+        status,
+        message,
+        source: '/stream',
+    };
+};
+
+const parseApacheAccessLine = (line: string): DomainLogEntry | null => {
+    const match = line.match(/^(?<ip>\S+) \S+ \S+ \[(?<time>[^\]]+)\] "(?<method>[A-Z]+) (?<uri>[^"]+?) (?<proto>[^"]+)" (?<status>\d{3}|-) (?<bytes>\S+)/);
+    if (!match?.groups) {
+        return null;
+    }
+
+    return {
+        ts: normalizeDateInput(match.groups.time),
+        type: 'access',
+        level: 'info',
+        ip: match.groups.ip ?? '-',
+        request: `${match.groups.method ?? '-'} ${match.groups.uri ?? '-'}`.trim(),
+        status: match.groups.status ?? '-',
+        message: line,
+        source: '/stream',
+    };
+};
+
+const parseApacheErrorLine = (line: string): DomainLogEntry | null => {
+    const match = line.match(/^\[(?<time>[^\]]+)\]\s+\[(?<module>[^\]]+)\]\s+\[pid\s+\d+(?::tid\s+\d+)?\](?:\s+\[client\s+(?<client>[^\]]+)\])?\s*(?<message>.*)$/);
+    if (!match?.groups) {
+        return null;
+    }
+
+    const client = (match.groups.client ?? '').trim();
+    const ip = client !== '' ? (client.split(':')[0] ?? '-') : '-';
+
+    return {
+        ts: normalizeDateInput(match.groups.time),
+        type: 'error',
+        level: (match.groups.module ?? 'error').toLowerCase(),
+        ip,
+        request: '-',
+        status: '-',
+        message: (match.groups.message ?? line).trim(),
+        source: '/stream',
+    };
+};
+
+const parseStreamLine = (line: string): DomainLogEntry | null => {
+    return parseJsonLogLine(line)
+        ?? parseApacheAccessLine(line)
+        ?? parseApacheErrorLine(line)
+        ?? {
+            ts: normalizeDateInput(new Date().toISOString()),
+            type: 'access',
+            level: 'info',
+            ip: '-',
+            request: '-',
+            status: '-',
+            message: line,
+            source: '/stream',
+        };
+};
+
+const matchesFilters = (entry: DomainLogEntry): boolean => {
+    const query = filters.q.trim().toLowerCase();
+    const ipFilter = filters.ip.trim().toLowerCase();
+
+    if (ipFilter !== '' && !entry.ip.toLowerCase().includes(ipFilter)) {
+        return false;
+    }
+
+    if (query === '') {
+        return true;
+    }
+
+    const haystack = [
+        entry.ip,
+        entry.request,
+        entry.status,
+        entry.message,
+        entry.source,
+        entry.type,
+        entry.level,
+    ].join(' ').toLowerCase();
+
+    return haystack.includes(query);
+};
+
+const refreshBeforeCursor = (): void => {
+    const lastEntryWithTs = [...entries.value].reverse().find((entry) => typeof entry.ts === 'string' && entry.ts !== '');
+    beforeCursor.value = lastEntryWithTs?.ts ?? null;
+};
+
+const mergeEntries = (incoming: DomainLogEntry[], prepend: boolean): void => {
+    const merged = prepend
+        ? [...incoming, ...entries.value]
+        : [...entries.value, ...incoming];
+    const seen = new Set<string>();
+    const unique = merged.filter((entry) => {
+        const key = entryKey(entry);
+        if (seen.has(key)) {
+            return false;
+        }
+
+        seen.add(key);
+        return true;
+    });
+
+    entries.value = unique.slice(0, MAX_STREAM_ENTRIES);
+    refreshBeforeCursor();
+};
+
+const decodeChunk = (data: string | ArrayBuffer): string => {
+    if (typeof data === 'string') {
+        return data;
+    }
+
+    return textDecoder.decode(new Uint8Array(data), { stream: true });
+};
+
+const consumeStreamChunk = (chunk: string): void => {
+    streamBuffer.value += chunk;
+
+    const lines = streamBuffer.value.split(/\r\n|\n|\r/);
+    streamBuffer.value = lines.pop() ?? '';
+
+    const parsed = lines
+        .map((line) => line.trim())
+        .filter((line) => line !== '')
+        .map((line) => parseStreamLine(line))
+        .filter((entry): entry is DomainLogEntry => entry !== null)
+        .filter((entry) => matchesFilters(entry));
+
+    if (parsed.length === 0) {
+        return;
+    }
+
+    mergeEntries(parsed, true);
+    errorMessage.value = '';
+};
+
+const clearReconnectTimer = (): void => {
+    if (streamReconnectTimer) {
+        clearTimeout(streamReconnectTimer);
+        streamReconnectTimer = null;
+    }
+};
+
+const scheduleReconnect = (): void => {
+    clearReconnectTimer();
+
+    streamReconnectTimer = setTimeout(() => {
+        if (!autoRefresh.value) {
+            return;
+        }
+
+        void startLogStream();
+    }, 3000);
+};
+
+const stopLogStream = (): void => {
+    clearReconnectTimer();
+    streamConnected.value = false;
+    streamBuffer.value = '';
+
+    if (streamSocket.value) {
+        const socket = streamSocket.value;
+        streamManualClose.value = true;
+        if (socket.readyState === WebSocket.CLOSED) {
+            streamSocket.value = null;
+            streamManualClose.value = false;
+        } else {
+            socket.close();
+        }
+    }
+};
+
+const startLogStream = async (): Promise<void> => {
+    stopLogStream();
+    streamManualClose.value = false;
+
+    const newestTs = entries.value.find((entry) => typeof entry.ts === 'string' && entry.ts !== '')?.ts ?? '';
+
+    try {
+        const response = await axios.post(route('domains.logs.stream.start', domain.value.id), {
+            since: newestTs,
+        });
+        const token = typeof response.data?.ws_token === 'string' ? response.data.ws_token : '';
+        if (token === '') {
+            throw new Error('Missing ws_token');
+        }
+
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const socket = new WebSocket(`${protocol}//${window.location.host}/terminal/ws?token=${token}`);
+        socket.binaryType = 'arraybuffer';
+
+        socket.onopen = () => {
+            if (streamSocket.value !== socket) {
+                return;
+            }
+
+            streamConnected.value = true;
+            streamManualClose.value = false;
+        };
+
+        socket.onmessage = (event: MessageEvent<string | ArrayBuffer>) => {
+            if (streamSocket.value !== socket) {
+                return;
+            }
+
+            const chunk = decodeChunk(event.data);
+            if (chunk !== '') {
+                consumeStreamChunk(chunk);
+            }
+        };
+
+        socket.onerror = () => {
+            if (streamSocket.value !== socket) {
+                return;
+            }
+
+            streamConnected.value = false;
+        };
+
+        socket.onclose = () => {
+            if (streamSocket.value !== socket) {
+                return;
+            }
+
+            const manual = streamManualClose.value;
+            streamManualClose.value = false;
+            streamConnected.value = false;
+            streamSocket.value = null;
+
+            if (autoRefresh.value && !manual) {
+                scheduleReconnect();
+            }
+        };
+
+        streamSocket.value = socket;
+    } catch {
+        streamConnected.value = false;
+        errorMessage.value = t('Live stream could not be started. Falling back to manual refresh.');
+        if (autoRefresh.value) {
+            scheduleReconnect();
+        }
+    }
+};
+
+const restartLogStream = async (): Promise<void> => {
+    if (!autoRefresh.value) {
+        return;
+    }
+
+    await startLogStream();
+};
 
 const refreshLogs = async (): Promise<void> => {
     await loadLogs(true);
+    if (autoRefresh.value) {
+        await restartLogStream();
+    }
 };
 
 const loadLogs = async (reset: boolean): Promise<void> => {
@@ -195,20 +558,13 @@ const loadLogs = async (reset: boolean): Promise<void> => {
         if (reset) {
             entries.value = payload;
         } else {
-            const merged = [...entries.value, ...payload];
-            const seen = new Set<string>();
-            entries.value = merged.filter((entry) => {
-                const key = `${entry.ts}-${entry.source}-${entry.ip}-${entry.request}-${entry.status}-${entry.message}`;
-                if (seen.has(key)) {
-                    return false;
-                }
-                seen.add(key);
-                return true;
-            });
+            mergeEntries(payload, false);
         }
 
-        const lastEntryWithTs = [...entries.value].reverse().find((entry) => typeof entry.ts === 'string' && entry.ts !== '');
-        beforeCursor.value = lastEntryWithTs?.ts ?? null;
+        if (reset) {
+            refreshBeforeCursor();
+        }
+
         hasMore.value = payload.length === PAGE_LIMIT && beforeCursor.value !== null;
         errorMessage.value = '';
     } catch {
@@ -231,15 +587,10 @@ const handleScroll = (): void => {
 };
 
 watch(autoRefresh, (enabled) => {
-    if (timer) {
-        clearInterval(timer);
-        timer = null;
-    }
-
     if (enabled) {
-        timer = setInterval(() => {
-            void loadLogs(true);
-        }, 3000);
+        void startLogStream();
+    } else {
+        stopLogStream();
     }
 });
 
@@ -250,7 +601,12 @@ watch(() => [filters.q, filters.ip], () => {
     }
 
     searchTimer = setTimeout(() => {
-        void loadLogs(true);
+        void (async () => {
+            await loadLogs(true);
+            if (autoRefresh.value) {
+                await restartLogStream();
+            }
+        })();
     }, 250);
 });
 
@@ -259,10 +615,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-    if (timer) {
-        clearInterval(timer);
-        timer = null;
-    }
+    stopLogStream();
 
     if (searchTimer) {
         clearTimeout(searchTimer);

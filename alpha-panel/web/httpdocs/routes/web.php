@@ -139,6 +139,8 @@ Route::middleware('auth')->group(function (): void {
         ->name('domains.logs.index');
     Route::get('domains/{domain}/logs/entries', [DomainLogController::class, 'entries'])
         ->name('domains.logs.entries');
+    Route::post('domains/{domain}/logs/stream', [DomainLogController::class, 'streamStart'])
+        ->name('domains.logs.stream.start');
 
     // DNS Management (per domain)
     Route::get('domains/{domain}/dns', [DnsController::class, 'index'])->name('domains.dns.index');
