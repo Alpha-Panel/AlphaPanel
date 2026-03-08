@@ -26,8 +26,10 @@ class DomainLogController extends Controller
 
         $entries = $logService->getDomainEntries($domain, [
             'q' => $request->string('q')->toString(),
+            'ip' => $request->string('ip')->toString(),
+            'before' => $request->string('before')->toString(),
             'since' => $request->string('since')->toString(),
-            'max_lines' => $request->integer('max_lines', 1200),
+            'limit' => $request->integer('limit', 500),
         ]);
 
         return response()->json([

@@ -11,7 +11,7 @@ class DomainRequestLogService
     public function __construct(private PortainerService $portainer) {}
 
     /**
-     * @param  array{q?: string, since?: string, max_lines?: int}  $filters
+     * @param  array{q?: string, ip?: string, since?: string, before?: string, limit?: int}  $filters
      * @return array<int, array{
      *   ts: string|null,
      *   type: string,
@@ -25,9 +25,12 @@ class DomainRequestLogService
      */
     public function getDomainEntries(Domain $domain, array $filters = []): array
     {
-        $maxLines = max(100, min((int) ($filters['max_lines'] ?? 1000), 5000));
+        $limit = max(50, min((int) ($filters['limit'] ?? 100), 250));
+        $maxLines = max(2000, min($limit * 30, 30000));
         $search = trim((string) ($filters['q'] ?? ''));
+        $ipFilter = trim((string) ($filters['ip'] ?? ''));
         $since = $this->safeDate(trim((string) ($filters['since'] ?? '')));
+        $before = $this->safeDate(trim((string) ($filters['before'] ?? '')));
 
         $entries = [];
         foreach ($this->resolveLogTargets($domain) as $target) {
@@ -43,6 +46,17 @@ class DomainRequestLogService
                     if ($entryTs !== null && $entryTs->lessThanOrEqualTo($since)) {
                         continue;
                     }
+                }
+
+                if ($before !== null && $parsed['ts'] !== null) {
+                    $entryTs = $this->safeDate($parsed['ts']);
+                    if ($entryTs !== null && $entryTs->greaterThanOrEqualTo($before)) {
+                        continue;
+                    }
+                }
+
+                if ($ipFilter !== '' && stripos($parsed['ip'], $ipFilter) === false) {
+                    continue;
                 }
 
                 if ($search !== '') {
@@ -71,7 +85,7 @@ class DomainRequestLogService
             return strcmp($right, $left);
         });
 
-        return array_slice($entries, 0, 500);
+        return array_slice($entries, 0, $limit);
     }
 
     /**

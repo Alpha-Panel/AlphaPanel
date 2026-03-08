@@ -10,30 +10,31 @@
                 />
 
                 <div class="space-y-4 md:space-y-6">
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">{{ t('Domain Logs') }}</h3>
                         <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
                             {{ t('Access and error logs are listed together in a single stream.') }}
                         </p>
                     </div>
 
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <div class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-4">
                             <input
                                 v-model="filters.q"
                                 type="text"
-                                class="form-input md:col-span-2"
-                                :placeholder="t('Search IP, request, status, message...')"
+                                class="form-input"
+                                :placeholder="t('Search request, status, message...')"
                             />
-                            <select v-model.number="filters.max_lines" class="form-input">
-                                <option :value="600">{{ t('Last 600 lines') }}</option>
-                                <option :value="1200">{{ t('Last 1200 lines') }}</option>
-                                <option :value="2400">{{ t('Last 2400 lines') }}</option>
-                            </select>
+                            <input
+                                v-model="filters.ip"
+                                type="text"
+                                class="form-input"
+                                :placeholder="t('IP Filter')"
+                            />
                             <div class="flex items-center gap-2">
                                 <button
                                     type="button"
-                                    :disabled="loading"
+                                    :disabled="loading || loadingMore"
                                     class="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
                                     @click="refreshLogs"
                                 >
@@ -45,6 +46,7 @@
                                     {{ t('Auto') }}
                                 </label>
                             </div>
+                            <div class="hidden md:block"></div>
                         </div>
 
                         <div v-if="errorMessage !== ''" class="mb-3 rounded-lg border border-error-500/40 bg-error-500/10 px-3 py-2 text-xs text-error-700 dark:text-error-300">
@@ -55,17 +57,21 @@
                             {{ loading ? t('Loading logs...') : t('No logs found.') }}
                         </div>
 
-                        <div v-else class="max-h-[620px] overflow-auto rounded-lg border border-gray-200 dark:border-gray-800">
+                        <div
+                            ref="tableContainerRef"
+                            class="max-h-[620px] overflow-auto rounded-lg border border-gray-200 dark:border-gray-800"
+                            @scroll.passive="handleScroll"
+                        >
                             <table class="w-full min-w-[1080px] text-sm">
                                 <thead>
                                     <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                                        <th class="px-3 py-2">{{ t('Time') }}</th>
-                                        <th class="px-3 py-2">{{ t('Type') }}</th>
-                                        <th class="px-3 py-2">{{ t('IP') }}</th>
-                                        <th class="px-3 py-2">{{ t('Request') }}</th>
-                                        <th class="px-3 py-2">{{ t('Status') }}</th>
-                                        <th class="px-3 py-2">{{ t('Message') }}</th>
-                                        <th class="px-3 py-2">{{ t('Source') }}</th>
+                                        <th class="sticky top-0 z-10 bg-white px-3 py-2 dark:bg-gray-900">{{ t('Date') }}</th>
+                                        <th class="sticky top-0 z-10 bg-white px-3 py-2 dark:bg-gray-900">{{ t('Type') }}</th>
+                                        <th class="sticky top-0 z-10 bg-white px-3 py-2 dark:bg-gray-900">{{ t('IP') }}</th>
+                                        <th class="sticky top-0 z-10 bg-white px-3 py-2 dark:bg-gray-900">{{ t('Request') }}</th>
+                                        <th class="sticky top-0 z-10 bg-white px-3 py-2 dark:bg-gray-900">{{ t('Status') }}</th>
+                                        <th class="sticky top-0 z-10 bg-white px-3 py-2 dark:bg-gray-900">{{ t('Message') }}</th>
+                                        <th class="sticky top-0 z-10 bg-white px-3 py-2 dark:bg-gray-900">{{ t('Source') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -91,6 +97,13 @@
                                     </tr>
                                 </tbody>
                             </table>
+
+                            <div v-if="loadingMore" class="px-3 py-3 text-center text-xs text-gray-500 dark:text-gray-400">
+                                {{ t('Loading more...') }}
+                            </div>
+                            <div v-else-if="!hasMore" class="px-3 py-3 text-center text-xs text-gray-500 dark:text-gray-400">
+                                {{ t('No more logs.') }}
+                            </div>
                         </div>
 
                         <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">{{ t('Auto refresh is disabled by default. Enable it when you need live monitoring.') }}</p>
@@ -137,30 +150,83 @@ const breadcrumbs = computed(() => [
 
 const entries = ref<DomainLogEntry[]>([]);
 const loading = ref(false);
+const loadingMore = ref(false);
 const errorMessage = ref('');
 const autoRefresh = ref(false);
+const hasMore = ref(true);
+const beforeCursor = ref<string | null>(null);
+const tableContainerRef = ref<HTMLElement | null>(null);
 const filters = reactive({
     q: '',
-    max_lines: 1200,
+    ip: '',
 });
 let timer: ReturnType<typeof setInterval> | null = null;
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
+const PAGE_LIMIT = 100;
 
 const refreshLogs = async (): Promise<void> => {
+    await loadLogs(true);
+};
+
+const loadLogs = async (reset: boolean): Promise<void> => {
     try {
-        loading.value = true;
+        if (reset) {
+            loading.value = true;
+            hasMore.value = true;
+            beforeCursor.value = null;
+        } else {
+            if (!hasMore.value || loadingMore.value) {
+                return;
+            }
+            loadingMore.value = true;
+        }
+
         const response = await axios.get(route('domains.logs.entries', domain.value.id), {
             params: {
                 q: filters.q,
-                max_lines: filters.max_lines,
+                ip: filters.ip,
+                limit: PAGE_LIMIT,
+                before: reset ? '' : (beforeCursor.value ?? ''),
             },
         });
 
-        entries.value = Array.isArray(response.data?.entries) ? response.data.entries : [];
+        const payload = Array.isArray(response.data?.entries) ? response.data.entries as DomainLogEntry[] : [];
+
+        if (reset) {
+            entries.value = payload;
+        } else {
+            const merged = [...entries.value, ...payload];
+            const seen = new Set<string>();
+            entries.value = merged.filter((entry) => {
+                const key = `${entry.ts}-${entry.source}-${entry.ip}-${entry.request}-${entry.status}-${entry.message}`;
+                if (seen.has(key)) {
+                    return false;
+                }
+                seen.add(key);
+                return true;
+            });
+        }
+
+        const lastEntryWithTs = [...entries.value].reverse().find((entry) => typeof entry.ts === 'string' && entry.ts !== '');
+        beforeCursor.value = lastEntryWithTs?.ts ?? null;
+        hasMore.value = payload.length === PAGE_LIMIT && beforeCursor.value !== null;
         errorMessage.value = '';
     } catch {
         errorMessage.value = t('Logs could not be loaded.');
     } finally {
         loading.value = false;
+        loadingMore.value = false;
+    }
+};
+
+const handleScroll = (): void => {
+    if (!tableContainerRef.value || loading.value || loadingMore.value || !hasMore.value) {
+        return;
+    }
+
+    const { scrollTop, clientHeight, scrollHeight } = tableContainerRef.value;
+    if (scrollTop + clientHeight >= scrollHeight - 120) {
+        void loadLogs(false);
     }
 };
 
@@ -172,27 +238,35 @@ watch(autoRefresh, (enabled) => {
 
     if (enabled) {
         timer = setInterval(() => {
-            void refreshLogs();
+            void loadLogs(true);
         }, 3000);
     }
 });
 
-watch(() => filters.q, () => {
-    void refreshLogs();
-});
+watch(() => [filters.q, filters.ip], () => {
+    if (searchTimer) {
+        clearTimeout(searchTimer);
+        searchTimer = null;
+    }
 
-watch(() => filters.max_lines, () => {
-    void refreshLogs();
+    searchTimer = setTimeout(() => {
+        void loadLogs(true);
+    }, 250);
 });
 
 onMounted(() => {
-    void refreshLogs();
+    void loadLogs(true);
 });
 
 onUnmounted(() => {
     if (timer) {
         clearInterval(timer);
         timer = null;
+    }
+
+    if (searchTimer) {
+        clearTimeout(searchTimer);
+        searchTimer = null;
     }
 });
 </script>
