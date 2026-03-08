@@ -423,7 +423,7 @@
 <script setup lang="ts">
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { useI18n } from '@/Composables/useI18n';
 import AdminLayout from '@/Components/Layout/AdminLayout.vue';
 import PageBreadcrumb from '@/Components/Common/PageBreadcrumb.vue';
 import SidebarProvider from '@/Components/Layout/SidebarProvider.vue';
