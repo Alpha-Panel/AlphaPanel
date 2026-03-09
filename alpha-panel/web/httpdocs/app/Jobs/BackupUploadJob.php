@@ -25,6 +25,10 @@ class BackupUploadJob implements ShouldQueue
 
     public int $timeout = 3600;
 
+    private int $totalFiles = 0;
+
+    private int $totalBytes = 0;
+
     public function __construct(
         public string $type = 'manual',
         public ?int $triggeredBy = null,
@@ -49,6 +53,8 @@ class BackupUploadJob implements ShouldQueue
 
         $datetime = now()->format('d-M-Y');
         $tempBase = config('backup.local_backup_base').'/'.$datetime;
+        $this->totalFiles = 0;
+        $this->totalBytes = 0;
 
         try {
             $driveService->refreshTokenIfNeeded();
@@ -72,6 +78,8 @@ class BackupUploadJob implements ShouldQueue
             $run->update([
                 'status' => 'completed',
                 'progress_percent' => 100,
+                'file_name' => "{$this->totalFiles} files ({$datetime})",
+                'file_size_bytes' => $this->totalBytes,
                 'finished_at' => now(),
             ]);
 
@@ -81,7 +89,7 @@ class BackupUploadJob implements ShouldQueue
             AuditLog::create([
                 'user_id' => $this->triggeredBy,
                 'action' => 'backup_upload_completed',
-                'summary' => "Backup completed: {$this->type}",
+                'summary' => "Backup completed: {$this->type}, {$this->totalFiles} files uploaded",
             ]);
         } catch (\Throwable $e) {
             Log::error('BackupUploadJob failed', [
@@ -160,11 +168,8 @@ class BackupUploadJob implements ShouldQueue
                 $run->update(['progress_percent' => min(49, $overallPercent)]);
             });
 
-            $run->update([
-                'file_name' => "{$siteName}.tar.gz",
-                'file_size_bytes' => filesize($archivePath),
-                'drive_file_id' => $uploadResult['id'],
-            ]);
+            $this->totalFiles++;
+            $this->totalBytes += filesize($archivePath) ?: 0;
 
             // Remove local archive immediately after upload
             @unlink($archivePath);
@@ -249,11 +254,8 @@ class BackupUploadJob implements ShouldQueue
                 $run->update(['progress_percent' => min(94, $overallPercent)]);
             });
 
-            $run->update([
-                'file_name' => "{$dbName}.tar.gz",
-                'file_size_bytes' => filesize($archivePath),
-                'drive_file_id' => $uploadResult['id'],
-            ]);
+            $this->totalFiles++;
+            $this->totalBytes += filesize($archivePath) ?: 0;
 
             // Remove local archive immediately after upload
             @unlink($archivePath);

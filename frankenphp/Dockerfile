@@ -86,7 +86,7 @@ RUN apt-get update \
  && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian bookworm stable" \
     > /etc/apt/sources.list.d/docker.list \
  && apt-get update \
- && apt-get install -y --no-install-recommends docker-ce-cli vim npm openssh-client \
+ && apt-get install -y --no-install-recommends docker-ce-cli vim npm openssh-client default-mysql-client \
  && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /etc/supervisor/conf.d /var/log/supervisor /var/run
