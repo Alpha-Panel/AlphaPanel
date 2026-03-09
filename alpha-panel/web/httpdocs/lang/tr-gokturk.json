@@ -651,5 +651,14 @@
     "Select Backup Folder": "𐰖𐰁𐰑𐰁𐰚 𐰸𐰞𐰀𐰾𐰇𐰺𐰈𐰤𐰈 𐰾𐰁𐰲",
     "No folders found": "𐰸𐰞𐰀𐰾𐰇𐰺 𐰉𐰆𐰞𐰆𐰤𐰢𐰀𐰑𐰃",
     "New folder name...": "𐰖𐰁𐰤𐰃 𐰸𐰞𐰀𐰾𐰇𐰺 𐰀𐰑𐰃...",
-    "Select This Folder": "𐰉𐰆 𐰸𐰞𐰀𐰾𐰇𐰺𐰈 𐰾𐰁𐰲"
+    "Select This Folder": "𐰉𐰆 𐰸𐰞𐰀𐰾𐰇𐰺𐰈 𐰾𐰁𐰲",
+    "SSL Method": "𐰾𐰾𐰠 𐰖𐰆𐰤𐱅𐰢",
+    "Cloudflare DNS (DNS-01)": "Cloudflare DNS (DNS-01)",
+    "Webroot HTTP (HTTP-01)": "Webroot HTTP (HTTP-01)",
+    "Self-Signed Certificate": "𐰚𐰤𐰓𐰤 𐰃𐰢𐰔𐰞𐰃 𐰾𐰼𐱅𐰚𐰀",
+    "No SSL": "𐰾𐰾𐰠 𐰖𐰸",
+    "Custom Server Configuration": "𐰇𐰔𐰠 𐰽𐰆𐰣𐰸𐰆 𐰖𐰯𐰞𐰣𐰓𐰼𐰢𐰽",
+    "Bypass Reverse Proxy": "𐱃𐰼𐰾 𐰯𐰺𐰸𐰾𐰃 𐰓𐰋𐰼𐰀 𐰓𐰃𐱁𐰃 𐰉𐰺𐰴",
+    "Custom Caddy Directives": "𐰇𐰔𐰠 𐰲𐰓𐰃 𐰖𐰇𐰤𐰼𐰏𐰠𐰼",
+    "These directives replace the default server configuration. Enter valid Caddy directives for the root path.": "𐰉𐰆 𐰖𐰇𐰤𐰼𐰏𐰠𐰼 𐰋𐰼𐰾𐰖𐰞𐰣 𐰽𐰆𐰣𐰸𐰆 𐰖𐰯𐰞𐰣𐰓𐰼𐰢𐰽𐰃𐰤𐰃𐰤 𐰖𐰼𐰤 𐰀𐰞𐰺. 𐰚𐰇𐰚 𐰖𐰆𐰞 𐰃𐰲𐰤 𐰏𐰲𐰼𐰠 𐰲𐰓𐰃 𐰖𐰇𐰤𐰼𐰏𐰠𐰼 𐰏𐰼𐰤."
 }

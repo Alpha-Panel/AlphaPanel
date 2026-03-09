@@ -20,6 +20,7 @@ services:
       - ./secrets/cloudflare.ini:/secrets/cloudflare.ini:ro
       - ./frankenphp/sites-enabled:/etc/frankenphp/sites-enabled
       - ./scripts/certbot:/opt/certbot-scripts:ro
+      - ./acme-challenge:/var/www/acme-challenge
     entrypoint:
       - /bin/sh
       - /opt/certbot-scripts/ensure-certs.sh
@@ -45,6 +46,7 @@ services:
       - ./secrets/cloudflare.ini:/secrets/cloudflare.ini:ro
       - ./frankenphp/sites-enabled:/etc/frankenphp/sites-enabled
       - ./scripts/certbot:/opt/certbot-scripts:ro
+      - ./acme-challenge:/var/www/acme-challenge
     entrypoint:
       - /bin/sh
       - /opt/certbot-scripts/renew-loop.sh
@@ -144,6 +146,7 @@ services:
         - ./frankenphp/caddy_data:/data
         - ./frankenphp/waf:/etc/frankenphp/waf
         - ./letsencrypt:/etc/letsencrypt:ro
+        - ./acme-challenge:/var/www/acme-challenge
         - ./vhosts:/var/www/vhosts
         - ./php-code-server/run/:/run/php/
         - ./frankenphp/logs:/var/log/caddy/

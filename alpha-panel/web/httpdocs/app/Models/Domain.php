@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\DomainStatus;
 use App\Enums\DomainType;
+use App\Enums\SslMethod;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,6 +30,9 @@ class Domain extends Model
         'worker_watch',
         'php_version_id',
         'cloudflare_enabled',
+        'ssl_method',
+        'bypass_reverse_proxy',
+        'custom_caddy_directives',
         'modsecurity_enabled',
         'modsecurity_mode',
         'modsecurity_ip_allowlist',
@@ -48,6 +52,8 @@ class Domain extends Model
             'enable_worker' => 'boolean',
             'worker_watch' => 'boolean',
             'cloudflare_enabled' => 'boolean',
+            'ssl_method' => SslMethod::class,
+            'bypass_reverse_proxy' => 'boolean',
             'modsecurity_enabled' => 'boolean',
             'modsecurity_ip_allowlist' => 'array',
             'modsecurity_ip_blocklist' => 'array',

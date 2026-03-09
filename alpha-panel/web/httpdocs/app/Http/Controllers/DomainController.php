@@ -286,6 +286,7 @@ class DomainController extends Controller
         $configChanged = $fqdnChanged || $domain->wasChanged([
             'type', 'root_path', 'enable_www_redirect', 'additional_hostnames',
             'enable_worker', 'worker_num', 'worker_watch', 'php_version_id',
+            'ssl_method', 'bypass_reverse_proxy', 'custom_caddy_directives',
         ]);
 
         if ($fqdnChanged) {

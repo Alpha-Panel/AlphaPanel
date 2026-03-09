@@ -651,5 +651,14 @@
     "Select Backup Folder": "Выбрать папку для резервных копий",
     "No folders found": "Папки не найдены",
     "New folder name...": "Имя новой папки...",
-    "Select This Folder": "Выбрать эту папку"
+    "Select This Folder": "Выбрать эту папку",
+    "SSL Method": "Метод SSL",
+    "Cloudflare DNS (DNS-01)": "Cloudflare DNS (DNS-01)",
+    "Webroot HTTP (HTTP-01)": "Webroot HTTP (HTTP-01)",
+    "Self-Signed Certificate": "Самоподписанный сертификат",
+    "No SSL": "Без SSL",
+    "Custom Server Configuration": "Пользовательская конфигурация сервера",
+    "Bypass Reverse Proxy": "Обойти обратный прокси",
+    "Custom Caddy Directives": "Пользовательские директивы Caddy",
+    "These directives replace the default server configuration. Enter valid Caddy directives for the root path.": "Эти директивы заменяют стандартную конфигурацию сервера. Введите корректные директивы Caddy для корневого пути."
 }

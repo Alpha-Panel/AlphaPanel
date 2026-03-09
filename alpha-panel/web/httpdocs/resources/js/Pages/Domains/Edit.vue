@@ -58,6 +58,47 @@
                             <span class="text-sm text-gray-700 dark:text-gray-400">{{ t('Enable www redirect') }}</span>
                         </label>
 
+                        <!-- SSL Method -->
+                        <FormField :label="t('SSL Method')" :error="form.errors.ssl_method">
+                            <select v-model="form.ssl_method" class="form-input">
+                                <option value="cloudflare_dns">{{ t('Cloudflare DNS (DNS-01)') }}</option>
+                                <option value="webroot_http">{{ t('Webroot HTTP (HTTP-01)') }}</option>
+                                <option value="self_signed">{{ t('Self-Signed Certificate') }}</option>
+                                <option value="none">{{ t('No SSL') }}</option>
+                            </select>
+                        </FormField>
+
+                        <!-- Bypass Reverse Proxy / Custom Caddy Directives -->
+                        <div class="pt-5 border-t border-gray-200 dark:border-gray-800">
+                            <h4 class="mb-3 text-sm font-medium text-gray-800 dark:text-white/90">{{ t('Custom Server Configuration') }}</h4>
+
+                            <label class="flex items-center gap-2 mb-4">
+                                <input v-model="form.bypass_reverse_proxy" type="checkbox" class="form-checkbox" />
+                                <span class="text-sm text-gray-700 dark:text-gray-400">{{ t('Bypass Reverse Proxy') }}</span>
+                            </label>
+
+                            <div v-if="form.bypass_reverse_proxy">
+                                <div class="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                                    <p class="mb-2 text-sm font-medium text-blue-800 dark:text-blue-300">
+                                        {{ t('Custom Caddy Directives') }}
+                                    </p>
+                                    <p class="mb-3 text-xs text-blue-600 dark:text-blue-400">
+                                        {{ t('These directives replace the default server configuration. Enter valid Caddy directives for the root path.') }}
+                                    </p>
+                                    <pre class="rounded bg-gray-900 p-3 text-xs text-green-400 overflow-x-auto whitespace-pre">{{ exampleDirectives }}</pre>
+                                </div>
+
+                                <FormField :label="t('Custom Caddy Directives')" :error="form.errors.custom_caddy_directives">
+                                    <textarea
+                                        v-model="form.custom_caddy_directives"
+                                        rows="8"
+                                        class="form-input font-mono text-xs"
+                                        :placeholder="exampleDirectives"
+                                    />
+                                </FormField>
+                            </div>
+                        </div>
+
                         <!-- Worker Section -->
                         <div v-if="form.type === 'caddy_web_server'" class="pt-5 border-t border-gray-200 dark:border-gray-800">
                             <h4 class="mb-3 text-sm font-medium text-gray-800 dark:text-white/90">{{ t('Worker Settings') }}</h4>
@@ -131,10 +172,20 @@ const form = useForm({
     owner_user_id: props.domain.owner_user_id,
     root_path: props.domain.root_path,
     enable_www_redirect: props.domain.enable_www_redirect,
+    ssl_method: props.domain.ssl_method ?? 'cloudflare_dns',
+    bypass_reverse_proxy: props.domain.bypass_reverse_proxy ?? false,
+    custom_caddy_directives: props.domain.custom_caddy_directives ?? '',
     enable_worker: props.domain.enable_worker,
     worker_num: props.domain.worker_num ?? 2,
     worker_watch: props.domain.worker_watch,
 });
+
+const exampleDirectives = `reverse_proxy http://10.0.0.5:3000 {
+    header_up Host {host}
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+}`;
 
 watch(() => form.type, (type) => {
     if (type !== 'apache_reverse_proxy') {

@@ -651,5 +651,14 @@
     "Select Backup Folder": "Sélectionner le dossier de sauvegarde",
     "No folders found": "Aucun dossier trouvé",
     "New folder name...": "Nom du nouveau dossier...",
-    "Select This Folder": "Sélectionner ce dossier"
+    "Select This Folder": "Sélectionner ce dossier",
+    "SSL Method": "Méthode SSL",
+    "Cloudflare DNS (DNS-01)": "Cloudflare DNS (DNS-01)",
+    "Webroot HTTP (HTTP-01)": "Webroot HTTP (HTTP-01)",
+    "Self-Signed Certificate": "Certificat auto-signé",
+    "No SSL": "Pas de SSL",
+    "Custom Server Configuration": "Configuration serveur personnalisée",
+    "Bypass Reverse Proxy": "Contourner le Reverse Proxy",
+    "Custom Caddy Directives": "Directives Caddy personnalisées",
+    "These directives replace the default server configuration. Enter valid Caddy directives for the root path.": "Ces directives remplacent la configuration serveur par défaut. Entrez des directives Caddy valides pour le chemin racine."
 }

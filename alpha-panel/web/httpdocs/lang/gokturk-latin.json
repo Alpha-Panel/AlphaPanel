@@ -651,5 +651,14 @@
     "Select Backup Folder": "Yädäk qısqacını säç",
     "No folders found": "Qısqac bulunmadı",
     "New folder name...": "Yäni qısqac adı...",
-    "Select This Folder": "Bu qısqacı säç"
+    "Select This Folder": "Bu qısqacı säç",
+    "SSL Method": "SSL Yöntemi",
+    "Cloudflare DNS (DNS-01)": "Cloudflare DNS (DNS-01)",
+    "Webroot HTTP (HTTP-01)": "Webroot HTTP (HTTP-01)",
+    "Self-Signed Certificate": "Kenden İmzalı Sertika",
+    "No SSL": "SSL Yok",
+    "Custom Server Configuration": "Özel Sunucu Yaplandırması",
+    "Bypass Reverse Proxy": "Ters Proksi Devre Dışı Bırak",
+    "Custom Caddy Directives": "Özel Caddy Yönergeleri",
+    "These directives replace the default server configuration. Enter valid Caddy directives for the root path.": "Bu yönergeler varsayılan sunucu yaplandırmasını değiştirir. Kök yol için geçerli Caddy yönergeleri girin."
 }

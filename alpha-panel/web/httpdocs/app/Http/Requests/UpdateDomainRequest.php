@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\DomainType;
+use App\Enums\SslMethod;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
@@ -46,6 +47,14 @@ class UpdateDomainRequest extends FormRequest
                 'nullable',
                 'exists:php_versions,id',
                 Rule::requiredIf(fn () => $this->input('type') === 'apache_reverse_proxy'),
+            ],
+            'ssl_method' => ['sometimes', new Enum(SslMethod::class)],
+            'bypass_reverse_proxy' => ['boolean'],
+            'custom_caddy_directives' => [
+                'nullable',
+                'string',
+                'max:5000',
+                Rule::requiredIf(fn () => $this->boolean('bypass_reverse_proxy')),
             ],
         ];
     }

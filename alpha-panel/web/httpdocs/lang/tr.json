@@ -651,5 +651,14 @@
     "Select Backup Folder": "Yedek Klasörünü Seç",
     "No folders found": "Klasör bulunamadı",
     "New folder name...": "Yeni klasör adı...",
-    "Select This Folder": "Bu Klasörü Seç"
+    "Select This Folder": "Bu Klasörü Seç",
+    "SSL Method": "SSL Yöntemi",
+    "Cloudflare DNS (DNS-01)": "Cloudflare DNS (DNS-01)",
+    "Webroot HTTP (HTTP-01)": "Webroot HTTP (HTTP-01)",
+    "Self-Signed Certificate": "Kendinden İmzalı Sertifika",
+    "No SSL": "SSL Yok",
+    "Custom Server Configuration": "Özel Sunucu Yapılandırması",
+    "Bypass Reverse Proxy": "Reverse Proxy'yi Devre Dışı Bırak",
+    "Custom Caddy Directives": "Özel Caddy Yönergeleri",
+    "These directives replace the default server configuration. Enter valid Caddy directives for the root path.": "Bu yönergeler varsayılan sunucu yapılandırmasının yerini alır. Kök yol için geçerli Caddy yönergeleri girin."
 }

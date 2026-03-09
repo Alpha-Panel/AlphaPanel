@@ -89,6 +89,71 @@ class CertbotService
     }
 
     /**
+     * Request a certificate using HTTP-01 (webroot) challenge via Portainer.
+     *
+     * Unlike DNS-01, HTTP-01 cannot issue wildcard certificates.
+     * Only the bare domain (and optionally www) are requested.
+     */
+    public function requestCertificateWebroot(Domain $domain): bool
+    {
+        $fqdn = $domain->fqdn;
+        $adminEmail = config('panel.certbot_email');
+        $image = config('panel.portainer_certbot_image', 'alphapanel-docker-certbot-init:latest');
+        $hostRoot = config('panel.compose_project_root_host');
+
+        $domains = ['-d', escapeshellarg($fqdn)];
+        if ($domain->enable_www_redirect && ! str_starts_with($fqdn, 'www.')) {
+            $domains[] = '-d';
+            $domains[] = escapeshellarg("www.{$fqdn}");
+        }
+
+        $certbotCommand = implode(' ', array_merge([
+            'certbot certonly',
+            '--non-interactive',
+            '--agree-tos',
+            '--email', escapeshellarg($adminEmail),
+            '--webroot',
+            '-w /var/www/acme-challenge',
+            '--key-type ecdsa',
+            '--elliptic-curve secp384r1',
+        ], $domains));
+
+        Log::info("Requesting SSL certificate (webroot) for {$fqdn} via Portainer.");
+
+        try {
+            $result = $this->portainer->createAndRunContainer([
+                'Image' => $image,
+                'Entrypoint' => ['/bin/sh'],
+                'Cmd' => ['-lc', $certbotCommand],
+                'Env' => [
+                    'TZ=Europe/Istanbul',
+                    "ADMIN_EMAIL={$adminEmail}",
+                ],
+                'HostConfig' => [
+                    'Binds' => [
+                        "{$hostRoot}/letsencrypt:/etc/letsencrypt",
+                        "{$hostRoot}/acme-challenge:/var/www/acme-challenge",
+                    ],
+                ],
+            ], timeout: 120);
+
+            if (! $result->isSuccessful()) {
+                Log::error("Certbot webroot failed for {$fqdn} (exit code {$result->exitCode}): {$result->output}");
+
+                return false;
+            }
+
+            Log::info("Certbot webroot succeeded for {$fqdn}: {$result->output}");
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error("Certbot webroot exception for {$fqdn}: {$e->getMessage()}");
+
+            return false;
+        }
+    }
+
+    /**
      * Renew an existing certificate using certbot renew via Portainer.
      */
     public function renewCertificate(Domain $domain): bool
