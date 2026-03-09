@@ -74,16 +74,18 @@ class BackupUploadJob implements ShouldQueue
             // Create date folder on Drive: <drive_folder>/09-Mar-2026/
             $dateFolderId = $driveService->findOrCreateFolderPath($datetime, $settings->drive_folder_id);
 
-            // Phase 1: Website backups (0-50%)
-            BackupProgress::dispatch($run->id, 2, 'Starting website backups...', 'uploading');
-            $this->backupWebsites($driveService, $dateFolderId, $tempBase, $run);
-
-            // Phase 2: MySQL backups (50-95%)
-            BackupProgress::dispatch($run->id, 50, 'Starting database backups...', 'uploading');
+            // Phase 1: MySQL backups (0-50%)
+            BackupProgress::dispatch($run->id, 2, __('Starting database backups...'), 'uploading');
             $this->backupDatabases($driveService, $dateFolderId, $tempBase, $run);
 
+            // Phase 2: Website backups (50-95%)
+            BackupProgress::dispatch($run->id, 50, __('Starting website backups...'), 'uploading');
+            $this->backupWebsites($driveService, $dateFolderId, $tempBase, $run);
+
+
+
             // Phase 3: Cleanup old backups on Drive (95-99%)
-            BackupProgress::dispatch($run->id, 95, 'Cleaning old backups...', 'uploading');
+            BackupProgress::dispatch($run->id, 95, __('Cleaning old backups...'), 'uploading');
             $driveService->deleteOldBackups($settings->drive_folder_id, $settings->backup_retention_days);
 
             // Done
@@ -96,7 +98,7 @@ class BackupUploadJob implements ShouldQueue
             ]);
 
             $settings->update(['last_backup_at' => now()]);
-            BackupProgress::dispatch($run->id, 100, 'Backup complete', 'completed');
+            BackupProgress::dispatch($run->id, 100, __('Backup complete'), 'completed');
 
             AuditLog::create([
                 'user_id' => $this->triggeredBy,
@@ -188,7 +190,7 @@ class BackupUploadJob implements ShouldQueue
 
             // Upload to Drive
             $percent = (int) round(2 + (($i + 1) / $total * 48));
-            BackupProgress::dispatch($run->id, $percent, "Uploading {$siteName}.tar.gz...", 'uploading');
+            BackupProgress::dispatch($run->id, $percent, __('Uploading :name...', ['name' => "{$siteName}.tar.gz"]), 'uploading');
 
             $uploadResult = $driveService->uploadFile($archivePath, $websitesFolderId, function (int $chunkPercent) use ($run, $i, $total) {
                 $fileProgress = ($i + ($chunkPercent / 100)) / $total;
@@ -245,7 +247,7 @@ class BackupUploadJob implements ShouldQueue
 
             // mysqldump — disable SSL to avoid self-signed cert errors on Docker network
             $dumpCmd = sprintf(
-                'mysqldump --host=%s -u%s -p%s --ssl-mode=DISABLED --single-transaction --quick %s > %s',
+                'mysqldump --host=%s -u%s -p%s --skip-ssl --single-transaction --quick %s > %s',
                 escapeshellarg($host),
                 escapeshellarg($username),
                 escapeshellarg($password),
@@ -277,7 +279,7 @@ class BackupUploadJob implements ShouldQueue
 
             // Upload to Drive
             $percent = (int) round(50 + (($i + 1) / $total * 45));
-            BackupProgress::dispatch($run->id, $percent, "Uploading {$dbName}.tar.gz...", 'uploading');
+            BackupProgress::dispatch($run->id, $percent, __('Uploading :name...', ['name' => "{$dbName}.tar.gz"]), 'uploading');
 
             $uploadResult = $driveService->uploadFile($archivePath, $mysqlFolderId, function (int $chunkPercent) use ($run, $i, $total) {
                 $fileProgress = ($i + ($chunkPercent / 100)) / $total;

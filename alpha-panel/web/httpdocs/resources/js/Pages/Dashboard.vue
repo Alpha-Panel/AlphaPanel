@@ -9,7 +9,7 @@
                 <!-- Active Backup Progress Banner -->
                 <div
                     v-if="backupProgress.active"
-                    class="rounded-2xl border border-brand-200 bg-brand-50 p-5 dark:border-brand-500/30 dark:bg-brand-500/10"
+                    class="mb-6 rounded-2xl border border-brand-200 bg-brand-50 p-5 dark:border-brand-500/30 dark:bg-brand-500/10"
                 >
                     <div class="flex items-center gap-3">
                         <div class="h-8 w-8 animate-spin rounded-full border-4 border-brand-200 border-t-brand-500"></div>
