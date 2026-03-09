@@ -89,10 +89,8 @@ class CertbotService
     }
 
     /**
-     * Request a certificate using HTTP-01 (webroot) challenge via Portainer.
-     *
-     * Unlike DNS-01, HTTP-01 cannot issue wildcard certificates.
-     * Only the bare domain (and optionally www) are requested.
+     * Request a certificate using webroot HTTP-01 challenge via Portainer.
+     * HTTP-01 cannot issue wildcard certs — only single domain (+ optional www).
      */
     public function requestCertificateWebroot(Domain $domain): bool
     {
@@ -101,13 +99,12 @@ class CertbotService
         $image = config('panel.portainer_certbot_image', 'alphapanel-docker-certbot-init:latest');
         $hostRoot = config('panel.compose_project_root_host');
 
-        $domains = ['-d', escapeshellarg($fqdn)];
+        $domains = [escapeshellarg($fqdn)];
         if ($domain->enable_www_redirect && ! str_starts_with($fqdn, 'www.')) {
-            $domains[] = '-d';
             $domains[] = escapeshellarg("www.{$fqdn}");
         }
 
-        $certbotCommand = implode(' ', array_merge([
+        $certbotCommand = implode(' ', [
             'certbot certonly',
             '--non-interactive',
             '--agree-tos',
@@ -116,9 +113,10 @@ class CertbotService
             '-w /var/www/acme-challenge',
             '--key-type ecdsa',
             '--elliptic-curve secp384r1',
-        ], $domains));
+            ...array_map(fn ($d) => "-d {$d}", $domains),
+        ]);
 
-        Log::info("Requesting SSL certificate (webroot) for {$fqdn} via Portainer.");
+        Log::info("Requesting SSL certificate for {$fqdn} via webroot HTTP-01.");
 
         try {
             $result = $this->portainer->createAndRunContainer([

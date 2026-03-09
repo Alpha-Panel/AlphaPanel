@@ -184,10 +184,13 @@ class BackupUploadJob implements ShouldQueue
         $password = $mysqlConfig['password'];
         $exclude = $mysqlConfig['exclude'] ?? [];
 
-        // Get database list via PDO
+        // Get database list via PDO (disable SSL verification for Docker-internal connections)
         try {
-            $pdo = new PDO("mysql:host={$host}", $username, $password);
+            $pdo = new PDO("mysql:host={$host}", $username, $password, [
+                PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
+            ]);
             $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $pdo->exec("SET SESSION sql_mode = ''");
             $databases = $pdo->query('SHOW DATABASES')->fetchAll(PDO::FETCH_COLUMN);
         } catch (\Throwable $e) {
             Log::warning("Failed to list databases: {$e->getMessage()}");
@@ -212,9 +215,9 @@ class BackupUploadJob implements ShouldQueue
             $sqlPath = "{$tempDir}/{$dbName}.sql";
             $archivePath = "{$tempDir}/{$dbName}.tar.gz";
 
-            // mysqldump
+            // mysqldump — disable SSL to avoid self-signed cert errors on Docker network
             $dumpCmd = sprintf(
-                'mysqldump --host=%s -u%s -p%s --single-transaction --quick %s > %s',
+                'mysqldump --host=%s -u%s -p%s --ssl-mode=DISABLED --single-transaction --quick %s > %s',
                 escapeshellarg($host),
                 escapeshellarg($username),
                 escapeshellarg($password),

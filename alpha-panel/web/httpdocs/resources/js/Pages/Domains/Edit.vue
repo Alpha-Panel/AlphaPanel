@@ -91,8 +91,8 @@
                                 <FormField :label="t('Custom Caddy Directives')" :error="form.errors.custom_caddy_directives">
                                     <textarea
                                         v-model="form.custom_caddy_directives"
-                                        rows="8"
-                                        class="form-input font-mono text-xs"
+                                        rows="16"
+                                        class="form-input font-mono text-xs min-h-[200px]"
                                         :placeholder="exampleDirectives"
                                     />
                                 </FormField>

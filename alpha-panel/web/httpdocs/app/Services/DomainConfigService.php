@@ -126,8 +126,6 @@ class DomainConfigService
         $this->appendCommonHeaderImports($lines, '    ', $domain);
         $lines[] = "    tls {$certPath} {$keyPath}";
         $lines[] = '    encode zstd br gzip';
-
-        // ACME HTTP-01 challenge handler (must come before other handlers)
         $lines = array_merge($lines, $this->renderAcmeChallengePath('    '));
 
         if (! $isLegacy) {
@@ -147,11 +145,11 @@ class DomainConfigService
         $lines[] = '}';
         $lines[] = '';
 
-        // HTTP → HTTPS redirect (with ACME challenge passthrough)
+        // HTTP → HTTPS redirect
         $lines[] = "{$fqdn}:80 {";
-        $this->appendCommonHeaderImports($lines, '    ', $domain);
-        $lines = array_merge($lines, $this->renderAcmeChallengePath('    '));
-        $lines[] = "    redir https://{$fqdn}{uri}";
+        $this->appendCommonHeaderImports($lines, '        ', $domain);
+        $lines = array_merge($lines, $this->renderAcmeChallengePath('        '));
+        $lines[] = "        redir https://{$fqdn}{uri}";
         $lines[] = '}';
         $lines[] = '';
 
@@ -221,8 +219,6 @@ class DomainConfigService
         $lines[] = "{$fqdn}:80 {";
         $this->appendCommonHeaderImports($lines, '    ', $domain);
         $lines[] = '    encode zstd br gzip';
-
-        // ACME HTTP-01 challenge handler (must come before other handlers)
         $lines = array_merge($lines, $this->renderAcmeChallengePath('    '));
 
         if (! $isLegacy) {
@@ -269,14 +265,28 @@ class DomainConfigService
     }
 
     /**
+     * Render ACME HTTP-01 challenge handler for webroot validation.
+     *
+     * @return array<int, string>
+     */
+    private function renderAcmeChallengePath(string $indent): array
+    {
+        return [
+            "{$indent}handle_path /.well-known/acme-challenge/* {",
+            "{$indent}    root * /var/www/acme-challenge",
+            "{$indent}    file_server",
+            "{$indent}}",
+        ];
+    }
+
+    /**
      * Render the server-type-specific directives (php_server or reverse_proxy).
-     * If bypass_reverse_proxy is enabled with custom directives, use those instead.
      *
      * @return array<int, string>
      */
     private function renderServerDirectives(Domain $domain, string $fqdn, string $rootPath, string $indent): array
     {
-        // Custom Caddy directives replace default server block
+        // If bypass_reverse_proxy is enabled and custom directives exist, use them
         if ($domain->bypass_reverse_proxy && ! empty($domain->custom_caddy_directives)) {
             $lines = [];
             foreach (explode("\n", $domain->custom_caddy_directives) as $line) {
@@ -319,22 +329,6 @@ class DomainConfigService
         }
 
         return $lines;
-    }
-
-    /**
-     * Render the ACME HTTP-01 challenge handler block.
-     * This serves /.well-known/acme-challenge/* from a shared webroot directory.
-     *
-     * @return array<int, string>
-     */
-    private function renderAcmeChallengePath(string $indent): array
-    {
-        return [
-            "{$indent}handle_path /.well-known/acme-challenge/* {",
-            "{$indent}    root * /var/www/acme-challenge",
-            "{$indent}    file_server",
-            "{$indent}}",
-        ];
     }
 
     /**

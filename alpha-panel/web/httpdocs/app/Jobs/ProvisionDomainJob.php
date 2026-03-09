@@ -78,62 +78,23 @@ class ProvisionDomainJob implements ShouldQueue
             $selfSigned = false;
             $sslMethod = $domain->ssl_method ?? SslMethod::CloudflareDns;
 
+            // SslMethod::None — skip TLS entirely, stay on HTTP-only
             if ($sslMethod === SslMethod::None) {
-                $this->progress($domain, 40, 'SSL disabled, keeping HTTP-only config...');
-                $certObtained = false;
-            } elseif ($domain->isSubdomain()) {
-                $this->progress($domain, 40, 'Using parent wildcard certificate...');
-                $certObtained = $configService->certExists($domain);
-            } elseif ($configService->certExists($domain)) {
-                $this->progress($domain, 40, 'SSL certificate already exists, skipping...');
-                $certObtained = true;
-            } else {
-                $this->progress($domain, 40, 'Requesting SSL certificate...');
-
-                $certObtained = match ($sslMethod) {
-                    SslMethod::WebrootHttp => $certbotService->requestCertificateWebroot($domain),
-                    SslMethod::SelfSigned => $certbotService->generateSelfSigned($domain),
-                    default => $certbotService->requestCertificate($domain),
-                };
-
-                if ($sslMethod === SslMethod::SelfSigned && $certObtained) {
-                    $selfSigned = true;
-                }
-
-                if (! $certObtained && $sslMethod !== SslMethod::SelfSigned) {
-                    $this->progress($domain, 50, 'Certbot failed, generating self-signed certificate...');
-                    $certObtained = $certbotService->generateSelfSigned($domain);
-                    $selfSigned = $certObtained;
-                }
-            }
-
-            if ($sslMethod === SslMethod::None) {
-                // HTTP-only mode — no TLS config needed
-                $this->progress($domain, 75, 'Reloading services (HTTP only)...');
-                $reloadService->reloadCaddy();
-
-                if ($domain->type === \App\Enums\DomainType::ApacheReverseProxy) {
-                    $reloadService->reloadApache();
-                    if ($domain->phpVersion) {
-                        $reloadService->reloadPhpFpm($domain->phpVersion);
-                    }
-                }
-
+                $this->progress($domain, 60, 'No SSL requested, completing with HTTP-only...');
                 $domain->update(['status' => DomainStatus::Active]);
                 $applyRun->update([
                     'status' => 'completed',
                     'progress_percent' => 100,
-                    'message' => 'Provisioning completed (HTTP only).',
+                    'message' => 'Provisioning completed (HTTP-only).',
                     'finished_at' => now(),
                 ]);
-
-                $this->progress($domain, 100, 'Provisioning complete (HTTP only)!');
+                $this->progress($domain, 100, 'Provisioning complete (HTTP-only)!');
                 DomainProvisioned::dispatch($domain);
 
                 $domain->owner->notify(new DomainNotification(
-                    level: 'info',
+                    level: 'success',
                     title: __('Domain Provisioned'),
-                    body: __('Domain :fqdn provisioned without SSL (HTTP only).', ['fqdn' => $domain->fqdn]),
+                    body: __('Domain :fqdn provisioned successfully (HTTP-only).', ['fqdn' => $domain->fqdn]),
                     domainId: $domain->id,
                     url: route('domains.show', $domain),
                 ));
@@ -142,11 +103,36 @@ class ProvisionDomainJob implements ShouldQueue
                     'user_id' => $this->triggeredBy,
                     'action' => 'provisioned',
                     'domain_id' => $domain->id,
-                    'summary' => "Domain {$domain->fqdn} provisioned (HTTP only).",
+                    'summary' => "Domain {$domain->fqdn} provisioned (HTTP-only).",
                     'ip_address' => $this->actorIpAddress,
                     'port' => $this->actorPort,
                 ]);
-            } elseif ($certObtained && $configService->certExists($domain)) {
+
+                return;
+            }
+
+            if ($domain->isSubdomain()) {
+                $this->progress($domain, 40, 'Using parent wildcard certificate...');
+                $certObtained = $configService->certExists($domain);
+            } elseif ($configService->certExists($domain)) {
+                $this->progress($domain, 40, 'SSL certificate already exists, skipping...');
+                $certObtained = true;
+            } else {
+                $this->progress($domain, 40, 'Requesting SSL certificate...');
+                $certObtained = match ($sslMethod) {
+                    SslMethod::WebrootHttp => $certbotService->requestCertificateWebroot($domain),
+                    SslMethod::SelfSigned => $certbotService->generateSelfSigned($domain),
+                    default => $certbotService->requestCertificate($domain),
+                };
+
+                if (! $certObtained && $sslMethod !== SslMethod::SelfSigned) {
+                    $this->progress($domain, 50, 'Certbot failed, generating self-signed certificate...');
+                    $certObtained = $certbotService->generateSelfSigned($domain);
+                    $selfSigned = $certObtained;
+                }
+            }
+
+            if ($certObtained && $configService->certExists($domain)) {
                 $this->progress($domain, 60, 'Rewriting config with TLS...');
                 $configService->renderWithTls($domain);
 

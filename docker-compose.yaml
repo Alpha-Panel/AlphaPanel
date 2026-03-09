@@ -84,8 +84,6 @@ services:
       - ./php-code-server/8.4/fpm.d/:/etc/php/8.4/fpm/pool.d/
       - ./php-code-server/8.5/fpm.d/:/etc/php/8.5/fpm/pool.d/
       - .:/docker_compose_project_root # Mount the Docker Compose project root
-      - /root/backup:/root/backup
-      - ./scripts/backup:/opt/backup
     depends_on:
       - mysql
       - alpha_panel_meilisearch

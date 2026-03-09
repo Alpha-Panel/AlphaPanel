@@ -12,10 +12,10 @@ mkdir -p $dirname/mysql
 
 cd $dirname/mysql
 
-echo "show databases;" | mysql --host $mysql_host -u $mysql_username -p"$mysql_password" |egrep -vi $mysql_excepts > databaseslist.txt
+echo "show databases;" | mysql --host $mysql_host -u $mysql_username -p"$mysql_password" --ssl-mode=DISABLED |egrep -vi $mysql_excepts > databaseslist.txt
 while read line
 do
-    mysqldump --host $mysql_host -u $mysql_username -p"$mysql_password" $line > $line.sql
+    mysqldump --host $mysql_host -u $mysql_username -p"$mysql_password" --ssl-mode=DISABLED $line > $line.sql
 		tar -cvzf $line.tar.gz $line.sql
 		rm -f $line.sql
 done <databaseslist.txt
