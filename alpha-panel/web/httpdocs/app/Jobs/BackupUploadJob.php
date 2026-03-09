@@ -12,8 +12,10 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
+use PDO;
 
 class BackupUploadJob implements ShouldQueue
 {
@@ -21,7 +23,7 @@ class BackupUploadJob implements ShouldQueue
 
     public int $tries = 1;
 
-    public int $timeout = 1800;
+    public int $timeout = 3600;
 
     public function __construct(
         public string $type = 'manual',
@@ -45,74 +47,28 @@ class BackupUploadJob implements ShouldQueue
             'triggered_by' => $this->triggeredBy,
         ]);
 
+        $datetime = now()->format('d-M-Y');
+        $tempBase = config('backup.local_backup_base').'/'.$datetime;
+
         try {
-            // Phase 1: Create backup archives via shell scripts
-            BackupProgress::dispatch($run->id, 5, 'Creating backup archives...', 'uploading');
-
-            $result = Process::timeout(600)
-                ->path('/opt/backup')
-                ->run('sh web_backup.sh && sh mysql_backup.sh');
-
-            if ($result->failed()) {
-                throw new \RuntimeException("Backup script failed (exit {$result->exitCode()}): {$result->errorOutput()}");
-            }
-
-            BackupProgress::dispatch($run->id, 30, 'Archives created, starting upload...', 'uploading');
-
-            // Phase 2: Upload to Google Drive
             $driveService->refreshTokenIfNeeded();
 
-            $datetime = now()->format('d-M-Y');
-            $backupBase = config('backup.local_backup_base');
-            $dateDir = "{$backupBase}/{$datetime}";
+            // Create date folder on Drive: <drive_folder>/09-Mar-2026/
+            $dateFolderId = $driveService->findOrCreateFolderPath($datetime, $settings->drive_folder_id);
 
-            // Read server_name from server_info.sh
-            $serverName = 'server';
-            $infoResult = Process::timeout(5)
-                ->path('/opt/backup')
-                ->run('. ./server_info.sh && echo $server_name');
+            // Phase 1: Website backups (0-50%)
+            BackupProgress::dispatch($run->id, 2, 'Starting website backups...', 'uploading');
+            $this->backupWebsites($driveService, $dateFolderId, $tempBase, $run);
 
-            $name = trim($infoResult->output());
-            if ($name !== '') {
-                $serverName = $name;
-            }
+            // Phase 2: MySQL backups (50-95%)
+            BackupProgress::dispatch($run->id, 50, 'Starting database backups...', 'uploading');
+            $this->backupDatabases($driveService, $dateFolderId, $tempBase, $run);
 
-            $uploadedAny = false;
-            $totalPercent = 30;
-
-            // Upload websites
-            $websitesDir = "{$dateDir}/websites";
-            if (is_dir($websitesDir)) {
-                $uploadPath = "{$serverName}/{$datetime}/websites";
-                $targetFolderId = $driveService->findOrCreateFolderPath($uploadPath, $settings->drive_folder_id);
-                $this->uploadDirectory($driveService, $websitesDir, $targetFolderId, $run, 30, 65);
-                $uploadedAny = true;
-                $totalPercent = 65;
-            }
-
-            // Upload mysql
-            $mysqlDir = "{$dateDir}/mysql";
-            if (is_dir($mysqlDir)) {
-                $uploadPath = "{$serverName}/{$datetime}/mysql";
-                $targetFolderId = $driveService->findOrCreateFolderPath($uploadPath, $settings->drive_folder_id);
-                $this->uploadDirectory($driveService, $mysqlDir, $targetFolderId, $run, 65, 95);
-                $uploadedAny = true;
-                $totalPercent = 95;
-            }
-
-            if (! $uploadedAny) {
-                throw new \RuntimeException("No backup files found in {$dateDir}");
-            }
-
-            // Phase 3: Clean old backups from Drive
+            // Phase 3: Cleanup old backups on Drive (95-99%)
             BackupProgress::dispatch($run->id, 95, 'Cleaning old backups...', 'uploading');
             $driveService->deleteOldBackups($settings->drive_folder_id, $settings->backup_retention_days);
 
-            // Cleanup local files
-            $this->cleanupLocalDir($websitesDir);
-            $this->cleanupLocalDir($mysqlDir);
-            @rmdir($dateDir);
-
+            // Done
             $run->update([
                 'status' => 'completed',
                 'progress_percent' => 100,
@@ -120,7 +76,6 @@ class BackupUploadJob implements ShouldQueue
             ]);
 
             $settings->update(['last_backup_at' => now()]);
-
             BackupProgress::dispatch($run->id, 100, 'Backup complete', 'completed');
 
             AuditLog::create([
@@ -147,60 +102,178 @@ class BackupUploadJob implements ShouldQueue
                 'action' => 'backup_upload_failed',
                 'summary' => "Backup failed: {$e->getMessage()}",
             ]);
+        } finally {
+            // Cleanup temp directory
+            $this->cleanupDir($tempBase);
         }
     }
 
-    private function cleanupLocalDir(string $dir): void
+    private function backupWebsites(GoogleDriveService $driveService, string $dateFolderId, string $tempBase, BackupRun $run): void
+    {
+        $vhostsPath = config('backup.vhosts_path', '/var/www/vhosts');
+        $exclude = config('backup.vhosts_exclude', []);
+
+        if (! is_dir($vhostsPath)) {
+            Log::warning("Vhosts path not found: {$vhostsPath}");
+
+            return;
+        }
+
+        // scandir captures hidden (dot) directories too, glob does not
+        $dirs = array_filter(
+            array_map(fn ($name) => "{$vhostsPath}/{$name}", scandir($vhostsPath) ?: []),
+            fn ($path) => is_dir($path) && ! in_array(basename($path), ['.', '..', ...$exclude])
+        );
+
+        if (empty($dirs)) {
+            return;
+        }
+
+        $websitesFolderId = $driveService->findOrCreateFolderPath('websites', $dateFolderId);
+        $tempDir = "{$tempBase}/websites";
+        @mkdir($tempDir, 0755, true);
+
+        $total = count($dirs);
+
+        foreach ($dirs as $i => $dir) {
+            $siteName = basename($dir);
+            $archivePath = "{$tempDir}/{$siteName}.tar.gz";
+
+            // Create tar.gz
+            $result = Process::timeout(300)->run(
+                sprintf('tar -czf %s -C %s %s', escapeshellarg($archivePath), escapeshellarg($vhostsPath), escapeshellarg($siteName))
+            );
+
+            if ($result->failed()) {
+                Log::warning("Failed to archive {$siteName}: {$result->errorOutput()}");
+
+                continue;
+            }
+
+            // Upload to Drive
+            $percent = (int) round(2 + (($i + 1) / $total * 48));
+            BackupProgress::dispatch($run->id, $percent, "Uploading {$siteName}.tar.gz...", 'uploading');
+
+            $uploadResult = $driveService->uploadFile($archivePath, $websitesFolderId, function (int $chunkPercent) use ($run, $i, $total, $siteName) {
+                $fileProgress = ($i + ($chunkPercent / 100)) / $total;
+                $overallPercent = (int) round(2 + ($fileProgress * 48));
+                $run->update(['progress_percent' => min(49, $overallPercent)]);
+            });
+
+            $run->update([
+                'file_name' => "{$siteName}.tar.gz",
+                'file_size_bytes' => filesize($archivePath),
+                'drive_file_id' => $uploadResult['id'],
+            ]);
+
+            // Remove local archive immediately after upload
+            @unlink($archivePath);
+        }
+    }
+
+    private function backupDatabases(GoogleDriveService $driveService, string $dateFolderId, string $tempBase, BackupRun $run): void
+    {
+        $mysqlConfig = config('backup.mysql');
+        $host = $mysqlConfig['host'];
+        $username = $mysqlConfig['username'];
+        $password = $mysqlConfig['password'];
+        $exclude = $mysqlConfig['exclude'] ?? [];
+
+        // Get database list via PDO
+        try {
+            $pdo = new PDO("mysql:host={$host}", $username, $password);
+            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $databases = $pdo->query('SHOW DATABASES')->fetchAll(PDO::FETCH_COLUMN);
+        } catch (\Throwable $e) {
+            Log::warning("Failed to list databases: {$e->getMessage()}");
+
+            return;
+        }
+
+        $databases = array_filter($databases, fn ($db) => ! in_array($db, $exclude));
+        $databases = array_values($databases);
+
+        if (empty($databases)) {
+            return;
+        }
+
+        $mysqlFolderId = $driveService->findOrCreateFolderPath('mysql', $dateFolderId);
+        $tempDir = "{$tempBase}/mysql";
+        @mkdir($tempDir, 0755, true);
+
+        $total = count($databases);
+
+        foreach ($databases as $i => $dbName) {
+            $sqlPath = "{$tempDir}/{$dbName}.sql";
+            $archivePath = "{$tempDir}/{$dbName}.tar.gz";
+
+            // mysqldump
+            $dumpCmd = sprintf(
+                'mysqldump --host=%s -u%s -p%s --single-transaction --quick %s > %s',
+                escapeshellarg($host),
+                escapeshellarg($username),
+                escapeshellarg($password),
+                escapeshellarg($dbName),
+                escapeshellarg($sqlPath)
+            );
+
+            $result = Process::timeout(300)->run($dumpCmd);
+
+            if ($result->failed() || ! file_exists($sqlPath) || filesize($sqlPath) === 0) {
+                Log::warning("Failed to dump {$dbName}: {$result->errorOutput()}");
+                @unlink($sqlPath);
+
+                continue;
+            }
+
+            // Compress to tar.gz
+            $tarResult = Process::timeout(120)->run(
+                sprintf('tar -czf %s -C %s %s', escapeshellarg($archivePath), escapeshellarg($tempDir), escapeshellarg("{$dbName}.sql"))
+            );
+
+            @unlink($sqlPath); // remove raw .sql immediately
+
+            if ($tarResult->failed()) {
+                Log::warning("Failed to compress {$dbName}: {$tarResult->errorOutput()}");
+
+                continue;
+            }
+
+            // Upload to Drive
+            $percent = (int) round(50 + (($i + 1) / $total * 45));
+            BackupProgress::dispatch($run->id, $percent, "Uploading {$dbName}.tar.gz...", 'uploading');
+
+            $uploadResult = $driveService->uploadFile($archivePath, $mysqlFolderId, function (int $chunkPercent) use ($run, $i, $total) {
+                $fileProgress = ($i + ($chunkPercent / 100)) / $total;
+                $overallPercent = (int) round(50 + ($fileProgress * 45));
+                $run->update(['progress_percent' => min(94, $overallPercent)]);
+            });
+
+            $run->update([
+                'file_name' => "{$dbName}.tar.gz",
+                'file_size_bytes' => filesize($archivePath),
+                'drive_file_id' => $uploadResult['id'],
+            ]);
+
+            // Remove local archive immediately after upload
+            @unlink($archivePath);
+        }
+    }
+
+    private function cleanupDir(string $dir): void
     {
         if (! is_dir($dir)) {
             return;
         }
 
-        foreach (glob("{$dir}/*") as $file) {
-            if (is_file($file)) {
-                @unlink($file);
+        foreach (glob("{$dir}/*") as $item) {
+            if (is_dir($item)) {
+                $this->cleanupDir($item);
+            } else {
+                @unlink($item);
             }
         }
 
         @rmdir($dir);
-    }
-
-    private function uploadDirectory(GoogleDriveService $driveService, string $path, string $folderId, BackupRun $run, int $progressFrom = 0, int $progressTo = 100): void
-    {
-        if (! is_dir($path)) {
-            if (is_file($path)) {
-                $this->uploadFile($driveService, $path, $folderId, $run, 1, 1, $progressFrom, $progressTo);
-            }
-
-            return;
-        }
-
-        $files = glob(rtrim($path, '/').'/*');
-        $fileList = array_values(array_filter($files, 'is_file'));
-        $totalFiles = count($fileList);
-
-        foreach ($fileList as $i => $file) {
-            $this->uploadFile($driveService, $file, $folderId, $run, $i + 1, $totalFiles, $progressFrom, $progressTo);
-        }
-    }
-
-    private function uploadFile(GoogleDriveService $driveService, string $filePath, string $folderId, BackupRun $run, int $fileIndex, int $totalFiles, int $progressFrom = 0, int $progressTo = 100): void
-    {
-        $fileName = basename($filePath);
-        $range = $progressTo - $progressFrom;
-
-        $result = $driveService->uploadFile($filePath, $folderId, function (int $percent) use ($run, $fileIndex, $totalFiles, $fileName, $progressFrom, $range) {
-            $fileProgress = (($fileIndex - 1) + ($percent / 100)) / max(1, $totalFiles);
-            $overallPercent = (int) round($progressFrom + ($fileProgress * $range));
-
-            $run->update(['progress_percent' => min(99, $overallPercent)]);
-            BackupProgress::dispatch($run->id, min(99, $overallPercent), "Uploading {$fileName}: {$percent}%");
-        });
-
-        $run->update([
-            'file_name' => $fileName,
-            'file_size_bytes' => filesize($filePath),
-            'drive_file_id' => $result['id'],
-        ]);
     }
 }
