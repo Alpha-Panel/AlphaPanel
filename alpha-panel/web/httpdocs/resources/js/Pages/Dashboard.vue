@@ -122,7 +122,7 @@
                         >
                             <div class="flex items-center gap-4">
                                 <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-error-50 text-error-600 dark:bg-error-500/20 dark:text-error-300">
-                                    <i class="bx bx-shield-quarter text-2xl"></i>
+                                    <i class="fa-solid fa-shield-halved text-2xl"></i>
                                 </div>
                                 <div class="min-w-0">
                                     <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('CrowdSec') }}</p>
@@ -241,7 +241,7 @@
 
                             <div v-else class="max-h-[320px] overflow-y-auto overflow-x-auto">
                                 <table class="w-full min-w-[700px] table-fixed text-sm">
-                                    <thead>
+                                    <thead class="sticky top-0 z-10 bg-white dark:bg-gray-900">
                                         <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
                                             <th class="w-[210px] pb-3 pr-3">{{ t('Name') }}</th>
                                             <th class="w-[96px] pb-3 pr-3">{{ t('Status') }}</th>
@@ -396,7 +396,7 @@
 
                             <div class="max-h-80 overflow-x-hidden overflow-y-auto">
                                 <table class="w-full text-sm">
-                                    <thead>
+                                    <thead class="sticky top-0 z-10 bg-white dark:bg-gray-900">
                                         <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
                                             <th class="pb-3">{{ t('Domain') }}</th>
                                             <th class="pb-3">{{ t('Type') }}</th>
@@ -543,7 +543,7 @@
 
                             <div v-else class="max-h-[320px] overflow-auto">
                                 <table class="w-full min-w-[680px] text-sm">
-                                    <thead>
+                                    <thead class="sticky top-0 z-10 bg-white dark:bg-gray-900">
                                         <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
                                             <th class="pb-3">{{ t('ID') }}</th>
                                             <th class="pb-3">{{ t('User') }}</th>

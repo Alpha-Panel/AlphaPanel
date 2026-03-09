@@ -192,7 +192,7 @@
                             </Link>
 
                             <Link :href="route('domains.modsecurity.index', domain.id)" class="quick-link">
-                                <i class="fa-solid fa-shield-halved quick-link-icon"></i>
+                                <i class="fa-solid fa-shield-virus quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('WAF') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
@@ -211,7 +211,7 @@
                                 v-tooltip="!isCloudflareManagedForDns ? t('Cloudflare is not active for this domain.') : t('Toggle Under Attack mode')"
                                 @click="toggleUnderAttackQuick"
                             >
-                                <i class="fa-solid fa-shield-halved quick-link-icon"></i>
+                                <i class="fa-solid fa-shield-virus quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('Under Attack Mode') }}</span>
                                 <span class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold"
                                     :class="underAttackEnabled ? 'bg-error-500/20 text-error-600 dark:text-error-300' : 'bg-success-500/20 text-success-600 dark:text-success-300'">
@@ -335,7 +335,7 @@
                                 </Link>
 
                                 <Link :href="route('domains.modsecurity.index', subdomain.id)" class="quick-link">
-                                    <i class="fa-solid fa-shield-halved quick-link-icon"></i>
+                                    <i class="fa-solid fa-shield-virus quick-link-icon"></i>
                                     <span class="quick-link-label">{{ t('WAF') }}</span>
                                     <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                                 </Link>

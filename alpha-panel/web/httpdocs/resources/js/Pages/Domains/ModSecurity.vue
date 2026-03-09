@@ -20,7 +20,7 @@
                     </div>
 
                     <div
-                        v-if="globalRules.length > 0"
+                        v-if="isAdmin && globalRules.length > 0"
                         class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6"
                     >
                         <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
@@ -222,7 +222,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
 import SidebarProvider from '@/Components/Layout/SidebarProvider.vue';
@@ -230,6 +230,7 @@ import AdminLayout from '@/Components/Layout/AdminLayout.vue';
 import PageBreadcrumb from '@/Components/Common/PageBreadcrumb.vue';
 import FormField from '@/Components/UI/FormField.vue';
 import { useI18n } from '@/Composables/useI18n';
+import type { SharedProps } from '@/types/inertia';
 
 interface GlobalRule {
     id: number;
@@ -255,6 +256,8 @@ const props = defineProps<{
 }>();
 
 const { t } = useI18n();
+const page = usePage<SharedProps>();
+const isAdmin = computed(() => Boolean(page.props.auth?.user?.is_admin));
 const domain = computed(() => props.domain);
 const globalRules = computed(() => props.globalRules ?? []);
 
