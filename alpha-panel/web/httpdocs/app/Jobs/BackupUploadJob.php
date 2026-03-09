@@ -6,14 +6,16 @@ use App\Events\BackupProgress;
 use App\Models\AuditLog;
 use App\Models\BackupRun;
 use App\Models\BackupSetting;
+use App\Models\User;
+use App\Notifications\BackupNotification;
 use App\Services\GoogleDriveService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Process;
 use PDO;
 
@@ -55,6 +57,16 @@ class BackupUploadJob implements ShouldQueue
         $tempBase = config('backup.local_backup_base').'/'.$datetime;
         $this->totalFiles = 0;
         $this->totalBytes = 0;
+        $backupsUrl = route('backups.index');
+
+        // Notify admins: backup started
+        $admins = User::where('admin', true)->get();
+        Notification::send($admins, new BackupNotification(
+            'info',
+            __('Backup Started'),
+            __('A backup operation has started.'),
+            $backupsUrl,
+        ));
 
         try {
             $driveService->refreshTokenIfNeeded();
@@ -91,6 +103,14 @@ class BackupUploadJob implements ShouldQueue
                 'action' => 'backup_upload_completed',
                 'summary' => "Backup completed: {$this->type}, {$this->totalFiles} files uploaded",
             ]);
+
+            // Notify admins: backup completed
+            Notification::send($admins, new BackupNotification(
+                'success',
+                __('Backup Completed'),
+                __('Backup completed successfully. :count files uploaded.', ['count' => $this->totalFiles]),
+                $backupsUrl,
+            ));
         } catch (\Throwable $e) {
             Log::error('BackupUploadJob failed', [
                 'error' => $e->getMessage(),
@@ -110,6 +130,14 @@ class BackupUploadJob implements ShouldQueue
                 'action' => 'backup_upload_failed',
                 'summary' => "Backup failed: {$e->getMessage()}",
             ]);
+
+            // Notify admins: backup failed
+            Notification::send($admins, new BackupNotification(
+                'error',
+                __('Backup Failed'),
+                __('Backup failed: :error', ['error' => $e->getMessage()]),
+                $backupsUrl,
+            ));
         } finally {
             // Cleanup temp directory
             $this->cleanupDir($tempBase);
@@ -162,7 +190,7 @@ class BackupUploadJob implements ShouldQueue
             $percent = (int) round(2 + (($i + 1) / $total * 48));
             BackupProgress::dispatch($run->id, $percent, "Uploading {$siteName}.tar.gz...", 'uploading');
 
-            $uploadResult = $driveService->uploadFile($archivePath, $websitesFolderId, function (int $chunkPercent) use ($run, $i, $total, $siteName) {
+            $uploadResult = $driveService->uploadFile($archivePath, $websitesFolderId, function (int $chunkPercent) use ($run, $i, $total) {
                 $fileProgress = ($i + ($chunkPercent / 100)) / $total;
                 $overallPercent = (int) round(2 + ($fileProgress * 48));
                 $run->update(['progress_percent' => min(49, $overallPercent)]);

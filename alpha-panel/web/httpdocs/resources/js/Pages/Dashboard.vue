@@ -6,6 +6,38 @@
                 <PageBreadcrumb :pageTitle="t('Dashboard')" />
                 <Toast />
 
+                <!-- Active Backup Progress Banner -->
+                <div
+                    v-if="backupProgress.active"
+                    class="rounded-2xl border border-brand-200 bg-brand-50 p-5 dark:border-brand-500/30 dark:bg-brand-500/10"
+                >
+                    <div class="flex items-center gap-3">
+                        <div class="h-8 w-8 animate-spin rounded-full border-4 border-brand-200 border-t-brand-500"></div>
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between">
+                                <p class="text-sm font-medium text-brand-800 dark:text-brand-200">
+                                    {{ backupProgress.message || t('Uploading backup...') }}
+                                </p>
+                                <span class="text-sm font-semibold text-brand-700 dark:text-brand-300">
+                                    {{ backupProgress.percent }}%
+                                </span>
+                            </div>
+                            <div class="mt-2 h-2 overflow-hidden rounded-full bg-brand-200 dark:bg-brand-800">
+                                <div
+                                    class="h-full rounded-full bg-brand-500 transition-all duration-300"
+                                    :style="{ width: backupProgress.percent + '%' }"
+                                ></div>
+                            </div>
+                        </div>
+                        <Link
+                            :href="route('backups.index')"
+                            class="text-xs font-medium text-brand-600 hover:text-brand-800 dark:text-brand-300"
+                        >
+                            {{ t('View') }}
+                        </Link>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 gap-4 md:gap-6">
                     <div
                         :class="[
@@ -663,6 +695,13 @@ interface CrowdSecSummary {
     last_sync_at: string;
 }
 
+interface ActiveBackup {
+    id: number;
+    status: string;
+    progress_percent: number;
+    started_at: string;
+}
+
 interface DashboardPayload {
     is_admin: boolean;
     stats: DashboardStats;
@@ -671,6 +710,7 @@ interface DashboardPayload {
     docker_services: DockerServices | null;
     mysql_monitor: MysqlMonitor | null;
     crowdsec: CrowdSecSummary | null;
+    active_backup: ActiveBackup | null;
 }
 
 interface DockerActionResponse {
@@ -711,6 +751,14 @@ const cpuGaugeRef = ref<HTMLElement | null>(null);
 const ramGaugeRef = ref<HTMLElement | null>(null);
 const diskGaugeRef = ref<HTMLElement | null>(null);
 const cpuSparklineRef = ref<HTMLElement | null>(null);
+
+// Backup progress state
+const backupProgress = ref({
+    active: !!props.dashboard.active_backup,
+    percent: props.dashboard.active_backup?.progress_percent ?? 0,
+    message: '',
+    runId: props.dashboard.active_backup?.id ?? null as number | null,
+});
 
 const isAdmin = computed(() => dashboard.value.is_admin);
 const stats = computed(() => dashboard.value.stats);
@@ -1212,11 +1260,30 @@ watch(showSleeping, () => {
     }
 });
 
+// Backup progress Echo listener
+let backupEchoChannel: any = null;
+
 onMounted(async () => {
     if (isAdmin.value) {
         initializeCpuHistory();
         await nextTick();
         await initializeCharts();
+
+        // Listen for backup progress on admin channel
+        if (typeof window.Echo !== 'undefined') {
+            backupEchoChannel = window.Echo.private('admin').listen('BackupProgress', (e: any) => {
+                backupProgress.value.active = true;
+                backupProgress.value.percent = e.percent;
+                backupProgress.value.message = e.message;
+                backupProgress.value.runId = e.backup_run_id;
+
+                if (e.status === 'completed' || e.status === 'failed') {
+                    setTimeout(() => {
+                        backupProgress.value.active = false;
+                    }, 2000);
+                }
+            });
+        }
     }
 
     restartDashboardPolling();
@@ -1235,6 +1302,10 @@ onUnmounted(() => {
     if (dashboardPollTimer) {
         clearInterval(dashboardPollTimer);
         dashboardPollTimer = null;
+    }
+
+    if (backupEchoChannel) {
+        backupEchoChannel.stopListening('BackupProgress');
     }
 
     document.removeEventListener('visibilitychange', handleVisibilityChange);

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\DomainStatus;
 use App\Models\AuditLog;
+use App\Models\BackupRun;
 use App\Models\Domain;
 use App\Models\ManagedDatabase;
 use App\Models\User;
@@ -130,6 +131,10 @@ class HomeController extends Controller
             'docker_services' => $user->isAdmin() ? $this->buildDockerServices($useCache) : null,
             'mysql_monitor' => $user->isAdmin() ? $this->buildMysqlMonitor($showSleeping, $useCache) : null,
             'crowdsec' => $user->isAdmin() ? $this->buildCrowdSecSummary($useCache) : null,
+            'active_backup' => $user->isAdmin()
+                ? BackupRun::where('status', 'uploading')->latest('started_at')
+                    ->first(['id', 'status', 'progress_percent', 'started_at'])
+                : null,
         ];
     }
 
