@@ -213,7 +213,6 @@ class BackupController extends Controller
         }
 
         BackupUploadJob::dispatch(
-            localPath: config('backup.local_backup_base'),
             type: 'manual',
             triggeredBy: $request->user()->id,
         );

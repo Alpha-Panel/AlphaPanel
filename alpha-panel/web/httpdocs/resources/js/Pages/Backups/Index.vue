@@ -296,9 +296,9 @@
                 <Teleport to="body">
                     <div v-if="showRunConfirm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
                         <div class="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
-                            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">{{ t('Run Backup Now?') }}</h3>
+                            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">{{ t('Start Backup?') }}</h3>
                             <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                                {{ t('This will start uploading existing backup files to Google Drive. The process runs in the background.') }}
+                                {{ t('A new backup will be created and uploaded to Google Drive. Existing backups will not be overwritten. The process runs in the background.') }}
                             </p>
                             <div class="mt-4 flex justify-end gap-3">
                                 <button
