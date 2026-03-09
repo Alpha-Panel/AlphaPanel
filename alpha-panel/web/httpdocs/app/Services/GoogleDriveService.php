@@ -6,6 +6,7 @@ use App\Models\BackupSetting;
 use Google\Client as GoogleClient;
 use Google\Service\Drive;
 use Google\Service\Drive\DriveFile;
+use Google\Service\Exception;
 use Google\Service\Oauth2;
 use Illuminate\Support\Facades\Log;
 
@@ -324,6 +325,7 @@ class GoogleDriveService
     /**
      * Delete backups older than the given retention period.
      * Port of drivebackup.py remove_old_backups().
+     * @throws Exception
      */
     public function deleteOldBackups(string $folderId, int $retentionDays): int
     {
