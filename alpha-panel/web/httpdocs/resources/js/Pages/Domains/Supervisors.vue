@@ -10,11 +10,11 @@
                 />
                 <Toast />
 
-                <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                     <div class="mb-5 flex items-center">
                         <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">
                             <i class="fa-brands fa-laravel mr-2 text-error-500"></i>
-                            {{ t('Supervisor Processes') }}
+                            {{ t('Laravel Processes') }}
                         </h3>
                         <span class="ml-3 text-sm text-gray-500 dark:text-gray-400">{{ domain.fqdn }}</span>
                     </div>
@@ -58,7 +58,7 @@
                             class="rounded-xl border p-4 transition-colors"
                             :class="process.enabled
                                 ? 'border-success-500/30 bg-success-500/5 dark:border-success-500/20 dark:bg-success-500/5'
-                                : 'border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-white/[0.02]'"
+                                : 'border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-white/2'"
                         >
                             <div class="flex items-center gap-4">
                                 <div class="flex h-10 w-10 items-center justify-center rounded-lg"
@@ -97,7 +97,7 @@
                                                 v-model.number="process.num_procs"
                                                 @change="updateProcess(process)"
                                                 :disabled="actionLoading === process.type || processRestartLoading === process.type || workersRestartLoading || optimizeLoading"
-                                                class="h-8 w-[4.5rem] appearance-none rounded-md border border-gray-300 bg-white pl-2.5 pr-7 text-sm font-semibold text-gray-700 transition focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                                                class="h-8 w-18 appearance-none rounded-md border border-gray-300 bg-white pl-2.5 pr-7 text-sm font-semibold text-gray-700 transition focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
                                             >
                                                 <option v-for="n in 10" :key="n" :value="n">{{ n }}</option>
                                             </select>
