@@ -121,6 +121,34 @@
 
                                     <div>
                                         <label class="mb-1 block text-sm text-gray-700 dark:text-gray-300">
+                                            {{ t('Schedule') }}
+                                        </label>
+                                        <select
+                                            v-model="settingsForm.backup_schedule"
+                                            class="h-9 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-700 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                                        >
+                                            <option value="daily">{{ t('Every day') }}</option>
+                                            <option value="every_2_days">{{ t('Every 2 days') }}</option>
+                                            <option value="every_3_days">{{ t('Every 3 days') }}</option>
+                                            <option value="weekly">{{ t('Weekly (Monday)') }}</option>
+                                            <option value="every_2_weeks">{{ t('Every 2 weeks') }}</option>
+                                            <option value="monthly">{{ t('Monthly') }}</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label class="mb-1 block text-sm text-gray-700 dark:text-gray-300">
+                                            {{ t('Backup Time') }}
+                                        </label>
+                                        <input
+                                            v-model="settingsForm.backup_time"
+                                            type="time"
+                                            class="h-9 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-700 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label class="mb-1 block text-sm text-gray-700 dark:text-gray-300">
                                             {{ t('Retention (days)') }}
                                         </label>
                                         <input
@@ -439,6 +467,8 @@ interface BackupSettings {
     drive_folder_name: string | null;
     is_enabled: boolean;
     backup_retention_days: number;
+    backup_schedule: string;
+    backup_time: string;
     last_backup_at: string | null;
     has_credentials: boolean;
 }
@@ -470,6 +500,8 @@ const props = defineProps<{
 const settingsForm = useForm({
     is_enabled: props.settings.is_enabled,
     backup_retention_days: props.settings.backup_retention_days,
+    backup_schedule: props.settings.backup_schedule,
+    backup_time: props.settings.backup_time,
 });
 
 const disconnectForm = useForm({});

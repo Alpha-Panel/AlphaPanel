@@ -33,6 +33,8 @@ class BackupController extends Controller
                 'drive_folder_name' => $settings->drive_folder_name,
                 'is_enabled' => $settings->is_enabled,
                 'backup_retention_days' => $settings->backup_retention_days,
+                'backup_schedule' => $settings->backup_schedule ?? 'daily',
+                'backup_time' => $settings->backup_time ?? '03:00',
                 'last_backup_at' => $settings->last_backup_at?->format(config('app.display_datetime_format', 'd.m.Y H:i:s')),
                 'has_credentials' => config('backup.google.client_id') !== null
                     && config('backup.google.client_id') !== '',
@@ -135,6 +137,8 @@ class BackupController extends Controller
         $validated = $request->validate([
             'is_enabled' => ['required', 'boolean'],
             'backup_retention_days' => ['required', 'integer', 'min:1', 'max:365'],
+            'backup_schedule' => ['required', 'in:daily,every_2_days,every_3_days,weekly,every_2_weeks,monthly'],
+            'backup_time' => ['required', 'date_format:H:i'],
         ]);
 
         $settings = BackupSetting::instance();
@@ -143,7 +147,7 @@ class BackupController extends Controller
         AuditLog::create([
             'user_id' => $request->user()->id,
             'action' => 'backup_settings_updated',
-            'summary' => "Backup settings updated: enabled={$validated['is_enabled']}, retention={$validated['backup_retention_days']}d",
+            'summary' => "Backup settings updated: enabled={$validated['is_enabled']}, schedule={$validated['backup_schedule']} at {$validated['backup_time']}, retention={$validated['backup_retention_days']}d",
         ]);
 
         return redirect()->route('backups.index')
