@@ -54,7 +54,6 @@ class BackupSetting extends Model
         [$hour, $minute] = explode(':', $this->backup_time ?? '03:00');
 
         return match ($this->backup_schedule ?? 'daily') {
-            'daily' => "{$minute} {$hour} * * *",
             'every_2_days' => "{$minute} {$hour} */2 * *",
             'every_3_days' => "{$minute} {$hour} */3 * *",
             'weekly' => "{$minute} {$hour} * * 1",         // her pazartesi
