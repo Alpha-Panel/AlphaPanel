@@ -51,7 +51,10 @@ class DomainController extends Controller
 
         $parentDomains = Domain::query()
             ->whereNull('parent_domain_id')
-            ->when(! $user->isAdmin(), fn ($q) => $q->where('owner_user_id', $user->id))
+            ->when(! $user->isAdmin(), fn ($q) => $q->where(function ($q) use ($user) {
+                $q->where('owner_user_id', $user->id)
+                    ->orWhereHas('authorizedUsers', fn ($q) => $q->where('user_id', $user->id));
+            }))
             ->orderBy('fqdn')
             ->get();
 
@@ -347,7 +350,7 @@ class DomainController extends Controller
      */
     public function updateFtp(Request $request, Domain $domain, FtpUserService $ftpUserService): RedirectResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('manageFtp', $domain);
 
         $validated = $request->validate([
             'ftp_username' => ['nullable', 'string', 'max:32', 'alpha_dash'],
@@ -388,7 +391,7 @@ class DomainController extends Controller
      */
     public function fixPermissions(Request $request, Domain $domain, PortainerService $portainer): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('manageFtp', $domain);
 
         $domain->loadMissing('ftpUser');
 
@@ -459,7 +462,7 @@ class DomainController extends Controller
      */
     public function sslActivate(Request $request, Domain $domain): RedirectResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('manageSsl', $domain);
 
         AuditLog::create([
             'user_id' => $request->user()->id,
@@ -585,7 +588,10 @@ class DomainController extends Controller
 
         $totalQuery = Domain::query()
             ->whereNull('parent_domain_id')
-            ->when(! $user->isAdmin(), fn ($q) => $q->where('owner_user_id', $user->id));
+            ->when(! $user->isAdmin(), fn ($q) => $q->where(function ($q) use ($user) {
+                $q->where('owner_user_id', $user->id)
+                    ->orWhereHas('authorizedUsers', fn ($q) => $q->where('user_id', $user->id));
+            }));
         $recordsTotal = $totalQuery->count();
 
         if ($searchValue !== '') {
@@ -636,7 +642,10 @@ class DomainController extends Controller
                         $q->where('fqdn', 'like', "%{$searchValue}%")
                             ->orWhereHas('subdomains', fn ($sub) => $sub->where('fqdn', 'like', "%{$searchValue}%"));
                     })
-                    ->when(! $user->isAdmin(), fn ($q) => $q->where('owner_user_id', $user->id));
+                    ->when(! $user->isAdmin(), fn ($q) => $q->where(function ($q) use ($user) {
+                        $q->where('owner_user_id', $user->id)
+                            ->orWhereHas('authorizedUsers', fn ($q) => $q->where('user_id', $user->id));
+                    }));
 
                 $recordsFiltered = $query->count();
 
@@ -653,7 +662,10 @@ class DomainController extends Controller
             $query = Domain::query()
                 ->with(['owner', 'phpVersion'])
                 ->whereNull('parent_domain_id')
-                ->when(! $user->isAdmin(), fn ($q) => $q->where('owner_user_id', $user->id));
+                ->when(! $user->isAdmin(), fn ($q) => $q->where(function ($q) use ($user) {
+                    $q->where('owner_user_id', $user->id)
+                        ->orWhereHas('authorizedUsers', fn ($q) => $q->where('user_id', $user->id));
+                }));
 
             $recordsFiltered = $query->count();
 

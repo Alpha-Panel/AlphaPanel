@@ -35,7 +35,7 @@ class DomainCloudflareController extends Controller
 
     public function manage(Request $request, Domain $domain, CloudflareDnsService $cloudflare): Response
     {
-        $this->authorize('view', $domain);
+        $this->authorize('viewCloudflare', $domain);
         $targetDomain = $this->resolveTargetDomain($domain);
         $zoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
 
@@ -51,7 +51,7 @@ class DomainCloudflareController extends Controller
 
     public function summary(Request $request, Domain $domain, CloudflareDnsService $cloudflare): JsonResponse
     {
-        $this->authorize('view', $domain);
+        $this->authorize('viewCloudflare', $domain);
         $targetDomain = $this->resolveTargetDomain($domain);
         $zoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
 
@@ -62,7 +62,7 @@ class DomainCloudflareController extends Controller
 
     public function settings(Request $request, Domain $domain, CloudflareDnsService $cloudflare): JsonResponse
     {
-        $this->authorize('view', $domain);
+        $this->authorize('viewCloudflare', $domain);
         $targetDomain = $this->resolveTargetDomain($domain);
         $zoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
         $settings = [];
@@ -82,7 +82,7 @@ class DomainCloudflareController extends Controller
 
     public function dnssecStatus(Request $request, Domain $domain, CloudflareDnsService $cloudflare): JsonResponse
     {
-        $this->authorize('view', $domain);
+        $this->authorize('viewCloudflare', $domain);
         $targetDomain = $this->resolveTargetDomain($domain);
         $zoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
         $dnssec = null;
@@ -99,7 +99,7 @@ class DomainCloudflareController extends Controller
 
     public function firewallRules(Request $request, Domain $domain, CloudflareDnsService $cloudflare): JsonResponse
     {
-        $this->authorize('view', $domain);
+        $this->authorize('viewCloudflare', $domain);
         $targetDomain = $this->resolveTargetDomain($domain);
         $zoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
         $firewallRules = [];
@@ -116,7 +116,7 @@ class DomainCloudflareController extends Controller
 
     public function status(Request $request, Domain $domain, CloudflareDnsService $cloudflare): JsonResponse
     {
-        $this->authorize('view', $domain);
+        $this->authorize('viewCloudflare', $domain);
         $targetDomain = $this->resolveTargetDomain($domain);
         $zoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
 
@@ -144,7 +144,7 @@ class DomainCloudflareController extends Controller
 
     public function sync(Request $request, Domain $domain, CloudflareDnsService $cloudflare): JsonResponse
     {
-        $this->authorize('view', $domain);
+        $this->authorize('manageCloudflare', $domain);
         $targetDomain = $this->resolveTargetDomain($domain);
         $zoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
         $beforeState = [
@@ -217,7 +217,7 @@ class DomainCloudflareController extends Controller
 
     public function add(Request $request, Domain $domain, CloudflareDnsService $cloudflare): JsonResponse
     {
-        $this->authorize('view', $domain);
+        $this->authorize('manageCloudflare', $domain);
         $targetDomain = $this->resolveTargetDomain($domain);
         $beforeZoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
         $beforeState = [
@@ -273,7 +273,7 @@ class DomainCloudflareController extends Controller
 
     public function purgeCache(Request $request, Domain $domain, CloudflareDnsService $cloudflare): JsonResponse
     {
-        $this->authorize('view', $domain);
+        $this->authorize('manageCloudflare', $domain);
         $targetDomain = $this->resolveTargetDomain($domain);
         $zoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
         $beforeState = [
@@ -341,7 +341,7 @@ class DomainCloudflareController extends Controller
         Domain $domain,
         CloudflareDnsService $cloudflare,
     ): JsonResponse {
-        $this->authorize('view', $domain);
+        $this->authorize('manageCloudflare', $domain);
         $targetDomain = $this->resolveTargetDomain($domain);
         $zoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
 
@@ -439,7 +439,7 @@ class DomainCloudflareController extends Controller
         Domain $domain,
         CloudflareDnsService $cloudflare,
     ): JsonResponse {
-        $this->authorize('view', $domain);
+        $this->authorize('manageCloudflare', $domain);
         $targetDomain = $this->resolveTargetDomain($domain);
         $zoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
 
@@ -505,7 +505,7 @@ class DomainCloudflareController extends Controller
         Domain $domain,
         CloudflareDnsService $cloudflare,
     ): JsonResponse {
-        $this->authorize('view', $domain);
+        $this->authorize('manageCloudflare', $domain);
         $targetDomain = $this->resolveTargetDomain($domain);
         $zoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
 
@@ -581,7 +581,7 @@ class DomainCloudflareController extends Controller
         string $ruleId,
         CloudflareDnsService $cloudflare,
     ): JsonResponse {
-        $this->authorize('view', $domain);
+        $this->authorize('manageCloudflare', $domain);
         $targetDomain = $this->resolveTargetDomain($domain);
         $zoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
 

@@ -15,7 +15,7 @@ class PhpSettingsController extends Controller
 {
     public function index(Domain $domain): Response
     {
-        $this->authorize('update', $domain);
+        $this->authorize('managePhp', $domain);
 
         $domain->load(['phpVersion', 'phpSetting']);
 
@@ -33,7 +33,7 @@ class PhpSettingsController extends Controller
 
     public function update(PhpSettingsRequest $request, Domain $domain, DomainConfigService $configService): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('managePhp', $domain);
 
         $validated = $request->validated();
         $domain->load(['phpVersion', 'phpSetting']);

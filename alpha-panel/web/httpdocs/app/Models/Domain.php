@@ -8,6 +8,7 @@ use App\Enums\SslMethod;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Laravel\Scout\Searchable;
@@ -114,6 +115,14 @@ class Domain extends Model
     public function cronJobs(): HasMany
     {
         return $this->hasMany(DomainCronJob::class);
+    }
+
+    /**
+     * Users granted access to this domain (via pivot table).
+     */
+    public function authorizedUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class)->withTimestamps();
     }
 
     public function searchableAs(): string

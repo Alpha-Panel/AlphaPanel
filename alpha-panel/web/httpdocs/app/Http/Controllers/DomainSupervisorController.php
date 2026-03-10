@@ -26,7 +26,7 @@ class DomainSupervisorController extends Controller
 
     public function index(Domain $domain): Response
     {
-        $this->authorize('update', $domain);
+        $this->authorize('viewSupervisor', $domain);
 
         $supervisors = $domain->supervisors()
             ->get()
@@ -57,7 +57,7 @@ class DomainSupervisorController extends Controller
 
     public function update(Request $request, Domain $domain, SupervisorConfigService $configService): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('manageSupervisor', $domain);
 
         $validated = $request->validate([
             'type' => ['required', 'string', Rule::in(array_column(SupervisorType::cases(), 'value'))],
@@ -112,7 +112,7 @@ class DomainSupervisorController extends Controller
 
     public function restart(Request $request, Domain $domain, SupervisorConfigService $configService): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('manageSupervisor', $domain);
 
         $validated = $request->validate([
             'type' => ['required', 'string', Rule::in(array_column(SupervisorType::cases(), 'value'))],
@@ -156,7 +156,7 @@ class DomainSupervisorController extends Controller
 
     public function restartFrankenphpWorkers(Request $request, Domain $domain): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('manageSupervisor', $domain);
 
         try {
             Http::timeout(5)->post(self::FRANKENPHP_WORKERS_RESTART_URL);
@@ -193,7 +193,7 @@ class DomainSupervisorController extends Controller
 
     public function runOptimize(Request $request, Domain $domain, PortainerService $portainer): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('manageSupervisor', $domain);
 
         try {
             $result = $portainer->execInContainer(
@@ -243,7 +243,7 @@ class DomainSupervisorController extends Controller
 
     public function runArtisan(RunArtisanCommandRequest $request, Domain $domain, PortainerService $portainer): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('runArtisan', $domain);
 
         $domain->loadMissing('ftpUser');
 

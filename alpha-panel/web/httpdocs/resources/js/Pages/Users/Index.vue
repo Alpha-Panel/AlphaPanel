@@ -46,7 +46,19 @@
                                     <td class="px-5 py-4 font-medium text-gray-800 dark:text-white/90">{{ user.name }}</td>
                                     <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-400">{{ user.username }}</td>
                                     <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-400">{{ user.email }}</td>
-                                    <td class="px-5 py-4" v-html="user.admin_badge"></td>
+                                    <td class="px-5 py-4">
+                                        <div class="flex flex-wrap gap-1">
+                                            <span
+                                                v-for="roleName in (user.roles as string[] || [])"
+                                                :key="roleName"
+                                                class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                                :class="roleName === 'Admin' ? 'bg-success-500/20 text-success-600 dark:text-success-300' : 'bg-brand-500/10 text-brand-600 dark:text-brand-400'"
+                                            >
+                                                {{ roleName }}
+                                            </span>
+                                            <span v-if="!user.roles || (user.roles as string[]).length === 0" class="text-xs text-gray-400">-</span>
+                                        </div>
+                                    </td>
                                     <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-400">{{ user.owned_domains_count }}</td>
                                     <td class="px-5 py-4 text-right">
                                         <div class="flex items-center justify-end gap-2">
@@ -96,9 +108,15 @@
                                 </label>
                                 <input v-model="userForm.password" type="password" class="form-input" />
                             </div>
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-400">{{ t('Role') }}</label>
+                                <select v-model="userForm.role" class="form-input">
+                                    <option v-for="role in props.availableRoles" :key="role.id" :value="role.name">{{ role.name }}</option>
+                                </select>
+                            </div>
                             <label class="flex items-center gap-2">
                                 <input v-model="userForm.admin" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-brand-500" />
-                                <span class="text-sm text-gray-700 dark:text-gray-400">{{ t('Admin') }}</span>
+                                <span class="text-sm text-gray-700 dark:text-gray-400">{{ t('Super Admin') }}</span>
                             </label>
                             <div class="flex gap-3 pt-2">
                                 <button type="submit" :disabled="submitting" class="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50">
@@ -129,6 +147,10 @@ import { useToast } from '@/Composables/useToast';
 import { useDataTable } from '@/Composables/useDataTable';
 import { useI18n } from '@/Composables/useI18n';
 
+const props = defineProps<{
+    availableRoles: Array<{ id: number; name: string }>;
+}>();
+
 const { addToast } = useToast();
 const { t } = useI18n();
 const searchInput = ref('');
@@ -147,6 +169,7 @@ const userForm = ref({
     email: '',
     password: '',
     admin: false,
+    role: 'Domain Manager',
 });
 
 const editUser = (user: any) => {
@@ -157,13 +180,14 @@ const editUser = (user: any) => {
         email: user.email as string,
         password: '',
         admin: !!user.admin,
+        role: (user.roles as string[])?.[0] ?? 'Domain Manager',
     };
 };
 
 const closeModal = () => {
     showCreateModal.value = false;
     editingUser.value = null;
-    userForm.value = { name: '', username: '', email: '', password: '', admin: false };
+    userForm.value = { name: '', username: '', email: '', password: '', admin: false, role: 'Domain Manager' };
 };
 
 const submitUser = async () => {

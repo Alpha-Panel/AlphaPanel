@@ -11,6 +11,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             PhpVersionSeeder::class,
+            RolesAndPermissionsSeeder::class,
         ]);
 
         // Create default admin user from env

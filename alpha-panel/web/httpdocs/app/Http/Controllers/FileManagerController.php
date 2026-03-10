@@ -18,7 +18,7 @@ class FileManagerController extends Controller
      */
     public function index(Domain $domain): \Illuminate\Http\RedirectResponse|Response
     {
-        $this->authorize('view', $domain);
+        $this->authorize('viewFiles', $domain);
 
         $domain->load('ftpUser');
 
@@ -37,7 +37,7 @@ class FileManagerController extends Controller
      */
     public function list(Request $request, Domain $domain): JsonResponse
     {
-        $this->authorize('view', $domain);
+        $this->authorize('viewFiles', $domain);
 
         $fileManager = $this->resolveFileManager($domain);
         $path = $request->query('path', '');
@@ -53,7 +53,7 @@ class FileManagerController extends Controller
      */
     public function read(Request $request, Domain $domain): JsonResponse
     {
-        $this->authorize('view', $domain);
+        $this->authorize('viewFiles', $domain);
 
         $fileManager = $this->resolveFileManager($domain);
         $path = $request->query('path', '');
@@ -82,7 +82,7 @@ class FileManagerController extends Controller
      */
     public function write(Request $request, Domain $domain): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('manageFiles', $domain);
 
         $request->validate([
             'path' => ['required', 'string'],
@@ -100,7 +100,7 @@ class FileManagerController extends Controller
      */
     public function createDirectory(Request $request, Domain $domain): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('manageFiles', $domain);
 
         $request->validate([
             'path' => ['required', 'string'],
@@ -117,7 +117,7 @@ class FileManagerController extends Controller
      */
     public function upload(Request $request, Domain $domain): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('manageFiles', $domain);
 
         $maxKb = (int) (self::phpMaxUploadBytes() / 1024);
 
@@ -143,7 +143,7 @@ class FileManagerController extends Controller
      */
     public function delete(Request $request, Domain $domain): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('manageFiles', $domain);
 
         $request->validate([
             'paths' => ['required', 'array', 'min:1'],
@@ -164,7 +164,7 @@ class FileManagerController extends Controller
      */
     public function rename(Request $request, Domain $domain): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('manageFiles', $domain);
 
         $request->validate([
             'from' => ['required', 'string'],
@@ -182,7 +182,7 @@ class FileManagerController extends Controller
      */
     public function download(Request $request, Domain $domain): StreamedResponse
     {
-        $this->authorize('view', $domain);
+        $this->authorize('viewFiles', $domain);
 
         $fileManager = $this->resolveFileManager($domain);
         $path = $request->query('path', '');
@@ -205,7 +205,7 @@ class FileManagerController extends Controller
      */
     public function compress(Request $request, Domain $domain): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('manageFiles', $domain);
 
         $request->validate([
             'paths' => ['required', 'array', 'min:1'],
@@ -234,7 +234,7 @@ class FileManagerController extends Controller
      */
     public function decompress(Request $request, Domain $domain): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('manageFiles', $domain);
 
         $request->validate([
             'path' => ['required', 'string'],
@@ -255,7 +255,7 @@ class FileManagerController extends Controller
      */
     public function chmod(Request $request, Domain $domain): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('manageFiles', $domain);
 
         $request->validate([
             'path' => ['required', 'string'],
@@ -277,7 +277,7 @@ class FileManagerController extends Controller
      */
     public function createFile(Request $request, Domain $domain): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('manageFiles', $domain);
 
         $request->validate([
             'path' => ['required', 'string'],

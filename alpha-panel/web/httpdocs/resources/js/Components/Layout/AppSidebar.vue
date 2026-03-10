@@ -206,8 +206,9 @@
                 </div>
             </nav>
 
-            <div v-if="isAdmin" class="mt-auto border-t border-gray-200 pb-6 pt-4 dark:border-gray-800">
+            <div v-if="canAny('panel.audit-logs.view', 'panel.terminal-logs.view')" class="mt-auto border-t border-gray-200 pb-6 pt-4 dark:border-gray-800">
                 <Link
+                    v-if="can('panel.audit-logs.view')"
                     :href="route('audit-logs.index')"
                     :class="[
                         'menu-item group',
@@ -235,6 +236,7 @@
                     </span>
                 </Link>
                 <Link
+                    v-if="can('panel.terminal-logs.view')"
                     :href="route('terminal-logs.index')"
                     :class="[
                         'menu-item group mt-1',
@@ -270,6 +272,7 @@
 import { computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { useSidebar } from '@/Composables/useSidebar';
+import { useCan } from '@/Composables/useCan';
 import {
     GridIcon,
     UserCircleIcon,
@@ -283,7 +286,7 @@ import type { SharedProps } from '@/types/inertia';
 const page = usePage<SharedProps>();
 const { isExpanded, isMobileOpen, isHovered, openSubmenu } = useSidebar();
 const { t } = useI18n();
-const isAdmin = computed(() => Boolean(page.props.auth?.user?.is_admin));
+const { can, canAny, isAdmin } = useCan();
 const isRtl = computed(() => page.props.text_direction === 'rtl');
 const appName = computed(() => page.props.app?.name ?? 'AlphaPanel');
 const logoUrl = computed(() => page.props.app?.logo_url ?? '/img/AlphaPanel-dark.svg');
@@ -319,45 +322,63 @@ const menuGroups = computed(() => {
         {
             title: t('Management'),
             items: (() => {
-                if (!isAdmin.value) {
-                    return [];
-                }
+                const items: SidebarMenuItem[] = [];
 
-                const items: SidebarMenuItem[] = [
-                    {
+                if (can('panel.users.manage')) {
+                    items.push({
                         icon: UserCircleIcon,
                         name: t('Users'),
                         href: route('users.list'),
-                    },
-                    {
+                    });
+                    items.push({
+                        iconClass: 'fa-solid fa-user-shield',
+                        name: t('Roles'),
+                        href: route('roles.index'),
+                    });
+                }
+
+                if (can('panel.crowdsec.view')) {
+                    items.push({
                         iconClass: 'fa-solid fa-shield-halved',
                         name: t('CrowdSec'),
                         href: route('security.crowdsec.index'),
-                    },
-                    {
+                    });
+                }
+
+                if (canAny('panel.waf-rules.view', 'panel.waf-rules.manage')) {
+                    items.push({
                         iconClass: 'fa-solid fa-shield-virus',
                         name: t('WAF Rules'),
                         href: route('security.waf-global.index'),
-                    },
-                    {
+                    });
+                }
+
+                if (canAny('panel.backups.view', 'panel.backups.manage')) {
+                    items.push({
                         iconClass: 'fa-solid fa-cloud-arrow-up',
                         name: t('Backups'),
                         href: route('backups.index'),
-                    },
-                    {
+                    });
+                }
+
+                if (can('panel.terminal.access')) {
+                    items.push({
                         iconClass: 'fa-solid fa-terminal',
                         name: t('Terminal'),
                         action: () => document.dispatchEvent(new CustomEvent('open-host-terminal')),
-                    },
-                    {
+                    });
+                }
+
+                if (can('panel.phpmyadmin.access')) {
+                    items.push({
                         iconClass: 'lni lni-mysql',
                         name: t('phpMyAdmin'),
                         href: route('pma.admin.sso'),
                         external: true,
-                    },
-                ];
+                    });
+                }
 
-                if (externalLinks.value.file_manager) {
+                if (externalLinks.value.file_manager && isAdmin.value) {
                     items.push({
                         iconClass: 'fa-solid fa-folder-open',
                         name: t('File Manager'),
@@ -366,7 +387,7 @@ const menuGroups = computed(() => {
                     });
                 }
 
-                if (externalLinks.value.jenkins) {
+                if (externalLinks.value.jenkins && isAdmin.value) {
                     items.push({
                         iconClass: 'fa-brands fa-jenkins',
                         name: t('Jenkins'),
@@ -375,7 +396,7 @@ const menuGroups = computed(() => {
                     });
                 }
 
-                if (externalLinks.value.n8n) {
+                if (externalLinks.value.n8n && isAdmin.value) {
                     items.push({
                         iconClass: 'lni lni-n8n',
                         name: t('N8N'),

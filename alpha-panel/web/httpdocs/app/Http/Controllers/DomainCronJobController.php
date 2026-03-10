@@ -15,7 +15,7 @@ class DomainCronJobController extends Controller
 {
     public function index(Domain $domain): Response
     {
-        $this->authorize('update', $domain);
+        $this->authorize('viewCronJobs', $domain);
 
         $cronJobs = $domain->cronJobs()
             ->with('latestLog')
@@ -50,7 +50,7 @@ class DomainCronJobController extends Controller
 
     public function store(Request $request, Domain $domain): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('manageCronJobs', $domain);
 
         $validated = $request->validate($this->cronJobRules());
 
@@ -82,7 +82,7 @@ class DomainCronJobController extends Controller
 
     public function update(Request $request, Domain $domain, DomainCronJob $cronJob): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('manageCronJobs', $domain);
         $this->ensureBelongsToDomain($cronJob, $domain);
 
         $validated = $request->validate($this->cronJobRules());
@@ -112,7 +112,7 @@ class DomainCronJobController extends Controller
 
     public function destroy(Request $request, Domain $domain, DomainCronJob $cronJob): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('manageCronJobs', $domain);
         $this->ensureBelongsToDomain($cronJob, $domain);
 
         $summary = "{$cronJob->schedule} {$cronJob->command}";
@@ -128,7 +128,7 @@ class DomainCronJobController extends Controller
 
     public function toggle(Request $request, Domain $domain, DomainCronJob $cronJob): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('manageCronJobs', $domain);
         $this->ensureBelongsToDomain($cronJob, $domain);
 
         $cronJob->update(['enabled' => ! $cronJob->enabled]);
@@ -153,7 +153,7 @@ class DomainCronJobController extends Controller
 
     public function logs(Domain $domain, DomainCronJob $cronJob): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('viewCronJobs', $domain);
         $this->ensureBelongsToDomain($cronJob, $domain);
 
         $logs = $cronJob->logs()

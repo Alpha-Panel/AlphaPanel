@@ -19,7 +19,7 @@ class DomainLogController extends Controller
 
     public function index(Domain $domain): Response
     {
-        $this->authorize('view', $domain);
+        $this->authorize('viewLogs', $domain);
 
         return Inertia::render('Domains/Logs', [
             'domain' => $domain,
@@ -28,7 +28,7 @@ class DomainLogController extends Controller
 
     public function entries(Request $request, Domain $domain, DomainRequestLogService $logService): JsonResponse
     {
-        $this->authorize('view', $domain);
+        $this->authorize('viewLogs', $domain);
 
         $entries = $logService->getDomainEntries($domain, [
             'q' => $request->string('q')->toString(),
@@ -46,7 +46,7 @@ class DomainLogController extends Controller
 
     public function streamStart(Request $request, Domain $domain, PortainerService $portainer): JsonResponse
     {
-        $this->authorize('view', $domain);
+        $this->authorize('viewLogs', $domain);
 
         $request->validate([
             'since' => 'nullable|string|max:100',

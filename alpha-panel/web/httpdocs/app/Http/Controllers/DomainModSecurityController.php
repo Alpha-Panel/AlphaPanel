@@ -18,7 +18,7 @@ class DomainModSecurityController extends Controller
 {
     public function index(Domain $domain): Response
     {
-        $this->authorize('update', $domain);
+        $this->authorize('viewModSecurity', $domain);
 
         return Inertia::render('Domains/ModSecurity', [
             'domain' => $domain,
@@ -35,9 +35,8 @@ class DomainModSecurityController extends Controller
         Domain $domain,
         WafRulesService $wafRules,
         ReloadService $reloadService,
-    ): RedirectResponse
-    {
-        $this->authorize('update', $domain);
+    ): RedirectResponse {
+        $this->authorize('manageModSecurity', $domain);
 
         $validated = $request->validated();
         $enabled = (bool) ($validated['modsecurity_enabled'] ?? false);
@@ -76,7 +75,7 @@ class DomainModSecurityController extends Controller
 
     public function logs(Domain $domain, WafLogService $logService): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('viewModSecurity', $domain);
 
         $entries = $logService->getDomainEntries($domain, [
             'ip' => request()->string('ip')->toString(),

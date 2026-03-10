@@ -98,106 +98,110 @@
                     <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
                         <h4 class="mb-4 text-sm font-semibold text-gray-800 dark:text-white/90">{{ t('Quick Links') }}</h4>
                         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                            <template v-if="hasStoredFtpPassword">
-                                <Link
-                                    :href="route('domains.files.index', domain.id)"
-                                    class="quick-link"
-                                >
-                                    <i class="fa-solid fa-folder-open quick-link-icon"></i>
-                                    <span class="quick-link-label">{{ t('File Manager') }}</span>
-                                    <i class="fa-solid fa-angle-right quick-link-arrow"></i>
-                                </Link>
-                            </template>
-                            <template v-else>
-                                <button
-                                    type="button"
-                                    @click="showFtpModal = true"
-                                    class="quick-link"
-                                    v-tooltip="t('FTP user with stored password required. Update FTP password first.')"
-                                >
-                                    <i class="fa-solid fa-folder-open quick-link-icon"></i>
-                                    <span class="quick-link-label">{{ t('File Manager') }}</span>
-                                    <small class="quick-link-warning"><i class="fa-solid fa-exclamation-triangle"></i></small>
-                                    <i class="fa-solid fa-angle-right quick-link-arrow"></i>
-                                </button>
+                            <template v-if="can('domain.files.view')">
+                                <template v-if="hasStoredFtpPassword">
+                                    <Link
+                                        :href="route('domains.files.index', domain.id)"
+                                        class="quick-link"
+                                    >
+                                        <i class="fa-solid fa-folder-open quick-link-icon"></i>
+                                        <span class="quick-link-label">{{ t('File Manager') }}</span>
+                                        <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                                    </Link>
+                                </template>
+                                <template v-else>
+                                    <button
+                                        type="button"
+                                        @click="showFtpModal = true"
+                                        class="quick-link"
+                                        v-tooltip="t('FTP user with stored password required. Update FTP password first.')"
+                                    >
+                                        <i class="fa-solid fa-folder-open quick-link-icon"></i>
+                                        <span class="quick-link-label">{{ t('File Manager') }}</span>
+                                        <small class="quick-link-warning"><i class="fa-solid fa-exclamation-triangle"></i></small>
+                                        <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                                    </button>
+                                </template>
                             </template>
 
-                            <Link :href="route('domains.databases.index', domain.id)" class="quick-link">
+                            <Link v-if="can('domain.databases.view')" :href="route('domains.databases.index', domain.id)" class="quick-link">
                                 <i class="fa-solid fa-database quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('Databases') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
-                            <button type="button" @click="activateSsl(domain.id)" :disabled="sslLoading" class="quick-link disabled:opacity-60">
+                            <button v-if="can('domain.ssl.manage')" type="button" @click="activateSsl(domain.id)" :disabled="sslLoading" class="quick-link disabled:opacity-60">
                                 <i class="fa-brands fa-expeditedssl quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('SSL Certificate') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </button>
 
-                            <button type="button" @click="showFtpModal = true" class="quick-link">
+                            <button v-if="can('domain.ftp.manage')" type="button" @click="showFtpModal = true" class="quick-link">
                                 <i class="fa-solid fa-user-pen quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('FTP Users') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </button>
 
-                            <Link
-                                v-if="!isSubdomain && isCloudflareManagedForDns"
-                                :href="route('domains.dns.index', domain.id)"
-                                class="quick-link"
-                            >
-                                <i class="fa-solid fa-globe quick-link-icon"></i>
-                                <span class="quick-link-label">{{ t('DNS') }}</span>
-                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
-                            </Link>
-                            <button
-                                v-else-if="!isSubdomain"
-                                type="button"
-                                disabled
-                                class="quick-link quick-link-disabled"
-                                v-tooltip="t('DNS management is locked because this domain is not managed on Cloudflare.')"
-                            >
-                                <i class="fa-solid fa-globe quick-link-icon"></i>
-                                <span class="quick-link-label">{{ t('DNS') }}</span>
-                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
-                            </button>
+                            <template v-if="can('domain.dns.view')">
+                                <Link
+                                    v-if="!isSubdomain && isCloudflareManagedForDns"
+                                    :href="route('domains.dns.index', domain.id)"
+                                    class="quick-link"
+                                >
+                                    <i class="fa-solid fa-globe quick-link-icon"></i>
+                                    <span class="quick-link-label">{{ t('DNS') }}</span>
+                                    <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                                </Link>
+                                <button
+                                    v-else-if="!isSubdomain"
+                                    type="button"
+                                    disabled
+                                    class="quick-link quick-link-disabled"
+                                    v-tooltip="t('DNS management is locked because this domain is not managed on Cloudflare.')"
+                                >
+                                    <i class="fa-solid fa-globe quick-link-icon"></i>
+                                    <span class="quick-link-label">{{ t('DNS') }}</span>
+                                    <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                                </button>
+                            </template>
 
-                            <Link :href="route('domains.edit', domain.id)" class="quick-link">
+                            <Link v-if="can('domain.edit')" :href="route('domains.edit', domain.id)" class="quick-link">
                                 <i class="fa-solid fa-gears quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('Vhost Settings') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
-                            <Link v-if="canManagePhpSettings" :href="route('domains.php.index', domain.id)" class="quick-link">
+                            <Link v-if="canManagePhpSettings && can('domain.php.manage')" :href="route('domains.php.index', domain.id)" class="quick-link">
                                 <i class="fa-brands fa-php quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('PHP Settings') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
-                            <Link :href="route('domains.supervisor.index', domain.id)" class="quick-link">
+                            <Link v-if="can('domain.supervisor.view')" :href="route('domains.supervisor.index', domain.id)" class="quick-link">
                                 <i class="fa-brands fa-laravel quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('Laravel Processes') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
-                            <Link :href="route('domains.cron-jobs.index', domain.id)" class="quick-link">
+                            <Link v-if="can('domain.cron-jobs.view')" :href="route('domains.cron-jobs.index', domain.id)" class="quick-link">
                                 <i class="fa-solid fa-clock quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('Cron Jobs') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
-                            <Link :href="route('domains.packages.index', domain.id)" class="quick-link">
+                            <Link v-if="can('domain.packages.view')" :href="route('domains.packages.index', domain.id)" class="quick-link">
                                 <i class="fa-solid fa-box-open quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('Package Manager') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
-                            <Link :href="route('domains.logs.index', domain.id)" class="quick-link">
+                            <Link v-if="can('domain.logs.view')" :href="route('domains.logs.index', domain.id)" class="quick-link">
                                 <i class="fa-solid fa-file-lines quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('Logs') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
-                            <Link :href="route('domains.modsecurity.index', domain.id)" class="quick-link">
+                            <Link v-if="can('domain.modsecurity.view')" :href="route('domains.modsecurity.index', domain.id)" class="quick-link">
                                 <i class="fa-solid fa-shield-virus quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('WAF') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
@@ -210,7 +214,7 @@
                             </button>
 
                             <button
-                                v-if="!isSubdomain"
+                                v-if="!isSubdomain && can('domain.cloudflare.manage')"
                                 type="button"
                                 :disabled="!isCloudflareManagedForDns || cloudflareActionLoading"
                                 class="quick-link"
@@ -226,7 +230,7 @@
                             </button>
 
                             <Link
-                                v-if="!isSubdomain"
+                                v-if="!isSubdomain && can('domain.cloudflare.view')"
                                 :href="route('domains.cloudflare.manage', domain.id)"
                                 class="quick-link"
                             >
@@ -556,6 +560,7 @@ import Toast from '@/Components/UI/Toast.vue';
 import DomainCreateModal from '@/Components/Domains/DomainCreateModal.vue';
 import { useToast } from '@/Composables/useToast';
 import { useI18n } from '@/Composables/useI18n';
+import { useCan } from '@/Composables/useCan';
 import { formatDateTime } from '@/utils/dateTime';
 import { loadSweetAlert } from '@/utils/sweetalert';
 
@@ -626,6 +631,7 @@ const props = defineProps<{
 
 const { addToast } = useToast();
 const { t } = useI18n();
+const { can } = useCan();
 
 const domain = computed(() => props.domain);
 const parentDomainWebRootPath = computed(() => {

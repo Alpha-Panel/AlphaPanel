@@ -20,14 +20,14 @@ class DnsController extends Controller
 
     public function index(Request $request, Domain $domain): Response
     {
-        $this->authorize('manageDns', $domain);
+        $this->authorize('viewDns', $domain);
 
         return Inertia::render('Dns/Index', compact('domain'));
     }
 
     public function listRecords(Request $request, Domain $domain): JsonResponse
     {
-        $this->authorize('manageDns', $domain);
+        $this->authorize('viewDns', $domain);
 
         try {
             $apexDomain = $domain->getApexDomain();

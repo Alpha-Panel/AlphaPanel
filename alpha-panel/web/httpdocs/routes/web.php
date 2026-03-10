@@ -13,9 +13,11 @@ use App\Http\Controllers\DomainModSecurityController;
 use App\Http\Controllers\DomainPackageManagerController;
 use App\Http\Controllers\DomainProvisionController;
 use App\Http\Controllers\DomainSupervisorController;
+use App\Http\Controllers\DomainUserController;
 use App\Http\Controllers\FileManagerController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PhpSettingsController;
+use App\Http\Controllers\RoleController;
 use App\Http\Controllers\TerminalController;
 use App\Http\Controllers\TerminalLogController;
 use App\Http\Controllers\TwoFactorAuthController;
@@ -253,54 +255,87 @@ Route::middleware('auth')->group(function (): void {
     // Lock Screen
     Route::post('/lock-screen', [TwoFactorAuthController::class, 'lock'])->name('lockscreen');
 
-    // Admin-only routes
-    Route::middleware('admin')->group(function (): void {
+    // ── Panel-Level Permission-Gated Routes ─────────────────
+
+    Route::middleware('permission:panel.docker.actions')->group(function (): void {
         Route::post('/dashboard/docker-action', [HomeController::class, 'dockerAction'])
             ->name('dashboard.docker.action');
+    });
 
+    Route::middleware('permission:panel.users.manage')->group(function (): void {
         Route::get('users', [\App\Http\Controllers\UserAccountsController::class, 'index'])->name('users.list');
         Route::get('users/json', [\App\Http\Controllers\UserAccountsController::class, 'json'])->name('users.json');
         Route::post('users', [\App\Http\Controllers\UserAccountsController::class, 'store'])->name('users.store');
         Route::put('users/{user}', [\App\Http\Controllers\UserAccountsController::class, 'update'])->name('users.update');
         Route::delete('users/{user}', [\App\Http\Controllers\UserAccountsController::class, 'destroy'])->name('users.destroy');
 
-        // Docker Terminal (WebSocket proxy via terminal:serve command on port 2999)
+        Route::get('roles', [RoleController::class, 'index'])->name('roles.index');
+        Route::get('roles/json', [RoleController::class, 'json'])->name('roles.json');
+        Route::post('roles', [RoleController::class, 'store'])->name('roles.store');
+        Route::put('roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+        Route::delete('roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
+    });
+
+    Route::middleware('permission:panel.terminal.access')->group(function (): void {
         Route::post('terminal/start', [TerminalController::class, 'start'])->name('terminal.start');
         Route::post('terminal/start-ssh', [TerminalController::class, 'startSsh'])->name('terminal.start-ssh');
         Route::post('terminal/stop', [TerminalController::class, 'stop'])->name('terminal.stop');
+    });
 
+    Route::middleware('permission:panel.audit-logs.view')->group(function (): void {
         Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
         Route::get('audit-logs/json', [AuditLogController::class, 'json'])->name('audit-logs.json');
         Route::get('audit-logs/options/users', [AuditLogController::class, 'usersOptions'])->name('audit-logs.options.users');
         Route::get('audit-logs/options/actions', [AuditLogController::class, 'actionsOptions'])->name('audit-logs.options.actions');
         Route::get('audit-logs/options/domains', [AuditLogController::class, 'domainsOptions'])->name('audit-logs.options.domains');
+    });
 
+    Route::middleware('permission:panel.terminal-logs.view')->group(function (): void {
         Route::get('terminal-logs', [TerminalLogController::class, 'index'])->name('terminal-logs.index');
         Route::get('terminal-logs/json', [TerminalLogController::class, 'json'])->name('terminal-logs.json');
         Route::get('terminal-logs/options/users', [TerminalLogController::class, 'usersOptions'])->name('terminal-logs.options.users');
         Route::get('terminal-logs/{terminalLog}', [TerminalLogController::class, 'show'])->name('terminal-logs.show');
+    });
 
+    Route::middleware('permission:panel.crowdsec.view')->group(function (): void {
         Route::get('security/crowdsec', [CrowdSecController::class, 'index'])->name('security.crowdsec.index');
         Route::get('security/crowdsec/data', [CrowdSecController::class, 'data'])->name('security.crowdsec.data');
+    });
+
+    Route::middleware('permission:panel.waf-rules.view')->group(function (): void {
         Route::get('security/waf-global-rules', [WafGlobalRuleController::class, 'index'])->name('security.waf-global.index');
+    });
+
+    Route::middleware('permission:panel.waf-rules.manage')->group(function (): void {
         Route::post('security/waf-global-rules', [WafGlobalRuleController::class, 'store'])->name('security.waf-global.store');
         Route::put('security/waf-global-rules/{rule}', [WafGlobalRuleController::class, 'update'])->name('security.waf-global.update');
         Route::delete('security/waf-global-rules/{rule}', [WafGlobalRuleController::class, 'destroy'])->name('security.waf-global.destroy');
+    });
 
-        // Google Drive Backup
+    Route::middleware('permission:panel.backups.view')->group(function (): void {
         Route::prefix('backups')->name('backups.')->group(function (): void {
             Route::get('/', [\App\Http\Controllers\BackupController::class, 'index'])->name('index');
             Route::get('/connect', [\App\Http\Controllers\BackupController::class, 'connect'])->name('connect');
             Route::get('/callback', [\App\Http\Controllers\BackupController::class, 'callback'])->name('callback');
+            Route::get('/history', [\App\Http\Controllers\BackupController::class, 'history'])->name('history');
+            Route::get('/folders', [\App\Http\Controllers\BackupController::class, 'folders'])->name('folders');
+        });
+    });
+
+    Route::middleware('permission:panel.backups.manage')->group(function (): void {
+        Route::prefix('backups')->name('backups.')->group(function (): void {
             Route::post('/disconnect', [\App\Http\Controllers\BackupController::class, 'disconnect'])->name('disconnect');
             Route::post('/settings', [\App\Http\Controllers\BackupController::class, 'updateSettings'])->name('settings');
-            Route::get('/folders', [\App\Http\Controllers\BackupController::class, 'folders'])->name('folders');
             Route::post('/folder', [\App\Http\Controllers\BackupController::class, 'setFolder'])->name('folder');
             Route::post('/create-folder', [\App\Http\Controllers\BackupController::class, 'createFolder'])->name('create-folder');
             Route::post('/run', [\App\Http\Controllers\BackupController::class, 'run'])->name('run');
-            Route::get('/history', [\App\Http\Controllers\BackupController::class, 'history'])->name('history');
         });
     });
+
+    // Domain User Management (shared access)
+    Route::get('domains/{domain}/users', [DomainUserController::class, 'index'])->name('domains.users.index');
+    Route::post('domains/{domain}/users', [DomainUserController::class, 'store'])->name('domains.users.store');
+    Route::delete('domains/{domain}/users/{user}', [DomainUserController::class, 'destroy'])->name('domains.users.destroy');
 
     Route::get('/pma/domain/{domain}/database/{database}/sso', [\App\Http\Controllers\PmaSsoController::class, 'database'])
         ->name('pma.database.sso');

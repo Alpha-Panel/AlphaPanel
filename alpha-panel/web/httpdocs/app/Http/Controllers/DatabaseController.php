@@ -20,7 +20,7 @@ class DatabaseController extends Controller
 {
     public function index(Request $request, Domain $domain): Response
     {
-        $this->authorize('manageDb', $domain);
+        $this->authorize('viewDb', $domain);
 
         $databases = ManagedDatabase::with('databaseUsers')
             ->where('domain_id', $domain->id)
@@ -31,7 +31,7 @@ class DatabaseController extends Controller
 
     public function json(Request $request, Domain $domain): JsonResponse
     {
-        $this->authorize('manageDb', $domain);
+        $this->authorize('viewDb', $domain);
 
         $databases = ManagedDatabase::with('databaseUsers')
             ->where('domain_id', $domain->id)

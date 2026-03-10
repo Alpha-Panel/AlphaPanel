@@ -23,7 +23,7 @@ class DomainPackageManagerController extends Controller
 
     public function index(Domain $domain): Response
     {
-        $this->authorize('update', $domain);
+        $this->authorize('viewPackages', $domain);
 
         return Inertia::render('Domains/PackageManager', [
             'domain' => [
@@ -35,7 +35,7 @@ class DomainPackageManagerController extends Controller
 
     public function listNpmPackages(Domain $domain, PortainerService $portainer): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('viewPackages', $domain);
 
         try {
             $result = $portainer->execInContainer(
@@ -139,7 +139,7 @@ class DomainPackageManagerController extends Controller
 
     public function listComposerPackages(Domain $domain, PortainerService $portainer): JsonResponse
     {
-        $this->authorize('update', $domain);
+        $this->authorize('viewPackages', $domain);
 
         try {
             $result = $portainer->execInContainer(
@@ -265,7 +265,7 @@ class DomainPackageManagerController extends Controller
         string $successMessage,
         int $timeout,
     ): JsonResponse {
-        $this->authorize('update', $domain);
+        $this->authorize('managePackages', $domain);
 
         try {
             $result = $portainer->execInContainer(

@@ -54,6 +54,8 @@ class HandleInertiaRequests extends Middleware
                         md5(strtolower(trim((string) $user->email))),
                     ),
                 ],
+                'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
+                'roles' => $user->getRoleNames()->toArray(),
             ] : null,
             'flash' => fn () => [
                 'success' => $request->session()->get('success'),

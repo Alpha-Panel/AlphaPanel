@@ -17,6 +17,8 @@ export interface FlashMessages {
 export interface SharedProps {
     auth: {
         user: AuthUser;
+        permissions: string[];
+        roles: string[];
     } | null;
     flash: FlashMessages;
     app: {

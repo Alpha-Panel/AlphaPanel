@@ -8,12 +8,17 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Spatie\Permission\Models\Role;
 
 class UserAccountsController extends Controller
 {
     public function index(): Response
     {
-        return Inertia::render('Users/Index');
+        $roles = Role::where('guard_name', 'web')->get(['id', 'name']);
+
+        return Inertia::render('Users/Index', [
+            'availableRoles' => $roles,
+        ]);
     }
 
     public function json(Request $request): JsonResponse
@@ -61,6 +66,7 @@ class UserAccountsController extends Controller
             'admin_badge' => $user->admin
                 ? '<span class="badge bg-success">'.__('Admin').'</span>'
                 : '<span class="badge bg-secondary">'.__('User').'</span>',
+            'roles' => $user->getRoleNames()->toArray(),
             'owned_domains_count' => $user->owned_domains_count,
             'created_at' => $user->created_at?->format(config('app.display_datetime_format', 'd.m.Y H:i:s')) ?? '-',
             'update_url' => route('users.update', $user),
@@ -83,11 +89,20 @@ class UserAccountsController extends Controller
             'email' => ['required', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'string', 'min:8'],
             'admin' => ['boolean'],
+            'role' => ['nullable', 'string', 'exists:roles,name'],
         ]);
 
         $validated['admin'] = (bool) ($validated['admin'] ?? false);
+        $roleName = $validated['role'] ?? null;
+        unset($validated['role']);
 
         $user = User::create($validated);
+
+        if ($roleName) {
+            $user->assignRole($roleName);
+        } else {
+            $user->assignRole($validated['admin'] ? 'Admin' : 'Domain Manager');
+        }
 
         return response()->json(['success' => true, 'user' => $user->only(['id', 'name', 'username', 'email'])]);
     }
@@ -104,15 +119,22 @@ class UserAccountsController extends Controller
             'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'password' => ['nullable', 'string', 'min:8'],
             'admin' => ['boolean'],
+            'role' => ['nullable', 'string', 'exists:roles,name'],
         ]);
 
         $validated['admin'] = (bool) ($validated['admin'] ?? false);
+        $roleName = $validated['role'] ?? null;
+        unset($validated['role']);
 
         if (empty($validated['password'])) {
             unset($validated['password']);
         }
 
         $user->update($validated);
+
+        if ($roleName) {
+            $user->syncRoles([$roleName]);
+        }
 
         return response()->json(['success' => true]);
     }

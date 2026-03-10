@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -18,6 +19,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Super admin bypass — users with admin=true pass all permission/policy checks.
+        Gate::before(fn ($user, $ability) => $user->isAdmin() ? true : null);
+
         if (! $this->app->isLocal()) {
             $hotFile = public_path('hot');
 
