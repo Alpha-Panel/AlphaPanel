@@ -52,17 +52,10 @@ class DomainCronJobController extends Controller
     {
         $this->authorize('update', $domain);
 
-        $validated = $request->validate([
-            'command' => ['required', 'string', 'max:500'],
-            'schedule' => ['required', 'string', 'max:100', function (string $attribute, mixed $value, \Closure $fail): void {
-                if (! CronExpression::isValidExpression($value)) {
-                    $fail(__('The :attribute is not a valid cron expression.', ['attribute' => $attribute]));
-                }
-            }],
-            'description' => ['nullable', 'string', 'max:255'],
-        ]);
+        $validated = $request->validate($this->cronJobRules());
 
         $cronJob = $domain->cronJobs()->create($validated);
+        $cronJob->refresh();
 
         $this->createAuditLog(
             $request,
@@ -92,15 +85,7 @@ class DomainCronJobController extends Controller
         $this->authorize('update', $domain);
         $this->ensureBelongsToDomain($cronJob, $domain);
 
-        $validated = $request->validate([
-            'command' => ['required', 'string', 'max:500'],
-            'schedule' => ['required', 'string', 'max:100', function (string $attribute, mixed $value, \Closure $fail): void {
-                if (! CronExpression::isValidExpression($value)) {
-                    $fail(__('The :attribute is not a valid cron expression.', ['attribute' => $attribute]));
-                }
-            }],
-            'description' => ['nullable', 'string', 'max:255'],
-        ]);
+        $validated = $request->validate($this->cronJobRules());
 
         $cronJob->update($validated);
 
@@ -224,6 +209,29 @@ class DomainCronJobController extends Controller
             '0 0 1 * *' => __('Monthly (1st at midnight)'),
             default => $expression,
         };
+    }
+
+    /** @return array<string, mixed> */
+    private function cronJobRules(): array
+    {
+        return [
+            'command' => ['required', 'string', 'max:500', function (string $attribute, mixed $value, \Closure $fail): void {
+                $blocked = ['rm -rf /', 'mkfs', 'dd if=', ':(){', 'chmod -R 777 /', 'chown -R'];
+                foreach ($blocked as $pattern) {
+                    if (str_contains((string) $value, $pattern)) {
+                        $fail(__('The command contains a blocked pattern.'));
+
+                        return;
+                    }
+                }
+            }],
+            'schedule' => ['required', 'string', 'max:100', function (string $attribute, mixed $value, \Closure $fail): void {
+                if (! CronExpression::isValidExpression($value)) {
+                    $fail(__('The :attribute is not a valid cron expression.', ['attribute' => $attribute]));
+                }
+            }],
+            'description' => ['nullable', 'string', 'max:255'],
+        ];
     }
 
     /** @return array<int, array{label: string, value: string}> */

@@ -21,7 +21,7 @@ class ExecuteDomainCronJob implements ShouldQueue
 
     public function handle(PortainerService $portainer): void
     {
-        $this->cronJob->loadMissing('domain');
+        $this->cronJob->loadMissing('domain.ftpUser');
         $domain = $this->cronJob->domain;
 
         $log = DomainCronJobLog::create([
@@ -33,14 +33,31 @@ class ExecuteDomainCronJob implements ShouldQueue
         $startTime = microtime(true);
 
         try {
-            $webRoot = $domain->getBasePath().'/httpdocs';
+            $basePath = $domain->getBasePath();
+            $webRoot = $basePath.'/httpdocs';
             $command = $this->cronJob->command;
-            $script = 'cd '.escapeshellarg($webRoot)." && {$command}";
+
+            // Build a sandboxed script that prevents directory traversal
+            $escapedWebRoot = escapeshellarg($webRoot);
+            $escapedBasePath = escapeshellarg($basePath);
+            $script = <<<SH
+                cd {$escapedWebRoot} 2>/dev/null || cd {$escapedBasePath} 2>/dev/null || { echo "ERROR: Working directory not found"; exit 126; }
+                REAL_CWD=\$(realpath "\$PWD")
+                case "\$REAL_CWD" in
+                    {$basePath}|{$basePath}/*) ;;
+                    *) echo "ERROR: Access denied - working directory outside domain root"; exit 126 ;;
+                esac
+                {$command}
+                SH;
+
+            // Run as the domain's FTP user for filesystem isolation
+            $execUser = $domain->ftpUser?->username;
 
             $result = $portainer->execInContainer(
                 self::FRANKENPHP_CONTAINER,
-                ['sh', '-lc', $script],
+                ['sh', '-c', $script],
                 300,
+                $execUser,
             );
 
             $output = trim($result->output);

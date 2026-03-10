@@ -179,18 +179,24 @@ class PortainerService
      *
      * @param  array<int, string>  $command
      */
-    public function execInContainer(string $containerIdOrName, array $command, int $timeout = 30): ExecResult
+    public function execInContainer(string $containerIdOrName, array $command, int $timeout = 30, ?string $user = null): ExecResult
     {
         $containerId = $this->resolveContainerId($containerIdOrName);
 
-        Log::info("Portainer exec in {$containerIdOrName}: ".implode(' ', $command));
+        Log::info("Portainer exec in {$containerIdOrName}: ".implode(' ', $command).($user ? " (user: {$user})" : ''));
+
+        $payload = [
+            'AttachStdout' => true,
+            'AttachStderr' => true,
+            'Cmd' => $command,
+        ];
+
+        if ($user !== null) {
+            $payload['User'] = $user;
+        }
 
         $createResponse = $this->request($timeout)
-            ->post($this->dockerApiUrl("/containers/{$containerId}/exec"), [
-                'AttachStdout' => true,
-                'AttachStderr' => true,
-                'Cmd' => $command,
-            ]);
+            ->post($this->dockerApiUrl("/containers/{$containerId}/exec"), $payload);
 
         if (! $createResponse->successful()) {
             throw new PortainerException("Failed to create exec instance: {$createResponse->status()} {$createResponse->body()}");
