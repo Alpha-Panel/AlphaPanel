@@ -229,20 +229,22 @@ class FtpUserService
     }
 
     /**
-     * Restart the FTP and php-code-server containers.
+     * Restart the FTP, php-code-server, and frankenphp containers to sync users.
      */
     public function restartFtpContainers(): void
     {
-        try {
-            $this->portainer->restartContainer(config('panel.ftp_container', 'ftp-server'));
-        } catch (\Exception $e) {
-            Log::error("Failed to restart FTP container: {$e->getMessage()}");
-        }
+        $containers = [
+            config('panel.ftp_container', 'ftp-server'),
+            config('panel.php_code_server_container', 'php-code-server'),
+            'frankenphp',
+        ];
 
-        try {
-            $this->portainer->restartContainer(config('panel.php_code_server_container', 'php-code-server'));
-        } catch (\Exception $e) {
-            Log::error("Failed to restart php-code-server container: {$e->getMessage()}");
+        foreach ($containers as $container) {
+            try {
+                $this->portainer->restartContainer($container);
+            } catch (\Exception $e) {
+                Log::error("Failed to restart {$container} container: {$e->getMessage()}");
+            }
         }
     }
 
@@ -312,6 +314,7 @@ class FtpUserService
         $services = [
             trim((string) config('panel.ftp_container', 'ftp-server')),
             trim((string) config('panel.php_code_server_container', 'php-code-server')),
+            'frankenphp',
         ];
 
         return array_values(array_unique(array_filter($services)));

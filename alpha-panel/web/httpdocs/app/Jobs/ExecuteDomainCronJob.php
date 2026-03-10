@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\DomainType;
 use App\Models\DomainCronJob;
 use App\Models\DomainCronJobLog;
 use App\Services\PortainerService;
@@ -14,8 +15,6 @@ class ExecuteDomainCronJob implements ShouldQueue
     use Queueable;
 
     private const MAX_OUTPUT_LENGTH = 5000;
-
-    private const FRANKENPHP_CONTAINER = 'frankenphp';
 
     public function __construct(public DomainCronJob $cronJob) {}
 
@@ -53,8 +52,15 @@ class ExecuteDomainCronJob implements ShouldQueue
             // Run as the domain's FTP user for filesystem isolation
             $execUser = $domain->ftpUser?->username;
 
+            // Select container based on domain type:
+            // - Apache/legacy sites → php-code-server (users already provisioned, multi-PHP)
+            // - Caddy/FrankenPHP sites → frankenphp (users synced at startup)
+            $container = $domain->type === DomainType::ApacheReverseProxy
+                ? 'php-code-server'
+                : 'frankenphp';
+
             $result = $portainer->execInContainer(
-                self::FRANKENPHP_CONTAINER,
+                $container,
                 ['sh', '-c', $script],
                 300,
                 $execUser,

@@ -146,6 +146,7 @@ services:
         - ./letsencrypt:/etc/letsencrypt:ro
         - ./acme-challenge:/var/www/acme-challenge
         - ./vhosts:/var/www/vhosts
+        - ./ftp-config/users.env:/etc/users.env:ro
         - ./php-code-server/run/:/run/php/
         - ./frankenphp/logs:/var/log/caddy/
         - ./frankenphp/coraza-logs:/var/log/coraza
