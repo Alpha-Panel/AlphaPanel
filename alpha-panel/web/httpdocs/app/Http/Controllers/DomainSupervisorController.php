@@ -22,7 +22,7 @@ class DomainSupervisorController extends Controller
 {
     private const FRANKENPHP_WORKERS_RESTART_URL = 'http://frankenphp:2019/frankenphp/workers/restart';
 
-    private const MAX_OUTPUT_LENGTH = 5000;
+    private const MAX_OUTPUT_LENGTH = 50000;
 
     public function index(Domain $domain): Response
     {
@@ -317,6 +317,7 @@ class DomainSupervisorController extends Controller
         $webRoot = escapeshellarg($domain->getWebRootPath());
 
         return <<<SH
+export COLUMNS=220
 WEB_ROOT={$webRoot}
 APP_DIR="\$WEB_ROOT"
 PARENT_DIR=\$(dirname "\$WEB_ROOT")

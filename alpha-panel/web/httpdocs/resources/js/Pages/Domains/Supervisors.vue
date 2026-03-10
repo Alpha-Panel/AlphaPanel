@@ -176,7 +176,8 @@
                     <!-- Artisan Output -->
                     <div
                         v-if="artisanOutput !== null"
-                        class="mt-4 overflow-hidden rounded-xl border border-gray-800 bg-gray-950 dark:border-gray-700"
+                        class="mt-4 rounded-xl border border-gray-800 bg-gray-950 dark:border-gray-700"
+                        style="max-width: 100%; overflow: hidden;"
                     >
                         <div class="flex items-center justify-between border-b border-gray-800 px-5 py-2.5">
                             <span class="text-xs font-medium text-gray-400">{{ t('Output') }}</span>
@@ -189,8 +190,8 @@
                                 {{ t('Exit Code') }}: {{ artisanExitCode }}
                             </span>
                         </div>
-                        <div class="max-h-[70vh] overflow-auto p-5">
-                            <pre class="font-mono text-[13px] leading-6 text-gray-200">{{ artisanOutput }}</pre>
+                        <div class="p-5" style="max-height: 70vh; overflow-x: auto; overflow-y: auto;">
+                            <pre class="font-mono text-[13px] leading-6 text-gray-200" style="width: max-content; min-width: 100%;">{{ artisanOutput }}</pre>
                         </div>
                     </div>
 
