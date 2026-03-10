@@ -111,6 +111,11 @@ class Domain extends Model
         return $this->hasMany(DomainSupervisor::class);
     }
 
+    public function cronJobs(): HasMany
+    {
+        return $this->hasMany(DomainCronJob::class);
+    }
+
     public function searchableAs(): string
     {
         return 'domains';

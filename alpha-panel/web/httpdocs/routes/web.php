@@ -7,6 +7,7 @@ use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\DnsController;
 use App\Http\Controllers\DomainCloudflareController;
 use App\Http\Controllers\DomainController;
+use App\Http\Controllers\DomainCronJobController;
 use App\Http\Controllers\DomainLogController;
 use App\Http\Controllers\DomainModSecurityController;
 use App\Http\Controllers\DomainPackageManagerController;
@@ -188,6 +189,14 @@ Route::middleware('auth')->group(function (): void {
     Route::post('domains/{domain}/supervisor/restart', [DomainSupervisorController::class, 'restart'])->name('domains.supervisor.restart');
     Route::post('domains/{domain}/supervisor/workers/restart', [DomainSupervisorController::class, 'restartFrankenphpWorkers'])->name('domains.supervisor.workers.restart');
     Route::post('domains/{domain}/supervisor/optimize', [DomainSupervisorController::class, 'runOptimize'])->name('domains.supervisor.optimize');
+
+    // Cron Jobs (per domain)
+    Route::get('domains/{domain}/cron-jobs', [DomainCronJobController::class, 'index'])->name('domains.cron-jobs.index');
+    Route::post('domains/{domain}/cron-jobs', [DomainCronJobController::class, 'store'])->name('domains.cron-jobs.store');
+    Route::put('domains/{domain}/cron-jobs/{cronJob}', [DomainCronJobController::class, 'update'])->name('domains.cron-jobs.update');
+    Route::delete('domains/{domain}/cron-jobs/{cronJob}', [DomainCronJobController::class, 'destroy'])->name('domains.cron-jobs.destroy');
+    Route::post('domains/{domain}/cron-jobs/{cronJob}/toggle', [DomainCronJobController::class, 'toggle'])->name('domains.cron-jobs.toggle');
+    Route::get('domains/{domain}/cron-jobs/{cronJob}/logs', [DomainCronJobController::class, 'logs'])->name('domains.cron-jobs.logs');
 
     // Package Manager (per domain)
     Route::get('domains/{domain}/package-manager', [DomainPackageManagerController::class, 'index'])->name('domains.packages.index');
