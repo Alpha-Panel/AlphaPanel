@@ -211,29 +211,56 @@
                                     <tr v-else-if="table.data.value.length === 0" class="border-t border-gray-200 dark:border-gray-800">
                                         <td colspan="6" class="px-5 py-8 text-center text-gray-500 dark:text-gray-400">{{ t('No logs found.') }}</td>
                                     </tr>
-                                    <tr
-                                        v-for="log in table.data.value"
-                                        :key="String(log.id)"
-                                        class="border-t border-gray-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.02]"
-                                    >
-                                        <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-400">{{ log.created_at }}</td>
-                                        <td class="px-5 py-4 text-sm font-medium text-gray-800 dark:text-white/90">{{ log.user }}</td>
-                                        <td class="px-5 py-4" v-html="String(log.action_badge ?? '-')"></td>
-                                        <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-400">
-                                            <Link
-                                                v-if="log.domain_show_url"
-                                                :href="String(log.domain_show_url)"
-                                                class="text-brand-500 hover:text-brand-600"
-                                            >
-                                                {{ log.domain }}
-                                            </Link>
-                                            <span v-else>{{ log.domain }}</span>
-                                        </td>
-                                        <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-400">
-                                            <span class="font-mono">{{ String(log.source ?? '-') }}</span>
-                                        </td>
-                                        <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-400">{{ log.summary }}</td>
-                                    </tr>
+                                    <template v-for="log in table.data.value" :key="String(log.id)">
+                                        <tr
+                                            :class="[
+                                                'border-t border-gray-200 dark:border-gray-800',
+                                                log.details ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.02]' : 'hover:bg-gray-50 dark:hover:bg-white/[0.02]',
+                                            ]"
+                                            @click="log.details ? toggleDetails(String(log.id)) : undefined"
+                                        >
+                                            <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-400">{{ log.created_at }}</td>
+                                            <td class="px-5 py-4 text-sm font-medium text-gray-800 dark:text-white/90">{{ log.user }}</td>
+                                            <td class="px-5 py-4" v-html="String(log.action_badge ?? '-')"></td>
+                                            <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-400">
+                                                <Link
+                                                    v-if="log.domain_show_url"
+                                                    :href="String(log.domain_show_url)"
+                                                    class="text-brand-500 hover:text-brand-600"
+                                                    @click.stop
+                                                >
+                                                    {{ log.domain }}
+                                                </Link>
+                                                <span v-else>{{ log.domain }}</span>
+                                            </td>
+                                            <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-400">
+                                                <span class="font-mono">{{ String(log.source ?? '-') }}</span>
+                                            </td>
+                                            <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-400">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="flex-1">{{ log.summary }}</span>
+                                                    <svg
+                                                        v-if="log.details"
+                                                        class="h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200"
+                                                        :class="{ 'rotate-180': expandedDetails.has(String(log.id)) }"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                        stroke="currentColor"
+                                                        stroke-width="2"
+                                                    >
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr v-if="log.details && expandedDetails.has(String(log.id))" :key="`${String(log.id)}-details`" class="border-t border-gray-100 dark:border-gray-800/50">
+                                            <td colspan="6" class="px-5 pb-4 pt-2">
+                                                <div class="max-h-80 overflow-auto rounded-lg bg-gray-900 p-4">
+                                                    <pre class="font-mono text-xs leading-relaxed text-gray-200">{{ log.details }}</pre>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
                                 </tbody>
                             </table>
                         </div>
@@ -291,6 +318,17 @@ interface CalendarDayCell {
 
 const { t, locale } = useI18n();
 const searchInput = ref('');
+const expandedDetails = ref<Set<string>>(new Set());
+
+const toggleDetails = (logId: string): void => {
+    const next = new Set(expandedDetails.value);
+    if (next.has(logId)) {
+        next.delete(logId);
+    } else {
+        next.add(logId);
+    }
+    expandedDetails.value = next;
+};
 
 const filters = reactive({
     date_from: '',

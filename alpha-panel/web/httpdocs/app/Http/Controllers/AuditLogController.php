@@ -111,6 +111,10 @@ class AuditLogController extends Controller
             'composer_update_failed',
             'composer_dump_autoload_executed',
             'composer_dump_autoload_failed',
+            'artisan_command_executed',
+            'artisan_command_failed',
+            'ftp_permissions_fixed',
+            'ftp_permissions_fix_failed',
         ]);
 
         $actions = AuditLog::query()
@@ -257,6 +261,7 @@ class AuditLogController extends Controller
             'port' => $log->port,
             'source' => $this->formatSource($log->ip_address, $log->port),
             'summary' => $log->summary ?? '-',
+            'details' => $log->details,
         ]);
 
         return response()->json([

@@ -171,19 +171,26 @@
                                 </template>
                             </button>
                         </div>
-                        <div
-                            v-if="artisanOutput !== null"
-                            class="mt-3 max-h-80 overflow-auto rounded-lg bg-gray-900 p-4 font-mono text-xs leading-relaxed text-gray-100"
-                        >
-                            <div class="mb-2 flex items-center justify-between text-[10px] uppercase tracking-wider">
-                                <span class="text-gray-500">{{ t('Output') }}</span>
-                                <span
-                                    :class="artisanExitCode === 0 ? 'text-success-400' : 'text-error-400'"
-                                >
-                                    {{ t('Exit Code') }}: {{ artisanExitCode }}
-                                </span>
-                            </div>
-                            <pre class="whitespace-pre-wrap break-all">{{ artisanOutput }}</pre>
+                    </div>
+
+                    <!-- Artisan Output -->
+                    <div
+                        v-if="artisanOutput !== null"
+                        class="mt-4 overflow-hidden rounded-xl border border-gray-800 bg-gray-950 dark:border-gray-700"
+                    >
+                        <div class="flex items-center justify-between border-b border-gray-800 px-5 py-2.5">
+                            <span class="text-xs font-medium text-gray-400">{{ t('Output') }}</span>
+                            <span
+                                class="rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                                :class="artisanExitCode === 0
+                                    ? 'bg-success-500/15 text-success-400'
+                                    : 'bg-error-500/15 text-error-400'"
+                            >
+                                {{ t('Exit Code') }}: {{ artisanExitCode }}
+                            </span>
+                        </div>
+                        <div class="max-h-[70vh] overflow-auto p-5">
+                            <pre class="font-mono text-[13px] leading-6 text-gray-200">{{ artisanOutput }}</pre>
                         </div>
                     </div>
 

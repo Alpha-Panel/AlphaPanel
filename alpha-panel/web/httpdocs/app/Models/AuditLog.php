@@ -15,6 +15,7 @@ class AuditLog extends Model
         'action',
         'domain_id',
         'summary',
+        'details',
         'ip_address',
         'port',
     ];

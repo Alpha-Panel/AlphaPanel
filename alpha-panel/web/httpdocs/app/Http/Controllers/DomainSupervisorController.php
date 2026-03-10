@@ -280,6 +280,7 @@ class DomainSupervisorController extends Controller
                 $domain,
                 'artisan_command_executed',
                 $command,
+                $output !== '' ? $output : null,
             );
 
             return response()->json([
@@ -329,13 +330,14 @@ cd "\$APP_DIR"
 SH;
     }
 
-    private function createAuditLog(Request $request, Domain $domain, string $action, string $summary): void
+    private function createAuditLog(Request $request, Domain $domain, string $action, string $summary, ?string $details = null): void
     {
         AuditLog::create([
             'user_id' => $request->user()?->id,
             'action' => $action,
             'domain_id' => $domain->id,
             'summary' => $summary,
+            'details' => $details,
             'ip_address' => $request->ip(),
             'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
         ]);
