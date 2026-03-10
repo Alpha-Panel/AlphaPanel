@@ -124,7 +124,13 @@
                                 <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-error-50 text-error-600 dark:bg-error-500/20 dark:text-error-300">
                                     <i class="fa-solid fa-shield-halved text-2xl"></i>
                                 </div>
-                                <div class="min-w-0">
+                                <div v-if="metricsLoading" class="min-w-0 flex-1">
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('CrowdSec') }}</p>
+                                    <div class="mt-1 h-7 w-12 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                    <div class="mt-1 h-3 w-28 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                    <div class="mt-2 h-4 w-16 animate-pulse rounded-full bg-gray-200 dark:bg-gray-800"></div>
+                                </div>
+                                <div v-else class="min-w-0">
                                     <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('CrowdSec') }}</p>
                                     <h3 class="text-2xl font-semibold text-gray-800 dark:text-white/90">
                                         {{ crowdsec?.active_decisions ?? 0 }}
@@ -173,6 +179,7 @@
                                     {{ t('Host Resources') }}
                                 </h4>
                                 <span
+                                    v-if="!metricsLoading"
                                     :class="[
                                         'ml-auto inline-flex rounded-full px-2.5 py-1 text-xs font-semibold',
                                         hostMetrics?.has_error
@@ -182,34 +189,55 @@
                                 >
                                     {{ hostMetrics?.has_error ? t('Offline') : t('Live') }}
                                 </span>
+                                <span v-else class="ml-auto inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                                    <i class="bx bx-loader-alt animate-spin text-xs"></i>
+                                    {{ t('Loading...') }}
+                                </span>
                             </div>
 
-                            <div class="grid grid-cols-3 gap-3 text-center">
-                                <div>
-                                    <div ref="cpuGaugeRef" class="min-h-[160px]"></div>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('CPU') }}</p>
+                            <template v-if="metricsLoading">
+                                <div class="grid grid-cols-3 gap-3 text-center">
+                                    <div v-for="n in 3" :key="n">
+                                        <div class="mx-auto flex h-[160px] w-[120px] items-center justify-center">
+                                            <div class="h-[120px] w-[120px] animate-pulse rounded-full border-[12px] border-gray-200 dark:border-gray-800"></div>
+                                        </div>
+                                        <div class="mx-auto mt-2 h-3 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <div ref="ramGaugeRef" class="min-h-[160px]"></div>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                                        {{ t('RAM') }} {{ hostMetrics?.mem_used_mb ?? 0 }}MB / {{ hostMetrics?.mem_total_mb ?? 0 }}MB
-                                    </p>
+                                <div class="mt-3">
+                                    <div class="mb-1 h-3 w-20 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                    <div class="h-[60px] animate-pulse rounded bg-gray-100 dark:bg-gray-800/50"></div>
                                 </div>
-                                <div>
-                                    <div ref="diskGaugeRef" class="min-h-[160px]"></div>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                                        {{ t('Disk') }} {{ hostMetrics?.disk_used_gb ?? 0 }}GB / {{ hostMetrics?.disk_total_gb ?? 0 }}GB
-                                    </p>
-                                </div>
-                            </div>
+                            </template>
 
-                            <div class="mt-3">
-                                <p class="mb-1 text-xs text-gray-500 dark:text-gray-400">
-                                    <i class="bx bx-line-chart mr-1"></i>
-                                    {{ t('CPU History') }}
-                                </p>
-                                <div ref="cpuSparklineRef" class="min-h-[60px]"></div>
-                            </div>
+                            <template v-else>
+                                <div class="grid grid-cols-3 gap-3 text-center">
+                                    <div>
+                                        <div ref="cpuGaugeRef" class="min-h-[160px]"></div>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('CPU') }}</p>
+                                    </div>
+                                    <div>
+                                        <div ref="ramGaugeRef" class="min-h-[160px]"></div>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                                            {{ t('RAM') }} {{ hostMetrics?.mem_used_mb ?? 0 }}MB / {{ hostMetrics?.mem_total_mb ?? 0 }}MB
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <div ref="diskGaugeRef" class="min-h-[160px]"></div>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                                            {{ t('Disk') }} {{ hostMetrics?.disk_used_gb ?? 0 }}GB / {{ hostMetrics?.disk_total_gb ?? 0 }}GB
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <p class="mb-1 text-xs text-gray-500 dark:text-gray-400">
+                                        <i class="bx bx-line-chart mr-1"></i>
+                                        {{ t('CPU History') }}
+                                    </p>
+                                    <div ref="cpuSparklineRef" class="min-h-[60px]"></div>
+                                </div>
+                            </template>
                         </div>
 
                         <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] xl:col-span-7">
@@ -218,7 +246,7 @@
                                     <i class="bx bx-box mr-1"></i>
                                     {{ t('Docker Services') }}
                                 </h4>
-                                <div class="ml-auto flex items-center gap-2">
+                                <div v-if="!metricsLoading" class="ml-auto flex items-center gap-2">
                                     <div class="relative">
                                         <i class="bx bx-search absolute left-2 top-1/2 -translate-y-1/2 text-sm text-gray-400"></i>
                                         <input
@@ -234,7 +262,21 @@
                                 </div>
                             </div>
 
-                            <div v-if="dockerServices?.has_error" class="py-6 text-center text-gray-500 dark:text-gray-400">
+                            <div v-if="metricsLoading" class="space-y-3">
+                                <div v-for="n in 5" :key="n" class="flex items-center gap-3">
+                                    <div class="h-4 w-4 animate-pulse rounded-full bg-gray-200 dark:bg-gray-800"></div>
+                                    <div class="h-4 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                    <div class="h-4 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                    <div class="h-1.5 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                    <div class="h-1.5 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                    <div class="ml-auto flex gap-1">
+                                        <div class="h-7 w-7 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                        <div class="h-7 w-7 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div v-else-if="dockerServices?.has_error" class="py-6 text-center text-gray-500 dark:text-gray-400">
                                 <i class="bx bx-error-circle text-3xl"></i>
                                 <p class="mt-2 text-sm">{{ t('Portainer unreachable') }}</p>
                             </div>
@@ -517,7 +559,7 @@
                                     <i class="bx bx-data mr-1"></i>
                                     {{ t('MySQL Processes') }}
                                 </h4>
-                                <div class="ml-auto flex items-center gap-2">
+                                <div v-if="!metricsLoading" class="ml-auto flex items-center gap-2">
                                     <span class="inline-flex rounded-full bg-blue-light-500/15 px-2.5 py-1 text-xs font-semibold text-blue-light-700 dark:text-blue-light-300">
                                         {{ mysqlMonitor?.total_connections ?? 0 }} {{ t('connections') }}
                                     </span>
@@ -536,7 +578,18 @@
                                 </div>
                             </div>
 
-                            <div v-if="mysqlMonitor?.has_error" class="py-6 text-center text-gray-500 dark:text-gray-400">
+                            <div v-if="metricsLoading" class="space-y-3">
+                                <div v-for="n in 4" :key="n" class="flex items-center gap-3">
+                                    <div class="h-4 w-8 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                    <div class="h-4 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                    <div class="h-4 w-20 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                    <div class="h-4 w-10 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                    <div class="h-4 w-14 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                    <div class="h-4 flex-1 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                </div>
+                            </div>
+
+                            <div v-else-if="mysqlMonitor?.has_error" class="py-6 text-center text-gray-500 dark:text-gray-400">
                                 <i class="bx bx-error-circle text-3xl"></i>
                                 <p class="mt-2 text-sm">{{ t('MySQL unreachable') }}</p>
                             </div>
@@ -746,6 +799,7 @@ const dockerActionLoading = ref<string | null>(null);
 const containerSearch = ref('');
 const cpuHistory = ref<number[]>([]);
 const hasShownRefreshError = ref(false);
+const metricsLoading = ref(true);
 
 const cpuGaugeRef = ref<HTMLElement | null>(null);
 const ramGaugeRef = ref<HTMLElement | null>(null);
@@ -1266,8 +1320,6 @@ let backupEchoChannel: any = null;
 onMounted(async () => {
     if (isAdmin.value) {
         initializeCpuHistory();
-        await nextTick();
-        await initializeCharts();
 
         // Listen for backup progress on admin channel
         if (typeof window.Echo !== 'undefined') {
@@ -1284,6 +1336,14 @@ onMounted(async () => {
                 }
             });
         }
+
+        // Load heavy admin metrics asynchronously after page render
+        await refreshDashboard();
+        metricsLoading.value = false;
+        await nextTick();
+        await initializeCharts();
+    } else {
+        metricsLoading.value = false;
     }
 
     restartDashboardPolling();

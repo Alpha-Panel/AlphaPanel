@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -68,6 +69,12 @@ class RoleController extends Controller
 
         $role->syncPermissions($validated['permissions']);
 
+        AuditLog::create([
+            'user_id' => $request->user()?->id,
+            'action' => 'role_created',
+            'summary' => "Created role \"{$role->name}\" with ".count($validated['permissions']).' permission(s).',
+        ]);
+
         return response()->json([
             'status' => 'success',
             'message' => __('Role created successfully.'),
@@ -89,8 +96,38 @@ class RoleController extends Controller
             'permissions.*' => ['string', 'exists:permissions,name'],
         ]);
 
+        $oldName = $role->name;
+        $oldPermissions = $role->permissions->pluck('name')->sort()->values()->toArray();
+
         $role->update(['name' => $validated['name']]);
         $role->syncPermissions($validated['permissions']);
+
+        $newPermissions = collect($validated['permissions'])->sort()->values()->toArray();
+        $added = array_values(array_diff($newPermissions, $oldPermissions));
+        $removed = array_values(array_diff($oldPermissions, $newPermissions));
+
+        $changes = [];
+        if ($oldName !== $validated['name']) {
+            $changes[] = "renamed \"{$oldName}\" → \"{$validated['name']}\"";
+        }
+        if (count($added) > 0) {
+            $changes[] = 'added '.count($added).' permission(s)';
+        }
+        if (count($removed) > 0) {
+            $changes[] = 'removed '.count($removed).' permission(s)';
+        }
+
+        if (count($changes) > 0) {
+            AuditLog::create([
+                'user_id' => $request->user()?->id,
+                'action' => 'role_updated',
+                'summary' => "Updated role \"{$role->name}\": ".implode(', ', $changes).'.',
+                'details' => json_encode(array_filter([
+                    'added' => $added ?: null,
+                    'removed' => $removed ?: null,
+                ]), JSON_THROW_ON_ERROR),
+            ]);
+        }
 
         return response()->json([
             'status' => 'success',
@@ -105,7 +142,7 @@ class RoleController extends Controller
         ]);
     }
 
-    public function destroy(Role $role): JsonResponse
+    public function destroy(Request $request, Role $role): JsonResponse
     {
         if ($role->users()->count() > 0) {
             return response()->json([
@@ -114,7 +151,16 @@ class RoleController extends Controller
             ], 422);
         }
 
+        $roleName = $role->name;
+        $permissionCount = $role->permissions->count();
+
         $role->delete();
+
+        AuditLog::create([
+            'user_id' => $request->user()?->id,
+            'action' => 'role_deleted',
+            'summary' => "Deleted role \"{$roleName}\" ({$permissionCount} permission(s)).",
+        ]);
 
         return response()->json([
             'status' => 'success',

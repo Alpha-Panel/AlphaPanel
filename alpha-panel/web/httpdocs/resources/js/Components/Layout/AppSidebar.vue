@@ -327,13 +327,11 @@ const menuGroups = computed(() => {
                 if (can('panel.users.manage')) {
                     items.push({
                         icon: UserCircleIcon,
-                        name: t('Users'),
-                        href: route('users.list'),
-                    });
-                    items.push({
-                        iconClass: 'fa-solid fa-user-shield',
-                        name: t('Roles'),
-                        href: route('roles.index'),
+                        name: t('User Management'),
+                        subItems: [
+                            { name: t('Users'), href: route('users.list') },
+                            { name: t('Roles'), href: route('roles.index') },
+                        ],
                     });
                 }
 

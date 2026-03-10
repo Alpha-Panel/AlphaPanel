@@ -115,6 +115,9 @@ class AuditLogController extends Controller
             'artisan_command_failed',
             'ftp_permissions_fixed',
             'ftp_permissions_fix_failed',
+            'role_created',
+            'role_updated',
+            'role_deleted',
         ]);
 
         $actions = AuditLog::query()

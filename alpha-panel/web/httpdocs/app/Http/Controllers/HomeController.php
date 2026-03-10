@@ -42,8 +42,23 @@ class HomeController extends Controller
         /** @var User $user */
         $user = $request->user();
 
+        // Pass only lightweight data on initial render.
+        // Heavy admin metrics (host, docker, mysql, crowdsec) are loaded
+        // asynchronously by the frontend via the dashboard.data endpoint.
         return Inertia::render('Dashboard', [
-            'dashboard' => $this->buildDashboardPayload($user, false),
+            'dashboard' => [
+                'is_admin' => $user->isAdmin(),
+                'stats' => $this->buildStats($user),
+                'recent_domains' => $this->buildRecentDomains($user),
+                'host_metrics' => null,
+                'docker_services' => null,
+                'mysql_monitor' => null,
+                'crowdsec' => null,
+                'active_backup' => $user->isAdmin()
+                    ? BackupRun::where('status', 'uploading')->latest('started_at')
+                        ->first(['id', 'status', 'progress_percent', 'started_at'])
+                    : null,
+            ],
         ]);
     }
 
