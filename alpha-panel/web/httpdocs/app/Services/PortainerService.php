@@ -189,6 +189,7 @@ class PortainerService
             'AttachStdout' => true,
             'AttachStderr' => true,
             'Cmd' => $command,
+            'Env' => ['COLUMNS=220'],
         ];
 
         if ($user !== null) {

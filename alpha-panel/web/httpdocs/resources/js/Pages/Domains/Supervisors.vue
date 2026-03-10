@@ -10,7 +10,7 @@
                 />
                 <Toast />
 
-                <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
+                <div class="min-w-0 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                     <div class="mb-5 flex items-center">
                         <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">
                             <i class="fa-brands fa-laravel mr-2 text-error-500"></i>
