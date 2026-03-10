@@ -6,7 +6,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
-use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 class RoleController extends Controller
@@ -25,14 +24,23 @@ class RoleController extends Controller
                 'is_default' => in_array($role->name, ['Admin', 'Domain Manager', 'Domain Viewer'], true),
             ]);
 
-        $permissions = Permission::query()
-            ->where('guard_name', 'web')
-            ->pluck('name')
-            ->toArray();
+        $config = config('panel-permissions', []);
+
+        $permissionGroups = collect($config)
+            ->filter(fn ($group) => is_array($group) && isset($group['permissions']))
+            ->map(fn ($group) => [
+                'label' => $group['label'],
+                'permissions' => collect($group['permissions'])->map(fn ($desc, $name) => [
+                    'name' => $name,
+                    'description' => $desc,
+                ])->values()->all(),
+            ])
+            ->values()
+            ->all();
 
         return Inertia::render('Roles/Index', [
             'roles' => $roles,
-            'permissions' => $permissions,
+            'permissionGroups' => $permissionGroups,
         ]);
     }
 

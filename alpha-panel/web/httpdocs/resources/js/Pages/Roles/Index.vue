@@ -105,9 +105,9 @@
                             </div>
 
                             <div class="space-y-5">
-                                <div v-for="group in permissionGroups" :key="group.label">
+                                <div v-for="group in props.permissionGroups" :key="group.label">
                                     <div class="mb-2 flex items-center justify-between">
-                                        <h5 class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ group.label }}</h5>
+                                        <h5 class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ t(group.label) }}</h5>
                                         <label class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
                                             <input
                                                 type="checkbox"
@@ -122,17 +122,20 @@
                                     <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                         <label
                                             v-for="perm in group.permissions"
-                                            :key="perm"
+                                            :key="perm.name"
                                             class="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-2 text-sm transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.02]"
-                                            :class="{ 'border-brand-200 bg-brand-500/5 dark:border-brand-900': form.permissions.includes(perm) }"
+                                            :class="{ 'border-brand-200 bg-brand-500/5 dark:border-brand-900': form.permissions.includes(perm.name) }"
                                         >
                                             <input
                                                 type="checkbox"
-                                                :value="perm"
+                                                :value="perm.name"
                                                 v-model="form.permissions"
-                                                class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                                                class="h-4 w-4 shrink-0 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                                             />
-                                            <span class="text-gray-700 dark:text-gray-300">{{ formatPermissionLabel(perm) }}</span>
+                                            <div class="min-w-0">
+                                                <span class="block text-gray-700 dark:text-gray-300">{{ formatPermissionLabel(perm.name) }}</span>
+                                                <span class="block text-[11px] leading-tight text-gray-400 dark:text-gray-500">{{ t(perm.description) }}</span>
+                                            </div>
                                         </label>
                                     </div>
                                 </div>
@@ -169,7 +172,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import axios from 'axios';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
@@ -179,6 +182,16 @@ import PageBreadcrumb from '@/Components/Common/PageBreadcrumb.vue';
 import Toast from '@/Components/UI/Toast.vue';
 import { useToast } from '@/Composables/useToast';
 import { useI18n } from '@/Composables/useI18n';
+
+interface PermissionEntry {
+    name: string;
+    description: string;
+}
+
+interface PermissionGroup {
+    label: string;
+    permissions: PermissionEntry[];
+}
 
 interface Role {
     id: number;
@@ -190,7 +203,7 @@ interface Role {
 
 const props = defineProps<{
     roles: Role[];
-    permissions: string[];
+    permissionGroups: PermissionGroup[];
 }>();
 
 const { addToast } = useToast();
@@ -206,16 +219,6 @@ const form = ref({
     permissions: [] as string[],
 });
 
-const permissionGroups = computed(() => {
-    const panelPerms = props.permissions.filter((p) => p.startsWith('panel.'));
-    const domainPerms = props.permissions.filter((p) => p.startsWith('domain.'));
-
-    return [
-        { label: t('Panel Permissions'), permissions: panelPerms },
-        { label: t('Domain Permissions'), permissions: domainPerms },
-    ].filter((g) => g.permissions.length > 0);
-});
-
 const formatPermissionLabel = (perm: string): string => {
     const parts = perm.split('.');
     parts.shift();
@@ -225,21 +228,22 @@ const formatPermissionLabel = (perm: string): string => {
         .replace(/\b\w/g, (c) => c.toUpperCase());
 };
 
-const isGroupFullySelected = (perms: string[]): boolean => {
-    return perms.every((p) => form.value.permissions.includes(p));
+const isGroupFullySelected = (perms: PermissionEntry[]): boolean => {
+    return perms.every((p) => form.value.permissions.includes(p.name));
 };
 
-const isGroupPartiallySelected = (perms: string[]): boolean => {
-    const selected = perms.filter((p) => form.value.permissions.includes(p)).length;
+const isGroupPartiallySelected = (perms: PermissionEntry[]): boolean => {
+    const selected = perms.filter((p) => form.value.permissions.includes(p.name)).length;
     return selected > 0 && selected < perms.length;
 };
 
-const toggleGroup = (perms: string[], checked: boolean) => {
+const toggleGroup = (perms: PermissionEntry[], checked: boolean) => {
+    const names = perms.map((p) => p.name);
     if (checked) {
-        const toAdd = perms.filter((p) => !form.value.permissions.includes(p));
+        const toAdd = names.filter((n) => !form.value.permissions.includes(n));
         form.value.permissions.push(...toAdd);
     } else {
-        form.value.permissions = form.value.permissions.filter((p) => !perms.includes(p));
+        form.value.permissions = form.value.permissions.filter((p) => !names.includes(p));
     }
 };
 

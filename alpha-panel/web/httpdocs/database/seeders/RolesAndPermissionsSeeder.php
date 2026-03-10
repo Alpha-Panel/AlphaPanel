@@ -9,84 +9,68 @@ use Spatie\Permission\PermissionRegistrar;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
-    /** @var list<string> */
-    private const PANEL_PERMISSIONS = [
-        'panel.users.view',
-        'panel.users.manage',
-        'panel.terminal.access',
-        'panel.audit-logs.view',
-        'panel.terminal-logs.view',
-        'panel.crowdsec.view',
-        'panel.crowdsec.manage',
-        'panel.waf-rules.view',
-        'panel.waf-rules.manage',
-        'panel.backups.view',
-        'panel.backups.manage',
-        'panel.phpmyadmin.access',
-        'panel.docker.actions',
-        'panel.domains.create',
-        'panel.domains.delete',
-    ];
-
-    /** @var list<string> */
-    private const DOMAIN_PERMISSIONS = [
-        'domain.view',
-        'domain.edit',
-        'domain.provision',
-        'domain.ftp.manage',
-        'domain.ssl.manage',
-        'domain.dns.view',
-        'domain.dns.manage',
-        'domain.cloudflare.view',
-        'domain.cloudflare.manage',
-        'domain.databases.view',
-        'domain.databases.manage',
-        'domain.php.manage',
-        'domain.supervisor.view',
-        'domain.supervisor.manage',
-        'domain.supervisor.artisan',
-        'domain.cron-jobs.view',
-        'domain.cron-jobs.manage',
-        'domain.packages.view',
-        'domain.packages.manage',
-        'domain.files.view',
-        'domain.files.manage',
-        'domain.logs.view',
-        'domain.modsecurity.view',
-        'domain.modsecurity.manage',
-    ];
-
-    /** @var list<string> */
-    private const VIEWER_PERMISSIONS = [
-        'domain.view',
-        'domain.dns.view',
-        'domain.cloudflare.view',
-        'domain.databases.view',
-        'domain.supervisor.view',
-        'domain.cron-jobs.view',
-        'domain.packages.view',
-        'domain.files.view',
-        'domain.logs.view',
-        'domain.modsecurity.view',
-    ];
-
     public function run(): void
     {
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        $allPermissions = array_merge(self::PANEL_PERMISSIONS, self::DOMAIN_PERMISSIONS);
+        $config = config('panel-permissions');
 
+        // Collect all permission names from config groups
+        $allPermissions = collect($config)
+            ->filter(fn ($group) => is_array($group) && isset($group['permissions']))
+            ->flatMap(fn ($group) => array_keys($group['permissions']))
+            ->all();
+
+        // Create permissions (idempotent)
         foreach ($allPermissions as $name) {
             Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
         }
 
-        $adminRole = Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'web']);
-        $adminRole->syncPermissions($allPermissions);
+        // Create default roles and assign permissions
+        foreach ($config['default_roles'] ?? [] as $roleName => $roleDef) {
+            $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
+            $resolved = $this->resolvePermissions($roleDef['permissions'], $allPermissions);
+            $role->syncPermissions($resolved);
+        }
+    }
 
-        $domainManagerRole = Role::firstOrCreate(['name' => 'Domain Manager', 'guard_name' => 'web']);
-        $domainManagerRole->syncPermissions(self::DOMAIN_PERMISSIONS);
+    /**
+     * @param  string|list<string>  $spec
+     * @param  list<string>  $allPermissions
+     * @return list<string>
+     */
+    private function resolvePermissions(string|array $spec, array $allPermissions): array
+    {
+        if ($spec === '*') {
+            return $allPermissions;
+        }
 
-        $domainViewerRole = Role::firstOrCreate(['name' => 'Domain Viewer', 'guard_name' => 'web']);
-        $domainViewerRole->syncPermissions(self::VIEWER_PERMISSIONS);
+        if (is_string($spec) && str_ends_with($spec, '.*')) {
+            $prefix = substr($spec, 0, -1);
+
+            return array_values(array_filter(
+                $allPermissions,
+                fn (string $p): bool => str_starts_with($p, $prefix)
+            ));
+        }
+
+        if (is_array($spec)) {
+            $result = [];
+            foreach ($spec as $item) {
+                if (is_string($item) && str_ends_with($item, '.*')) {
+                    $prefix = substr($item, 0, -1);
+                    $result = array_merge(
+                        $result,
+                        array_filter($allPermissions, fn (string $p): bool => str_starts_with($p, $prefix))
+                    );
+                } else {
+                    $result[] = $item;
+                }
+            }
+
+            return array_values(array_unique($result));
+        }
+
+        return [];
     }
 }
