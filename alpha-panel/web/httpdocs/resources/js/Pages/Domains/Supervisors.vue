@@ -140,6 +140,53 @@
                         </div>
                     </div>
 
+                    <!-- Artisan Command Runner -->
+                    <div class="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-white/2">
+                        <h4 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-white/90">
+                            <i class="bx bx-terminal text-base text-brand-500"></i>
+                            {{ t('Run Artisan Command') }}
+                        </h4>
+                        <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">
+                            {{ t('Execute any artisan command for this domain. The command runs as the domain FTP user in the appropriate container.') }}
+                        </p>
+                        <div class="flex gap-2">
+                            <input
+                                v-model="artisanCommand"
+                                type="text"
+                                class="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                                placeholder="php artisan ..."
+                                :disabled="artisanLoading"
+                                @keydown.enter="runArtisanCommand"
+                            />
+                            <button
+                                type="button"
+                                @click="runArtisanCommand"
+                                :disabled="artisanLoading || !artisanCommand.trim()"
+                                class="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-500 px-4 text-sm font-medium text-white shadow-theme-xs hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                <i v-if="artisanLoading" class="bx bx-loader-alt animate-spin text-base"></i>
+                                <template v-else>
+                                    <i class="bx bx-play text-base"></i>
+                                    {{ t('Run') }}
+                                </template>
+                            </button>
+                        </div>
+                        <div
+                            v-if="artisanOutput !== null"
+                            class="mt-3 max-h-80 overflow-auto rounded-lg bg-gray-900 p-4 font-mono text-xs leading-relaxed text-gray-100"
+                        >
+                            <div class="mb-2 flex items-center justify-between text-[10px] uppercase tracking-wider">
+                                <span class="text-gray-500">{{ t('Output') }}</span>
+                                <span
+                                    :class="artisanExitCode === 0 ? 'text-success-400' : 'text-error-400'"
+                                >
+                                    {{ t('Exit Code') }}: {{ artisanExitCode }}
+                                </span>
+                            </div>
+                            <pre class="whitespace-pre-wrap break-all">{{ artisanOutput }}</pre>
+                        </div>
+                    </div>
+
                     <div class="mt-6 flex">
                         <Link
                             :href="route('domains.show', domain.id)"
@@ -188,6 +235,12 @@ const workersRestartLoading = ref(false);
 const optimizeLoading = ref(false);
 
 const localProcesses = reactive<Process[]>(props.processes.map((p) => ({ ...p })));
+
+// Artisan command runner state
+const artisanCommand = ref('php artisan ');
+const artisanOutput = ref<string | null>(null);
+const artisanExitCode = ref<number | null>(null);
+const artisanLoading = ref(false);
 
 const breadcrumbs = computed(() => [
     { label: t('Domains'), href: route('domains.index') },
@@ -298,6 +351,35 @@ const runOptimize = async (): Promise<void> => {
         addToast('error', error.response?.data?.message ?? t('Operation failed.'));
     } finally {
         optimizeLoading.value = false;
+    }
+};
+
+const runArtisanCommand = async (): Promise<void> => {
+    if (artisanLoading.value || !artisanCommand.value.trim()) return;
+    artisanLoading.value = true;
+    artisanOutput.value = null;
+    artisanExitCode.value = null;
+
+    try {
+        const response = await axios.post(
+            route('domains.supervisor.artisan', props.domain.id),
+            { command: artisanCommand.value.trim() },
+        );
+
+        artisanOutput.value = response.data.output ?? '';
+        artisanExitCode.value = response.data.exit_code ?? null;
+
+        if (response.data.status === 'success') {
+            addToast('success', response.data.message);
+        } else {
+            addToast('error', response.data.message);
+        }
+    } catch (error: any) {
+        artisanOutput.value = error.response?.data?.output ?? error.response?.data?.message ?? t('Operation failed.');
+        artisanExitCode.value = error.response?.data?.exit_code ?? -1;
+        addToast('error', error.response?.data?.message ?? t('Operation failed.'));
+    } finally {
+        artisanLoading.value = false;
     }
 };
 </script>

@@ -118,6 +118,8 @@ Route::middleware('auth')->group(function (): void {
     // Domain FTP Management
     Route::put('domains/{domain}/ftp', [DomainController::class, 'updateFtp'])
         ->name('domains.ftp.update');
+    Route::post('domains/{domain}/ftp/fix-permissions', [DomainController::class, 'fixPermissions'])
+        ->name('domains.ftp.fix-permissions');
 
     // Domain Provisioning
     Route::post('domains/{domain}/provision', [DomainProvisionController::class, 'provision'])
@@ -189,6 +191,7 @@ Route::middleware('auth')->group(function (): void {
     Route::post('domains/{domain}/supervisor/restart', [DomainSupervisorController::class, 'restart'])->name('domains.supervisor.restart');
     Route::post('domains/{domain}/supervisor/workers/restart', [DomainSupervisorController::class, 'restartFrankenphpWorkers'])->name('domains.supervisor.workers.restart');
     Route::post('domains/{domain}/supervisor/optimize', [DomainSupervisorController::class, 'runOptimize'])->name('domains.supervisor.optimize');
+    Route::post('domains/{domain}/supervisor/artisan', [DomainSupervisorController::class, 'runArtisan'])->name('domains.supervisor.artisan');
 
     // Cron Jobs (per domain)
     Route::get('domains/{domain}/cron-jobs', [DomainCronJobController::class, 'index'])->name('domains.cron-jobs.index');

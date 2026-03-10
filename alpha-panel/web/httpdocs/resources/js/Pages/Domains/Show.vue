@@ -411,6 +411,18 @@
                                     <dt class="text-white/50">{{ t('UID') }}</dt>
                                     <dd>{{ domain.ftp_user.uid }}</dd>
                                 </dl>
+                                <button
+                                    type="button"
+                                    @click="fixPermissions"
+                                    :disabled="fixPermissionsLoading"
+                                    class="inline-flex w-full items-center justify-center gap-2 rounded-md border border-warning-500/40 bg-warning-500/10 px-3 py-2 text-sm font-medium text-warning-300 transition-colors hover:bg-warning-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    <i v-if="fixPermissionsLoading" class="bx bx-loader-alt animate-spin text-base"></i>
+                                    <template v-else>
+                                        <i class="bx bx-shield-quarter text-base"></i>
+                                        {{ t('Fix Permissions') }}
+                                    </template>
+                                </button>
                                 <hr class="border-white/10" />
                                 <h6 class="text-sm font-medium text-white">{{ t('Change Password') }}</h6>
                             </template>
@@ -677,6 +689,7 @@ const ftpForm = ref({
     username: domain.value.ftp_user?.username ?? '',
     password: '',
 });
+const fixPermissionsLoading = ref(false);
 
 const showJenkinsModal = ref(false);
 const jenkinsFqdn = ref('');
@@ -1302,6 +1315,20 @@ const copyFtpPassword = async () => {
 
     await navigator.clipboard.writeText(ftpForm.value.password);
     ftpCopiedPassword.value = true;
+};
+
+const fixPermissions = async (): Promise<void> => {
+    if (fixPermissionsLoading.value) return;
+    fixPermissionsLoading.value = true;
+
+    try {
+        const response = await axios.post(route('domains.ftp.fix-permissions', domain.value.id));
+        addToast('success', response.data.message);
+    } catch (error: any) {
+        addToast('error', error.response?.data?.message ?? t('Operation failed.'));
+    } finally {
+        fixPermissionsLoading.value = false;
+    }
 };
 
 const submitFtp = () => {

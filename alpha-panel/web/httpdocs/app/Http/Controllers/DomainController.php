@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\DomainType;
 use App\Http\Requests\StoreDomainRequest;
 use App\Http\Requests\UpdateDomainRequest;
 use App\Jobs\DeleteDomainJob;
@@ -15,11 +16,13 @@ use App\Models\User;
 use App\Notifications\DomainNotification;
 use App\Services\CloudflareDnsService;
 use App\Services\FtpUserService;
+use App\Services\PortainerService;
 use App\Services\ServerNetworkInfoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -378,6 +381,77 @@ class DomainController extends Controller
         return redirect()
             ->route('domains.show', $domain)
             ->with('success', $message);
+    }
+
+    /**
+     * Fix file permissions (chown) for a domain's base directory.
+     */
+    public function fixPermissions(Request $request, Domain $domain, PortainerService $portainer): JsonResponse
+    {
+        $this->authorize('update', $domain);
+
+        $domain->loadMissing('ftpUser');
+
+        if (! $domain->ftpUser) {
+            return response()->json([
+                'status' => 'error',
+                'message' => __('No FTP user exists for this domain.'),
+            ], 422);
+        }
+
+        $username = $domain->ftpUser->username;
+        $basePath = escapeshellarg($domain->getBasePath());
+
+        $container = $domain->type === DomainType::ApacheReverseProxy
+            ? 'php-code-server'
+            : 'frankenphp';
+
+        try {
+            $result = $portainer->execInContainer(
+                $container,
+                ['sh', '-c', "chown {$username}:www-data -R {$basePath}"],
+                300,
+            );
+
+            if (! $result->isSuccessful()) {
+                $error = trim($result->errorOutput) !== '' ? trim($result->errorOutput) : trim($result->output);
+                if ($error === '') {
+                    $error = 'Unknown error.';
+                }
+
+                throw new \RuntimeException($error);
+            }
+
+            AuditLog::create([
+                'user_id' => $request->user()?->id,
+                'action' => 'ftp_permissions_fixed',
+                'domain_id' => $domain->id,
+                'summary' => "chown {$username}:www-data -R on {$domain->getBasePath()}",
+                'ip_address' => $request->ip(),
+                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+            ]);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => __('File permissions fixed successfully.'),
+            ]);
+        } catch (\Throwable $exception) {
+            Log::error("Fix permissions failed for {$domain->fqdn}: {$exception->getMessage()}");
+
+            AuditLog::create([
+                'user_id' => $request->user()?->id,
+                'action' => 'ftp_permissions_fix_failed',
+                'domain_id' => $domain->id,
+                'summary' => $exception->getMessage(),
+                'ip_address' => $request->ip(),
+                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => __('Failed to fix file permissions: :error', ['error' => $exception->getMessage()]),
+            ], 500);
+        }
     }
 
     /**

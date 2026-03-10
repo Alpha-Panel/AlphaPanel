@@ -90,6 +90,10 @@ class SupervisorConfigService
         $logFile = "{$httpdocs}/storage/logs/{$type->logFile()}";
         $numProcs = $type->supportsNumProcs() ? $supervisor->num_procs : 1;
 
+        // Resolve FTP user for process isolation
+        $domain->loadMissing('ftpUser');
+        $ftpUsername = $domain->ftpUser?->username;
+
         $conf = <<<CONF
         [program:{$programName}]
         process_name=%(program_name)s_%(process_num)02d
@@ -104,6 +108,10 @@ class SupervisorConfigService
         stopwaitsecs=3600
         startsecs=0
         CONF;
+
+        if ($ftpUsername !== null) {
+            $conf .= "\nuser={$ftpUsername}";
+        }
 
         $confPath = $this->confPath($domain, $type);
         file_put_contents($confPath, $conf);

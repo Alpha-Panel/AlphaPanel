@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\DomainType;
 use App\Enums\SupervisorType;
+use App\Http\Requests\RunArtisanCommandRequest;
 use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Models\DomainSupervisor;
@@ -19,6 +21,8 @@ use Inertia\Response;
 class DomainSupervisorController extends Controller
 {
     private const FRANKENPHP_WORKERS_RESTART_URL = 'http://frankenphp:2019/frankenphp/workers/restart';
+
+    private const MAX_OUTPUT_LENGTH = 5000;
 
     public function index(Domain $domain): Response
     {
@@ -233,6 +237,76 @@ class DomainSupervisorController extends Controller
                 'message' => __('Failed to run Laravel optimize commands: :error', [
                     'error' => $exception->getMessage(),
                 ]),
+            ], 500);
+        }
+    }
+
+    public function runArtisan(RunArtisanCommandRequest $request, Domain $domain, PortainerService $portainer): JsonResponse
+    {
+        $this->authorize('update', $domain);
+
+        $domain->loadMissing('ftpUser');
+
+        $command = trim($request->validated()['command']);
+
+        // Normalize: ensure it starts with "php artisan"
+        if (str_starts_with($command, 'artisan ')) {
+            $command = 'php '.$command;
+        }
+
+        $container = $domain->type === DomainType::ApacheReverseProxy
+            ? 'php-code-server'
+            : 'frankenphp';
+
+        $execUser = $domain->ftpUser?->username;
+
+        try {
+            $result = $portainer->execInContainer(
+                $container,
+                ['sh', '-lc', $this->buildAppCommandScript($domain, $command)],
+                300,
+                $execUser,
+            );
+
+            $output = trim($result->output);
+            if (trim($result->errorOutput) !== '') {
+                $output .= "\n--- STDERR ---\n".trim($result->errorOutput);
+            }
+
+            $output = mb_substr($output, 0, self::MAX_OUTPUT_LENGTH);
+
+            $this->createAuditLog(
+                $request,
+                $domain,
+                'artisan_command_executed',
+                $command,
+            );
+
+            return response()->json([
+                'status' => $result->isSuccessful() ? 'success' : 'error',
+                'message' => $result->isSuccessful()
+                    ? __('Command executed successfully.')
+                    : __('Command finished with errors.'),
+                'output' => $output,
+                'exit_code' => $result->exitCode,
+            ]);
+        } catch (\Throwable $exception) {
+            Log::error("Artisan command failed for {$domain->fqdn}: {$exception->getMessage()}");
+
+            $this->createAuditLog(
+                $request,
+                $domain,
+                'artisan_command_failed',
+                "{$command}: {$exception->getMessage()}",
+            );
+
+            return response()->json([
+                'status' => 'error',
+                'message' => __('Failed to execute artisan command: :error', [
+                    'error' => $exception->getMessage(),
+                ]),
+                'output' => '',
+                'exit_code' => -1,
             ], 500);
         }
     }
