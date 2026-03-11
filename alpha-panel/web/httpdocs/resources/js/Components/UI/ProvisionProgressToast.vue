@@ -1,5 +1,5 @@
 <template>
-    <div class="fixed bottom-4 right-4 z-[9999] flex w-full max-w-sm flex-col-reverse gap-2 pointer-events-none">
+    <div class="fixed bottom-4 left-4 right-4 z-[9999] flex flex-col-reverse gap-2 pointer-events-none sm:left-auto sm:max-w-sm">
         <TransitionGroup name="provision-toast">
             <div
                 v-for="job in jobs"
