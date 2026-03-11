@@ -6,11 +6,11 @@ use App\Models\Domain;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class DomainProvisionFailed implements ShouldBroadcast
+class DomainProvisionFailed implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -18,6 +18,11 @@ class DomainProvisionFailed implements ShouldBroadcast
         public Domain $domain,
         public string $error,
     ) {}
+
+    public function broadcastAs(): string
+    {
+        return 'DomainProvisionFailed';
+    }
 
     /** @return array<int, \Illuminate\Broadcasting\Channel> */
     public function broadcastOn(): array

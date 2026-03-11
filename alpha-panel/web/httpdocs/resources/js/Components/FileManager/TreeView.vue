@@ -8,6 +8,7 @@
             :tree-cache="treeCache"
             :selected-items="selectedItems"
             :current-path="currentPath"
+            :is-mobile="isMobile"
             @navigate="$emit('navigate', $event)"
             @toggle="$emit('toggle', $event)"
             @open-file="$emit('open-file', $event)"
@@ -30,6 +31,7 @@ const props = defineProps<{
     treeCache: Map<string, FileItem[]>;
     selectedItems: Set<string>;
     currentPath: string;
+    isMobile: boolean;
 }>();
 
 defineEmits<{

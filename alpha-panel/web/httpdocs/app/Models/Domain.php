@@ -102,6 +102,16 @@ class Domain extends Model
         return $this->hasOne(FtpUser::class);
     }
 
+    /**
+     * Resolve the effective FTP username for this domain.
+     * Subdomains inherit the parent domain's FTP user.
+     */
+    public function getEffectiveFtpUsername(): ?string
+    {
+        return $this->ftpUser?->username
+            ?? $this->parentDomain?->ftpUser?->username;
+    }
+
     public function phpSetting(): HasOne
     {
         return $this->hasOne(PhpSetting::class);

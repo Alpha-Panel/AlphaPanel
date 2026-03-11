@@ -19,7 +19,7 @@
                     @drop.prevent="onExternalDrop"
                 >
                     <!-- Toolbar -->
-                    <div class="flex items-center gap-1 border-b border-gray-200 px-3 py-2 dark:border-gray-800">
+                    <div class="flex flex-wrap items-center gap-1 border-b border-gray-200 px-3 py-2 dark:border-gray-800">
                         <button @click="promptNewFile" class="fm-btn" :title="t('New File')">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                         </button>
@@ -30,28 +30,52 @@
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                         </button>
                         <div class="mx-1 h-5 w-px bg-gray-300 dark:bg-gray-700"></div>
-                        <button @click="promptRename" :disabled="!fm.singleSelection.value" class="fm-btn" :title="t('Rename')">
+                        <button @click="promptRename" :disabled="!fm.singleSelection.value" class="fm-btn hidden sm:inline-flex" :title="t('Rename')">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                         </button>
                         <button @click="confirmDelete" :disabled="!fm.hasSelection.value" class="fm-btn text-error-500" :title="t('Delete')">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
-                        <button @click="downloadSelected" :disabled="!fm.hasSelection.value" class="fm-btn" :title="t('Download')">
+                        <button @click="downloadSelected" :disabled="!fm.hasSelection.value" class="fm-btn hidden sm:inline-flex" :title="t('Download')">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                         </button>
-                        <div class="mx-1 h-5 w-px bg-gray-300 dark:bg-gray-700"></div>
-                        <button @click="promptCompress" :disabled="!fm.hasSelection.value" class="fm-btn" :title="t('Compress')">
+                        <div class="mx-1 hidden h-5 w-px bg-gray-300 sm:block dark:bg-gray-700"></div>
+                        <button @click="promptCompress" :disabled="!fm.hasSelection.value" class="fm-btn hidden sm:inline-flex" :title="t('Compress')">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
                         </button>
-                        <button @click="extractSelected" :disabled="!fm.hasZipSelected.value" class="fm-btn" :title="t('Extract')">
+                        <button @click="extractSelected" :disabled="!fm.hasZipSelected.value" class="fm-btn hidden sm:inline-flex" :title="t('Extract')">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4l3 3m0 0l3-3m-3 3V8" /></svg>
                         </button>
                         <div class="flex-1"></div>
                         <button @click="fm.refresh()" class="fm-btn" :title="t('Refresh')">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                         </button>
-                        <button @click="fm.isFullscreen.value = !fm.isFullscreen.value" class="fm-btn" :title="t('Fullscreen')">
+                        <button @click="fm.isFullscreen.value = !fm.isFullscreen.value" class="fm-btn hidden sm:inline-flex" :title="t('Fullscreen')">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                        </button>
+                    </div>
+
+                    <!-- Mobile Tab Switcher -->
+                    <div class="flex sm:hidden border-b border-gray-200 dark:border-gray-800">
+                        <button
+                            @click="mobileTab = 'tree'"
+                            :class="mobileTab === 'tree'
+                                ? 'border-b-2 border-brand-500 text-brand-600 dark:text-brand-400'
+                                : 'text-gray-500 dark:text-gray-400'"
+                            class="flex flex-1 items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors"
+                        >
+                            <i class="bx bx-folder-open text-sm"></i>
+                            {{ t('Files') }}
+                        </button>
+                        <button
+                            @click="mobileTab = 'editor'"
+                            :class="mobileTab === 'editor'
+                                ? 'border-b-2 border-brand-500 text-brand-600 dark:text-brand-400'
+                                : 'text-gray-500 dark:text-gray-400'"
+                            class="flex flex-1 items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors"
+                        >
+                            <i class="bx bx-code-alt text-sm"></i>
+                            {{ t('Editor') }}
                         </button>
                     </div>
 
@@ -59,13 +83,14 @@
                         <!-- Sidebar / Tree -->
                         <div
                             ref="sidebarRef"
-                            class="flex-shrink-0 overflow-y-auto border-r border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50"
-                            :style="{ width: fm.sidebarWidth.value + 'px' }"
+                            :class="[mobileTab !== 'tree' ? 'hidden sm:block' : '', 'flex-shrink-0 overflow-y-auto border-r border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50']"
+                            :style="isMobile ? {} : { width: fm.sidebarWidth.value + 'px' }"
                         >
                             <TreeView
                                 :tree-cache="fm.treeCache"
                                 :selected-items="fm.selectedItems"
                                 :current-path="fm.currentPath.value"
+                                :is-mobile="isMobile"
                                 @navigate="fm.loadDirectory($event)"
                                 @toggle="fm.toggleTreeDir($event)"
                                 @open-file="onOpenFile($event)"
@@ -77,12 +102,12 @@
 
                         <!-- Resize Handle -->
                         <div
-                            class="w-1 cursor-col-resize bg-gray-200 hover:bg-brand-400 dark:bg-gray-800 dark:hover:bg-brand-600"
+                            class="hidden w-1 cursor-col-resize bg-gray-200 hover:bg-brand-400 sm:block dark:bg-gray-800 dark:hover:bg-brand-600"
                             @mousedown="startResize"
                         ></div>
 
                         <!-- Main Area -->
-                        <div class="flex flex-1 flex-col overflow-hidden">
+                        <div :class="[mobileTab !== 'editor' ? 'hidden sm:flex' : 'flex', 'flex-1 flex-col overflow-hidden']">
                             <!-- Breadcrumb -->
                             <div class="flex items-center gap-1 border-b border-gray-200 px-3 py-1.5 text-xs dark:border-gray-800">
                                 <template v-for="(crumb, i) in fm.breadcrumbs.value" :key="crumb.path">
@@ -110,7 +135,7 @@
                                     </span>
                                     <button
                                         @click.stop="fm.closeTab(path)"
-                                        class="ml-1 hidden rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700 group-hover:inline-block dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                                        class="ml-1 inline-flex items-center justify-center rounded text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-200 min-h-7 min-w-7 sm:hidden sm:min-h-0 sm:min-w-0 sm:p-0.5 sm:group-hover:inline-flex"
                                     >&times;</button>
                                 </div>
                             </div>
@@ -137,15 +162,16 @@
                                                     />
                                                 </th>
                                                 <th class="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">{{ t('Name') }}</th>
-                                                <th class="w-24 px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">{{ t('Perms') }}</th>
+                                                <th class="hidden w-24 px-3 py-2 text-left text-xs font-medium uppercase text-gray-500 sm:table-cell">{{ t('Perms') }}</th>
                                                 <th class="w-24 px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">{{ t('Size') }}</th>
-                                                <th class="w-40 px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">{{ t('Modified') }}</th>
+                                                <th class="hidden w-40 px-3 py-2 text-left text-xs font-medium uppercase text-gray-500 sm:table-cell">{{ t('Modified') }}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <!-- Go up row -->
                                             <tr
                                                 v-if="fm.currentPath.value"
+                                                @click="isMobile && fm.loadDirectory(fm.getParentPath(fm.currentPath.value))"
                                                 @dblclick="fm.loadDirectory(fm.getParentPath(fm.currentPath.value))"
                                                 class="cursor-pointer border-b border-gray-100 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.02]"
                                             >
@@ -156,14 +182,14 @@
                                                         ..
                                                     </span>
                                                 </td>
-                                                <td></td><td></td><td></td>
+                                                <td class="hidden sm:table-cell"></td><td></td><td class="hidden sm:table-cell"></td>
                                             </tr>
                                             <!-- File rows -->
                                             <tr
                                                 v-for="(item, index) in fm.fileList.value"
                                                 :key="item.path"
                                                 :draggable="true"
-                                                @click="fm.selectItem(item.path, $event, index)"
+                                                @click="onRowClick(item, $event, index)"
                                                 @dblclick="onDblClick(item)"
                                                 @contextmenu.prevent="onFileContextMenu($event, item)"
                                                 @dragstart="onDragStart($event, item)"
@@ -188,9 +214,9 @@
                                                         <span class="text-gray-800 dark:text-white/90">{{ item.name }}</span>
                                                     </span>
                                                 </td>
-                                                <td class="px-3 py-1.5 font-mono text-xs text-gray-500">{{ item.permissions }}</td>
+                                                <td class="hidden px-3 py-1.5 font-mono text-xs text-gray-500 sm:table-cell">{{ item.permissions }}</td>
                                                 <td class="px-3 py-1.5 text-xs text-gray-500">{{ fm.formatSize(item.size) }}</td>
-                                                <td class="px-3 py-1.5 text-xs text-gray-500">{{ fm.formatDate(item.lastModified) }}</td>
+                                                <td class="hidden px-3 py-1.5 text-xs text-gray-500 sm:table-cell">{{ fm.formatDate(item.lastModified) }}</td>
                                             </tr>
                                             <tr v-if="!fm.loading.value && fm.fileList.value.length === 0">
                                                 <td colspan="5" class="px-3 py-8 text-center text-gray-400">{{ t('Empty directory') }}</td>
@@ -316,6 +342,19 @@ const modalInputRef = ref<HTMLInputElement>();
 const uploadInputRef = ref<HTMLInputElement>();
 const contextMenuRef = ref<HTMLElement>();
 const showDropZone = ref(false);
+const mobileTab = ref<'tree' | 'editor'>('tree');
+const isMobile = ref(typeof window !== 'undefined' && window.innerWidth < 640);
+const mobileQuery = typeof window !== 'undefined' ? window.matchMedia('(max-width: 639px)') : null;
+const onMobileChange = (e: MediaQueryListEvent) => {
+    isMobile.value = e.matches;
+    if (monacoEditor) {
+        monacoEditor.updateOptions({
+            fontSize: e.matches ? 12 : 14,
+            minimap: { enabled: !e.matches },
+        });
+    }
+};
+mobileQuery?.addEventListener('change', onMobileChange);
 
 let monacoEditor: any = null;
 let monacoInstance: any = null;
@@ -351,11 +390,11 @@ async function setupEditor() {
 
     monacoEditor = monacoInstance.editor.create(editorRef.value, {
         theme: 'vs-dark',
-        fontSize: 14,
-        minimap: { enabled: true },
+        fontSize: isMobile.value ? 12 : 14,
+        minimap: { enabled: !isMobile.value },
         automaticLayout: true,
         scrollBeyondLastLine: false,
-        wordWrap: 'off',
+        wordWrap: isMobile.value ? 'on' : 'off',
         lineNumbers: 'on',
         renderWhitespace: 'selection',
         tabSize: 4,
@@ -422,6 +461,7 @@ async function saveActiveFile() {
 async function onOpenFile(path: string) {
     try {
         await fm.openFile(path);
+        mobileTab.value = 'editor';
     } catch (err: any) {
         addToast('error', err.message || t('Error opening file'));
     }
@@ -432,6 +472,17 @@ function onDblClick(item: FileItem) {
         fm.loadDirectory(item.path);
     } else {
         onOpenFile(item.path);
+    }
+}
+
+function onRowClick(item: FileItem, event: MouseEvent, index: number) {
+    fm.selectItem(item.path, event, index);
+    if (isMobile.value && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+        if (item.type === 'file') {
+            onOpenFile(item.path);
+        } else {
+            fm.loadDirectory(item.path);
+        }
     }
 }
 
@@ -728,6 +779,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
     document.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('resize', adjustContextMenuPosition);
+    mobileQuery?.removeEventListener('change', onMobileChange);
     if (monacoEditor) {
         monacoEditor.dispose();
         monacoEditor = null;

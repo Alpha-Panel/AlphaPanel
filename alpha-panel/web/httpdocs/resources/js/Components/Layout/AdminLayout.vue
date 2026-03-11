@@ -16,6 +16,7 @@
             </div>
         </div>
         <TerminalManager />
+        <ProvisionProgressToast />
     </div>
 </template>
 
@@ -26,6 +27,7 @@ import AppSidebar from './AppSidebar.vue';
 import AppHeader from './AppHeader.vue';
 import Backdrop from './Backdrop.vue';
 import TerminalManager from '@/Components/Terminal/TerminalManager.vue';
+import ProvisionProgressToast from '@/Components/UI/ProvisionProgressToast.vue';
 import { useSidebar } from '@/Composables/useSidebar';
 import type { SharedProps } from '@/types/inertia';
 

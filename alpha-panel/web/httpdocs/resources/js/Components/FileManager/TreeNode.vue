@@ -47,6 +47,7 @@
                 :tree-cache="treeCache"
                 :selected-items="selectedItems"
                 :current-path="currentPath"
+                :is-mobile="isMobile"
                 @navigate="$emit('navigate', $event)"
                 @toggle="$emit('toggle', $event)"
                 @open-file="$emit('open-file', $event)"
@@ -68,6 +69,7 @@ const props = defineProps<{
     treeCache: Map<string, FileItem[]>;
     selectedItems: Set<string>;
     currentPath: string;
+    isMobile: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -88,6 +90,8 @@ function onClick() {
     emit('select', props.item);
     if (props.item.type === 'directory') {
         emit('toggle', props.item);
+    } else if (props.isMobile) {
+        emit('open-file', props.item.path);
     }
 }
 

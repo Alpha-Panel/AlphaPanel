@@ -392,7 +392,7 @@ class DomainConfigService
         $fqdn = $domain->fqdn;
         $phpVersion = $domain->phpVersion;
         $fpmPoolDir = $phpVersion->fpm_pool_dir;
-        $poolUser = $domain->ftpUser?->username ?? explode('.', $fqdn)[0];
+        $poolUser = $domain->getEffectiveFtpUsername();
         $webRoot = $domain->getWebRootPath();
 
         $lines = [];
@@ -442,7 +442,7 @@ class DomainConfigService
         $basePath = $domain->getBasePath();
         $webRoot = $domain->getWebRootPath();
         $logsPath = "{$basePath}/logs";
-        $poolUser = $domain->ftpUser?->username ?? explode('.', $domain->fqdn)[0];
+        $poolUser = $domain->getEffectiveFtpUsername();
 
         $portainer = app(PortainerService::class);
 
@@ -460,6 +460,27 @@ class DomainConfigService
     }
 
     /**
+     * Remove the PHP-FPM pool config for a domain from a specific PHP version's pool directory.
+     * Also restarts the FPM service so the removed pool is unloaded.
+     */
+    public function removePhpFpmConfig(string $fqdn, PhpVersion $version): void
+    {
+        $confPath = "{$version->fpm_pool_dir}/{$fqdn}.conf";
+        if (File::isFile($confPath)) {
+            File::delete($confPath);
+            Log::info("Removed FPM pool config: {$confPath}");
+        }
+
+        try {
+            app(PortainerService::class)->execInContainer('php-code-server', [
+                'supervisorctl', 'restart', $version->fpm_service_name,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning("Failed to restart FPM {$version->fpm_service_name}: {$e->getMessage()}");
+        }
+    }
+
+    /**
      * Change the PHP version for a legacy domain.
      * Removes conf from old version dir, writes to new, restarts both FPM services.
      */
@@ -469,12 +490,8 @@ class DomainConfigService
         $fqdn = $domain->fqdn;
 
         // Remove conf from old version directory
-        if ($oldVersion) {
-            $oldConfPath = "{$oldVersion->fpm_pool_dir}/{$fqdn}.conf";
-            if (File::isFile($oldConfPath)) {
-                File::delete($oldConfPath);
-                Log::info("Removed old FPM conf: {$oldConfPath}");
-            }
+        if ($oldVersion && $oldVersion->id !== $newVersion->id) {
+            $this->removePhpFpmConfig($fqdn, $oldVersion);
         }
 
         // Update domain's PHP version
@@ -485,21 +502,9 @@ class DomainConfigService
         // Write new FPM conf to new version directory
         $this->writePhpFpmConfig($domain);
 
-        // Restart FPM services via Portainer
-        $portainer = app(PortainerService::class);
-
-        if ($oldVersion && $oldVersion->id !== $newVersion->id) {
-            try {
-                $portainer->execInContainer('php-code-server', [
-                    'supervisorctl', 'restart', $oldVersion->fpm_service_name,
-                ]);
-            } catch (\Throwable $e) {
-                Log::warning("Failed to restart old FPM {$oldVersion->fpm_service_name}: {$e->getMessage()}");
-            }
-        }
-
+        // Restart new FPM service (old one already restarted by removePhpFpmConfig)
         try {
-            $portainer->execInContainer('php-code-server', [
+            app(PortainerService::class)->execInContainer('php-code-server', [
                 'supervisorctl', 'restart', $newVersion->fpm_service_name,
             ]);
         } catch (\Throwable $e) {

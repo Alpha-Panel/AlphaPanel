@@ -15,6 +15,7 @@ use App\Models\PhpVersion;
 use App\Models\User;
 use App\Notifications\DomainNotification;
 use App\Services\CloudflareDnsService;
+use App\Services\DomainConfigService;
 use App\Services\FtpUserService;
 use App\Services\PortainerService;
 use App\Services\ServerNetworkInfoService;
@@ -273,6 +274,8 @@ class DomainController extends Controller
         $this->authorize('update', $domain);
 
         $oldFqdn = $domain->fqdn;
+        $oldPhpVersionId = $domain->php_version_id;
+        $oldPhpVersion = $domain->phpVersion;
         $validated = $request->validated();
 
         if ($domain->parent_domain_id !== null) {
@@ -286,6 +289,11 @@ class DomainController extends Controller
         }
 
         $domain->update($validated);
+
+        // Clean up old FPM config if PHP version changed or domain switched away from Apache
+        if ($oldPhpVersionId && $oldPhpVersionId !== $domain->php_version_id && $oldPhpVersion) {
+            app(DomainConfigService::class)->removePhpFpmConfig($oldFqdn, $oldPhpVersion);
+        }
 
         $fqdnChanged = $oldFqdn !== $domain->fqdn;
 
