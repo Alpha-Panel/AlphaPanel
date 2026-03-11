@@ -1,7 +1,7 @@
 <template>
     <div class="relative" ref="dropdownRef">
         <button class="flex items-center text-gray-700 dark:text-gray-400" @click.prevent="toggleDropdown">
-            <span class="mr-3 flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-brand-600 dark:bg-brand-500/20 dark:text-brand-400 font-medium">
+            <span class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-brand-600 dark:bg-brand-500/20 dark:text-brand-400 font-medium lg:mr-3">
                 <img
                     v-if="user?.avatar_url"
                     :src="user.avatar_url"
@@ -10,11 +10,11 @@
                 />
                 <span v-else>{{ userInitials }}</span>
             </span>
-            <span class="block">
+            <span class="hidden lg:block">
               <span class="block mr-1 font-medium text-theme-sm">{{ user?.name }}</span>
               <span class="block text-start text-theme-xs text-gray-500 dark:text-gray-400">{{ isAdmin }}</span>
             </span>
-            <ChevronDownIcon :class="{ 'rotate-180': dropdownOpen }" />
+            <ChevronDownIcon class="hidden lg:block" :class="{ 'rotate-180': dropdownOpen }" />
         </button>
 
         <div

@@ -15,6 +15,14 @@ enum DomainType: string
         };
     }
 
+    public function shortLabel(): string
+    {
+        return match ($this) {
+            self::CaddyWebServer => 'Caddy',
+            self::ApacheReverseProxy => 'Apache',
+        };
+    }
+
     public function badgeHtml(): string
     {
         return match ($this) {

@@ -196,7 +196,7 @@
                             </div>
 
                             <template v-if="metricsLoading">
-                                <div class="grid grid-cols-3 gap-3 text-center">
+                                <div class="grid grid-cols-1 gap-3 text-center sm:grid-cols-3">
                                     <div v-for="n in 3" :key="n">
                                         <div class="mx-auto flex h-[160px] w-[120px] items-center justify-center">
                                             <div class="h-[120px] w-[120px] animate-pulse rounded-full border-[12px] border-gray-200 dark:border-gray-800"></div>
@@ -211,7 +211,7 @@
                             </template>
 
                             <template v-else>
-                                <div class="grid grid-cols-3 gap-3 text-center">
+                                <div class="grid grid-cols-1 gap-3 text-center sm:grid-cols-3">
                                     <div>
                                         <div ref="cpuGaugeRef" class="min-h-[160px]"></div>
                                         <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('CPU') }}</p>
@@ -917,9 +917,9 @@ const formatDomainStatus = (status: string): string => {
 const formatDomainType = (type: string): string => {
     switch (type) {
         case 'caddy_web_server':
-            return t('Caddy Web Server');
+            return 'Caddy';
         case 'apache_reverse_proxy':
-            return t('Apache + Reverse Proxy');
+            return 'Apache';
         default:
             return type;
     }

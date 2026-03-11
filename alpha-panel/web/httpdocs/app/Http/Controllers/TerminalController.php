@@ -28,7 +28,7 @@ class TerminalController extends Controller
         $containerName = $request->input('container_name');
         $sessionId = Str::uuid()->toString();
 
-        $exec = $portainer->createInteractiveExec($containerId, ['/bin/sh']);
+        $exec = $portainer->createInteractiveExec($containerId, ['/bin/bash']);
         $execId = $exec['Id'];
 
         // Short-lived token for WebSocket connection (30 s, single-use)

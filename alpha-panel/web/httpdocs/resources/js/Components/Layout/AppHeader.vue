@@ -55,6 +55,11 @@
                     <span class="text-xl font-bold text-brand-500">{{ appName }}</span>
                 </Link>
 
+                <!-- Notification icon visible on mobile, beside three-dots -->
+                <div class="lg:hidden">
+                    <NotificationMenu />
+                </div>
+
                 <button
                     @click="toggleApplicationMenu"
                     class="flex items-center justify-center w-10 h-10 text-gray-700 rounded-lg z-99999 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 lg:hidden"
@@ -167,9 +172,9 @@
                                     />
                                     <i v-else class="fa-solid fa-globe text-[10px] text-gray-500 dark:text-gray-300"></i>
                                 </span>
-                                <span class="w-7 text-center text-xs font-semibold tracking-wide uppercase">{{ localeCode(locale) }}</span>
+                                <span class="hidden w-7 text-center text-xs font-semibold tracking-wide uppercase lg:inline">{{ localeCode(locale) }}</span>
                                 <i
-                                    class="fa-solid fa-chevron-down text-[10px] text-gray-500 transition-transform dark:text-gray-400"
+                                    class="hidden fa-solid fa-chevron-down text-[10px] text-gray-500 transition-transform dark:text-gray-400 lg:inline"
                                     :class="isLocaleMenuOpen ? 'rotate-180' : ''"
                                 ></i>
                             </button>
@@ -229,7 +234,10 @@
                             </div>
                         </div>
                         <ThemeToggler />
-                        <NotificationMenu />
+                        <!-- NotificationMenu hidden on mobile (shown next to three-dots instead) -->
+                        <div class="hidden lg:block">
+                            <NotificationMenu />
+                        </div>
                     </div>
                     <UserMenu />
                 </div>

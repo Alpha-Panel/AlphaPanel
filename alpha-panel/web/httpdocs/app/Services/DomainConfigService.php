@@ -231,7 +231,7 @@ class DomainConfigService
             $lines[] = '    file_server';
             $lines[] = '    log {';
             $lines[] = "        output file /var/log/caddy/{$fqdn}.log";
-            $lines[] = '        format console';
+            $lines[] = '        format json';
             $lines[] = '    }';
         }
 

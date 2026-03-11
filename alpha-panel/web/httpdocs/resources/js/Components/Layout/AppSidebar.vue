@@ -1,7 +1,7 @@
 <template>
     <aside
         :class="[
-            'fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 h-screen transition-all duration-300 ease-in-out z-99999 border-gray-200',
+            'fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 h-[calc(100dvh-4rem)] lg:h-dvh transition-all duration-300 ease-in-out z-99999 border-gray-200',
             {
                 'lg:w-72.5': isExpanded || isMobileOpen || isHovered,
                 'lg:w-22.5': !isExpanded && !isHovered,

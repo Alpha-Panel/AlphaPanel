@@ -196,7 +196,7 @@ class HomeController extends Controller
                 'id' => $domain->id,
                 'fqdn' => $domain->fqdn,
                 'type' => $domain->type->value,
-                'type_label' => $domain->type->label(),
+                'type_label' => $domain->type->shortLabel(),
                 'status' => $domain->status->value,
                 'status_label' => $domain->status->label(),
                 'php_version' => $domain->phpVersion?->slug,
