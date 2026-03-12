@@ -404,44 +404,32 @@ const submit = (): void => {
         form.dns_target_ip = '';
     }
 
-    if (isSubdomain.value) {
-        form.clearErrors();
-        form.processing = true;
+    form.clearErrors();
+    form.processing = true;
 
-        axios.post(route('domains.store'), form.data(), {
-            headers: {
-                Accept: 'application/json',
-            },
-        }).then(() => {
-            emit('update:modelValue', false);
-            resetFormState();
-            router.reload({ preserveScroll: true });
-        }).catch((error: any) => {
-            const errors = error?.response?.data?.errors;
-            if (!errors || typeof errors !== 'object') {
-                return;
-            }
-
-            for (const [field, messages] of Object.entries(errors)) {
-                if (Array.isArray(messages)) {
-                    form.setError(field, String(messages[0] ?? ''));
-                } else {
-                    form.setError(field, String(messages ?? ''));
-                }
-            }
-        }).finally(() => {
-            form.processing = false;
-        });
-
-        return;
-    }
-
-    form.post(route('domains.store'), {
-        preserveScroll: true,
-        onSuccess: () => {
-            emit('update:modelValue', false);
-            resetFormState();
+    axios.post(route('domains.store'), form.data(), {
+        headers: {
+            Accept: 'application/json',
         },
+    }).then(() => {
+        emit('update:modelValue', false);
+        resetFormState();
+        router.reload({ preserveScroll: true });
+    }).catch((error: any) => {
+        const errors = error?.response?.data?.errors;
+        if (!errors || typeof errors !== 'object') {
+            return;
+        }
+
+        for (const [field, messages] of Object.entries(errors)) {
+            if (Array.isArray(messages)) {
+                form.setError(field, String(messages[0] ?? ''));
+            } else {
+                form.setError(field, String(messages ?? ''));
+            }
+        }
+    }).finally(() => {
+        form.processing = false;
     });
 };
 </script>

@@ -28,9 +28,9 @@ class StoreDomainRequest extends FormRequest
             'type' => ['required', new Enum(DomainType::class)],
             'root_path' => ['nullable', 'string', 'max:500'],
             'inherit_parent_root_path' => [
+                Rule::excludeIf(fn () => ! $this->filled('parent_domain_id')),
                 'sometimes',
                 'boolean',
-                Rule::prohibitedIf(fn () => ! $this->filled('parent_domain_id')),
             ],
             'enable_www_redirect' => ['boolean'],
             'additional_hostnames' => ['nullable', 'array'],
@@ -59,9 +59,9 @@ class StoreDomainRequest extends FormRequest
                 Rule::requiredIf(fn () => ! $this->filled('parent_domain_id')),
             ],
             'create_dns_record' => [
+                Rule::excludeIf(fn () => ! $this->filled('parent_domain_id')),
                 'sometimes',
                 'boolean',
-                Rule::prohibitedIf(fn () => ! $this->filled('parent_domain_id')),
             ],
             'dns_target_ip' => [
                 'nullable',

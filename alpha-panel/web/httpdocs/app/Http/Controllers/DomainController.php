@@ -200,7 +200,7 @@ class DomainController extends Controller
             actorPort: is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
         );
 
-        if ($parentDomainId > 0 && $request->expectsJson()) {
+        if ($request->expectsJson()) {
             return response()->json([
                 'success' => true,
                 'queued' => true,
