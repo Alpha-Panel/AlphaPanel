@@ -124,4 +124,21 @@ return [
     |--------------------------------------------------------------------------
     */
     'webauthn_required_for_admin' => env('PANEL_WEBAUTHN_REQUIRED_FOR_ADMIN', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | System Reserved Domains
+    |--------------------------------------------------------------------------
+    | These domains are used by system services and cannot be registered
+    | as customer domains or subdomains in the panel.
+    */
+    'system_reserved_domains' => array_values(array_filter(array_map('trim', [
+        env('PANEL_DOMAIN'),
+        env('PMA_DOMAIN'),
+        env('CODE_SERVER_DOMAIN'),
+        env('VAULTWARDEN_DOMAIN'),
+        env('N8N_DOMAIN'),
+        env('PORTAINER_DOMAIN'),
+        env('JENKINS_DOMAIN'),
+    ]))),
 ];

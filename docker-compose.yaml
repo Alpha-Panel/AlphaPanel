@@ -97,6 +97,7 @@ services:
       VAULTWARDEN_DOMAIN: ${VAULTWARDEN_DOMAIN}
       N8N_DOMAIN: ${N8N_DOMAIN}
       PORTAINER_DOMAIN: ${PORTAINER_DOMAIN}
+      JENKINS_DOMAIN: ${JENKINS_DOMAIN:-}
       CF_API_TOKEN: ${CF_API_TOKEN}
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       DOCKER_HOST: tcp://docker-socket-proxy:2375
@@ -381,7 +382,7 @@ services:
       context: ./jenkins
       dockerfile: Dockerfile
     container_name: jenkins
-    hostname: jenkins.niyazi.org
+    hostname: ${JENKINS_DOMAIN:-jenkins.example.com}
     user: jenkins
     group_add:
         - "988"

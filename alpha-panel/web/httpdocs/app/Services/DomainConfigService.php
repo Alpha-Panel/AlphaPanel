@@ -75,6 +75,12 @@ class DomainConfigService
     protected function writeCaddyConfig(Domain $domain, bool $withTls): void
     {
         $fqdn = $domain->fqdn;
+
+        if (in_array(strtolower($fqdn), array_map('strtolower', config('panel.system_reserved_domains', [])), true)) {
+            Log::warning("Refusing to overwrite system-reserved domain Caddyfile: {$fqdn}");
+
+            return;
+        }
         $rootPath = $domain->getWebRootPath();
         $slug = str_replace('.', '-', $fqdn);
 
@@ -527,6 +533,12 @@ class DomainConfigService
      */
     public function removeConfigsByFqdn(string $fqdn, ?PhpVersion $phpVersion = null): void
     {
+        if (in_array(strtolower($fqdn), array_map('strtolower', config('panel.system_reserved_domains', [])), true)) {
+            Log::warning("Refusing to remove system-reserved domain configs: {$fqdn}");
+
+            return;
+        }
+
         $caddyDir = "{$this->caddySitesBasePath}/{$fqdn}";
         if (File::isDirectory($caddyDir)) {
             File::deleteDirectory($caddyDir);

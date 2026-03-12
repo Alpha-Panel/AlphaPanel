@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\DomainType;
 use App\Enums\SslMethod;
+use App\Rules\NotReservedDomain;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
@@ -25,6 +26,7 @@ class UpdateDomainRequest extends FormRequest
                 'string',
                 'max:255',
                 Rule::unique('domains', 'fqdn')->ignore($this->route('domain')),
+                new NotReservedDomain,
             ],
             'type' => ['required', new Enum(DomainType::class)],
             'root_path' => ['nullable', 'string', 'max:500'],

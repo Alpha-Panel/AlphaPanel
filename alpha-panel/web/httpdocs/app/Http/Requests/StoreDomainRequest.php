@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\DomainType;
+use App\Rules\NotReservedDomain;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
@@ -23,7 +24,7 @@ class StoreDomainRequest extends FormRequest
                 'nullable',
                 'exists:users,id',
             ],
-            'fqdn' => ['required', 'string', 'max:255', 'unique:domains,fqdn'],
+            'fqdn' => ['required', 'string', 'max:255', 'unique:domains,fqdn', new NotReservedDomain],
             'parent_domain_id' => ['nullable', 'exists:domains,id'],
             'type' => ['required', new Enum(DomainType::class)],
             'root_path' => ['nullable', 'string', 'max:500'],
