@@ -172,7 +172,7 @@ import type { SharedProps } from '@/types/inertia';
 interface LoginMethodsResponse {
     has_webauthn: boolean;
     has_totp: boolean;
-    email: string;
+    email: string | null;
 }
 
 type PublicKeyCredentialRequestOptionsPayload = {
@@ -322,7 +322,7 @@ const continueWithIdentifier = async () => {
 
         methods.value = response.data;
 
-        if (methods.value.has_webauthn) {
+        if (methods.value.has_webauthn && methods.value.email) {
             await loginWithDevice(methods.value.email);
 
             return;

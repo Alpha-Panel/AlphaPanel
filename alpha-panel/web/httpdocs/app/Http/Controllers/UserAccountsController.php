@@ -92,16 +92,21 @@ class UserAccountsController extends Controller
             'role' => ['nullable', 'string', 'exists:roles,name'],
         ]);
 
-        $validated['admin'] = (bool) ($validated['admin'] ?? false);
+        $adminValue = (bool) ($validated['admin'] ?? false);
         $roleName = $validated['role'] ?? null;
-        unset($validated['role']);
+        unset($validated['role'], $validated['admin']);
 
         $user = User::create($validated);
+
+        if (auth()->user()->isAdmin()) {
+            $user->admin = $adminValue;
+            $user->save();
+        }
 
         if ($roleName) {
             $user->assignRole($roleName);
         } else {
-            $user->assignRole($validated['admin'] ? 'Admin' : 'Domain Manager');
+            $user->assignRole($adminValue && auth()->user()->isAdmin() ? 'Admin' : 'Domain Manager');
         }
 
         return response()->json(['success' => true, 'user' => $user->only(['id', 'name', 'username', 'email'])]);
@@ -122,15 +127,20 @@ class UserAccountsController extends Controller
             'role' => ['nullable', 'string', 'exists:roles,name'],
         ]);
 
-        $validated['admin'] = (bool) ($validated['admin'] ?? false);
+        $adminValue = (bool) ($validated['admin'] ?? false);
         $roleName = $validated['role'] ?? null;
-        unset($validated['role']);
+        unset($validated['role'], $validated['admin']);
 
         if (empty($validated['password'])) {
             unset($validated['password']);
         }
 
         $user->update($validated);
+
+        if (auth()->user()->isAdmin()) {
+            $user->admin = $adminValue;
+            $user->save();
+        }
 
         if ($roleName) {
             $user->syncRoles([$roleName]);

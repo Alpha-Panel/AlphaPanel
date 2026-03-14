@@ -17,8 +17,10 @@ class DomainCronJobController extends Controller
     {
         $this->authorize('viewCronJobs', $domain);
 
+        $isAdmin = auth()->user()->isAdmin();
+
         $cronJobs = $domain->cronJobs()
-            ->with('latestLog')
+            ->with(['latestLog', 'creator:id,name'])
             ->orderByDesc('created_at')
             ->get()
             ->map(fn (DomainCronJob $job): array => [
@@ -28,6 +30,9 @@ class DomainCronJobController extends Controller
                 'schedule_human' => $this->humanReadableSchedule($job->schedule),
                 'description' => $job->description,
                 'enabled' => $job->enabled,
+                'created_by' => $job->created_by,
+                'creator_name' => $job->creator?->name,
+                'can_modify' => $isAdmin || $job->created_by === auth()->id(),
                 'created_at' => $job->created_at?->toDateTimeString(),
                 'latest_log' => $job->latestLog ? [
                     'status' => $job->latestLog->status,
@@ -54,7 +59,10 @@ class DomainCronJobController extends Controller
 
         $validated = $request->validate($this->cronJobRules());
 
-        $cronJob = $domain->cronJobs()->create($validated);
+        $cronJob = $domain->cronJobs()->create([
+            ...$validated,
+            'created_by' => auth()->id(),
+        ]);
         $cronJob->refresh();
 
         $this->createAuditLog(
@@ -74,6 +82,9 @@ class DomainCronJobController extends Controller
                 'schedule_human' => $this->humanReadableSchedule($cronJob->schedule),
                 'description' => $cronJob->description,
                 'enabled' => $cronJob->enabled,
+                'created_by' => $cronJob->created_by,
+                'creator_name' => auth()->user()->name,
+                'can_modify' => true,
                 'created_at' => $cronJob->created_at?->toDateTimeString(),
                 'latest_log' => null,
             ],
@@ -84,6 +95,7 @@ class DomainCronJobController extends Controller
     {
         $this->authorize('manageCronJobs', $domain);
         $this->ensureBelongsToDomain($cronJob, $domain);
+        $this->ensureCanModify($cronJob);
 
         $validated = $request->validate($this->cronJobRules());
 
@@ -114,6 +126,7 @@ class DomainCronJobController extends Controller
     {
         $this->authorize('manageCronJobs', $domain);
         $this->ensureBelongsToDomain($cronJob, $domain);
+        $this->ensureCanModify($cronJob);
 
         $summary = "{$cronJob->schedule} {$cronJob->command}";
         $cronJob->delete();
@@ -130,6 +143,7 @@ class DomainCronJobController extends Controller
     {
         $this->authorize('manageCronJobs', $domain);
         $this->ensureBelongsToDomain($cronJob, $domain);
+        $this->ensureCanModify($cronJob);
 
         $cronJob->update(['enabled' => ! $cronJob->enabled]);
 
@@ -180,6 +194,13 @@ class DomainCronJobController extends Controller
         }
     }
 
+    private function ensureCanModify(DomainCronJob $cronJob): void
+    {
+        if (! auth()->user()->isAdmin() && $cronJob->created_by !== auth()->id()) {
+            abort(403, __('You can only modify cron jobs you created.'));
+        }
+    }
+
     private function createAuditLog(Request $request, Domain $domain, string $action, string $summary): void
     {
         AuditLog::create([
@@ -214,12 +235,37 @@ class DomainCronJobController extends Controller
     /** @return array<string, mixed> */
     private function cronJobRules(): array
     {
+        $isAdmin = auth()->user()->isAdmin();
+
         return [
-            'command' => ['required', 'string', 'max:500', function (string $attribute, mixed $value, \Closure $fail): void {
-                $blocked = ['rm -rf /', 'mkfs', 'dd if=', ':(){', 'chmod -R 777 /', 'chown -R'];
-                foreach ($blocked as $pattern) {
-                    if (str_contains((string) $value, $pattern)) {
-                        $fail(__('The command contains a blocked pattern.'));
+            'command' => ['required', 'string', 'max:500', function (string $attribute, mixed $value, \Closure $fail) use ($isAdmin): void {
+                $cmd = (string) $value;
+
+                if ($isAdmin) {
+                    // Admins: only block catastrophically destructive patterns
+                    $blocked = ['rm -rf /', 'mkfs', 'dd if=', ':(){', 'chmod -R 777 /'];
+                    foreach ($blocked as $pattern) {
+                        if (str_contains($cmd, $pattern)) {
+                            $fail(__('The command contains a blocked pattern.'));
+
+                            return;
+                        }
+                    }
+                } else {
+                    // Non-admins: block shell metacharacters (no piping, chaining, redirection)
+                    $dangerousPatterns = ['`', '$(', '${', ';', '&&', '||', '|', '>', '<', "\n", "\r"];
+                    foreach ($dangerousPatterns as $pattern) {
+                        if (str_contains($cmd, $pattern)) {
+                            $fail(__('The command contains a disallowed character or pattern.'));
+
+                            return;
+                        }
+                    }
+
+                    // Non-admins: command must start with php
+                    $normalized = trim($cmd);
+                    if (! str_starts_with($normalized, 'php ') && ! str_starts_with($normalized, 'php artisan ')) {
+                        $fail(__('The command must start with "php" or "php artisan".'));
 
                         return;
                     }

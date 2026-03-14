@@ -140,6 +140,32 @@ if (!$row || !$mysqli) {
     exit('Token not found');
 }
 
+// Decrypt mysql_pass — Laravel 'encrypted' cast uses AES-256-CBC with APP_KEY
+$panelAppKey = getenv('PANEL_APP_KEY') ?: '';
+if ($panelAppKey !== '' && ($row['mysql_pass'] ?? '') !== '') {
+    $appKeyRaw = $panelAppKey;
+    if (str_starts_with($appKeyRaw, 'base64:')) {
+        $appKeyRaw = base64_decode(substr($appKeyRaw, 7), true);
+    }
+    if ($appKeyRaw !== false && strlen($appKeyRaw) >= 16) {
+        $payload = json_decode(base64_decode($row['mysql_pass'], true) ?: '', true);
+        if (is_array($payload) && isset($payload['iv'], $payload['value'], $payload['mac'])) {
+            $iv = base64_decode($payload['iv'], true);
+            $value = base64_decode($payload['value'], true);
+            // Verify HMAC-SHA256 MAC
+            $calcMac = hash_hmac('sha256', $payload['iv'].$payload['value'], $appKeyRaw, true);
+            if ($iv !== false && $value !== false && hash_equals($calcMac, base64_decode($payload['mac'], true) ?: '')) {
+                $decrypted = openssl_decrypt($value, 'aes-256-cbc', $appKeyRaw, OPENSSL_RAW_DATA, $iv);
+                if ($decrypted !== false) {
+                    // Laravel wraps the value in serialize(); strip it
+                    $unserialized = @unserialize($decrypted);
+                    $row['mysql_pass'] = $unserialized !== false ? $unserialized : $decrypted;
+                }
+            }
+        }
+    }
+}
+
 $expiresAt = strtotime((string)$row['expires_at']);
 if ($expiresAt !== false && $expiresAt < time()) {
     $del = mysqli_prepare($mysqli, "DELETE FROM phpmyadmin_sso_tokens WHERE token = ? LIMIT 1");

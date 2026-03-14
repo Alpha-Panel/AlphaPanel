@@ -294,8 +294,21 @@ class DomainConfigService
     {
         // If bypass_reverse_proxy is enabled and custom directives exist, use them
         if ($domain->bypass_reverse_proxy && ! empty($domain->custom_caddy_directives)) {
+            $directives = $domain->custom_caddy_directives;
+
+            // Defense-in-depth: block dangerous patterns even if validation was bypassed
+            $blocked = ['import', '{env.', '{system.', 'exec', '{http.vars.'];
+            $lower = strtolower($directives);
+            foreach ($blocked as $pattern) {
+                if (str_contains($lower, $pattern)) {
+                    Log::warning("Blocked dangerous Caddy directive for {$fqdn}: contains '{$pattern}'");
+
+                    return ["{$indent}# Custom directives blocked due to security policy"];
+                }
+            }
+
             $lines = [];
-            foreach (explode("\n", $domain->custom_caddy_directives) as $line) {
+            foreach (explode("\n", $directives) as $line) {
                 $trimmed = rtrim($line);
                 $lines[] = $trimmed !== '' ? "{$indent}{$trimmed}" : '';
             }
@@ -414,6 +427,11 @@ class DomainConfigService
         $lines[] = 'pm.min_spare_servers = 1';
         $lines[] = 'pm.max_spare_servers = 3';
         $lines[] = "chdir = {$webRoot}";
+
+        // Filesystem isolation — restrict PHP to domain root + essential paths
+        $basePath = $domain->getBasePath();
+        $openBasedir = implode(':', [$basePath, '/tmp', '/dev/urandom']);
+        $lines[] = "php_admin_value[open_basedir] = {$openBasedir}";
 
         // PHP settings — use PhpSetting record or defaults
         $setting = $domain->phpSetting;

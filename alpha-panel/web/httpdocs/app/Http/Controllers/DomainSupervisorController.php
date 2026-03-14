@@ -247,11 +247,15 @@ class DomainSupervisorController extends Controller
 
         $domain->loadMissing('ftpUser');
 
-        $command = trim($request->validated()['command']);
+        $raw = trim($request->validated()['command']);
 
-        // Normalize: ensure it starts with "php artisan"
-        if (str_starts_with($command, 'artisan ')) {
-            $command = 'php '.$command;
+        // Parse and rebuild command with escaped arguments to prevent injection
+        $normalized = str_starts_with($raw, 'artisan ') ? 'php '.$raw : $raw;
+        $parts = preg_split('/\s+/', $normalized);
+        // $parts[0] = 'php', $parts[1] = 'artisan', $parts[2] = subcommand, rest = args
+        $command = 'php artisan '.($parts[2] ?? '');
+        for ($i = 3, $count = count($parts); $i < $count; $i++) {
+            $command .= ' '.escapeshellarg($parts[$i]);
         }
 
         $container = $domain->type === DomainType::ApacheReverseProxy

@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Enums\DomainType;
 use App\Models\DomainCronJob;
 use App\Models\DomainCronJobLog;
+use App\Models\User;
 use App\Services\PortainerService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -35,6 +36,12 @@ class ExecuteDomainCronJob implements ShouldQueue
             $basePath = $domain->getBasePath();
             $webRoot = $basePath.'/httpdocs';
             $command = $this->cronJob->command;
+
+            // Defense-in-depth: escape shell metacharacters for non-admin cron jobs
+            $creator = $this->cronJob->created_by ? User::find($this->cronJob->created_by) : null;
+            if (! $creator?->isAdmin()) {
+                $command = escapeshellcmd($command);
+            }
 
             // Build a sandboxed script that prevents directory traversal
             $escapedWebRoot = escapeshellarg($webRoot);

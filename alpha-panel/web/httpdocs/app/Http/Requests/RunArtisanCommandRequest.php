@@ -6,6 +6,30 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class RunArtisanCommandRequest extends FormRequest
 {
+    /** @var list<string> */
+    private const ALLOWED_SUBCOMMANDS = [
+        'optimize',
+        'optimize:clear',
+        'config:cache',
+        'config:clear',
+        'route:cache',
+        'route:clear',
+        'view:cache',
+        'view:clear',
+        'event:cache',
+        'event:clear',
+        'cache:clear',
+        'queue:restart',
+        'migrate',
+        'migrate:status',
+        'migrate:fresh',
+        'storage:link',
+        'storage:unlink',
+        'schedule:list',
+        'key:generate',
+        'package:discover',
+    ];
+
     public function authorize(): bool
     {
         return true;
@@ -18,19 +42,21 @@ class RunArtisanCommandRequest extends FormRequest
             'command' => ['required', 'string', 'max:500', function (string $attribute, mixed $value, \Closure $fail): void {
                 $normalized = trim((string) $value);
 
-                if (! str_starts_with($normalized, 'php artisan ') && ! str_starts_with($normalized, 'artisan ')) {
+                if (str_starts_with($normalized, 'php artisan ')) {
+                    $rest = substr($normalized, strlen('php artisan '));
+                } elseif (str_starts_with($normalized, 'artisan ')) {
+                    $rest = substr($normalized, strlen('artisan '));
+                } else {
                     $fail(__('The command must start with "php artisan".'));
 
                     return;
                 }
 
-                $blocked = ['rm -rf /', 'mkfs', 'dd if=', ':(){', 'chmod -R 777 /', 'chown -R'];
-                foreach ($blocked as $pattern) {
-                    if (str_contains($normalized, $pattern)) {
-                        $fail(__('The command contains a blocked pattern.'));
+                $parts = preg_split('/\s+/', trim($rest));
+                $subcommand = $parts[0] ?? '';
 
-                        return;
-                    }
+                if (! in_array($subcommand, self::ALLOWED_SUBCOMMANDS, true)) {
+                    $fail(__('The artisan command ":cmd" is not allowed.', ['cmd' => $subcommand]));
                 }
             }],
         ];

@@ -57,6 +57,21 @@ class UpdateDomainRequest extends FormRequest
                 'string',
                 'max:5000',
                 Rule::requiredIf(fn () => $this->boolean('bypass_reverse_proxy')),
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($value === null || $value === '') {
+                        return;
+                    }
+
+                    $blocked = ['import', '{env.', '{system.', 'exec', '{http.vars.'];
+                    $lower = strtolower((string) $value);
+                    foreach ($blocked as $pattern) {
+                        if (str_contains($lower, $pattern)) {
+                            $fail(__('Custom Caddy directives contain a blocked pattern: :pattern', ['pattern' => $pattern]));
+
+                            return;
+                        }
+                    }
+                },
             ],
         ];
     }

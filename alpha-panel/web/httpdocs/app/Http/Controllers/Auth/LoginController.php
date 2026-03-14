@@ -48,18 +48,24 @@ class LoginController extends Controller implements HasMiddleware
         $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
 
         $user = User::query()->where($field, $login)->first();
+
+        // Return identical structure for non-existent users to prevent enumeration
         if (! $user) {
             return response()->json([
-                'message' => 'Account could not be found for this username/email.',
-            ], 422);
+                'has_webauthn' => false,
+                'has_totp' => false,
+                'email' => null,
+            ]);
         }
 
+        $hasWebauthn = WebAuthn::query()
+            ->where('authenticatable_id', $user->id)
+            ->exists();
+
         return response()->json([
-            'has_webauthn' => WebAuthn::query()
-                ->where('authenticatable_id', $user->id)
-                ->exists(),
+            'has_webauthn' => $hasWebauthn,
             'has_totp' => (bool) $user->two_factor_confirmed,
-            'email' => $user->email,
+            'email' => $hasWebauthn ? $user->email : null,
         ]);
     }
 

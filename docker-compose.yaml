@@ -347,6 +347,7 @@ services:
       PMA_SIGNON_BOOTSTRAP_URL: https://${PANEL_DOMAIN}:8443/pma/admin/sso
       PMA_SSO_ENFORCE_IP: ${PMA_SSO_ENFORCE_IP:-0}
       PMA_SSO_SINGLE_USE: ${PMA_SSO_SINGLE_USE:-0}
+      PANEL_APP_KEY: ${PANEL_APP_KEY}
     volumes:
       - ./phpmyadmin/config.inc.php:/etc/phpmyadmin/config.inc.php:ro
       - ./phpmyadmin/signon.php:/var/www/html/signon.php:ro

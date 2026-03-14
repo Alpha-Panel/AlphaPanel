@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -15,7 +16,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements WebAuthnAuthenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable, WebAuthnAuthentication;
 
     /** @var list<string> */
@@ -24,9 +25,6 @@ class User extends Authenticatable implements WebAuthnAuthenticatable
         'username',
         'email',
         'password',
-        'admin',
-        'otp',
-        'two_factor_confirmed',
     ];
 
     /** @var list<string> */

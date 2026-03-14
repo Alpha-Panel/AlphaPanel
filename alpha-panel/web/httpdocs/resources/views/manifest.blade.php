@@ -10,11 +10,6 @@
     "start_url": "/",
     "manifest_version": 2,
     "version": "1.0.2",
-    "app": {
-            "background": {
-            "scripts": ["OneSignalSDKWorker.js"]
-        }
-    },
     "shortcuts": [
         {
             "name": "AlphaPanel",

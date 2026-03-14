@@ -18,6 +18,7 @@ class DomainCronJob extends Model
         'schedule',
         'description',
         'enabled',
+        'created_by',
     ];
 
     /** @return array<string, string> */
@@ -31,6 +32,11 @@ class DomainCronJob extends Model
     public function domain(): BelongsTo
     {
         return $this->belongsTo(Domain::class);
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function logs(): HasMany
