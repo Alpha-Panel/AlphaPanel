@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 use React\EventLoop\Loop;
 use React\Socket\ConnectionInterface;
 use React\Socket\Connector;
-use React\Socket\SocketServer as SocketServer;
+use React\Socket\SocketServer;
 
 class TerminalServeCommand extends Command
 {
@@ -24,7 +24,7 @@ class TerminalServeCommand extends Command
         $port = (int) $this->option('port');
         $loop = Loop::get();
 
-        $server = new SocketServer("0.0.0.0:{$port}", $loop);
+        $server = new SocketServer("0.0.0.0:{$port}", [], $loop);
 
         $this->info("Terminal WebSocket proxy listening on 0.0.0.0:{$port}");
         Log::info("[TerminalServe] Listening on port {$port}");
