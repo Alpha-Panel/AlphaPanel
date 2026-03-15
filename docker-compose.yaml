@@ -173,7 +173,7 @@ services:
       - "${PRIVATE_NETWORK_IP}:2019:2019"
 
   crowdsec:
-    image: crowdsecurity/crowdsec:latest
+    image: crowdsecurity/crowdsec:v1.7.6
     container_name: crowdsec
     restart: unless-stopped
     depends_on:
@@ -294,7 +294,7 @@ services:
       - vhost_network
 
   redis:
-    image: redis:latest
+    image: redis:7.4.8-alpine
     container_name: redis
     hostname: redis.niyazi.org
     restart: always
@@ -306,14 +306,14 @@ services:
       - vhost_network
 
   memcached:
-    image: memcached:latest
+    image: memcached:1.6.41-alpine
     container_name: memcached
     restart: always
     networks:
       - vhost_network
 
   password:
-    image: "vaultwarden/server:latest"
+    image: "vaultwarden/server:1.35.4-alpine"
     hostname: "${VAULTWARDEN_DOMAIN}"
     container_name: password
     restart: always
@@ -326,7 +326,7 @@ services:
       - vhost_network
 
   phpmyadmin:
-    image: phpmyadmin:latest
+    image: phpmyadmin:5.2.3
     container_name: phpmyadmin
     hostname: ${PMA_DOMAIN}
     restart: always
@@ -355,7 +355,7 @@ services:
       - vhost_network
 
   ftp:
-    image: delfer/alpine-ftp-server    # Alpine + vsftpd, FTPS destekli
+    image: delfer/alpine-ftp-server:latest    # Versiyon tag'i yok, güncelleme sonrası doğrula
     container_name: ftp-server
     hostname: ftp-server
     restart: always
@@ -466,7 +466,7 @@ services:
       - vhost_network
 
   portainer:
-    image: portainer/portainer-ce
+    image: portainer/portainer-ce:2.39.0
     restart: always
     container_name: portainer
     environment:
@@ -481,7 +481,7 @@ services:
       - vhost_network
 
   portainer_agent:
-    image: portainer/agent:alpine-sts
+    image: portainer/agent:2.39.0-alpine
     container_name: portainer-agent
     restart: always
     volumes:
@@ -491,7 +491,7 @@ services:
       - vhost_network
 
   docker-socket-proxy:
-    image: tecnativa/docker-socket-proxy:latest
+    image: tecnativa/docker-socket-proxy:v0.4.2
     container_name: docker-socket-proxy
     restart: unless-stopped
     environment:

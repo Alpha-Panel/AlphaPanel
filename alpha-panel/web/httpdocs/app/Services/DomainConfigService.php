@@ -28,9 +28,7 @@ class DomainConfigService
      */
     public function renderWithoutTls(Domain $domain): void
     {
-        if ($domain->type === DomainType::ApacheReverseProxy) {
-            $this->ensureDirectories($domain);
-        }
+        $this->ensureDirectories($domain);
 
         $this->writeCaddyConfig($domain, false);
 
@@ -51,6 +49,8 @@ class DomainConfigService
             $this->writeApacheConfig($domain);
             $this->writePhpFpmConfig($domain);
         }
+
+        $this->writeUserIni($domain);
     }
 
     /**
@@ -481,6 +481,47 @@ class DomainConfigService
         ]);
 
         Log::info("Ensured directories for {$domain->fqdn}: {$webRoot}, {$logsPath} (owner: {$poolUser})");
+
+        $this->writeUserIni($domain);
+    }
+
+    /**
+     * Write a .user.ini with open_basedir restriction to the domain's web root.
+     * The file is owned by root and made immutable with chattr +i so site owners cannot modify or delete it.
+     */
+    public function writeUserIni(Domain $domain): void
+    {
+        $iniPath = escapeshellarg("{$domain->getWebRootPath()}/.user.ini");
+        $openBasedir = implode(':', [$domain->getBasePath(), '/tmp', '/dev/urandom']);
+
+        $container = $domain->type === DomainType::CaddyWebServer
+            ? 'frankenphp'
+            : 'php-code-server';
+
+        $portainer = app(PortainerService::class);
+
+        // Unlock if already immutable (ignore errors for new domains)
+        $portainer->execInContainer($container, [
+            'sh', '-c', "chattr -i {$iniPath} 2>/dev/null || true",
+        ]);
+
+        // Write the .user.ini file — use printf to avoid literal newline issues in shell
+        $result = $portainer->execInContainer($container, [
+            'sh', '-c', "printf '; AlphaPanel -- DO NOT MODIFY\nopen_basedir = {$openBasedir}\n' > {$iniPath}",
+        ]);
+
+        if (! $result->isSuccessful()) {
+            Log::error("Failed to write .user.ini for {$domain->fqdn}: {$result->errorOutput} {$result->output}");
+
+            return;
+        }
+
+        // Set ownership to root and make read-only, then lock immutable
+        $portainer->execInContainer($container, [
+            'sh', '-c', "chown root:root {$iniPath} && chmod 444 {$iniPath} && chattr +i {$iniPath} 2>/dev/null || true",
+        ]);
+
+        Log::info("Wrote .user.ini for {$domain->fqdn} (open_basedir: {$openBasedir})");
     }
 
     /**

@@ -19,6 +19,7 @@ use App\Services\DomainConfigService;
 use App\Services\FtpUserService;
 use App\Services\PortainerService;
 use App\Services\ServerNetworkInfoService;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -417,7 +418,15 @@ class DomainController extends Controller
             ? 'php-code-server'
             : 'frankenphp';
 
+        $userIniPath = escapeshellarg("{$domain->getWebRootPath()}/.user.ini");
+
         try {
+            // Unlock .user.ini before bulk chown (immutable flag prevents ownership change)
+            $portainer->execInContainer(
+                $container,
+                ['sh', '-c', "chattr -i {$userIniPath} 2>/dev/null || true"],
+            );
+
             $result = $portainer->execInContainer(
                 $container,
                 ['sh', '-c', "chown {$username}:www-data -R {$basePath}"],
@@ -432,6 +441,12 @@ class DomainController extends Controller
 
                 throw new \RuntimeException($error);
             }
+
+            // Relock .user.ini — root-owned and immutable so site owner cannot tamper
+            $portainer->execInContainer(
+                $container,
+                ['sh', '-c', "chown root:root {$userIniPath} && chmod 444 {$userIniPath} && chattr +i {$userIniPath} 2>/dev/null || true"],
+            );
 
             AuditLog::create([
                 'user_id' => $request->user()?->id,
@@ -699,7 +714,7 @@ class DomainController extends Controller
             'status_badge' => $domain->status->badgeHtml(),
             'type_badge' => $domain->type->badgeHtml(),
             'php_version' => $domain->phpVersion->slug ?? '-',
-            'worker' => $domain->type === \App\Enums\DomainType::CaddyWebServer
+            'worker' => $domain->type === DomainType::CaddyWebServer
                 ? ($domain->enable_worker ? __('Enabled') : __('Disabled'))
                 : '-',
             'created_at' => $domain->created_at?->format(config('app.display_datetime_format', 'd.m.Y H:i:s')) ?? '-',
@@ -720,7 +735,7 @@ class DomainController extends Controller
     }
 
     /**
-     * @param  \Illuminate\Database\Eloquent\Collection<int, Domain>  $domains
+     * @param  Collection<int, Domain>  $domains
      * @return array<int, bool|null>
      */
     private function getUnderAttackStatuses($domains, CloudflareDnsService $cloudflare): array

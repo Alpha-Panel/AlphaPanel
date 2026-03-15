@@ -24,6 +24,7 @@ RUN apt-get update \
       apache2-utils \
       ssl-cert \
       vim \
+      e2fsprogs \
  && add-apt-repository ppa:ondrej/php -y \
  && apt-get update
 
