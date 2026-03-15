@@ -1597,9 +1597,19 @@ yarn.lock
               ln -sfn "$release" "$CURRENT"
               do_rollback=0
 
+              # Write .user.ini (open_basedir restriction)
+              doc_root="$release/public"
+              [ -d "$doc_root" ] || doc_root="$release"
+              user_ini="$doc_root/.user.ini"
+              printf "; AlphaPanel -- DO NOT MODIFY\\nopen_basedir = %s:/tmp:/dev/urandom\\n" "$SITE_ROOT" > "$user_ini"
+              chown root:root "$user_ini" && chmod 444 "$user_ini"
+              chattr +i "$user_ini" 2>/dev/null || true
+
               # Cleanup (CURRENT hedefini asla silme)
               if [ -n "$KEEP_RELEASES" ]; then
                 cur="$(readlink -f "$CURRENT" || true)"
+                # Unlock immutable .user.ini files before cleanup
+                find "$RELEASES" -name ".user.ini" -exec chattr -i {} \\; 2>/dev/null || true
                 ls -1dt "$RELEASES"/* 2>/dev/null \\
                   | grep -v "/initial$" \\
                   | grep -vFx "$cur" \\

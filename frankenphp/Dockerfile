@@ -10,7 +10,6 @@ COPY --from=caddy:builder /usr/bin/xcaddy /usr/bin/xcaddy
 RUN apt-get update && apt-get install -y --no-install-recommends \
       git ca-certificates \
       openssh-client \
-      npm \
       vim \
     && rm -rf /var/lib/apt/lists/*
 
@@ -88,7 +87,12 @@ RUN apt-get update \
  && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian bookworm stable" \
     > /etc/apt/sources.list.d/docker.list \
  && apt-get update \
- && apt-get install -y --no-install-recommends docker-ce-cli vim npm openssh-client default-mysql-client \
+ && apt-get install -y --no-install-recommends docker-ce-cli vim openssh-client default-mysql-client \
+ && rm -rf /var/lib/apt/lists/*
+
+# Node.js 22.x (Vite 7+ requires Node.js 20.19+ or 22.12+)
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+ && apt-get install -y nodejs \
  && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /etc/supervisor/conf.d /var/log/supervisor /var/run
