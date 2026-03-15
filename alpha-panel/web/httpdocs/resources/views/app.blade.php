@@ -7,6 +7,9 @@
     <title inertia>{{ config('app.name', 'AlphaPanel') }}</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/svg+xml" href="/img/AlphaPanel-dark.svg">
+    <link rel="stylesheet" href="{{asset('fontawesome/css/all.css')}}">
+    <link rel="stylesheet" href="{{asset('lineicons/free-regular-font/lineicons-free.css')}}">
+    <link rel="stylesheet" href="{{asset('font-mfizz/font-mfizz.css')}}">
     @routes
     @vite(['resources/css/app.css', 'resources/js/app.ts'])
     @inertiaHead

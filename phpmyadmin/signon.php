@@ -62,7 +62,6 @@ $panelDbPass = getenv('PANEL_DB_PASS') ?: '';
 $panelDbRootPass = getenv('PANEL_DB_ROOT_PASS') ?: '';
 $panelDbPort = (int)(getenv('PANEL_DB_PORT') ?: 3306);
 $enforceIp = (getenv('PMA_SSO_ENFORCE_IP') ?: '0') === '1';
-$singleUseToken = (getenv('PMA_SSO_SINGLE_USE') ?: '0') === '1';
 $requestIp = (string)($_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? '');
 
 $hosts = array_values(array_filter(array_unique([
@@ -151,11 +150,11 @@ if ($panelAppKey !== '' && ($row['mysql_pass'] ?? '') !== '') {
         $payload = json_decode(base64_decode($row['mysql_pass'], true) ?: '', true);
         if (is_array($payload) && isset($payload['iv'], $payload['value'], $payload['mac'])) {
             $iv = base64_decode($payload['iv'], true);
-            $value = base64_decode($payload['value'], true);
-            // Verify HMAC-SHA256 MAC
-            $calcMac = hash_hmac('sha256', $payload['iv'].$payload['value'], $appKeyRaw, true);
-            if ($iv !== false && $value !== false && hash_equals($calcMac, base64_decode($payload['mac'], true) ?: '')) {
-                $decrypted = openssl_decrypt($value, 'aes-256-cbc', $appKeyRaw, OPENSSL_RAW_DATA, $iv);
+            // Verify HMAC-SHA256 MAC — Laravel stores mac as hex string (not raw binary)
+            $calcMac = hash_hmac('sha256', $payload['iv'].$payload['value'], $appKeyRaw);
+            if ($iv !== false && hash_equals($calcMac, $payload['mac'])) {
+                // Laravel encrypts with flag 0 (base64 output), so pass value as-is with flag 0
+                $decrypted = openssl_decrypt($payload['value'], 'aes-256-cbc', $appKeyRaw, 0, $iv);
                 if ($decrypted !== false) {
                     // Laravel wraps the value in serialize(); strip it
                     $unserialized = @unserialize($decrypted);
@@ -198,14 +197,12 @@ if (
     exit('Token IP mismatch');
 }
 
-if ($singleUseToken) {
-    // Tek kullanimlik token, istenirse env ile acilir.
-    $del = mysqli_prepare($mysqli, "DELETE FROM phpmyadmin_sso_tokens WHERE token = ? LIMIT 1");
-    if ($del) {
-        mysqli_stmt_bind_param($del, 's', $token);
-        mysqli_stmt_execute($del);
-        mysqli_stmt_close($del);
-    }
+// Token kullanıldıktan sonra sil — tek kullanımlık
+$del = mysqli_prepare($mysqli, "DELETE FROM phpmyadmin_sso_tokens WHERE token = ? LIMIT 1");
+if ($del) {
+    mysqli_stmt_bind_param($del, 's', $token);
+    mysqli_stmt_execute($del);
+    mysqli_stmt_close($del);
 }
 mysqli_close($mysqli);
 
