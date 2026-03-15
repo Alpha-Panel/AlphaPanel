@@ -2,56 +2,40 @@
 
 namespace App\Services;
 
-use Cloudflare\API\Adapter\Guzzle;
-use Cloudflare\API\Auth\APIKey;
-use Cloudflare\API\Configurations\FirewallRuleOptions;
-use Cloudflare\API\Endpoints\DNS;
-use Cloudflare\API\Endpoints\EndpointException;
-use Cloudflare\API\Endpoints\Firewall;
-use Cloudflare\API\Endpoints\Zones;
+use App\Exceptions\CloudflareException;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class CloudflareDnsService
 {
-    private ?Guzzle $adapter = null;
-
-    private ?DNS $dns = null;
-
-    private ?Zones $zones = null;
-
-    private ?Firewall $firewall = null;
+    private ?CloudflareClient $client = null;
 
     protected function boot(): void
     {
-        if ($this->adapter !== null) {
+        if ($this->client !== null) {
             return;
         }
 
-        $email = config('panel.cloudflare_email');
-        $apiKey = config('panel.cloudflare_api_key');
-
-        if (empty($email) || empty($apiKey)) {
-            throw new \RuntimeException('Cloudflare API credentials are not configured (email + API key).');
-        }
-
-        $auth = new APIKey($email, $apiKey);
-        $this->adapter = new Guzzle($auth);
-        $this->zones = new Zones($this->adapter);
-        $this->dns = new DNS($this->adapter);
-        $this->firewall = new Firewall($this->adapter);
+        $this->client = app(CloudflareClient::class);
     }
 
     /**
      * Find the Cloudflare Zone ID for a domain.
      *
-     * @throws EndpointException
+     * @throws CloudflareException
      */
     public function getZoneId(string $domainName): string
     {
         $this->boot();
 
-        return $this->zones->getZoneID($domainName);
+        $response = $this->client->get('zones', ['name' => $domainName]);
+        $zones = $response['result'] ?? [];
+
+        if (empty($zones)) {
+            throw new CloudflareException("Zone not found for domain: {$domainName}");
+        }
+
+        return (string) $zones[0]['id'];
     }
 
     /**
@@ -59,22 +43,30 @@ class CloudflareDnsService
      *
      * @return array<int, object>
      *
-     * @throws EndpointException
+     * @throws CloudflareException
      */
     public function listRecords(string $zoneId, string $search = '', string $order = 'type', string $direction = 'asc'): array
     {
         $this->boot();
 
-        $response = $this->dns->listRecords(
-            $zoneId,
-            name: $search,
-            perPage: 5000,
-            order: $order,
-            direction: $direction,
-            match: 'any',
-        );
+        $query = [
+            'per_page' => 5000,
+            'order' => $order,
+            'direction' => $direction,
+            'match' => 'any',
+        ];
 
-        return $response->result ?? [];
+        if ($search !== '') {
+            $query['name'] = $search;
+        }
+
+        $response = $this->client->get("zones/{$zoneId}/dns_records", $query);
+        $records = $response['result'] ?? [];
+
+        return array_map(
+            fn (array $record): \stdClass => json_decode(json_encode($record)),
+            $records,
+        );
     }
 
     /**
@@ -82,22 +74,31 @@ class CloudflareDnsService
      *
      * @param  array<string, mixed>  $data
      *
-     * @throws EndpointException
+     * @throws CloudflareException
      */
     public function addRecord(string $zoneId, array $data): bool
     {
         $this->boot();
 
-        return $this->dns->addRecord(
-            $zoneId,
-            $data['type'],
-            $data['name'],
-            $data['content'],
-            $data['ttl'] ?? 1,
-            $data['proxied'] ?? false,
-            priority: $data['priority'] ?? '',
-            data: $data['data'] ?? [],
-        );
+        $payload = [
+            'type' => $data['type'],
+            'name' => $data['name'],
+            'content' => $data['content'],
+            'ttl' => $data['ttl'] ?? 1,
+            'proxied' => $data['proxied'] ?? false,
+        ];
+
+        if (! empty($data['priority'])) {
+            $payload['priority'] = (int) $data['priority'];
+        }
+
+        if (! empty($data['data'])) {
+            $payload['data'] = $data['data'];
+        }
+
+        $response = $this->client->post("zones/{$zoneId}/dns_records", $payload);
+
+        return $response['success'] ?? false;
     }
 
     /**
@@ -105,24 +106,52 @@ class CloudflareDnsService
      *
      * @param  array<string, mixed>  $data
      *
-     * @throws EndpointException
+     * @throws CloudflareException
      */
     public function updateRecord(string $zoneId, string $recordId, array $data): \stdClass
     {
         $this->boot();
 
-        return $this->dns->updateRecordDetails($zoneId, $recordId, $data);
+        $response = $this->client->put("zones/{$zoneId}/dns_records/{$recordId}", $data);
+
+        return json_decode(json_encode($response['result'] ?? []));
     }
 
     /**
      * Delete a DNS record.
-     *
      */
     public function deleteRecord(string $zoneId, string $recordId): bool
     {
         $this->boot();
 
-        return $this->dns->deleteRecord($zoneId, $recordId);
+        try {
+            $this->client->delete("zones/{$zoneId}/dns_records/{$recordId}");
+
+            return true;
+        } catch (CloudflareException $e) {
+            Log::warning("Cloudflare DNS record delete failed for {$zoneId}/{$recordId}: {$e->getMessage()}");
+
+            return false;
+        }
+    }
+
+    /**
+     * Get details for a specific DNS record.
+     *
+     * @throws CloudflareException
+     */
+    public function getRecordDetails(string $zoneId, string $recordId): ?object
+    {
+        $this->boot();
+
+        $response = $this->client->get("zones/{$zoneId}/dns_records/{$recordId}");
+        $result = $response['result'] ?? null;
+
+        if (! is_array($result)) {
+            return null;
+        }
+
+        return json_decode(json_encode($result));
     }
 
     /**
@@ -174,7 +203,6 @@ class CloudflareDnsService
 
     /**
      * Quickly add an A record for a subdomain.
-     *
      */
     public function addSubdomainRecord(string $apexDomain, string $fqdn, string $ip, bool $proxied = false): bool
     {
@@ -182,7 +210,7 @@ class CloudflareDnsService
             $zoneId = $this->getZoneId($apexDomain);
 
             return $this->ensureARecord($zoneId, $fqdn, $ip, $proxied);
-        } catch (EndpointException $e) {
+        } catch (CloudflareException $e) {
             Log::error("Failed to add DNS record for {$fqdn}: {$e->getMessage()}");
 
             return false;
@@ -201,7 +229,7 @@ class CloudflareDnsService
             $issueWildCaaSynced = $this->ensureCaaRecord($zoneId, $apexDomain, 'issuewild', 'letsencrypt.org');
 
             return $apexSynced && $wwwSynced && $issueCaaSynced && $issueWildCaaSynced;
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             Log::warning("Cloudflare apex bootstrap DNS sync failed for {$apexDomain}: {$exception->getMessage()}");
 
             return false;
@@ -231,7 +259,7 @@ class CloudflareDnsService
             }
 
             return $deletedCount;
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error("Failed to delete DNS A record(s) for {$fqdn}: {$e->getMessage()}");
 
             return 0;
@@ -239,6 +267,8 @@ class CloudflareDnsService
     }
 
     /**
+     * Get a summary of the Cloudflare zone for a domain.
+     *
      * @return array{
      *     exists: bool,
      *     zone_id: string|null,
@@ -252,52 +282,42 @@ class CloudflareDnsService
     {
         try {
             $this->boot();
-            $zoneId = $this->zones->getZoneID($domainName);
-            $zoneResponse = $this->zones->getZoneById($zoneId);
-            $zone = $zoneResponse->result ?? null;
+            $zoneId = $this->getZoneId($domainName);
+            $response = $this->client->get("zones/{$zoneId}");
+            $zone = $response['result'] ?? null;
 
-            if (! is_object($zone)) {
+            if (! is_array($zone)) {
                 return $this->emptyZoneSummary();
             }
 
             return [
                 'exists' => true,
-                'zone_id' => (string) ($zone->id ?? $zoneId),
-                'zone_name' => (string) ($zone->name ?? $domainName),
-                'status' => isset($zone->status) ? (string) $zone->status : null,
-                'name_servers' => $this->normalizeStringList($zone->name_servers ?? []),
-                'original_name_servers' => $this->normalizeStringList($zone->original_name_servers ?? []),
+                'zone_id' => (string) ($zone['id'] ?? $zoneId),
+                'zone_name' => (string) ($zone['name'] ?? $domainName),
+                'status' => isset($zone['status']) ? (string) $zone['status'] : null,
+                'name_servers' => $this->normalizeStringList($zone['name_servers'] ?? []),
+                'original_name_servers' => $this->normalizeStringList($zone['original_name_servers'] ?? []),
             ];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::info("Cloudflare zone lookup failed for {$domainName}: {$e->getMessage()}");
 
             return $this->emptyZoneSummary();
         }
     }
 
-    public function getRecordDetails(string $zoneId, string $recordId): ?object
-    {
-        $this->boot();
-        $record = $this->dns->getRecordDetails($zoneId, $recordId);
-
-        return is_object($record) ? $record : null;
-    }
-
     /**
+     * Get a single zone setting value.
+     *
      * @return array<string, mixed>|null
      */
     public function getZoneSetting(string $zoneId, string $setting): ?array
     {
         try {
             $this->boot();
-            $response = $this->adapter->get("zones/{$zoneId}/settings/{$setting}");
-            $body = json_decode((string) $response->getBody(), true);
+            $response = $this->client->get("zones/{$zoneId}/settings/{$setting}");
+            $result = $response['result'] ?? null;
 
-            if (! is_array($body) || ! ($body['success'] ?? false)) {
-                return null;
-            }
-
-            return is_array($body['result'] ?? null) ? $body['result'] : null;
+            return is_array($result) ? $result : null;
         } catch (Throwable $exception) {
             Log::warning("Cloudflare setting fetch failed for {$zoneId}/{$setting}: {$exception->getMessage()}");
 
@@ -306,6 +326,8 @@ class CloudflareDnsService
     }
 
     /**
+     * Get multiple zone settings at once.
+     *
      * @param  array<int, string>  $settings
      * @return array<string, mixed>
      */
@@ -321,22 +343,20 @@ class CloudflareDnsService
     }
 
     /**
+     * Update a single zone setting.
+     *
      * @return array<string, mixed>|null
      */
     public function updateZoneSetting(string $zoneId, string $setting, mixed $value): ?array
     {
         try {
             $this->boot();
-            $response = $this->adapter->patch("zones/{$zoneId}/settings/{$setting}", [
+            $response = $this->client->patch("zones/{$zoneId}/settings/{$setting}", [
                 'value' => $value,
             ]);
-            $body = json_decode((string) $response->getBody(), true);
+            $result = $response['result'] ?? null;
 
-            if (! is_array($body) || ! ($body['success'] ?? false)) {
-                return null;
-            }
-
-            return is_array($body['result'] ?? null) ? $body['result'] : null;
+            return is_array($result) ? $result : null;
         } catch (Throwable $exception) {
             Log::warning("Cloudflare setting update failed for {$zoneId}/{$setting}: {$exception->getMessage()}");
 
@@ -344,12 +364,18 @@ class CloudflareDnsService
         }
     }
 
+    /**
+     * Purge all cached content for a zone.
+     */
     public function purgeZoneCache(string $zoneId): bool
     {
         try {
             $this->boot();
+            $response = $this->client->post("zones/{$zoneId}/purge_cache", [
+                'purge_everything' => true,
+            ]);
 
-            return $this->zones->cachePurgeEverything($zoneId);
+            return $response['success'] ?? false;
         } catch (Throwable $exception) {
             Log::warning("Cloudflare cache purge failed for {$zoneId}: {$exception->getMessage()}");
 
@@ -358,20 +384,18 @@ class CloudflareDnsService
     }
 
     /**
+     * Get DNSSEC status for a zone.
+     *
      * @return array<string, mixed>|null
      */
     public function getDnssecStatus(string $zoneId): ?array
     {
         try {
             $this->boot();
-            $response = $this->adapter->get("zones/{$zoneId}/dnssec");
-            $body = json_decode((string) $response->getBody(), true);
+            $response = $this->client->get("zones/{$zoneId}/dnssec");
+            $result = $response['result'] ?? null;
 
-            if (! is_array($body) || ! ($body['success'] ?? false)) {
-                return null;
-            }
-
-            return is_array($body['result'] ?? null) ? $body['result'] : null;
+            return is_array($result) ? $result : null;
         } catch (Throwable $exception) {
             Log::warning("Cloudflare DNSSEC fetch failed for {$zoneId}: {$exception->getMessage()}");
 
@@ -380,22 +404,20 @@ class CloudflareDnsService
     }
 
     /**
+     * Update DNSSEC status for a zone.
+     *
      * @return array<string, mixed>|null
      */
     public function updateDnssecStatus(string $zoneId, string $status): ?array
     {
         try {
             $this->boot();
-            $response = $this->adapter->patch("zones/{$zoneId}/dnssec", [
+            $response = $this->client->patch("zones/{$zoneId}/dnssec", [
                 'status' => $status,
             ]);
-            $body = json_decode((string) $response->getBody(), true);
+            $result = $response['result'] ?? null;
 
-            if (! is_array($body) || ! ($body['success'] ?? false)) {
-                return null;
-            }
-
-            return is_array($body['result'] ?? null) ? $body['result'] : null;
+            return is_array($result) ? $result : null;
         } catch (Throwable $exception) {
             Log::warning("Cloudflare DNSSEC update failed for {$zoneId}: {$exception->getMessage()}");
 
@@ -404,33 +426,37 @@ class CloudflareDnsService
     }
 
     /**
+     * List custom firewall rules for a zone (via Ruleset Engine API).
+     *
      * @return array<int, array<string, mixed>>
      */
     public function listFirewallRules(string $zoneId): array
     {
         try {
             $this->boot();
-            $response = $this->firewall->listFirewallRules($zoneId, perPage: 100);
-            $rules = $response->result ?? [];
+            $rulesetId = $this->getCustomFirewallRulesetId($zoneId);
+
+            if ($rulesetId === null) {
+                return [];
+            }
+
+            $response = $this->client->get("zones/{$zoneId}/rulesets/{$rulesetId}");
+            $rules = $response['result']['rules'] ?? [];
 
             if (! is_array($rules)) {
                 return [];
             }
 
-            return array_values(array_filter(array_map(function ($rule): ?array {
-                if (! is_object($rule)) {
-                    return null;
-                }
-
-                $filter = is_object($rule->filter ?? null) ? $rule->filter : null;
-
+            return array_values(array_filter(array_map(function (array $rule): ?array {
                 return [
-                    'id' => (string) ($rule->id ?? ''),
-                    'action' => (string) ($rule->action ?? ''),
-                    'description' => (string) ($rule->description ?? ''),
-                    'priority' => isset($rule->priority) ? (int) $rule->priority : null,
-                    'paused' => (bool) ($rule->paused ?? false),
-                    'expression' => (string) ($filter?->expression ?? ''),
+                    'id' => (string) ($rule['id'] ?? ''),
+                    'action' => (string) ($rule['action'] ?? ''),
+                    'description' => (string) ($rule['description'] ?? ''),
+                    'priority' => isset($rule['action_parameters']['priority'])
+                        ? (int) $rule['action_parameters']['priority']
+                        : null,
+                    'paused' => ! ($rule['enabled'] ?? true),
+                    'expression' => (string) ($rule['expression'] ?? ''),
                 ];
             }, $rules)));
         } catch (Throwable $exception) {
@@ -440,6 +466,9 @@ class CloudflareDnsService
         }
     }
 
+    /**
+     * Create a custom firewall rule for a zone (via Ruleset Engine API).
+     */
     public function createFirewallRule(
         string $zoneId,
         string $expression,
@@ -449,17 +478,40 @@ class CloudflareDnsService
     ): bool {
         try {
             $this->boot();
-            $options = new FirewallRuleOptions;
+            $rulesetId = $this->getCustomFirewallRulesetId($zoneId);
 
-            match ($action) {
-                'allow' => $options->setActionAllow(),
-                'challenge' => $options->setActionChallenge(),
-                'js_challenge' => $options->setActionJsChallenge(),
-                'log' => $options->setActionLog(),
-                default => $options->setActionBlock(),
+            // Map legacy action names to Ruleset Engine equivalents.
+            $rulesetAction = match ($action) {
+                'challenge', 'js_challenge' => 'managed_challenge',
+                default => $action,
             };
 
-            return $this->firewall->createFirewallRule($zoneId, $expression, $options, $description, $priority);
+            $ruleData = [
+                'action' => $rulesetAction,
+                'expression' => $expression,
+            ];
+
+            if ($description !== null) {
+                $ruleData['description'] = $description;
+            }
+
+            if ($priority !== null) {
+                $ruleData['action_parameters'] = ['priority' => $priority];
+            }
+
+            if ($rulesetId !== null) {
+                $this->client->post("zones/{$zoneId}/rulesets/{$rulesetId}/rules", $ruleData);
+            } else {
+                // No custom firewall ruleset exists yet; create one with the first rule.
+                $this->client->post("zones/{$zoneId}/rulesets", [
+                    'name' => 'Custom Firewall Rules',
+                    'kind' => 'zone',
+                    'phase' => 'http_request_firewall_custom',
+                    'rules' => [$ruleData],
+                ]);
+            }
+
+            return true;
         } catch (Throwable $exception) {
             Log::warning("Cloudflare firewall rule create failed for {$zoneId}: {$exception->getMessage()}");
 
@@ -467,12 +519,24 @@ class CloudflareDnsService
         }
     }
 
+    /**
+     * Delete a custom firewall rule from a zone (via Ruleset Engine API).
+     */
     public function deleteFirewallRule(string $zoneId, string $ruleId): bool
     {
         try {
             $this->boot();
+            $rulesetId = $this->getCustomFirewallRulesetId($zoneId);
 
-            return $this->firewall->deleteFirewallRule($zoneId, $ruleId);
+            if ($rulesetId === null) {
+                Log::warning("Cloudflare firewall rule delete skipped for {$zoneId}/{$ruleId}: no custom firewall ruleset found.");
+
+                return false;
+            }
+
+            $this->client->delete("zones/{$zoneId}/rulesets/{$rulesetId}/rules/{$ruleId}");
+
+            return true;
         } catch (Throwable $exception) {
             Log::warning("Cloudflare firewall rule delete failed for {$zoneId}/{$ruleId}: {$exception->getMessage()}");
 
@@ -483,21 +547,40 @@ class CloudflareDnsService
     /**
      * Ensure an apex domain zone exists in Cloudflare.
      *
-     * @throws \Throwable
+     * @throws Throwable
      */
     public function ensureZoneExists(string $domainName): void
     {
         $this->boot();
 
         try {
-            $this->zones->getZoneID($domainName);
+            $this->getZoneId($domainName);
 
             return;
-        } catch (EndpointException) {
+        } catch (CloudflareException) {
             // Zone does not exist yet, continue and create it.
         }
 
-        $this->zones->addZone($domainName);
+        $this->client->post('zones', ['name' => $domainName]);
+    }
+
+    /**
+     * Find the custom firewall ruleset ID for a zone.
+     *
+     * @throws CloudflareException
+     */
+    private function getCustomFirewallRulesetId(string $zoneId): ?string
+    {
+        $response = $this->client->get("zones/{$zoneId}/rulesets");
+        $rulesets = $response['result'] ?? [];
+
+        foreach ($rulesets as $ruleset) {
+            if (($ruleset['phase'] ?? '') === 'http_request_firewall_custom') {
+                return (string) $ruleset['id'];
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -537,7 +620,7 @@ class CloudflareDnsService
     }
 
     /**
-     * @throws EndpointException
+     * @throws CloudflareException
      */
     private function ensureARecord(string $zoneId, string $recordName, string $targetIp, bool $proxied): \stdClass|bool
     {
@@ -577,7 +660,7 @@ class CloudflareDnsService
     }
 
     /**
-     * @throws EndpointException
+     * @throws CloudflareException
      */
     private function ensureCaaRecord(string $zoneId, string $recordName, string $tag, string $value, int $flags = 0): bool
     {

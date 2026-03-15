@@ -48,6 +48,7 @@ return [
     | Cloudflare DNS
     |--------------------------------------------------------------------------
     */
+    'cloudflare_api_token' => env('CLOUDFLARE_API_TOKEN'),
     'cloudflare_email' => env('CLOUDFLARE_EMAIL'),
     'cloudflare_api_key' => env('CLOUDFLARE_APIKEY'),
     'server_ip' => env('PANEL_SERVER_IP', '127.0.0.1'),
@@ -132,13 +133,16 @@ return [
     | These domains are used by system services and cannot be registered
     | as customer domains or subdomains in the panel.
     */
-    'system_reserved_domains' => array_values(array_filter(array_map('trim', [
-        env('PANEL_DOMAIN'),
-        env('PMA_DOMAIN'),
-        env('CODE_SERVER_DOMAIN'),
-        env('VAULTWARDEN_DOMAIN'),
-        env('N8N_DOMAIN'),
-        env('PORTAINER_DOMAIN'),
-        env('JENKINS_DOMAIN'),
-    ]))),
+    'system_reserved_domains' => array_values(array_filter(array_map(
+        fn ($v) => is_string($v) ? trim($v) : null,
+        [
+            env('PANEL_DOMAIN'),
+            env('PMA_DOMAIN'),
+            env('CODE_SERVER_DOMAIN'),
+            env('VAULTWARDEN_DOMAIN'),
+            env('N8N_DOMAIN'),
+            env('PORTAINER_DOMAIN'),
+            env('JENKINS_DOMAIN'),
+        ],
+    ))),
 ];

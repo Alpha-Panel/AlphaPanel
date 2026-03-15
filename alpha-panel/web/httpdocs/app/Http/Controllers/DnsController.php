@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\CloudflareException;
 use App\Http\Requests\StoreDnsRecordRequest;
 use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Services\CloudflareDnsService;
-use Cloudflare\API\Endpoints\EndpointException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -65,7 +65,7 @@ class DnsController extends Controller
                 'recordsFiltered' => count($data),
                 'data' => $data,
             ]);
-        } catch (EndpointException $e) {
+        } catch (CloudflareException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
     }
@@ -134,7 +134,7 @@ class DnsController extends Controller
                     'message' => 'DNS record created successfully.',
                 ]);
             }
-        } catch (EndpointException $exception) {
+        } catch (CloudflareException $exception) {
             $this->createDnsAuditLog(
                 $request,
                 $domain,
@@ -192,7 +192,7 @@ class DnsController extends Controller
             );
 
             return response()->json(['status' => 'success', 'message' => 'DNS record deleted.']);
-        } catch (EndpointException $exception) {
+        } catch (CloudflareException $exception) {
             $this->createDnsAuditLog(
                 $request,
                 $domain,
@@ -245,7 +245,7 @@ class DnsController extends Controller
 
         try {
             return $this->cloudflare->getRecordDetails($zoneId, $recordId);
-        } catch (EndpointException) {
+        } catch (CloudflareException) {
             return null;
         }
     }
@@ -262,7 +262,7 @@ class DnsController extends Controller
 
         try {
             $records = $this->cloudflare->listRecords($zoneId, $recordName);
-        } catch (EndpointException) {
+        } catch (CloudflareException) {
             return null;
         }
 

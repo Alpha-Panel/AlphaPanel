@@ -8,7 +8,6 @@
     "require": {
         "php": "^8.2",
         "ext-pdo": "*",
-        "cloudflare/sdk": "^1.4",
         "guzzlehttp/guzzle": "^7.10",
         "inertiajs/inertia-laravel": "^2.0",
         "laragear/webauthn": "^4.1",

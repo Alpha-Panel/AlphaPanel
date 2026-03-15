@@ -57,7 +57,6 @@ RUN install-php-extensions \
         mysqli \
         pcntl \
         sockets \
-        xdebug \
         exif \
         ftp \
     && rm -rf /var/lib/apt/lists/*

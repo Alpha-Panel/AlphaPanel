@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 use React\EventLoop\Loop;
 use React\Socket\ConnectionInterface;
 use React\Socket\Connector;
-use React\Socket\Server as SocketServer;
+use React\Socket\SocketServer as SocketServer;
 
 class TerminalServeCommand extends Command
 {

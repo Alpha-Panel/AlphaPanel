@@ -34,7 +34,7 @@ try {
             ->withoutOverlapping(120)
             ->onFailure(fn () => Log::error('Scheduled backup failed'));
     }
-} catch (\Throwable) {
+} catch (Throwable) {
     // Table may not exist yet (before migration)
 }
 
@@ -62,11 +62,27 @@ Schedule::call(function (): void {
                 if ($cron->isDue($now)) {
                     dispatch(new ExecuteDomainCronJob($cronJob));
                 }
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 Log::warning("Invalid cron expression for job #{$cronJob->id}: {$e->getMessage()}");
             }
         }
-    } catch (\Throwable) {
+    } catch (Throwable) {
         // Table may not exist yet (before migration)
     }
 })->everyMinute()->name('domain-cron-dispatcher');
+
+/*
+|--------------------------------------------------------------------------
+| Weekly Security Audit
+|--------------------------------------------------------------------------
+|
+| Runs composer audit and npm audit weekly to detect known vulnerabilities.
+| Results are logged via Log::warning() when issues are found.
+|
+*/
+
+Schedule::command('panel:security-audit')
+    ->weeklyOn(1, '03:00')
+    ->name('security-audit')
+    ->withoutOverlapping(30)
+    ->onFailure(fn () => Log::warning('Security audit found vulnerabilities or failed to run'));

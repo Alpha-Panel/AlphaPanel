@@ -91,6 +91,9 @@
 	}
 	file_server
 	import common-headers
+
+	# Content-Security-Policy — Monaco editor needs unsafe-eval, Tailwind needs unsafe-inline
+	header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' wss:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
 }
 
 {$CODE_SERVER_DOMAIN}:443 {
