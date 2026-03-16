@@ -119,9 +119,9 @@ services:
     environment:
       - MEILI_ENV=production
       - TMPDIR=/tmp
+      - MEILI_MASTER_KEY=${ALPHA_PANEL_MEILISEARCH_MASTER_KEY}
     networks:
       - vhost_network
-    command: [ "meilisearch", "--master-key", "${ALPHA_PANEL_MEILISEARCH_MASTER_KEY}" ]
 
   frankenphp:
     image: alphapanel/frankenphp:local
@@ -272,11 +272,11 @@ services:
     environment:
       - MEILI_ENV=production
       - TMPDIR=/tmp
+      - MEILI_MASTER_KEY=${MEILISEARCH_MASTER_KEY}
     ports:
       - "${PRIVATE_NETWORK_IP}:7700:7700"
     networks:
       - vhost_network
-    command: ["meilisearch", "--master-key", "${MEILISEARCH_MASTER_KEY}"]
 
   mysql:
     image: mysql:9.3.0
@@ -355,16 +355,16 @@ services:
       - vhost_network
 
   ftp:
-    image: delfer/alpine-ftp-server:latest    # Versiyon tag'i yok, güncelleme sonrası doğrula
+    image: delfer/alpine-ftp-server:latest
     container_name: ftp-server
     hostname: ftp-server
     restart: always
     ports:
-      - "${PRIVATE_NETWORK_IP}:21:21"                        # komut kanalı
+      - "${PRIVATE_NETWORK_IP}:21:21"                        # komut kanalı (FTPS explicit)
       - "${PRIVATE_NETWORK_IP}:21000-21010:21000-21010"      # pasif mod port aralığı
     environment:
-      # Dış IP veya hostname (PASV yanıtlarında kullanılır)
       ADDRESS: ${PANEL_DOMAIN}
+      BASE_DOMAIN: ${BASE_DOMAIN}
       MIN_PORT: 21000
       MAX_PORT: 21010
     env_file:
@@ -375,6 +375,7 @@ services:
       - ./ftp-config/users.env:/config/users.env:ro
       - ./ftp-config/init.sh:/init.sh:ro
       - ./ftp-config/vsftpd.conf:/etc/vsftpd/vsftpd.conf:ro
+      - ./letsencrypt:/etc/letsencrypt:ro
     networks:
       - vhost_network
 

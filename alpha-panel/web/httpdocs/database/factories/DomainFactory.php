@@ -40,6 +40,8 @@ class DomainFactory extends Factory
             'modsecurity_ip_blocklist' => [],
             'modsecurity_disabled_rule_ids' => [],
             'modsecurity_custom_rules' => null,
+            'cors_enabled' => false,
+            'cors_allowed_origins' => null,
         ];
     }
 

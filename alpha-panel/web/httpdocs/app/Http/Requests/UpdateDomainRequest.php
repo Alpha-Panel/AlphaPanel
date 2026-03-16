@@ -51,6 +51,13 @@ class UpdateDomainRequest extends FormRequest
                 Rule::requiredIf(fn () => $this->input('type') === 'apache_reverse_proxy'),
             ],
             'ssl_method' => ['sometimes', new Enum(SslMethod::class)],
+            'cors_enabled' => ['boolean'],
+            'cors_allowed_origins' => [
+                'nullable',
+                'string',
+                'max:2000',
+                Rule::excludeIf(fn () => ! $this->boolean('cors_enabled')),
+            ],
             'bypass_reverse_proxy' => ['boolean'],
             'custom_caddy_directives' => [
                 'nullable',

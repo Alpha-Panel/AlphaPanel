@@ -257,6 +257,85 @@ class DomainConfigService
         if ($wafImport !== null) {
             $lines[] = "{$indent}{$wafImport}";
         }
+
+        if ($domain->cors_enabled) {
+            $corsLines = $this->renderCorsDirectives($domain, $indent);
+            array_push($lines, ...$corsLines);
+        }
+    }
+
+    /**
+     * Render CORS header directives for a domain.
+     *
+     * Supports wildcard (*) or comma-separated list of specific origins.
+     * Generates Caddy preflight handler + response headers.
+     *
+     * @return array<int, string>
+     */
+    private function renderCorsDirectives(Domain $domain, string $indent): array
+    {
+        $origins = trim($domain->cors_allowed_origins ?? '*');
+
+        if ($origins === '' || $origins === '*') {
+            return $this->renderWildcardCors($indent);
+        }
+
+        // Single specific origin — use exact match
+        $origins = array_map('trim', explode(',', $origins));
+        $firstOrigin = $origins[0];
+
+        return $this->renderSpecificOriginCors($indent, $firstOrigin, $origins);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function renderWildcardCors(string $indent): array
+    {
+        return [
+            "{$indent}@cors_preflight method OPTIONS",
+            "{$indent}handle @cors_preflight {",
+            "{$indent}    header Access-Control-Allow-Origin *",
+            "{$indent}    header Access-Control-Allow-Methods \"GET, POST, PUT, PATCH, DELETE, OPTIONS\"",
+            "{$indent}    header Access-Control-Allow-Headers \"Content-Type, Authorization, X-Requested-With, Accept\"",
+            "{$indent}    header Access-Control-Max-Age 86400",
+            "{$indent}    respond \"\" 204",
+            "{$indent}}",
+            "{$indent}header Access-Control-Allow-Origin *",
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $origins
+     * @return array<int, string>
+     */
+    private function renderSpecificOriginCors(string $indent, string $primary, array $origins): array
+    {
+        $lines = [];
+
+        // Build origin matcher — for multiple origins, use expression matcher
+        if (count($origins) === 1) {
+            $lines[] = "{$indent}@cors_origin header Origin {$primary}";
+        } else {
+            $quoted = array_map(fn (string $o) => "'{$o}'", $origins);
+            $list = implode(', ', $quoted);
+            $lines[] = "{$indent}@cors_origin expression `{http.request.header.Origin} in ({$list})`";
+        }
+
+        $lines[] = "{$indent}@cors_preflight {";
+        $lines[] = "{$indent}    method OPTIONS";
+        $lines[] = "{$indent}    header Origin *";
+        $lines[] = "{$indent}}";
+        $lines[] = "{$indent}handle @cors_preflight {";
+        $lines[] = "{$indent}    header Access-Control-Allow-Origin {http.request.header.Origin}";
+        $lines[] = "{$indent}    header Access-Control-Allow-Methods \"GET, POST, PUT, PATCH, DELETE, OPTIONS\"";
+        $lines[] = "{$indent}    header Access-Control-Allow-Headers \"Content-Type, Authorization, X-Requested-With, Accept\"";
+        $lines[] = "{$indent}    header Access-Control-Max-Age 86400";
+        $lines[] = "{$indent}    respond \"\" 204";
+        $lines[] = "{$indent}}";
+        $lines[] = "{$indent}header @cors_origin Access-Control-Allow-Origin {http.request.header.Origin}";
+
+        return $lines;
     }
 
     private function resolveWafImport(Domain $domain): ?string

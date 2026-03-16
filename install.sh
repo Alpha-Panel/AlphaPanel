@@ -416,6 +416,21 @@ PMA_URL=https://${PMA_DOMAIN}:8443/index.php?server=2
 CROWDSEC_FIREWALL_BOUNCER_KEY=${CROWDSEC_FIREWALL_BOUNCER_KEY}
 CROWDSEC_DASHBOARD_API_KEY=${CROWDSEC_DASHBOARD_API_KEY}
 CROWDSEC_LAPI_URL=http://crowdsec:8080
+
+# ─── Resource Limits (optional) ──────────────────────────────
+# Per-service CPU/memory limits. Disabled by default (services use all available resources).
+# To enable: uncomment COMPOSE_FILE and customise the limits below.
+# COMPOSE_FILE=docker-compose.yaml:docker-compose.resources.yaml
+# FRANKENPHP_CPU_LIMIT=2.0
+# FRANKENPHP_MEM_LIMIT=2g
+# ALPHA_PANEL_CPU_LIMIT=1.0
+# ALPHA_PANEL_MEM_LIMIT=1g
+# CODE_SERVER_CPU_LIMIT=1.0
+# CODE_SERVER_MEM_LIMIT=1g
+# MYSQL_CPU_LIMIT=2.0
+# MYSQL_MEM_LIMIT=4g
+# REDIS_CPU_LIMIT=0.5
+# REDIS_MEM_LIMIT=512m
 EOF
 ok "Root .env created."
 

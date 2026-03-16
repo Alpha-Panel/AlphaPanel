@@ -1,7 +1,5 @@
 FROM ubuntu:24.04
 
-ENV PATH="/opt/venv/bin:$PATH"
-
 # 1) Tüm kurulumları interaktif olmayan moda al, timezone'u ayarla
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Istanbul
@@ -35,16 +33,15 @@ RUN apt-get install -y --no-install-recommends \
       php8.2-fpm php8.2-cli php8.2-common php8.2-zip php8.2-mysql php8.2-mbstring php8.2-tokenizer php8.2-xml php8.2-gd php8.2-curl php8.2-intl php8.2-bcmath php8.2-gmp php8.2-memcached php8.2-redis php8.2-imagick php8.2-mongodb php8.2-raphf php8.2-http php8.2-ftp \
       php8.3-fpm php8.3-cli php8.3-common php8.3-zip php8.3-mysql php8.3-mbstring php8.3-tokenizer php8.3-xml php8.3-gd php8.3-curl php8.3-intl php8.3-bcmath php8.3-gmp php8.3-memcached php8.3-redis php8.3-imagick php8.3-mongodb php8.3-raphf php8.3-http php8.3-ftp \
       php8.4-fpm php8.4-cli php8.4-common php8.4-zip php8.4-mysql php8.4-mbstring php8.4-tokenizer php8.4-xml php8.4-gd php8.4-curl php8.4-intl php8.4-bcmath php8.4-gmp php8.4-memcached php8.4-redis php8.4-imagick php8.4-mongodb php8.4-raphf php8.4-http php8.4-ftp \
-      php8.5-fpm php8.5-cli php8.4-common php8.5-zip php8.5-mysql php8.5-mbstring php8.5-tokenizer php8.5-xml php8.5-gd php8.5-curl php8.5-intl php8.5-bcmath php8.5-gmp php8.5-memcached php8.5-redis php8.5-imagick php8.5-mongodb php8.5-raphf php8.5-http php8.5-ftp \
-    python3 python3-pip \
+      php8.5-fpm php8.5-cli php8.5-common php8.5-zip php8.5-mysql php8.5-mbstring php8.5-tokenizer php8.5-xml php8.5-gd php8.5-curl php8.5-intl php8.5-bcmath php8.5-gmp php8.5-memcached php8.5-redis php8.5-imagick php8.5-mongodb php8.5-raphf php8.5-http php8.5-ftp \
+    python3 \
     mysql-client \
     rsync \
     && rm -rf /var/lib/apt/lists/*
 
 # 3) Supervisor konfigürasyonu ve Composer
 COPY supervisor.d/php-fpm.conf /etc/supervisor/conf.d/php-fpm.conf
-RUN curl -sS https://getcomposer.org/installer | php -- \
-      --install-dir=/usr/local/bin --filename=composer
+COPY --from=composer:2.8 /usr/bin/composer /usr/local/bin/composer
 
 # Provide 'python' alias for python3
 RUN ln -sf /usr/bin/python3 /usr/bin/python
@@ -75,59 +72,6 @@ ENV APACHE_RUN_DIR=/run/apache2 \
     APACHE_LOCK_DIR=/var/lock/apache2 \
     APACHE_LOG_DIR=/var/log/apache2 \
     APACHE_PID_FILE=/run/apache2/apache2.pid
-
-# --- mongosh (MongoDB Shell) via official .deb (GitHub release) ---
-ARG MONGOSH_VER=2.5.10
-RUN set -eux; \
-    arch="$(dpkg --print-architecture)"; \
-    case "$arch" in \
-      amd64) deb_arch="amd64" ;; \
-      arm64) deb_arch="arm64" ;; \
-      *) echo "Unsupported arch for mongosh: $arch" && exit 1 ;; \
-    esac; \
-    url="https://github.com/mongodb-js/mongosh/releases/download/v${MONGOSH_VER}/mongodb-mongosh_${MONGOSH_VER}_${deb_arch}.deb"; \
-    echo "Downloading: $url"; \
-    curl -fL "$url" -o /tmp/mongosh.deb; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends /tmp/mongosh.deb; \
-    rm -f /tmp/mongosh.deb; \
-    rm -rf /var/lib/apt/lists/*; \
-    mongosh --version
-
-
-# MongoDB Database Tools (mongodump/mongorestore) - OS codename'e göre indir
-ARG MONGO_TOOLS_VER=100.10.0
-RUN set -eux; \
-    . /etc/os-release; \
-    arch="$(dpkg --print-architecture)"; \
-    case "$arch" in \
-      amd64) mongo_arch="x86_64" ;; \
-      arm64) mongo_arch="arm64" ;; \
-      *) echo "Unsupported arch: $arch" && exit 1 ;; \
-    esac; \
-    # Ubuntu codename -> tools paketi
-    case "${VERSION_CODENAME:-}" in \
-      jammy) tool_os="ubuntu2204" ;; \
-      noble) tool_os="ubuntu2404" ;; \
-      *) tool_os="ubuntu2204" ;; \
-    esac; \
-    url="https://fastdl.mongodb.org/tools/db/mongodb-database-tools-${tool_os}-${mongo_arch}-${MONGO_TOOLS_VER}.tgz"; \
-    echo "Downloading: $url"; \
-    curl -fsSL "$url" -o /tmp/mongo-tools.tgz; \
-    tar -xzf /tmp/mongo-tools.tgz -C /tmp; \
-    cp /tmp/mongodb-database-tools-*/bin/mongodump /usr/local/bin/; \
-    cp /tmp/mongodb-database-tools-*/bin/mongorestore /usr/local/bin/; \
-    chmod +x /usr/local/bin/mongodump /usr/local/bin/mongorestore; \
-    rm -rf /tmp/mongo-tools.tgz /tmp/mongodb-database-tools-*; \
-    # Fail-fast test \
-    mongosh --version; \
-    mongodump --version; \
-    mongorestore --version
-
-
-COPY requirements.txt /tmp/requirements.txt
-RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
-
 
 # Apache runtime dirs (systemd yok, elle oluştur)
 RUN mkdir -p /run/apache2 /var/lock/apache2 /var/log/apache2 \

@@ -40,6 +40,8 @@ class Domain extends Model
         'modsecurity_ip_blocklist',
         'modsecurity_disabled_rule_ids',
         'modsecurity_custom_rules',
+        'cors_enabled',
+        'cors_allowed_origins',
     ];
 
     /** @return array<string, string> */
@@ -59,6 +61,7 @@ class Domain extends Model
             'modsecurity_ip_allowlist' => 'array',
             'modsecurity_ip_blocklist' => 'array',
             'modsecurity_disabled_rule_ids' => 'array',
+            'cors_enabled' => 'boolean',
         ];
     }
 

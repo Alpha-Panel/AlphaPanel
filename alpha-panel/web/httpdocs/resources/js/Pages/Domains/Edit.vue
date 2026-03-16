@@ -68,6 +68,33 @@
                             </select>
                         </FormField>
 
+                        <!-- CORS Configuration -->
+                        <div class="pt-5 border-t border-gray-200 dark:border-gray-800">
+                            <h4 class="mb-3 text-sm font-medium text-gray-800 dark:text-white/90">{{ t('CORS (Cross-Origin Resource Sharing)') }}</h4>
+
+                            <label class="flex items-center gap-2 mb-4">
+                                <input v-model="form.cors_enabled" type="checkbox" class="form-checkbox" />
+                                <span class="text-sm text-gray-700 dark:text-gray-400">{{ t('Enable CORS Headers') }}</span>
+                            </label>
+
+                            <div v-if="form.cors_enabled">
+                                <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
+                                    <p class="text-xs text-amber-700 dark:text-amber-400">
+                                        {{ t('Allows other websites to make API requests to this domain. Use * to allow all origins, or enter specific origins separated by commas (e.g. https://app.example.com, https://other.example.com).') }}
+                                    </p>
+                                </div>
+
+                                <FormField :label="t('Allowed Origins')" :error="form.errors.cors_allowed_origins">
+                                    <input
+                                        v-model="form.cors_allowed_origins"
+                                        type="text"
+                                        class="form-input"
+                                        placeholder="* or https://app.example.com, https://other.example.com"
+                                    />
+                                </FormField>
+                            </div>
+                        </div>
+
                         <!-- Bypass Reverse Proxy / Custom Caddy Directives -->
                         <div class="pt-5 border-t border-gray-200 dark:border-gray-800">
                             <h4 class="mb-3 text-sm font-medium text-gray-800 dark:text-white/90">{{ t('Custom Server Configuration') }}</h4>
@@ -173,6 +200,8 @@ const form = useForm({
     root_path: props.domain.root_path,
     enable_www_redirect: props.domain.enable_www_redirect,
     ssl_method: props.domain.ssl_method ?? 'cloudflare_dns',
+    cors_enabled: props.domain.cors_enabled ?? false,
+    cors_allowed_origins: props.domain.cors_allowed_origins ?? '*',
     bypass_reverse_proxy: props.domain.bypass_reverse_proxy ?? false,
     custom_caddy_directives: props.domain.custom_caddy_directives ?? '',
     enable_worker: props.domain.enable_worker,

@@ -61,8 +61,7 @@ RUN install-php-extensions \
         ftp \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -sS https://getcomposer.org/installer | php -- \
-      --install-dir=/usr/local/bin --filename=composer
+COPY --from=composer:2.8 /usr/bin/composer /usr/local/bin/composer
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
