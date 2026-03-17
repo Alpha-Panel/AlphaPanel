@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\FtpUser;
+use FTP\Connection;
 use Illuminate\Http\UploadedFile;
 use League\Flysystem\Filesystem;
 use League\Flysystem\Ftp\FtpAdapter;
@@ -35,6 +36,7 @@ class FileManagerService
         $options = FtpConnectionOptions::fromArray([
             ...$this->ftpCredentials,
             'root' => '/',
+            'ssl' => config('panel.ftp_ssl', true),
             'passive' => true,
             'ignorePassiveAddress' => true,
             'timestampsOnUnixListingsEnabled' => true,
@@ -137,7 +139,7 @@ class FileManagerService
         try {
             return @ftp_site($conn, "CHMOD {$mode} {$ftpPath}");
         } finally {
-            ftp_close($conn);
+            @ftp_close($conn);
         }
     }
 
@@ -264,7 +266,7 @@ class FileManagerService
                 $rawList = @ftp_rawlist($conn, $ftpPath) ?: [];
             }
         } finally {
-            ftp_close($conn);
+            @ftp_close($conn);
         }
 
         $data = [];
@@ -372,16 +374,18 @@ class FileManagerService
     /**
      * Open a raw FTP connection.
      */
-    private function openRawFtpConnection(): \FTP\Connection
+    private function openRawFtpConnection(): Connection
     {
-        $conn = ftp_connect($this->ftpCredentials['host'], $this->ftpCredentials['port'], 10);
+        $conn = config('panel.ftp_ssl', true)
+            ? ftp_ssl_connect($this->ftpCredentials['host'], $this->ftpCredentials['port'], 10)
+            : ftp_connect($this->ftpCredentials['host'], $this->ftpCredentials['port'], 10);
 
         if (! $conn) {
             throw new RuntimeException('Failed to connect to FTP server.');
         }
 
         if (! ftp_login($conn, $this->ftpCredentials['username'], $this->ftpCredentials['password'])) {
-            ftp_close($conn);
+            @ftp_close($conn);
             throw new RuntimeException('FTP login failed.');
         }
 

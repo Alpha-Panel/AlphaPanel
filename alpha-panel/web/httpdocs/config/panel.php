@@ -42,6 +42,7 @@ return [
     'ftp_container' => env('PANEL_FTP_CONTAINER', 'ftp-server'),
     'ftp_host' => env('PANEL_FTP_HOST', 'ftp'),
     'ftp_port' => (int) env('PANEL_FTP_PORT', 21),
+    'ftp_ssl' => (bool) env('PANEL_FTP_SSL', true),
 
     /*
     |--------------------------------------------------------------------------

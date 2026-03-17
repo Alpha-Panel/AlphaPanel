@@ -367,6 +367,8 @@ services:
       BASE_DOMAIN: ${BASE_DOMAIN}
       MIN_PORT: 21000
       MAX_PORT: 21010
+      TLS_CERT: /tmp/ftp-ssl/fullchain.pem
+      TLS_KEY: /tmp/ftp-ssl/privkey.pem
     env_file:
       - ./ftp-config/users.env
     entrypoint: ["/init.sh"]
@@ -374,7 +376,6 @@ services:
       - ./vhosts:/var/www/vhosts:rw
       - ./ftp-config/users.env:/config/users.env:ro
       - ./ftp-config/init.sh:/init.sh:ro
-      - ./ftp-config/vsftpd.conf:/etc/vsftpd/vsftpd.conf:ro
       - ./letsencrypt:/etc/letsencrypt:ro
     networks:
       - vhost_network
