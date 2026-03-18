@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Notifications\DomainNotification;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class UserNotificationTest extends TestCase
@@ -55,6 +56,44 @@ class UserNotificationTest extends TestCase
         ]);
     }
 
+    public function test_user_can_delete_all_notifications(): void
+    {
+        $user = User::factory()->create();
+
+        for ($index = 1; $index <= 5; $index++) {
+            $this->createNotification($user, "Notification {$index}");
+        }
+
+        $this->assertSame(5, $user->notifications()->count());
+
+        $response = $this->actingAs($user)->delete(route('user.notifications.destroy-all'));
+
+        $response->assertOk();
+        $response->assertJsonPath('status', 'success');
+        $response->assertJsonPath('unread_count', 0);
+        $this->assertSame(0, $user->notifications()->count());
+    }
+
+    public function test_delete_all_only_deletes_own_notifications(): void
+    {
+        $user = User::factory()->create();
+        $other = User::factory()->create();
+
+        for ($index = 1; $index <= 3; $index++) {
+            $this->createNotification($user, "User notification {$index}");
+        }
+
+        for ($index = 1; $index <= 2; $index++) {
+            $this->createNotification($other, "Other notification {$index}");
+        }
+
+        $response = $this->actingAs($user)->delete(route('user.notifications.destroy-all'));
+
+        $response->assertOk();
+        $this->assertSame(0, $user->notifications()->count());
+        $this->assertSame(2, $other->notifications()->count());
+    }
+
     public function test_user_cannot_delete_another_users_notification(): void
     {
         $owner = User::factory()->create();
@@ -72,6 +111,7 @@ class UserNotificationTest extends TestCase
     private function createNotification(User $user, string $title): string
     {
         $notification = $user->notifications()->create([
+            'id' => Str::uuid()->toString(),
             'type' => DomainNotification::class,
             'data' => [
                 'level' => 'info',

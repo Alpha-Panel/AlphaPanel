@@ -16,6 +16,15 @@
                         >
                             {{ t('Mark all read') }}
                         </button>
+                        <button
+                            v-if="items.length > 0"
+                            type="button"
+                            class="inline-flex items-center rounded-lg border border-error-300 px-3 py-2 text-sm font-medium text-error-600 transition-colors hover:bg-error-50 disabled:opacity-50 dark:border-error-700 dark:text-error-300 dark:hover:bg-error-950/40"
+                            :disabled="deleteAllProcessing"
+                            @click="deleteAllNotifications"
+                        >
+                            {{ t('Delete all') }}
+                        </button>
                     </div>
 
                     <div v-if="items.length === 0" class="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
@@ -155,6 +164,7 @@ const unreadCount = ref(Number(props.unread_count ?? 0));
 const markingIds = ref<string[]>([]);
 const deletingIds = ref<string[]>([]);
 const markAllProcessing = ref(false);
+const deleteAllProcessing = ref(false);
 
 const breadcrumbs = computed(() => [
     { label: t('Security Settings'), href: route('user.security') },
@@ -252,6 +262,28 @@ const deleteNotification = async (notification: NotificationItem): Promise<void>
         // silent
     } finally {
         deletingIds.value = deletingIds.value.filter((id) => id !== notification.id);
+    }
+};
+
+const deleteAllNotifications = async (): Promise<void> => {
+    if (deleteAllProcessing.value) {
+        return;
+    }
+
+    deleteAllProcessing.value = true;
+
+    try {
+        await axios.delete(route('user.notifications.destroy-all'));
+        items.value = [];
+        unreadCount.value = 0;
+
+        if (currentPage.value > 1) {
+            goToPage(1);
+        }
+    } catch {
+        // silent
+    } finally {
+        deleteAllProcessing.value = false;
     }
 };
 

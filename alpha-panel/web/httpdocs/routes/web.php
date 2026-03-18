@@ -21,6 +21,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ManifestController;
 use App\Http\Controllers\PhpSettingsController;
 use App\Http\Controllers\PmaSsoController;
+use App\Http\Controllers\PushDeviceController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\TerminalController;
@@ -252,6 +253,8 @@ Route::middleware('auth')->group(function (): void {
         ->name('user.notifications.read-all');
     Route::post('user/notifications/{notification}/read', [UserController::class, 'markNotificationAsRead'])
         ->name('user.notifications.read');
+    Route::delete('user/notifications/all', [UserController::class, 'destroyAllNotifications'])
+        ->name('user.notifications.destroy-all');
     Route::delete('user/notifications/{notification}', [UserController::class, 'destroyNotification'])
         ->name('user.notifications.destroy');
     Route::post('user/security/2fa-confirm', [TwoFactorAuthController::class, 'confirm'])->name('user.two-factor.confirm');
@@ -266,6 +269,12 @@ Route::middleware('auth')->group(function (): void {
         ->name('user.push-subscription.store');
     Route::delete('user/push-subscription', [PushSubscriptionController::class, 'destroy'])
         ->name('user.push-subscription.destroy');
+
+    // Push Devices Management
+    Route::get('user/push-devices', [PushDeviceController::class, 'index'])
+        ->name('user.push-devices.index');
+    Route::delete('user/push-devices/{pushSubscription}', [PushDeviceController::class, 'destroy'])
+        ->name('user.push-devices.destroy');
 
     // Lock Screen
     Route::post('/lock-screen', [TwoFactorAuthController::class, 'lock'])->name('lockscreen');

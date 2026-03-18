@@ -472,6 +472,7 @@
     "Manage WAF mode, domain-specific rules and live logs for this domain.": "Управление режимом WAF, правилами для домена и журналами в реальном времени.",
     "Management": "Управление",
     "Mark all read": "Отметить все как прочитанное",
+    "Delete all": "Удалить все",
     "Mark as read": "Отметить как прочитанное",
     "max_execution_time": "max_execution_time",
     "max_input_time": "max_input_time",
@@ -839,5 +840,16 @@
     "Worker Watch Enabled": "Наблюдение воркера включено",
     "Workers": "Воркеры",
     "Yes": "Да",
-    "You have a new notification.": "У вас новое уведомление."
+    "You have a new notification.": "У вас новое уведомление.",
+    "Push Devices": "Push-устройства",
+    "This Device": "Это устройство",
+    "Subscribed Devices": "Подписанные устройства",
+    "Current": "Текущий",
+    "Unknown Browser": "Неизвестный браузер",
+    "Unknown OS": "Неизвестная ОС",
+    "Device removed.": "Устройство удалено.",
+    "No push devices registered yet.": "Push-устройства ещё не зарегистрированы.",
+    "Failed to remove device.": "Не удалось удалить устройство.",
+    "Removing...": "Удаление...",
+    "Remove": "Удалить"
 }

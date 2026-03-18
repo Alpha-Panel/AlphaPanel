@@ -472,6 +472,7 @@
     "Manage WAF mode, domain-specific rules and live logs for this domain.": "𐰉𐰆 𐰑𐰆𐰢𐰀𐰃𐰤 𐰃𐰲𐰃𐰤 𐰉𐰀𐰯 𐰢𐰆𐰑𐰆𐰤𐰆, 𐰑𐰆𐰢𐰀𐰃𐰤 𐰇𐰔𐰁𐰞𐰃𐰤𐰑𐰁𐰚𐰃 𐰚𐰆𐰺𐰀𐰞𐰞𐰀𐰺𐰃 𐰴𐰁𐰢 𐰲𐰀𐰤𐰞𐰃 𐰞𐰆𐰍𐰞𐰀𐰺𐰃 𐰖𐰇𐰤𐰁𐱃𐰃𐰤.",
     "Management": "𐰖𐰇𐰤𐰁𐱃𐰃𐰢",
     "Mark all read": "𐰉𐰀𐰺𐰲𐰀𐰾𐰃𐰤 𐰆𐰸𐰃𐰑𐰃 𐰸𐰃𐰞",
+    "Delete all": "𐰉𐰀𐰺𐰲𐰀𐰾𐰃𐰤 𐰾𐰃𐰞",
     "Mark as read": "𐰆𐰸𐰃𐰑𐰃 𐰸𐰃𐰞",
     "max_execution_time": "__𐱃𐰚_0__",
     "max_input_time": "__𐱃𐰚_0__",
@@ -839,5 +840,16 @@
     "Worker Watch Enabled": "𐰉𐰆𐰺𐰚𐰁𐰺 𐰉𐰀𐱃𐰲𐰴 𐰀𐰲𐰃𐰸𐱃𐰆𐰺",
     "Workers": "𐰃𐱁𐰲𐰃𐰞𐰁𐰺",
     "Yes": "𐰁𐰉𐰁𐱃",
-    "You have a new notification.": "𐰖𐰀𐰭𐰃 𐰉𐰃𐰞𐰑𐰇𐰺𐰍𐰇𐰭 𐰉𐰀𐰺."
+    "You have a new notification.": "𐰖𐰀𐰭𐰃 𐰉𐰃𐰞𐰑𐰇𐰺𐰍𐰇𐰭 𐰉𐰀𐰺.",
+    "Push Devices": "𐰯𐰆𐱁 𐰲𐰃𐰴𐰀𐰔𐰞𐰀𐰺",
+    "This Device": "𐰉𐰆 𐰲𐰃𐰴𐰀𐰔",
+    "Subscribed Devices": "𐰀𐰉𐰆𐰤𐰀 𐰲𐰃𐰴𐰀𐰔𐰞𐰀𐰺",
+    "Current": "𐰢𐰀𐰋𐰲𐰆𐱃",
+    "Unknown Browser": "𐰋𐰃𐰠𐰃𐰤𐰢𐰀𐰘𐰀𐰤 𐱃𐰀𐰺𐰀𐰘𐰲𐰃",
+    "Unknown OS": "𐰋𐰃𐰠𐰃𐰤𐰢𐰀𐰘𐰀𐰤 𐰃𐱁𐰠𐰀𐱃𐰃𐰢 𐰾𐰃𐰾𐱃𐰀𐰢𐰃",
+    "Device removed.": "𐰲𐰃𐰴𐰀𐰔 𐰚𐰀𐰡𐰺𐰃𐰡𐰃.",
+    "No push devices registered yet.": "𐰴𐰀𐰘𐰃𐱃𐰞𐰃 𐰯𐰆𐱁 𐰲𐰃𐰴𐰀𐰔 𐰖𐰸.",
+    "Failed to remove device.": "𐰲𐰃𐰴𐰀𐰔 𐰚𐰀𐰡𐰺𐰃𐰞𐰀𐰢𐰀𐰑𐰃.",
+    "Removing...": "𐰚𐰀𐰡𐰺𐰃𐰞𐰃𐰖𐰸𐰺...",
+    "Remove": "𐰚𐰀𐰡𐰺"
 }

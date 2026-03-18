@@ -53,40 +53,6 @@
                         </div>
                     </div>
 
-                    <!-- Push Notifications -->
-                    <div v-if="pushSupported" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
-                        <h3 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white/90">{{ t('Push Notifications') }}</h3>
-                        <div class="flex items-center justify-between gap-3">
-                            <div>
-                                <p class="text-sm text-gray-600 dark:text-gray-400">
-                                    {{ t('Receive browser notifications even when the panel is closed.') }}
-                                </p>
-                            </div>
-                            <button
-                                type="button"
-                                :disabled="pushLoading"
-                                class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50"
-                                :class="pushSubscribed ? 'bg-brand-500' : 'bg-gray-200 dark:bg-gray-700'"
-                                @click="togglePush"
-                            >
-                                <span
-                                    class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                                    :class="pushSubscribed ? 'translate-x-5' : 'translate-x-0'"
-                                />
-                            </button>
-                        </div>
-                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-500">
-                            {{ pushSubscribed ? t('Push notifications enabled.') : t('Push notifications disabled.') }}
-                        </p>
-                        <p v-if="pushError" class="mt-2 text-xs text-error-500">
-                            <template v-if="pushError === 'notification_denied'">{{ t('Notification permission was denied. Please allow notifications in your browser settings.') }}</template>
-                            <template v-else-if="pushError === 'sw_register_failed'">{{ t('Service worker registration failed. Please check your browser settings.') }}</template>
-                            <template v-else-if="pushError === 'brave_push_blocked'">{{ t('Brave browser blocks push notifications by default. Go to brave://settings/privacy and enable "Use Google services for push messaging".') }}</template>
-                            <template v-else-if="pushError === 'push_service_error'">{{ t('Push service error. Please check your internet connection and try again.') }}</template>
-                            <template v-else>{{ t('Failed to enable push notifications.') }}</template>
-                        </p>
-                    </div>
-
                     <!-- WebAuthn / Security Keys -->
                     <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
                         <div class="mb-4 flex items-center justify-between">
@@ -128,7 +94,6 @@ import SidebarProvider from '@/Components/Layout/SidebarProvider.vue';
 import AdminLayout from '@/Components/Layout/AdminLayout.vue';
 import PageBreadcrumb from '@/Components/Common/PageBreadcrumb.vue';
 import Toast from '@/Components/UI/Toast.vue';
-import { usePushSubscription } from '@/Composables/usePushSubscription';
 import { useToast } from '@/Composables/useToast';
 import { useI18n } from '@/Composables/useI18n';
 import { formatDateTime } from '@/utils/dateTime';
@@ -139,13 +104,6 @@ const props = defineProps<{
 
 const { addToast } = useToast();
 const { t } = useI18n();
-const {
-    isSubscribed: pushSubscribed,
-    isSupported: pushSupported,
-    loading: pushLoading,
-    error: pushError,
-    toggle: togglePush,
-} = usePushSubscription();
 const page = usePage<{ auth: { user: Record<string, any> } }>();
 const loading = ref(false);
 const qrSvg = ref('');

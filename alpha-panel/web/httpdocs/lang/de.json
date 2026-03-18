@@ -472,6 +472,7 @@
     "Manage WAF mode, domain-specific rules and live logs for this domain.": "WAF-Modus, domainspezifische Regeln und Live-Logs für diese Domain verwalten.",
     "Management": "Verwaltung",
     "Mark all read": "Alle als gelesen markieren",
+    "Delete all": "Alle löschen",
     "Mark as read": "Als gelesen markieren",
     "max_execution_time": "max_execution_time",
     "max_input_time": "max_input_time",
@@ -839,5 +840,16 @@
     "Worker Watch Enabled": "Worker-Überwachung aktiviert",
     "Workers": "Worker",
     "Yes": "Ja",
-    "You have a new notification.": "Sie haben eine neue Benachrichtigung."
+    "You have a new notification.": "Sie haben eine neue Benachrichtigung.",
+    "Push Devices": "Push-Geräte",
+    "This Device": "Dieses Gerät",
+    "Subscribed Devices": "Abonnierte Geräte",
+    "Current": "Aktuell",
+    "Unknown Browser": "Unbekannter Browser",
+    "Unknown OS": "Unbekanntes OS",
+    "Device removed.": "Gerät entfernt.",
+    "No push devices registered yet.": "Noch keine Push-Geräte registriert.",
+    "Failed to remove device.": "Gerät konnte nicht entfernt werden.",
+    "Removing...": "Entfernen...",
+    "Remove": "Entfernen"
 }

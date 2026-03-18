@@ -38,7 +38,29 @@ export function usePushSubscription() {
             }
 
             const subscription = await registration.pushManager.getSubscription();
-            isSubscribed.value = subscription !== null;
+            if (!subscription) {
+                isSubscribed.value = false;
+                return;
+            }
+
+            // Cross-validate with backend — local subscription may be stale
+            try {
+                const { data } = await axios.get(route('user.push-subscription.status'), {
+                    params: { endpoint: subscription.endpoint },
+                });
+
+                if (data.subscribed) {
+                    isSubscribed.value = true;
+                } else {
+                    // Backend doesn't recognize this endpoint — stale local subscription
+                    console.info('[Push] Stale local subscription detected, cleaning up');
+                    await subscription.unsubscribe();
+                    isSubscribed.value = false;
+                }
+            } catch {
+                // Network error — fall back to local state to avoid blocking UI
+                isSubscribed.value = true;
+            }
         } catch {
             isSubscribed.value = false;
         }
@@ -125,6 +147,7 @@ export function usePushSubscription() {
                 },
                 content_encoding:
                     (PushManager.supportedContentEncodings ?? ['aesgcm'])[0],
+                user_agent: navigator.userAgent,
             });
 
             isSubscribed.value = true;
@@ -165,7 +188,18 @@ export function usePushSubscription() {
         }
     }
 
+    async function getCurrentEndpoint(): Promise<string | null> {
+        try {
+            const registration = await navigator.serviceWorker.getRegistration('/service-worker.js');
+            if (!registration) return null;
+            const subscription = await registration.pushManager.getSubscription();
+            return subscription?.endpoint ?? null;
+        } catch {
+            return null;
+        }
+    }
+
     onMounted(() => checkStatus());
 
-    return { isSubscribed, isSupported, loading, error, subscribe, unsubscribe, toggle };
+    return { isSubscribed, isSupported, loading, error, subscribe, unsubscribe, toggle, getCurrentEndpoint };
 }

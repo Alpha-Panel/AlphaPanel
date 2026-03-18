@@ -87,6 +87,16 @@ class UserController extends Controller
         ]);
     }
 
+    public function destroyAllNotifications(Request $request): JsonResponse
+    {
+        $request->user()->notifications()->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'unread_count' => 0,
+        ]);
+    }
+
     private function ensureNotificationOwnership(object $user, DatabaseNotification $notification): void
     {
         if (

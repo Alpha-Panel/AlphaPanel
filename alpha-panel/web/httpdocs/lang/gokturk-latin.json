@@ -472,6 +472,7 @@
     "Manage WAF mode, domain-specific rules and live logs for this domain.": "Bu domain üçün WAF modun, domaine özel qaidelerin hem tirig yazıgları yönet.",
     "Management": "yönetim",
     "Mark all read": "barçasın oqıdı qıl",
+    "Delete all": "barçasın sil",
     "Mark as read": "oqıdı qıl",
     "max_execution_time": "max_execution_time",
     "max_input_time": "max_input_time",
@@ -839,5 +840,16 @@
     "Worker Watch Enabled": "worker watch açıqtur",
     "Workers": "işçiler",
     "Yes": "evet",
-    "You have a new notification.": "yaŋı bildürgüŋ bar."
+    "You have a new notification.": "yaŋı bildürgüŋ bar.",
+    "Push Devices": "Puş Cihazlar",
+    "This Device": "Bu Cihaz",
+    "Subscribed Devices": "Abone Cihazlar",
+    "Current": "Mevcud",
+    "Unknown Browser": "Bilinmeyen Tarayıcı",
+    "Unknown OS": "Bilinmeyen İS",
+    "Device removed.": "Cihaz kaldırıldı.",
+    "No push devices registered yet.": "Henüz kayıtlı puş cihaz yok.",
+    "Failed to remove device.": "Cihaz kaldırılamadı.",
+    "Removing...": "Kaldırılıyor...",
+    "Remove": "Kaldır"
 }
