@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\AdminPushNotificationController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CrowdSecController;
 use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\DnsController;
@@ -16,22 +18,27 @@ use App\Http\Controllers\DomainSupervisorController;
 use App\Http\Controllers\DomainUserController;
 use App\Http\Controllers\FileManagerController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\ManifestController;
 use App\Http\Controllers\PhpSettingsController;
+use App\Http\Controllers\PmaSsoController;
+use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\TerminalController;
 use App\Http\Controllers\TerminalLogController;
 use App\Http\Controllers\TwoFactorAuthController;
+use App\Http\Controllers\UserAccountsController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WafGlobalRuleController;
 use App\Http\Controllers\WebAuthn\WebAuthnLoginController;
 use App\Http\Controllers\WebAuthn\WebAuthnRegisterController;
 use App\Http\Controllers\WebAuthnController;
+use App\Notifications\DomainNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\Rule;
 use Laravel\Fortify\Http\Controllers\TwoFactorAuthenticationController;
 
-Route::get('/manifest.json', [App\Http\Controllers\ManifestController::class, 'index'])->name('manifest');
+Route::get('/manifest.json', [ManifestController::class, 'index'])->name('manifest');
 Route::post('/locale', function (Request $request) {
     $supportedLocales = config('app.supported_locales', ['tr', 'tr-gokturk', 'gokturk-latin', 'az', 'en', 'de', 'es', 'fr', 'ru']);
 
@@ -101,7 +108,7 @@ Route::middleware('auth')->group(function (): void {
 
     // Test notification (geçici - test sonrası silinecek)
     Route::get('test-notification', function () {
-        auth()->user()->notify(new \App\Notifications\DomainNotification(
+        auth()->user()->notify(new DomainNotification(
             level: 'success',
             title: __('Realtime Test'),
             body: __('This notification was sent at :time.', ['time' => now()->format('H:i:s')]),
@@ -252,6 +259,14 @@ Route::middleware('auth')->group(function (): void {
     Route::post('user/security/webauthn/delete', [WebAuthnController::class, 'delete'])->name('user.security.webauthn.delete');
     Route::post('user/security/webauthn/rename', [WebAuthnController::class, 'rename'])->name('user.security.webauthn.rename');
 
+    // Push Subscription Management
+    Route::get('user/push-subscription/status', [PushSubscriptionController::class, 'status'])
+        ->name('user.push-subscription.status');
+    Route::post('user/push-subscription', [PushSubscriptionController::class, 'store'])
+        ->name('user.push-subscription.store');
+    Route::delete('user/push-subscription', [PushSubscriptionController::class, 'destroy'])
+        ->name('user.push-subscription.destroy');
+
     // Lock Screen
     Route::post('/lock-screen', [TwoFactorAuthController::class, 'lock'])->name('lockscreen');
 
@@ -263,11 +278,11 @@ Route::middleware('auth')->group(function (): void {
     });
 
     Route::middleware('permission:panel.users.manage')->group(function (): void {
-        Route::get('users', [\App\Http\Controllers\UserAccountsController::class, 'index'])->name('users.list');
-        Route::get('users/json', [\App\Http\Controllers\UserAccountsController::class, 'json'])->name('users.json');
-        Route::post('users', [\App\Http\Controllers\UserAccountsController::class, 'store'])->name('users.store');
-        Route::put('users/{user}', [\App\Http\Controllers\UserAccountsController::class, 'update'])->name('users.update');
-        Route::delete('users/{user}', [\App\Http\Controllers\UserAccountsController::class, 'destroy'])->name('users.destroy');
+        Route::get('users', [UserAccountsController::class, 'index'])->name('users.list');
+        Route::get('users/json', [UserAccountsController::class, 'json'])->name('users.json');
+        Route::post('users', [UserAccountsController::class, 'store'])->name('users.store');
+        Route::put('users/{user}', [UserAccountsController::class, 'update'])->name('users.update');
+        Route::delete('users/{user}', [UserAccountsController::class, 'destroy'])->name('users.destroy');
 
         Route::get('roles', [RoleController::class, 'index'])->name('roles.index');
         Route::get('roles/json', [RoleController::class, 'json'])->name('roles.json');
@@ -314,21 +329,21 @@ Route::middleware('auth')->group(function (): void {
 
     Route::middleware('permission:panel.backups.view')->group(function (): void {
         Route::prefix('backups')->name('backups.')->group(function (): void {
-            Route::get('/', [\App\Http\Controllers\BackupController::class, 'index'])->name('index');
-            Route::get('/connect', [\App\Http\Controllers\BackupController::class, 'connect'])->name('connect');
-            Route::get('/callback', [\App\Http\Controllers\BackupController::class, 'callback'])->name('callback');
-            Route::get('/history', [\App\Http\Controllers\BackupController::class, 'history'])->name('history');
-            Route::get('/folders', [\App\Http\Controllers\BackupController::class, 'folders'])->name('folders');
+            Route::get('/', [BackupController::class, 'index'])->name('index');
+            Route::get('/connect', [BackupController::class, 'connect'])->name('connect');
+            Route::get('/callback', [BackupController::class, 'callback'])->name('callback');
+            Route::get('/history', [BackupController::class, 'history'])->name('history');
+            Route::get('/folders', [BackupController::class, 'folders'])->name('folders');
         });
     });
 
     Route::middleware('permission:panel.backups.manage')->group(function (): void {
         Route::prefix('backups')->name('backups.')->group(function (): void {
-            Route::post('/disconnect', [\App\Http\Controllers\BackupController::class, 'disconnect'])->name('disconnect');
-            Route::post('/settings', [\App\Http\Controllers\BackupController::class, 'updateSettings'])->name('settings');
-            Route::post('/folder', [\App\Http\Controllers\BackupController::class, 'setFolder'])->name('folder');
-            Route::post('/create-folder', [\App\Http\Controllers\BackupController::class, 'createFolder'])->name('create-folder');
-            Route::post('/run', [\App\Http\Controllers\BackupController::class, 'run'])->name('run');
+            Route::post('/disconnect', [BackupController::class, 'disconnect'])->name('disconnect');
+            Route::post('/settings', [BackupController::class, 'updateSettings'])->name('settings');
+            Route::post('/folder', [BackupController::class, 'setFolder'])->name('folder');
+            Route::post('/create-folder', [BackupController::class, 'createFolder'])->name('create-folder');
+            Route::post('/run', [BackupController::class, 'run'])->name('run');
         });
     });
 
@@ -337,10 +352,18 @@ Route::middleware('auth')->group(function (): void {
     Route::post('domains/{domain}/users', [DomainUserController::class, 'store'])->name('domains.users.store');
     Route::delete('domains/{domain}/users/{user}', [DomainUserController::class, 'destroy'])->name('domains.users.destroy');
 
-    Route::get('/pma/domain/{domain}/database/{database}/sso', [\App\Http\Controllers\PmaSsoController::class, 'database'])
+    // Admin Push Notifications
+    Route::middleware('admin')->group(function (): void {
+        Route::get('admin/push-notifications', [AdminPushNotificationController::class, 'index'])
+            ->name('admin.push-notifications.index');
+        Route::post('admin/push-notifications/send', [AdminPushNotificationController::class, 'send'])
+            ->name('admin.push-notifications.send');
+    });
+
+    Route::get('/pma/domain/{domain}/database/{database}/sso', [PmaSsoController::class, 'database'])
         ->name('pma.database.sso');
 
     // Genel (admin) SSO
-    Route::get('/pma/admin/sso', [\App\Http\Controllers\PmaSsoController::class, 'admin'])
+    Route::get('/pma/admin/sso', [PmaSsoController::class, 'admin'])
         ->name('pma.admin.sso');
 });

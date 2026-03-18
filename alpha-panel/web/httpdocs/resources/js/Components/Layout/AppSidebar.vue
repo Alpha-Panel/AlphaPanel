@@ -359,6 +359,14 @@ const menuGroups = computed(() => {
                     });
                 }
 
+                if (isAdmin.value) {
+                    items.push({
+                        iconClass: 'fa-solid fa-bell',
+                        name: t('Push Notifications'),
+                        href: route('admin.push-notifications.index'),
+                    });
+                }
+
                 if (can('panel.terminal.access')) {
                     items.push({
                         iconClass: 'fa-solid fa-terminal',

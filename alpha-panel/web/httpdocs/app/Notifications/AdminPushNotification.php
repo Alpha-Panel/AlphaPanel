@@ -8,19 +8,14 @@ use Illuminate\Notifications\Notification;
 use NotificationChannels\WebPush\WebPushChannel;
 use NotificationChannels\WebPush\WebPushMessage;
 
-class BackupNotification extends Notification
+class AdminPushNotification extends Notification
 {
     use Queueable;
 
-    /**
-     * @param  'success'|'error'|'info'  $level
-     */
     public function __construct(
-        public string $level,
         public string $title,
         public string $body,
         public ?string $url = null,
-        public string $icon = 'bx bx-cloud-upload',
     ) {}
 
     /** @return array<int, string> */
@@ -39,11 +34,11 @@ class BackupNotification extends Notification
     public function toArray(object $notifiable): array
     {
         return [
-            'level' => $this->level,
+            'level' => 'info',
             'title' => $this->title,
             'body' => $this->body,
             'url' => $this->url,
-            'icon' => $this->icon,
+            'icon' => 'bx bx-megaphone',
         ];
     }
 

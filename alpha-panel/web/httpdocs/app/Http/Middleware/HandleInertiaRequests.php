@@ -77,6 +77,7 @@ class HandleInertiaRequests extends Middleware
             'available_locales' => config('app.supported_locales', ['tr', 'tr-gokturk', 'gokturk-latin', 'az', 'en', 'de', 'es', 'fr', 'ru']),
             'rtl_locales' => $rtlLocales,
             'translations' => fn () => $this->loadLocaleTranslations($locale),
+            'vapid_public_key' => config('webpush.vapid.public_key'),
         ];
     }
 

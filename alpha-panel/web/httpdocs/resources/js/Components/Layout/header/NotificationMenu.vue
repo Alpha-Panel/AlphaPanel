@@ -104,10 +104,21 @@
                 </button>
             </div>
 
-            <div class="mt-3 border-t border-gray-100 pt-3 dark:border-gray-800">
+            <div class="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+                <button
+                    v-if="isPushSupported"
+                    type="button"
+                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                    :class="{ 'text-brand-500': isPushSubscribed }"
+                    :disabled="pushLoading"
+                    :title="isPushSubscribed ? t('Disable push notifications') : t('Enable push notifications')"
+                    @click="togglePush"
+                >
+                    <i :class="isPushSubscribed ? 'fa-solid fa-bell' : 'fa-solid fa-bell-slash'" class="text-sm"></i>
+                </button>
                 <Link
                     :href="route('user.notifications.page')"
-                    class="block w-full rounded-lg border border-gray-200 px-3 py-2 text-center text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                    class="block flex-1 rounded-lg border border-gray-200 px-3 py-2 text-center text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
                     @click="closeDropdown"
                 >
                     {{ t('View all') }}
@@ -122,6 +133,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import type { SharedProps } from '@/types/inertia';
+import { usePushSubscription } from '@/Composables/usePushSubscription';
 import { useToast } from '@/Composables/useToast';
 import { useI18n } from '@/Composables/useI18n';
 
@@ -144,6 +156,12 @@ interface NotificationItem {
 const page = usePage<SharedProps>();
 const { addToast } = useToast();
 const { t } = useI18n();
+const {
+    isSubscribed: isPushSubscribed,
+    isSupported: isPushSupported,
+    loading: pushLoading,
+    toggle: togglePush,
+} = usePushSubscription();
 
 const dropdownOpen = ref(false);
 const notifying = ref(false);
