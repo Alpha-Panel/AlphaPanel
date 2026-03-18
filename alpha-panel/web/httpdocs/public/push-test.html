@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Push Notification Diagnostic</title>
+    <style>
+        body { font-family: monospace; max-width: 800px; margin: 40px auto; padding: 0 20px; background: #1a1a2e; color: #e0e0e0; }
+        h1 { color: #00d4ff; }
+        .step { margin: 10px 0; padding: 10px; border-left: 3px solid #333; }
+        .pass { border-color: #00ff88; }
+        .fail { border-color: #ff4444; }
+        .warn { border-color: #ffaa00; }
+        .info { border-color: #00d4ff; }
+        button { background: #00d4ff; color: #000; border: none; padding: 12px 24px; font-size: 16px; cursor: pointer; margin: 5px; font-family: monospace; }
+        button:hover { background: #00b8d4; }
+        input { background: #2a2a3e; color: #e0e0e0; border: 1px solid #444; padding: 8px; width: 100%; font-family: monospace; margin: 5px 0; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+    <h1>Push Notification Diagnostic</h1>
+
+    <label>VAPID Public Key (from .env):</label>
+    <input type="text" id="vapidKey" placeholder="Paste your VAPID_PUBLIC_KEY here" />
+
+    <div>
+        <button id="btnDiag">Run Full Diagnostic</button>
+        <button id="btnFCM">Test FCM Connectivity</button>
+        <button id="btnClean">Clean All SW</button>
+    </div>
+
+    <div id="log"></div>
+
+    <script>
+        const logEl = document.getElementById('log');
+
+        function log(msg, type) {
+            type = type || 'info';
+            const div = document.createElement('div');
+            div.className = 'step ' + type;
+            div.textContent = msg;
+            logEl.appendChild(div);
+        }
+
+        function clearLog() {
+            while (logEl.firstChild) {
+                logEl.removeChild(logEl.firstChild);
+            }
+        }
+
+        function urlBase64ToUint8Array(base64String) {
+            var padding = '='.repeat((4 - base64String.length % 4) % 4);
+            var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+            var rawData = window.atob(base64);
+            return Uint8Array.from(rawData, function(c) { return c.charCodeAt(0); });
+        }
+
+        document.getElementById('btnFCM').addEventListener('click', async function() {
+            clearLog();
+            log('=== FCM Connectivity Test ===');
+
+            var endpoints = [
+                'https://fcm.googleapis.com/fcm/send',
+                'https://fcm.googleapis.com',
+                'https://updates.push.services.mozilla.com',
+            ];
+
+            for (var i = 0; i < endpoints.length; i++) {
+                var url = endpoints[i];
+                try {
+                    var controller = new AbortController();
+                    var timeout = setTimeout(function(c) { return function() { c.abort(); }; }(controller), 5000);
+                    var resp = await fetch(url, { method: 'POST', signal: controller.signal, mode: 'no-cors' });
+                    clearTimeout(timeout);
+                    log('REACHABLE: ' + url + ' (type: ' + resp.type + ')', 'pass');
+                } catch (e) {
+                    log('UNREACHABLE: ' + url + ' — ' + e.name + ': ' + e.message, 'fail');
+                }
+            }
+        });
+
+        document.getElementById('btnClean').addEventListener('click', async function() {
+            clearLog();
+            log('=== Cleaning all Service Workers ===');
+            var regs = await navigator.serviceWorker.getRegistrations();
+            log('Found ' + regs.length + ' service worker(s)');
+            for (var i = 0; i < regs.length; i++) {
+                try {
+                    var sub = await regs[i].pushManager.getSubscription();
+                    if (sub) {
+                        await sub.unsubscribe();
+                        log('Unsubscribed push from: ' + regs[i].scope, 'pass');
+                    }
+                } catch (e) { /* ignore */ }
+                await regs[i].unregister();
+                log('Unregistered SW: ' + regs[i].scope, 'pass');
+            }
+            log('Done! Refresh the page and try again.', 'pass');
+        });
+
+        document.getElementById('btnDiag').addEventListener('click', async function() {
+            clearLog();
+            var vapidKey = document.getElementById('vapidKey').value.trim();
+
+            log('=== Push Notification Full Diagnostic ===');
+
+            // 1. Browser info
+            log('Browser: ' + navigator.userAgent);
+            log('Brave: ' + ('brave' in navigator ? 'YES — push may be blocked!' : 'No'));
+            log('Secure context: ' + window.isSecureContext);
+            log('Protocol: ' + location.protocol);
+            log('Host: ' + location.host);
+
+            // 2. API support
+            log('--- API Support ---');
+            log('ServiceWorker: ' + ('serviceWorker' in navigator ? 'YES' : 'NO'), 'serviceWorker' in navigator ? 'pass' : 'fail');
+            log('PushManager: ' + ('PushManager' in window ? 'YES' : 'NO'), 'PushManager' in window ? 'pass' : 'fail');
+            log('Notification: ' + ('Notification' in window ? 'YES' : 'NO'), 'Notification' in window ? 'pass' : 'fail');
+
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                log('FATAL: Push API not supported', 'fail');
+                return;
+            }
+
+            // 3. Notification permission
+            log('--- Notification Permission ---');
+            log('Current: ' + Notification.permission);
+            if (Notification.permission === 'default') {
+                var perm = await Notification.requestPermission();
+                log('Requested: ' + perm, perm === 'granted' ? 'pass' : 'fail');
+                if (perm !== 'granted') return;
+            } else if (Notification.permission === 'denied') {
+                log('FATAL: Permission DENIED. Reset in browser settings.', 'fail');
+                return;
+            } else {
+                log('Permission: granted', 'pass');
+            }
+
+            // 4. VAPID key
+            log('--- VAPID Key ---');
+            if (!vapidKey) {
+                log('ERROR: Paste VAPID_PUBLIC_KEY in the input above!', 'fail');
+                return;
+            }
+            log('Key: ' + vapidKey.substring(0, 20) + '...' + vapidKey.substring(vapidKey.length - 10));
+            log('Length: ' + vapidKey.length + ' chars');
+
+            var keyBytes;
+            try {
+                keyBytes = urlBase64ToUint8Array(vapidKey);
+                log('Decoded: ' + keyBytes.length + ' bytes' + (keyBytes.length === 65 ? ' (correct)' : ' (WRONG! Expected 65)'), keyBytes.length === 65 ? 'pass' : 'fail');
+                log('First byte: 0x' + keyBytes[0].toString(16).padStart(2, '0') + (keyBytes[0] === 4 ? ' (correct, uncompressed EC point)' : ' (WRONG! Expected 0x04)'), keyBytes[0] === 4 ? 'pass' : 'fail');
+            } catch (e) {
+                log('FATAL: Key decode error: ' + e.message, 'fail');
+                return;
+            }
+
+            // 5. FCM test
+            log('--- FCM Connectivity ---');
+            var fcmReachable = false;
+            try {
+                var ctrl = new AbortController();
+                var to = setTimeout(function() { ctrl.abort(); }, 5000);
+                await fetch('https://fcm.googleapis.com', { method: 'HEAD', mode: 'no-cors', signal: ctrl.signal });
+                clearTimeout(to);
+                log('fcm.googleapis.com: REACHABLE', 'pass');
+                fcmReachable = true;
+            } catch (e) {
+                log('fcm.googleapis.com: UNREACHABLE — ' + e.message, 'fail');
+                log('>>> Your network is blocking Google FCM! This is the root cause.', 'fail');
+                log('>>> Fix: Disable VPN/proxy, or try Firefox (uses Mozilla push service)', 'warn');
+            }
+
+            // 6. Service Worker
+            log('--- Service Worker ---');
+            var activeReg;
+            try {
+                var existing = await navigator.serviceWorker.getRegistrations();
+                for (var i = 0; i < existing.length; i++) {
+                    try {
+                        var s = await existing[i].pushManager.getSubscription();
+                        if (s) await s.unsubscribe();
+                    } catch (e) { /* ignore */ }
+                    await existing[i].unregister();
+                }
+                log('Cleaned ' + existing.length + ' old SW(s)', 'pass');
+
+                var reg = await navigator.serviceWorker.register('/service-worker.js');
+                log('SW registered: ' + reg.scope, 'pass');
+
+                activeReg = await navigator.serviceWorker.ready;
+                log('SW active: ' + (activeReg.active ? activeReg.active.state : 'null'), activeReg.active ? 'pass' : 'fail');
+            } catch (e) {
+                log('FATAL: SW error: ' + e.message, 'fail');
+                return;
+            }
+
+            // 7. Push subscription
+            log('--- Push Subscription (the critical step) ---');
+            try {
+                var subscription = await activeReg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: keyBytes,
+                });
+                log('SUCCESS! Subscription created!', 'pass');
+                log('Endpoint: ' + subscription.endpoint, 'pass');
+                var json = subscription.toJSON();
+                log('p256dh: ' + (json.keys && json.keys.p256dh ? json.keys.p256dh.substring(0, 20) + '...' : 'missing'), 'pass');
+                log('auth: ' + (json.keys && json.keys.auth ? json.keys.auth : 'missing'), 'pass');
+            } catch (e) {
+                log('FAILED: ' + e.name + ': ' + e.message, 'fail');
+                log('Error code: ' + (e.code || 'none'), 'fail');
+                log('');
+
+                if ('brave' in navigator) {
+                    log('>>> BRAVE DETECTED! Go to brave://settings/privacy', 'warn');
+                    log('>>> Enable "Use Google services for push messaging"', 'warn');
+                } else if (!fcmReachable) {
+                    log('>>> FCM is blocked. This is a NETWORK issue.', 'fail');
+                    log('>>> Try Firefox browser (uses Mozilla push, not Google FCM)', 'warn');
+                } else {
+                    log('Possible causes:', 'warn');
+                    log('1. Windows > Settings > System > Notifications > Chrome must be ON', 'warn');
+                    log('2. chrome://settings/content/notifications must allow this site', 'warn');
+                    log('3. Group Policy or antivirus blocking push notifications', 'warn');
+                    log('4. Try in Incognito mode or a different Chrome profile', 'warn');
+                    log('5. Try Firefox browser as an alternative', 'warn');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
