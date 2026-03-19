@@ -13,6 +13,7 @@ use App\Services\CrowdSecService;
 use App\Services\HostMetricsService;
 use App\Services\MysqlAdminService;
 use App\Services\PortainerService;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -55,7 +56,7 @@ class HomeController extends Controller
                 'mysql_monitor' => null,
                 'crowdsec' => null,
                 'active_backup' => $user->isAdmin()
-                    ? BackupRun::where('status', 'uploading')->latest('started_at')
+                    ? BackupRun::whereIn('status', ['uploading', 'running'])->latest('started_at')
                         ->first(['id', 'status', 'progress_percent', 'started_at'])
                     : null,
             ],
@@ -210,7 +211,7 @@ class HomeController extends Controller
     }
 
     /**
-     * @param  \Illuminate\Database\Eloquent\Collection<int, Domain>  $domains
+     * @param  Collection<int, Domain>  $domains
      * @return array<int, bool|null>
      */
     private function getUnderAttackStatuses($domains, CloudflareDnsService $cloudflare): array

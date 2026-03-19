@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\BackupProgress;
 use App\Jobs\BackupUploadJob;
 use App\Models\AuditLog;
 use App\Models\BackupRun;
@@ -13,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BackupController extends Controller
 {
@@ -47,6 +49,7 @@ class BackupController extends Controller
                 'file_size' => $run->file_size_bytes,
                 'progress_percent' => $run->progress_percent,
                 'error_message' => $run->error_message,
+                'drive_file_id' => $run->drive_file_id,
                 'started_at' => $run->started_at?->format(config('app.display_datetime_format', 'd.m.Y H:i:s')),
                 'finished_at' => $run->finished_at?->format(config('app.display_datetime_format', 'd.m.Y H:i:s')),
                 'triggered_by' => $run->triggeredByUser?->name,
@@ -231,6 +234,121 @@ class BackupController extends Controller
             ->with('success', __('Backup job started. You can track progress below.'));
     }
 
+    public function cancel(Request $request, BackupRun $backupRun): RedirectResponse
+    {
+        if (! in_array($backupRun->status, ['uploading', 'running'])) {
+            return redirect()->route('backups.index')
+                ->with('error', __('This backup is not in a cancellable state.'));
+        }
+
+        $backupRun->update([
+            'status' => 'cancelled',
+            'finished_at' => now(),
+            'error_message' => __('Cancelled by user'),
+        ]);
+
+        BackupProgress::dispatch($backupRun->id, $backupRun->progress_percent, __('Backup cancelled'), 'cancelled');
+
+        // Cleanup temp files if they exist
+        $tempBase = config('backup.local_backup_base').'/'.now()->format('d-M-Y');
+        if (is_dir($tempBase)) {
+            $this->cleanupDir($tempBase);
+        }
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'backup_cancelled',
+            'summary' => "Backup #{$backupRun->id} cancelled by user",
+        ]);
+
+        return redirect()->route('backups.index')
+            ->with('success', __('Backup cancelled.'));
+    }
+
+    public function restart(Request $request): RedirectResponse
+    {
+        $settings = BackupSetting::instance();
+
+        if (! $settings->isConnected()) {
+            return redirect()->route('backups.index')
+                ->with('error', __('Google Drive is not connected.'));
+        }
+
+        if (! $settings->drive_folder_id) {
+            return redirect()->route('backups.index')
+                ->with('error', __('No backup folder selected.'));
+        }
+
+        // Cancel any active runs
+        BackupRun::whereIn('status', ['uploading', 'running'])
+            ->each(function (BackupRun $run): void {
+                $run->update([
+                    'status' => 'cancelled',
+                    'finished_at' => now(),
+                    'error_message' => __('Cancelled for restart'),
+                ]);
+
+                BackupProgress::dispatch($run->id, $run->progress_percent, __('Backup cancelled for restart'), 'cancelled');
+            });
+
+        BackupUploadJob::dispatch(
+            type: 'manual',
+            triggeredBy: $request->user()->id,
+        );
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'backup_restarted',
+            'summary' => 'Backup restarted by user',
+        ]);
+
+        return redirect()->route('backups.index')
+            ->with('success', __('Backup restarted. You can track progress below.'));
+    }
+
+    public function driveQuota(GoogleDriveService $drive): JsonResponse
+    {
+        try {
+            $quota = $drive->getStorageQuota();
+
+            return response()->json($quota);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function driveFiles(Request $request, GoogleDriveService $drive): JsonResponse
+    {
+        try {
+            $parentId = $request->input('parent_id');
+            $files = $drive->listFilesAndFolders($parentId ?: null);
+
+            return response()->json(['files' => $files]);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function driveDownload(string $fileId, GoogleDriveService $drive): StreamedResponse
+    {
+        try {
+            $file = $drive->downloadFile($fileId);
+
+            return response()->streamDownload(function () use ($file): void {
+                $stream = $file['stream'];
+                while (! $stream->eof()) {
+                    echo $stream->read(8192);
+                    flush();
+                }
+            }, $file['name'], [
+                'Content-Type' => $file['mimeType'],
+                'Content-Length' => $file['size'],
+            ]);
+        } catch (\Throwable $e) {
+            abort(500, $e->getMessage());
+        }
+    }
+
     public function history(): JsonResponse
     {
         $runs = BackupRun::query()
@@ -239,5 +357,22 @@ class BackupController extends Controller
             ->paginate(20);
 
         return response()->json($runs);
+    }
+
+    private function cleanupDir(string $dir): void
+    {
+        if (! is_dir($dir)) {
+            return;
+        }
+
+        foreach (glob("{$dir}/*") as $item) {
+            if (is_dir($item)) {
+                $this->cleanupDir($item);
+            } else {
+                @unlink($item);
+            }
+        }
+
+        @rmdir($dir);
     }
 }

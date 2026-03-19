@@ -96,6 +96,17 @@
                                 <i class="bx bx-folder-plus"></i>
                                 {{ settings.drive_folder_id ? t('Change Folder') : t('Select Folder') }}
                             </button>
+
+                            <!-- Storage Quota -->
+                            <div v-if="storageQuota" class="mt-5 border-t border-gray-200 pt-4 dark:border-gray-700">
+                                <h5 class="mb-3 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                    {{ t('Storage Usage') }}
+                                </h5>
+                                <StorageDonutChart :used="storageQuota.usage" :total="storageQuota.limit" />
+                            </div>
+                            <div v-else-if="storageQuotaLoading" class="mt-5 flex justify-center border-t border-gray-200 pt-4 dark:border-gray-700">
+                                <div class="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-brand-500"></div>
+                            </div>
                         </div>
 
                         <!-- Settings Card -->
@@ -204,6 +215,26 @@
                                     ></div>
                                 </div>
                             </div>
+                            <div class="flex items-center gap-2">
+                                <button
+                                    @click="cancelBackup"
+                                    :disabled="cancelProcessing"
+                                    class="inline-flex h-8 items-center gap-1 rounded-lg border border-red-300 px-2.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/10"
+                                    :title="t('Cancel')"
+                                >
+                                    <i class="bx bx-x text-sm"></i>
+                                    {{ t('Cancel') }}
+                                </button>
+                                <button
+                                    @click="restartBackup"
+                                    :disabled="restartProcessing"
+                                    class="inline-flex h-8 items-center gap-1 rounded-lg border border-brand-300 px-2.5 text-xs font-medium text-brand-600 transition hover:bg-brand-50 disabled:opacity-50 dark:border-brand-500/30 dark:text-brand-400 dark:hover:bg-brand-500/10"
+                                    :title="t('Restart')"
+                                >
+                                    <i class="bx bx-revision text-sm"></i>
+                                    {{ t('Restart') }}
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -259,7 +290,8 @@
                                     <tr
                                         v-for="run in recent_runs"
                                         :key="run.id"
-                                        class="border-b border-gray-100 last:border-0 dark:border-gray-800"
+                                        @click="openBackupDetail(run)"
+                                        class="cursor-pointer border-b border-gray-100 transition last:border-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50"
                                     >
                                         <td class="py-3 pr-3">
                                             <span
@@ -451,6 +483,151 @@
                         </div>
                     </div>
                 </Teleport>
+
+                <!-- Backup Detail Modal -->
+                <Teleport to="body">
+                    <div v-if="showDetailModal && selectedRun" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="showDetailModal = false">
+                        <div class="mx-4 flex w-full max-w-2xl flex-col rounded-2xl bg-white shadow-xl dark:bg-gray-900" style="max-height: 85vh">
+                            <!-- Header -->
+                            <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">
+                                <h3 class="text-lg font-semibold text-gray-800 dark:text-white">
+                                    {{ t('Backup Details') }}
+                                </h3>
+                                <button @click="showDetailModal = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                                    <i class="bx bx-x text-xl"></i>
+                                </button>
+                            </div>
+
+                            <!-- Content (scrollable) -->
+                            <div class="flex-1 overflow-y-auto px-6 py-4">
+                                <!-- Metadata Grid -->
+                                <div class="grid grid-cols-2 gap-3 text-sm">
+                                    <div>
+                                        <span class="text-gray-500 dark:text-gray-400">{{ t('Type') }}</span>
+                                        <div class="mt-0.5">
+                                            <span :class="['inline-flex rounded-full px-2 py-0.5 text-xs font-medium', typeBadge(selectedRun.type)]">
+                                                {{ selectedRun.type }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span class="text-gray-500 dark:text-gray-400">{{ t('Status') }}</span>
+                                        <div class="mt-0.5">
+                                            <span :class="['inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium', statusBadge(selectedRun.status)]">
+                                                <i :class="statusIcon(selectedRun.status)" class="text-[10px]"></i>
+                                                {{ selectedRun.status }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span class="text-gray-500 dark:text-gray-400">{{ t('Started') }}</span>
+                                        <p class="mt-0.5 text-gray-800 dark:text-gray-200">{{ selectedRun.started_at || '-' }}</p>
+                                    </div>
+                                    <div>
+                                        <span class="text-gray-500 dark:text-gray-400">{{ t('Finished') }}</span>
+                                        <p class="mt-0.5 text-gray-800 dark:text-gray-200">{{ selectedRun.finished_at || '-' }}</p>
+                                    </div>
+                                    <div>
+                                        <span class="text-gray-500 dark:text-gray-400">{{ t('Triggered By') }}</span>
+                                        <p class="mt-0.5 text-gray-800 dark:text-gray-200">{{ selectedRun.triggered_by || t('System') }}</p>
+                                    </div>
+                                    <div>
+                                        <span class="text-gray-500 dark:text-gray-400">{{ t('Size') }}</span>
+                                        <p class="mt-0.5 text-gray-800 dark:text-gray-200">{{ selectedRun.file_size ? humanSize(selectedRun.file_size) : '-' }}</p>
+                                    </div>
+                                </div>
+
+                                <!-- Error Message -->
+                                <div v-if="selectedRun.error_message" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">
+                                    <i class="bx bx-error-circle mr-1"></i>
+                                    {{ selectedRun.error_message }}
+                                </div>
+
+                                <!-- File Browser Section -->
+                                <div v-if="selectedRun.status === 'completed' && settings.drive_folder_id" class="mt-5 border-t border-gray-200 pt-4 dark:border-gray-800">
+                                    <div class="mb-3 flex items-center justify-between">
+                                        <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
+                                            <i class="bx bx-folder-open mr-1"></i>
+                                            {{ t('Files on Drive') }}
+                                        </h4>
+                                    </div>
+
+                                    <!-- File Breadcrumbs -->
+                                    <div v-if="fileBreadcrumbs.length > 0" class="mb-3 flex flex-wrap items-center gap-1 text-sm">
+                                        <template v-for="(crumb, i) in fileBreadcrumbs" :key="i">
+                                            <i v-if="i > 0" class="bx bx-chevron-right text-gray-400"></i>
+                                            <button
+                                                @click="navigateDriveBreadcrumb(crumb, i)"
+                                                class="text-brand-500 hover:underline"
+                                            >
+                                                {{ crumb.name }}
+                                            </button>
+                                        </template>
+                                    </div>
+
+                                    <!-- File List -->
+                                    <div class="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                                        <div v-if="driveFilesLoading" class="flex items-center justify-center py-8">
+                                            <div class="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-brand-500"></div>
+                                        </div>
+                                        <div v-else-if="driveFiles.length === 0" class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                                            <i class="bx bx-folder-open text-2xl"></i>
+                                            <p class="mt-1">{{ t('No files found') }}</p>
+                                        </div>
+                                        <table v-else class="w-full text-sm">
+                                            <tbody>
+                                                <tr
+                                                    v-for="file in driveFiles"
+                                                    :key="file.id"
+                                                    :class="[
+                                                        'border-b border-gray-100 last:border-0 dark:border-gray-800',
+                                                        isFolder(file) ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50' : '',
+                                                    ]"
+                                                    @click="isFolder(file) ? navigateDriveFolder(file) : undefined"
+                                                >
+                                                    <td class="w-8 py-2.5 pl-3">
+                                                        <i :class="fileIcon(file)" class="text-lg"></i>
+                                                    </td>
+                                                    <td class="py-2.5 pl-2 text-gray-700 dark:text-gray-300">
+                                                        {{ file.name }}
+                                                    </td>
+                                                    <td class="py-2.5 pr-3 text-right text-xs text-gray-500 dark:text-gray-400">
+                                                        {{ !isFolder(file) && file.size ? humanSize(file.size) : '' }}
+                                                    </td>
+                                                    <td class="py-2.5 pr-3 text-right text-xs text-gray-500 dark:text-gray-400">
+                                                        {{ formatDate(file.modifiedTime) }}
+                                                    </td>
+                                                    <td class="w-10 py-2.5 pr-3 text-right">
+                                                        <a
+                                                            v-if="!isFolder(file)"
+                                                            :href="route('backups.drive-download', { fileId: file.id })"
+                                                            class="inline-flex items-center text-brand-500 transition hover:text-brand-600"
+                                                            :title="t('Download')"
+                                                            @click.stop
+                                                        >
+                                                            <i class="bx bx-download text-lg"></i>
+                                                        </a>
+                                                        <i v-else class="bx bx-chevron-right text-gray-400"></i>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Footer -->
+                            <div class="border-t border-gray-200 px-6 py-3 dark:border-gray-800">
+                                <button
+                                    @click="showDetailModal = false"
+                                    class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                                >
+                                    {{ t('Close') }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </Teleport>
             </AdminLayout>
         </SidebarProvider>
     </ThemeProvider>
@@ -465,6 +642,7 @@ import PageBreadcrumb from '@/Components/Common/PageBreadcrumb.vue';
 import SidebarProvider from '@/Components/Layout/SidebarProvider.vue';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
 import Toast from '@/Components/UI/Toast.vue';
+import StorageDonutChart from '@/Components/Backups/StorageDonutChart.vue';
 
 const { t } = useI18n();
 
@@ -489,6 +667,7 @@ interface BackupRunItem {
     file_size: number | null;
     progress_percent: number;
     error_message: string | null;
+    drive_file_id: string | null;
     started_at: string | null;
     finished_at: string | null;
     triggered_by: string | null;
@@ -497,6 +676,14 @@ interface BackupRunItem {
 interface DriveFolder {
     id: string;
     name: string;
+}
+
+interface DriveFileItem {
+    id: string;
+    name: string;
+    mimeType: string;
+    size: number | null;
+    modifiedTime: string | null;
 }
 
 const props = defineProps<{
@@ -536,6 +723,20 @@ const creatingFolder = ref(false);
 
 // Live Progress State
 const activeRunMessage = ref('');
+const cancelProcessing = ref(false);
+const restartProcessing = ref(false);
+
+// Storage Quota State
+const storageQuota = ref<{ usage: number; limit: number | null } | null>(null);
+const storageQuotaLoading = ref(false);
+
+// Detail Modal State
+const showDetailModal = ref(false);
+const selectedRun = ref<BackupRunItem | null>(null);
+const driveFiles = ref<DriveFileItem[]>([]);
+const driveFilesLoading = ref(false);
+const fileBreadcrumbs = ref<{ id: string; name: string }[]>([]);
+const currentDriveParentId = ref<string | null>(null);
 
 // Computed
 const activeRun = computed(() => {
@@ -555,10 +756,24 @@ onMounted(() => {
                 activeRunMessage.value = e.message;
             }
 
-            if (e.status === 'completed' || e.status === 'failed') {
+            if (e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled') {
                 setTimeout(() => router.reload(), 1000);
             }
         });
+    }
+
+    // Load storage quota if connected
+    if (props.settings.is_connected) {
+        storageQuotaLoading.value = true;
+        fetch(route('backups.drive-quota'), {
+            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        })
+            .then((r) => r.ok ? r.json() : null)
+            .then((data) => {
+                if (data && !data.error) storageQuota.value = data;
+            })
+            .catch(() => {})
+            .finally(() => { storageQuotaLoading.value = false; });
     }
 });
 
@@ -567,6 +782,28 @@ onUnmounted(() => {
         echoChannel.stopListening('BackupProgress');
     }
 });
+
+// Backup control actions
+function cancelBackup() {
+    if (!activeRun.value) return;
+    cancelProcessing.value = true;
+    router.post(route('backups.cancel', activeRun.value.id), {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            cancelProcessing.value = false;
+        },
+    });
+}
+
+function restartBackup() {
+    restartProcessing.value = true;
+    router.post(route('backups.restart'), {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            restartProcessing.value = false;
+        },
+    });
+}
 
 // Actions
 function saveSettings() {
@@ -676,6 +913,111 @@ async function createNewFolder() {
     }
 }
 
+// Detail Modal
+async function openBackupDetail(run: BackupRunItem) {
+    selectedRun.value = run;
+    showDetailModal.value = true;
+    driveFiles.value = [];
+    fileBreadcrumbs.value = [];
+
+    if (run.status !== 'completed' || !props.settings.drive_folder_id) return;
+
+    driveFilesLoading.value = true;
+    try {
+        let targetFolderId: string | null = null;
+
+        if (run.drive_file_id) {
+            targetFolderId = run.drive_file_id;
+        } else {
+            const dateMatch = run.file_name?.match(/\(([^)]+)\)/);
+            if (dateMatch) {
+                const resp = await fetch(
+                    route('backups.drive-files') + `?parent_id=${props.settings.drive_folder_id}`,
+                    { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } },
+                );
+                const data = await resp.json();
+                const dateFolder = (data.files || []).find(
+                    (f: DriveFileItem) => f.name === dateMatch[1] && f.mimeType === 'application/vnd.google-apps.folder',
+                );
+                if (dateFolder) targetFolderId = dateFolder.id;
+            }
+        }
+
+        if (targetFolderId) {
+            fileBreadcrumbs.value = [
+                { id: props.settings.drive_folder_id!, name: props.settings.drive_folder_name || 'Backups' },
+            ];
+            if (!run.drive_file_id) {
+                const dateMatch = run.file_name?.match(/\(([^)]+)\)/);
+                if (dateMatch) fileBreadcrumbs.value.push({ id: targetFolderId, name: dateMatch[1] });
+            } else {
+                const dateMatch = run.file_name?.match(/\(([^)]+)\)/);
+                fileBreadcrumbs.value.push({ id: targetFolderId, name: dateMatch?.[1] || 'Backup' });
+            }
+            currentDriveParentId.value = targetFolderId;
+            await loadDriveFiles(targetFolderId);
+        }
+    } catch {
+        driveFiles.value = [];
+    } finally {
+        driveFilesLoading.value = false;
+    }
+}
+
+async function loadDriveFiles(parentId: string) {
+    driveFilesLoading.value = true;
+    try {
+        const resp = await fetch(
+            route('backups.drive-files') + `?parent_id=${parentId}`,
+            { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } },
+        );
+        const data = await resp.json();
+        driveFiles.value = data.files || [];
+    } catch {
+        driveFiles.value = [];
+    } finally {
+        driveFilesLoading.value = false;
+    }
+}
+
+function navigateDriveFolder(file: DriveFileItem) {
+    const existingIndex = fileBreadcrumbs.value.findIndex((c) => c.id === file.id);
+    if (existingIndex >= 0) {
+        fileBreadcrumbs.value = fileBreadcrumbs.value.slice(0, existingIndex + 1);
+    } else {
+        fileBreadcrumbs.value.push({ id: file.id, name: file.name });
+    }
+    currentDriveParentId.value = file.id;
+    loadDriveFiles(file.id);
+}
+
+function navigateDriveBreadcrumb(crumb: { id: string; name: string }, index: number) {
+    fileBreadcrumbs.value = fileBreadcrumbs.value.slice(0, index + 1);
+    currentDriveParentId.value = crumb.id;
+    loadDriveFiles(crumb.id);
+}
+
+function isFolder(file: DriveFileItem): boolean {
+    return file.mimeType === 'application/vnd.google-apps.folder';
+}
+
+function fileIcon(file: DriveFileItem): string {
+    if (isFolder(file)) return 'bx bx-folder text-yellow-500';
+    if (file.mimeType?.includes('gzip') || file.mimeType?.includes('tar') || file.mimeType?.includes('zip') || file.mimeType?.includes('compressed'))
+        return 'bx bx-archive text-orange-500';
+    if (file.mimeType?.includes('sql')) return 'bx bx-data text-blue-500';
+    return 'bx bx-file text-gray-400';
+}
+
+function formatDate(dateStr: string | null): string {
+    if (!dateStr) return '-';
+    try {
+        return new Date(dateStr).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch {
+        return dateStr;
+    }
+}
+
 // Helpers
 function humanSize(bytes: number): string {
     const units = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -697,6 +1039,8 @@ function statusBadge(status: string): string {
             return 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300';
         case 'failed':
             return 'bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-300';
+        case 'cancelled':
+            return 'bg-orange-50 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300';
         default:
             return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
     }
@@ -711,6 +1055,8 @@ function statusIcon(status: string): string {
             return 'bx bx-loader-alt bx-spin';
         case 'failed':
             return 'bx bxs-x-circle';
+        case 'cancelled':
+            return 'bx bx-block';
         default:
             return 'bx bx-circle';
     }

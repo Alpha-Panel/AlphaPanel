@@ -74,17 +74,27 @@ class BackupUploadJob implements ShouldQueue
             // Create date folder on Drive: <drive_folder>/09-Mar-2026/
             $dateFolderId = $driveService->findOrCreateFolderPath($datetime, $settings->drive_folder_id);
 
+            // Store the date folder ID for later browsing
+            $run->update(['drive_file_id' => $dateFolderId]);
+
             // Phase 1: MySQL backups (0-50%)
+            if ($this->isCancelled($run)) {
+                return;
+            }
             BackupProgress::dispatch($run->id, 2, __('Starting database backups...'), 'uploading');
             $this->backupDatabases($driveService, $dateFolderId, $tempBase, $run);
 
             // Phase 2: Website backups (50-95%)
+            if ($this->isCancelled($run)) {
+                return;
+            }
             BackupProgress::dispatch($run->id, 50, __('Starting website backups...'), 'uploading');
             $this->backupWebsites($driveService, $dateFolderId, $tempBase, $run);
 
-
-
             // Phase 3: Cleanup old backups on Drive (95-99%)
+            if ($this->isCancelled($run)) {
+                return;
+            }
             BackupProgress::dispatch($run->id, 95, __('Cleaning old backups...'), 'uploading');
             $driveService->deleteOldBackups($settings->drive_folder_id, $settings->backup_retention_days);
 
@@ -293,6 +303,13 @@ class BackupUploadJob implements ShouldQueue
             // Remove local archive immediately after upload
             @unlink($archivePath);
         }
+    }
+
+    private function isCancelled(BackupRun $run): bool
+    {
+        $run->refresh();
+
+        return $run->status === 'cancelled';
     }
 
     private function cleanupDir(string $dir): void

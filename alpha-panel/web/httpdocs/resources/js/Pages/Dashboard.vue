@@ -29,12 +29,32 @@
                                 ></div>
                             </div>
                         </div>
-                        <Link
-                            :href="route('backups.index')"
-                            class="text-xs font-medium text-brand-600 hover:text-brand-800 dark:text-brand-300"
-                        >
-                            {{ t('View') }}
-                        </Link>
+                        <div class="flex items-center gap-2">
+                            <button
+                                @click="cancelBackup"
+                                :disabled="backupCancelProcessing"
+                                class="inline-flex h-7 items-center gap-1 rounded-lg border border-red-300 px-2 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/10"
+                                :title="t('Cancel')"
+                            >
+                                <i class="bx bx-x text-sm"></i>
+                                {{ t('Cancel') }}
+                            </button>
+                            <button
+                                @click="restartBackup"
+                                :disabled="backupRestartProcessing"
+                                class="inline-flex h-7 items-center gap-1 rounded-lg border border-brand-300 px-2 text-xs font-medium text-brand-600 transition hover:bg-brand-50 disabled:opacity-50 dark:border-brand-500/30 dark:text-brand-400 dark:hover:bg-brand-500/10"
+                                :title="t('Restart')"
+                            >
+                                <i class="bx bx-revision text-sm"></i>
+                                {{ t('Restart') }}
+                            </button>
+                            <Link
+                                :href="route('backups.index')"
+                                class="text-xs font-medium text-brand-600 hover:text-brand-800 dark:text-brand-300"
+                            >
+                                {{ t('View') }}
+                            </Link>
+                        </div>
                     </div>
                 </div>
 
@@ -813,6 +833,8 @@ const backupProgress = ref({
     message: '',
     runId: props.dashboard.active_backup?.id ?? null as number | null,
 });
+const backupCancelProcessing = ref(false);
+const backupRestartProcessing = ref(false);
 
 const isAdmin = computed(() => dashboard.value.is_admin);
 const stats = computed(() => dashboard.value.stats);
@@ -841,6 +863,28 @@ const filteredContainers = computed(() => {
 });
 const processes = computed(() => mysqlMonitor.value?.processes ?? []);
 const underAttackLoading = ref<number | null>(null);
+
+const cancelBackup = () => {
+    if (!backupProgress.value.runId) return;
+    backupCancelProcessing.value = true;
+    router.post(route('backups.cancel', backupProgress.value.runId), {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            backupCancelProcessing.value = false;
+            backupProgress.value.active = false;
+        },
+    });
+};
+
+const restartBackup = () => {
+    backupRestartProcessing.value = true;
+    router.post(route('backups.restart'), {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            backupRestartProcessing.value = false;
+        },
+    });
+};
 
 const toggleUnderAttack = async (domain: RecentDomain): Promise<void> => {
     if (underAttackLoading.value !== null) return;
@@ -1329,7 +1373,7 @@ onMounted(async () => {
                 backupProgress.value.message = e.message;
                 backupProgress.value.runId = e.backup_run_id;
 
-                if (e.status === 'completed' || e.status === 'failed') {
+                if (e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled') {
                     setTimeout(() => {
                         backupProgress.value.active = false;
                     }, 2000);

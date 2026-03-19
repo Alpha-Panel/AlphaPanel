@@ -343,6 +343,9 @@ Route::middleware('auth')->group(function (): void {
             Route::get('/callback', [BackupController::class, 'callback'])->name('callback');
             Route::get('/history', [BackupController::class, 'history'])->name('history');
             Route::get('/folders', [BackupController::class, 'folders'])->name('folders');
+            Route::get('/drive-quota', [BackupController::class, 'driveQuota'])->name('drive-quota');
+            Route::get('/drive-files', [BackupController::class, 'driveFiles'])->name('drive-files');
+            Route::get('/drive-download/{fileId}', [BackupController::class, 'driveDownload'])->name('drive-download');
         });
     });
 
@@ -353,6 +356,8 @@ Route::middleware('auth')->group(function (): void {
             Route::post('/folder', [BackupController::class, 'setFolder'])->name('folder');
             Route::post('/create-folder', [BackupController::class, 'createFolder'])->name('create-folder');
             Route::post('/run', [BackupController::class, 'run'])->name('run');
+            Route::post('/{backupRun}/cancel', [BackupController::class, 'cancel'])->name('cancel');
+            Route::post('/restart', [BackupController::class, 'restart'])->name('restart');
         });
     });
 

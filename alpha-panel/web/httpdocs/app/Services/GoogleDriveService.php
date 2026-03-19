@@ -3,12 +3,16 @@
 namespace App\Services;
 
 use App\Models\BackupSetting;
+use Carbon\Carbon;
 use Google\Client as GoogleClient;
+use Google\Http\MediaFileUpload;
 use Google\Service\Drive;
 use Google\Service\Drive\DriveFile;
 use Google\Service\Exception;
 use Google\Service\Oauth2;
+use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Facades\Log;
+use Psr\Http\Message\StreamInterface;
 
 class GoogleDriveService
 {
@@ -278,7 +282,7 @@ class GoogleDriveService
 
         $request = $drive->files->create($metadata, ['fields' => 'id, name, size']);
 
-        $media = new \Google\Http\MediaFileUpload(
+        $media = new MediaFileUpload(
             $client,
             $request,
             mime_content_type($localPath) ?: 'application/octet-stream',
@@ -296,7 +300,7 @@ class GoogleDriveService
 
             try {
                 $response = $media->nextChunk($chunk);
-            } catch (\Google\Service\Exception $e) {
+            } catch (Exception $e) {
                 fclose($handle);
                 $client->setDefer(false);
 
@@ -320,11 +324,86 @@ class GoogleDriveService
         ];
     }
 
+    // --- Storage Quota ---
+
+    /**
+     * Get Google Drive storage quota (usage and limit).
+     *
+     * @return array{usage: int, limit: int|null}
+     */
+    public function getStorageQuota(): array
+    {
+        $drive = $this->bootDrive();
+        $about = $drive->about->get(['fields' => 'storageQuota']);
+        $quota = $about->getStorageQuota();
+
+        return [
+            'usage' => (int) $quota->getUsage(),
+            'limit' => $quota->getLimit() ? (int) $quota->getLimit() : null,
+        ];
+    }
+
+    // --- File Browsing ---
+
+    /**
+     * List both files and folders in a given parent folder.
+     *
+     * @return array<int, array{id: string, name: string, mimeType: string, size: int|null, modifiedTime: string|null}>
+     */
+    public function listFilesAndFolders(?string $parentId = null): array
+    {
+        $drive = $this->bootDrive();
+
+        $query = 'trashed = false';
+        $query .= $parentId
+            ? " and '{$parentId}' in parents"
+            : " and 'root' in parents";
+
+        $response = $drive->files->listFiles([
+            'q' => $query,
+            'spaces' => 'drive',
+            'fields' => 'files(id, name, mimeType, size, modifiedTime)',
+            'orderBy' => 'folder,name',
+            'pageSize' => 200,
+        ]);
+
+        return collect($response->getFiles())->map(fn (DriveFile $file) => [
+            'id' => $file->getId(),
+            'name' => $file->getName(),
+            'mimeType' => $file->getMimeType(),
+            'size' => $file->getSize() ? (int) $file->getSize() : null,
+            'modifiedTime' => $file->getModifiedTime(),
+        ])->all();
+    }
+
+    /**
+     * Get file metadata and a readable stream for download.
+     *
+     * @return array{name: string, mimeType: string, size: int, stream: StreamInterface}
+     */
+    public function downloadFile(string $fileId): array
+    {
+        $drive = $this->bootDrive();
+
+        $file = $drive->files->get($fileId, ['fields' => 'id, name, mimeType, size']);
+
+        /** @var Response $response */
+        $response = $drive->files->get($fileId, ['alt' => 'media']);
+
+        return [
+            'name' => $file->getName(),
+            'mimeType' => $file->getMimeType() ?? 'application/octet-stream',
+            'size' => (int) $file->getSize(),
+            'stream' => $response->getBody(),
+        ];
+    }
+
     // --- Cleanup ---
 
     /**
      * Delete backups older than the given retention period.
      * Port of drivebackup.py remove_old_backups().
+     *
      * @throws Exception
      */
     public function deleteOldBackups(string $folderId, int $retentionDays): int
@@ -343,7 +422,7 @@ class GoogleDriveService
         ]);
 
         foreach ($response->getFiles() as $file) {
-            $modifiedTime = \Carbon\Carbon::parse($file->getModifiedTime());
+            $modifiedTime = Carbon::parse($file->getModifiedTime());
 
             if ($modifiedTime->lt($cutoff)) {
                 Log::info('Deleting old backup from Drive', ['name' => $file->getName(), 'id' => $file->getId()]);
@@ -362,7 +441,7 @@ class GoogleDriveService
         ]);
 
         foreach ($folderResponse->getFiles() as $folder) {
-            $modifiedTime = \Carbon\Carbon::parse($folder->getModifiedTime());
+            $modifiedTime = Carbon::parse($folder->getModifiedTime());
 
             if ($modifiedTime->lt($cutoff)) {
                 Log::info('Deleting old backup folder from Drive', ['name' => $folder->getName()]);
