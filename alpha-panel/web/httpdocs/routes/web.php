@@ -324,6 +324,7 @@ Route::middleware('auth')->group(function (): void {
     Route::middleware('permission:panel.crowdsec.view')->group(function (): void {
         Route::get('security/crowdsec', [CrowdSecController::class, 'index'])->name('security.crowdsec.index');
         Route::get('security/crowdsec/data', [CrowdSecController::class, 'data'])->name('security.crowdsec.data');
+        Route::get('security/crowdsec/decisions', [CrowdSecController::class, 'decisions'])->name('security.crowdsec.decisions');
     });
 
     Route::middleware('permission:panel.waf-rules.view')->group(function (): void {

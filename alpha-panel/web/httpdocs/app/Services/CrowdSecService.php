@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -31,7 +32,7 @@ class CrowdSecService
 
         $health = $this->request('GET', '/health');
         $alertsResponse = $this->request('GET', '/v1/alerts', ['limit' => 200]);
-        $decisionsResponse = $this->request('GET', '/v1/decisions', ['limit' => 200]);
+        $decisionsResponse = $this->request('GET', '/v1/decisions');
 
         $alerts = is_array($alertsResponse['data']) ? $alertsResponse['data'] : [];
         $decisions = is_array($decisionsResponse['data']) ? $decisionsResponse['data'] : [];
@@ -65,14 +66,6 @@ class CrowdSecService
      *     scenario: string,
      *     reason: string,
      *     created_at: string|null
-     *   }>,
-     *   active_decisions: array<int, array{
-     *     value: string,
-     *     scope: string,
-     *     type: string,
-     *     origin: string,
-     *     scenario: string,
-     *     until: string|null
      *   }>
      * }
      */
@@ -83,21 +76,65 @@ class CrowdSecService
             return [
                 'summary' => $summary,
                 'recent_alerts' => [],
-                'active_decisions' => [],
             ];
         }
 
         $alertsResponse = $this->request('GET', '/v1/alerts', ['limit' => 100]);
-        $decisionsResponse = $this->request('GET', '/v1/decisions', ['limit' => 100]);
-
         $alerts = is_array($alertsResponse['data']) ? $alertsResponse['data'] : [];
-        $decisions = is_array($decisionsResponse['data']) ? $decisionsResponse['data'] : [];
 
         return [
             'summary' => $summary,
             'recent_alerts' => $this->mapAlerts($alerts),
-            'active_decisions' => $this->mapDecisions($decisions),
         ];
+    }
+
+    /**
+     * @return array{
+     *   data: array<int, array{value: string, scope: string, type: string, origin: string, scenario: string, until: string|null}>,
+     *   total: int,
+     *   per_page: int,
+     *   current_page: int,
+     *   last_page: int
+     * }
+     */
+    public function getDecisionsPaginated(int $page, int $perPage, ?string $search = null): array
+    {
+        $mapped = $this->fetchCachedDecisions();
+
+        if ($search !== null && $search !== '') {
+            $mapped = array_values(array_filter(
+                $mapped,
+                fn (array $d): bool => str_contains($d['value'], $search)
+                    || str_contains($d['scenario'], $search)
+                    || str_contains($d['origin'], $search),
+            ));
+        }
+
+        $total = count($mapped);
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        $page = min($page, $lastPage);
+        $items = array_slice($mapped, ($page - 1) * $perPage, $perPage);
+
+        return [
+            'data' => $items,
+            'total' => $total,
+            'per_page' => $perPage,
+            'current_page' => $page,
+            'last_page' => $lastPage,
+        ];
+    }
+
+    /**
+     * @return array<int, array{value: string, scope: string, type: string, origin: string, scenario: string, until: string|null}>
+     */
+    private function fetchCachedDecisions(): array
+    {
+        return Cache::remember('crowdsec:decisions', 60, function (): array {
+            $response = $this->request('GET', '/v1/decisions');
+            $decisions = is_array($response['data']) ? $response['data'] : [];
+
+            return $this->mapDecisions($decisions);
+        });
     }
 
     /**
@@ -254,7 +291,6 @@ class CrowdSecService
                     'until' => $until?->toIso8601String(),
                 ];
             })
-            ->take(100)
             ->values()
             ->all();
     }
