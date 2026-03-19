@@ -851,5 +851,22 @@
     "No push devices registered yet.": "Henüz kayıtlı push cihaz yok.",
     "Failed to remove device.": "Cihaz kaldırılamadı.",
     "Removing...": "Kaldırılıyor...",
-    "Remove": "Kaldır"
+    "Remove": "Kaldır",
+    "Storage Usage": "Depolama Kullanımı",
+    "Weekly (Monday)": "Haftalık (Pazartesi)",
+    "Retention (days)": "Saklama Süresi (gün)",
+    "Backup Details": "Yedek Detayları",
+    "Finished": "Bitiş",
+    "Files on Drive": "Drive'daki Dosyalar",
+    "No files found": "Dosya bulunamadı",
+    "used": "kullanıldı",
+    "Unlimited": "Sınırsız",
+    "Started": "Başlangıç",
+    "manual": "Manuel",
+    "scheduled": "Zamanlı",
+    "completed": "Tamamlandı",
+    "uploading": "Yükleniyor",
+    "running": "Çalışıyor",
+    "failed": "Başarısız",
+    "cancelled": "İptal Edildi"
 }

@@ -300,7 +300,7 @@
                                                     typeBadge(run.type),
                                                 ]"
                                             >
-                                                {{ run.type }}
+                                                {{ t(run.type) }}
                                             </span>
                                         </td>
                                         <td class="py-3 pr-3">
@@ -311,7 +311,7 @@
                                                 ]"
                                             >
                                                 <i :class="statusIcon(run.status)" class="text-[10px]"></i>
-                                                {{ run.status }}
+                                                {{ t(run.status) }}
                                             </span>
                                         </td>
                                         <td class="py-3 pr-3 text-gray-700 dark:text-gray-300">
@@ -506,7 +506,7 @@
                                         <span class="text-gray-500 dark:text-gray-400">{{ t('Type') }}</span>
                                         <div class="mt-0.5">
                                             <span :class="['inline-flex rounded-full px-2 py-0.5 text-xs font-medium', typeBadge(selectedRun.type)]">
-                                                {{ selectedRun.type }}
+                                                {{ t(selectedRun.type) }}
                                             </span>
                                         </div>
                                     </div>
@@ -515,7 +515,7 @@
                                         <div class="mt-0.5">
                                             <span :class="['inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium', statusBadge(selectedRun.status)]">
                                                 <i :class="statusIcon(selectedRun.status)" class="text-[10px]"></i>
-                                                {{ selectedRun.status }}
+                                                {{ t(selectedRun.status) }}
                                             </span>
                                         </div>
                                     </div>
