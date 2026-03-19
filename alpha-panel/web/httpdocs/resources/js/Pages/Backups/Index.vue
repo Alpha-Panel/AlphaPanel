@@ -335,7 +335,7 @@
 
                 <!-- Disconnect Confirmation Modal -->
                 <Teleport to="body">
-                    <div v-if="showDisconnectConfirm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div v-if="showDisconnectConfirm" class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
                         <div class="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
                             <h3 class="text-lg font-semibold text-gray-800 dark:text-white">{{ t('Disconnect Google Drive?') }}</h3>
                             <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
@@ -362,7 +362,7 @@
 
                 <!-- Run Backup Confirmation Modal -->
                 <Teleport to="body">
-                    <div v-if="showRunConfirm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div v-if="showRunConfirm" class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
                         <div class="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
                             <h3 class="text-lg font-semibold text-gray-800 dark:text-white">{{ t('Start Backup?') }}</h3>
                             <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
@@ -390,7 +390,7 @@
 
                 <!-- Folder Browser Modal -->
                 <Teleport to="body">
-                    <div v-if="showFolderBrowser" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div v-if="showFolderBrowser" class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
                         <div class="mx-4 w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
                             <div class="mb-4 flex items-center justify-between">
                                 <h3 class="text-lg font-semibold text-gray-800 dark:text-white">
@@ -486,7 +486,7 @@
 
                 <!-- Backup Detail Modal -->
                 <Teleport to="body">
-                    <div v-if="showDetailModal && selectedRun" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="showDetailModal = false">
+                    <div v-if="showDetailModal && selectedRun" class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" @click.self="showDetailModal = false">
                         <div class="mx-4 flex w-full max-w-2xl flex-col rounded-2xl bg-white shadow-xl dark:bg-gray-900" style="max-height: 85vh">
                             <!-- Header -->
                             <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">
