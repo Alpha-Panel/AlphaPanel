@@ -486,7 +486,7 @@
 
                 <!-- Backup Detail Modal -->
                 <Teleport to="body">
-                    <div v-if="showDetailModal && selectedRun" class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" @click.self="showDetailModal = false">
+                    <div v-if="showDetailModal && selectedRun" class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
                         <div class="mx-4 flex w-full max-w-2xl flex-col rounded-2xl bg-white shadow-xl dark:bg-gray-900" style="max-height: 85vh">
                             <!-- Header -->
                             <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">
