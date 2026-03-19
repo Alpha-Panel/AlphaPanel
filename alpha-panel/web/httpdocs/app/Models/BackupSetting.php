@@ -17,6 +17,7 @@ class BackupSetting extends Model
         'backup_retention_days',
         'backup_schedule',
         'backup_time',
+        'backup_mode',
         'last_backup_at',
     ];
 

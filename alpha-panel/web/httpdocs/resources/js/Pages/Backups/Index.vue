@@ -179,6 +179,22 @@
                                         />
                                     </div>
 
+                                    <div>
+                                        <label class="mb-1 block text-sm text-gray-700 dark:text-gray-300">
+                                            {{ t('Backup Mode') }}
+                                        </label>
+                                        <select
+                                            v-model="settingsForm.backup_mode"
+                                            class="h-9 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-700 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                                        >
+                                            <option value="full">{{ t('Full (tar.gz archives)') }}</option>
+                                            <option value="incremental">{{ t('Incremental (file sync)') }}</option>
+                                        </select>
+                                        <p v-if="settingsForm.backup_mode === 'incremental'" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            {{ t('Only changed files are uploaded per run. First run uploads all files.') }}
+                                        </p>
+                                    </div>
+
                                     <button
                                         type="submit"
                                         :disabled="settingsForm.processing"
@@ -253,6 +269,44 @@
                         </span>
                     </div>
 
+                    <!-- Active Restore Progress -->
+                    <div
+                        v-if="activeRestoreRun"
+                        class="rounded-2xl border border-purple-200 bg-purple-50 p-5 dark:border-purple-500/30 dark:bg-purple-500/10"
+                    >
+                        <div class="flex items-center gap-3">
+                            <div class="h-8 w-8 animate-spin rounded-full border-4 border-purple-200 border-t-purple-500"></div>
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between">
+                                    <p class="text-sm font-medium text-purple-800 dark:text-purple-200">
+                                        {{ activeRestoreRunMessage || t('Restoring...') }}
+                                    </p>
+                                    <span class="text-sm font-semibold text-purple-700 dark:text-purple-300">
+                                        {{ activeRestoreRun.progress_percent }}%
+                                    </span>
+                                </div>
+                                <div class="mt-2 h-2 overflow-hidden rounded-full bg-purple-200 dark:bg-purple-800">
+                                    <div
+                                        class="h-full rounded-full bg-purple-500 transition-all duration-300"
+                                        :style="{ width: activeRestoreRun.progress_percent + '%' }"
+                                    ></div>
+                                </div>
+                                <p class="mt-1 text-xs text-purple-600 dark:text-purple-400">
+                                    {{ t('Target') }}: {{ activeRestoreRun.target }} ({{ t(activeRestoreRun.restore_type) }})
+                                </p>
+                            </div>
+                            <button
+                                @click="cancelRestore"
+                                :disabled="cancelRestoreProcessing"
+                                class="inline-flex h-8 items-center gap-1 rounded-lg border border-red-300 px-2.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/10"
+                                :title="t('Cancel')"
+                            >
+                                <i class="bx bx-x text-sm"></i>
+                                {{ t('Cancel') }}
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Backup History Table -->
                     <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
                         <div class="mb-4 flex items-center justify-between">
@@ -279,11 +333,13 @@
                                 <thead>
                                     <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
                                         <th class="pb-3 pr-3">{{ t('Type') }}</th>
+                                        <th class="pb-3 pr-3">{{ t('Mode') }}</th>
                                         <th class="pb-3 pr-3">{{ t('Status') }}</th>
                                         <th class="pb-3 pr-3">{{ t('File') }}</th>
                                         <th class="pb-3 pr-3">{{ t('Size') }}</th>
                                         <th class="pb-3 pr-3">{{ t('Started') }}</th>
                                         <th class="pb-3 pr-3">{{ t('Triggered By') }}</th>
+                                        <th class="pb-3 pr-3"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -301,6 +357,16 @@
                                                 ]"
                                             >
                                                 {{ t(run.type) }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 pr-3">
+                                            <span
+                                                :class="[
+                                                    'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
+                                                    modeBadge(run.backup_mode),
+                                                ]"
+                                            >
+                                                {{ t(run.backup_mode || 'full') }}
                                             </span>
                                         </td>
                                         <td class="py-3 pr-3">
@@ -326,6 +392,67 @@
                                         <td class="py-3 pr-3 text-gray-500 dark:text-gray-400">
                                             {{ run.triggered_by || t('System') }}
                                         </td>
+                                        <td class="py-3 pr-3 text-right">
+                                            <button
+                                                v-if="run.status === 'completed' && run.drive_file_id"
+                                                @click.stop="openRestoreModal(run)"
+                                                class="inline-flex items-center gap-1 rounded-lg border border-purple-300 px-2 py-1 text-xs font-medium text-purple-600 transition hover:bg-purple-50 dark:border-purple-500/30 dark:text-purple-400 dark:hover:bg-purple-500/10"
+                                                :title="t('Restore from this backup')"
+                                            >
+                                                <i class="bx bx-revision text-sm"></i>
+                                                {{ t('Restore') }}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Restore History Table -->
+                    <div v-if="recent_restore_runs.length > 0" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                        <h4 class="mb-4 text-sm font-semibold text-gray-800 dark:text-white/90">
+                            <i class="bx bx-revision mr-1"></i>
+                            {{ t('Restore History') }}
+                        </h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full min-w-[600px] text-sm">
+                                <thead>
+                                    <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                                        <th class="pb-3 pr-3">{{ t('Type') }}</th>
+                                        <th class="pb-3 pr-3">{{ t('Mode') }}</th>
+                                        <th class="pb-3 pr-3">{{ t('Target') }}</th>
+                                        <th class="pb-3 pr-3">{{ t('Status') }}</th>
+                                        <th class="pb-3 pr-3">{{ t('Started') }}</th>
+                                        <th class="pb-3 pr-3">{{ t('Triggered By') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr
+                                        v-for="rr in recent_restore_runs"
+                                        :key="rr.id"
+                                        class="border-b border-gray-100 last:border-0 dark:border-gray-800"
+                                    >
+                                        <td class="py-3 pr-3">
+                                            <span :class="['inline-flex rounded-full px-2 py-0.5 text-xs font-medium', rr.restore_type === 'website' ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300' : 'bg-orange-50 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300']">
+                                                {{ t(rr.restore_type) }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 pr-3">
+                                            <span :class="['inline-flex rounded-full px-2 py-0.5 text-xs font-medium', modeBadge(rr.source_mode)]">
+                                                {{ t(rr.source_mode) }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 pr-3 text-gray-700 dark:text-gray-300">{{ rr.target }}</td>
+                                        <td class="py-3 pr-3">
+                                            <span :class="['inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium', restoreStatusBadge(rr.status)]">
+                                                <i :class="statusIcon(rr.status)" class="text-[10px]"></i>
+                                                {{ t(rr.status) }}
+                                            </span>
+                                            <p v-if="rr.error_message" class="mt-0.5 text-xs text-red-500">{{ rr.error_message }}</p>
+                                        </td>
+                                        <td class="py-3 pr-3 text-gray-500 dark:text-gray-400">{{ rr.started_at || '-' }}</td>
+                                        <td class="py-3 pr-3 text-gray-500 dark:text-gray-400">{{ rr.triggered_by || t('System') }}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -382,6 +509,69 @@
                                 >
                                     <i class="bx bx-cloud-upload mr-1"></i>
                                     {{ t('Start Backup') }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </Teleport>
+
+                <!-- Restore Modal -->
+                <Teleport to="body">
+                    <div v-if="showRestoreModal" class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+                        <div class="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
+                            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">
+                                <i class="bx bx-revision mr-1"></i>
+                                {{ t('Restore from Backup') }}
+                            </h3>
+
+                            <div class="mt-4 space-y-4">
+                                <div>
+                                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        {{ t('Restore Type') }}
+                                    </label>
+                                    <select
+                                        v-model="restoreForm.restore_type"
+                                        class="h-9 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-700 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                                    >
+                                        <option value="website">{{ t('Website') }}</option>
+                                        <option value="database">{{ t('Database') }}</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        {{ t('Target') }}
+                                        <span class="text-xs text-gray-500">({{ restoreForm.restore_type === 'website' ? t('domain name') : t('database name') }})</span>
+                                    </label>
+                                    <input
+                                        v-model="restoreForm.target"
+                                        type="text"
+                                        :placeholder="restoreForm.restore_type === 'website' ? 'example.com' : 'my_database'"
+                                        class="h-9 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-700 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                                    />
+                                    <p v-if="restoreForm.errors.target" class="mt-1 text-xs text-red-500">{{ restoreForm.errors.target }}</p>
+                                </div>
+
+                                <div class="rounded-lg bg-warning-50 p-3 text-sm text-warning-700 dark:bg-warning-500/10 dark:text-warning-300">
+                                    <i class="bx bx-error-circle mr-1"></i>
+                                    {{ t('This will overwrite the current data. A pre-restore backup will be created automatically before restoring.') }}
+                                </div>
+                            </div>
+
+                            <div class="mt-4 flex justify-end gap-3">
+                                <button
+                                    @click="showRestoreModal = false"
+                                    class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                                >
+                                    {{ t('Cancel') }}
+                                </button>
+                                <button
+                                    @click="submitRestore"
+                                    :disabled="restoreForm.processing || !restoreForm.target"
+                                    class="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-purple-700 disabled:opacity-50"
+                                >
+                                    <i class="bx bx-revision mr-1"></i>
+                                    {{ t('Start Restore') }}
                                 </button>
                             </div>
                         </div>
@@ -655,6 +845,7 @@ interface BackupSettings {
     backup_retention_days: number;
     backup_schedule: string;
     backup_time: string;
+    backup_mode: string;
     last_backup_at: string | null;
     has_credentials: boolean;
 }
@@ -662,12 +853,26 @@ interface BackupSettings {
 interface BackupRunItem {
     id: number;
     type: string;
+    backup_mode: string;
     status: string;
     file_name: string | null;
     file_size: number | null;
     progress_percent: number;
     error_message: string | null;
     drive_file_id: string | null;
+    started_at: string | null;
+    finished_at: string | null;
+    triggered_by: string | null;
+}
+
+interface BackupRestoreRunItem {
+    id: number;
+    restore_type: string;
+    source_mode: string;
+    status: string;
+    target: string;
+    error_message: string | null;
+    progress_percent: number;
     started_at: string | null;
     finished_at: string | null;
     triggered_by: string | null;
@@ -689,6 +894,7 @@ interface DriveFileItem {
 const props = defineProps<{
     settings: BackupSettings;
     recent_runs: BackupRunItem[];
+    recent_restore_runs: BackupRestoreRunItem[];
 }>();
 
 // Forms
@@ -697,6 +903,7 @@ const settingsForm = useForm({
     backup_retention_days: props.settings.backup_retention_days,
     backup_schedule: props.settings.backup_schedule,
     backup_time: props.settings.backup_time,
+    backup_mode: props.settings.backup_mode,
 });
 
 const disconnectForm = useForm({});
@@ -721,6 +928,19 @@ const foldersLoading = ref(false);
 const newFolderName = ref('');
 const creatingFolder = ref(false);
 
+// Restore State
+const showRestoreModal = ref(false);
+const restoreForm = useForm({
+    restore_type: 'website' as string,
+    source_mode: 'full' as string,
+    target: '' as string,
+    source_drive_folder_id: '' as string,
+    source_drive_file_id: '' as string,
+});
+const restoreSourceRun = ref<BackupRunItem | null>(null);
+const activeRestoreRunMessage = ref('');
+const cancelRestoreProcessing = ref(false);
+
 // Live Progress State
 const activeRunMessage = ref('');
 const cancelProcessing = ref(false);
@@ -743,6 +963,10 @@ const activeRun = computed(() => {
     return props.recent_runs.find((r) => r.status === 'uploading' || r.status === 'running');
 });
 
+const activeRestoreRun = computed(() => {
+    return props.recent_restore_runs.find((r) => ['pending', 'downloading', 'restoring'].includes(r.status));
+});
+
 // Echo/Reverb listener
 let echoChannel: any = null;
 
@@ -754,6 +978,17 @@ onMounted(() => {
                 run.progress_percent = e.percent;
                 run.status = e.status;
                 activeRunMessage.value = e.message;
+            }
+
+            if (e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled') {
+                setTimeout(() => router.reload(), 1000);
+            }
+        }).listen('RestoreProgress', (e: any) => {
+            const run = props.recent_restore_runs.find((r) => r.id === e.restore_run_id);
+            if (run) {
+                run.progress_percent = e.percent;
+                run.status = e.status;
+                activeRestoreRunMessage.value = e.message;
             }
 
             if (e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled') {
@@ -780,6 +1015,7 @@ onMounted(() => {
 onUnmounted(() => {
     if (echoChannel) {
         echoChannel.stopListening('BackupProgress');
+        echoChannel.stopListening('RestoreProgress');
     }
 });
 
@@ -830,6 +1066,53 @@ function runBackup() {
 
 function refreshPage() {
     router.reload();
+}
+
+// Restore actions
+function openRestoreModal(run: BackupRunItem) {
+    restoreSourceRun.value = run;
+    restoreForm.source_mode = run.backup_mode || 'full';
+    restoreForm.restore_type = 'website';
+    restoreForm.target = '';
+    restoreForm.source_drive_folder_id = run.drive_file_id || '';
+    restoreForm.source_drive_file_id = '';
+    showRestoreModal.value = true;
+}
+
+function submitRestore() {
+    restoreForm.post(route('backups.restore'), {
+        onSuccess: () => {
+            showRestoreModal.value = false;
+        },
+    });
+}
+
+function cancelRestore() {
+    if (!activeRestoreRun.value) return;
+    cancelRestoreProcessing.value = true;
+    router.post(route('backups.restore.cancel', activeRestoreRun.value.id), {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            cancelRestoreProcessing.value = false;
+        },
+    });
+}
+
+function restoreStatusBadge(status: string): string {
+    switch (status) {
+        case 'completed':
+            return 'bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-300';
+        case 'downloading':
+        case 'restoring':
+        case 'pending':
+            return 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300';
+        case 'failed':
+            return 'bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-300';
+        case 'cancelled':
+            return 'bg-orange-50 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300';
+        default:
+            return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+    }
 }
 
 // Folder Browser
@@ -1068,6 +1351,15 @@ function typeBadge(type: string): string {
             return 'bg-blue-50 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300';
         case 'mysql':
             return 'bg-orange-50 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300';
+        default:
+            return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+    }
+}
+
+function modeBadge(mode: string): string {
+    switch (mode) {
+        case 'incremental':
+            return 'bg-purple-50 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300';
         default:
             return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
     }

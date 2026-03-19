@@ -11,6 +11,8 @@ return [
 
     'chunk_size_mb' => (int) env('BACKUP_CHUNK_SIZE_MB', 100),
 
+    'simple_upload_threshold_mb' => (int) env('BACKUP_SIMPLE_UPLOAD_MB', 5),
+
     'local_backup_base' => env('BACKUP_LOCAL_BASE', '/root/backup'),
 
     'vhosts_path' => env('VHOSTS_PATH', '/var/www/vhosts'),

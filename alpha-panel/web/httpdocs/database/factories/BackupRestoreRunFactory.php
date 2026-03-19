@@ -2,15 +2,15 @@
 
 namespace Database\Factories;
 
-use App\Models\BackupRun;
+use App\Models\BackupRestoreRun;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<BackupRun>
+ * @extends Factory<BackupRestoreRun>
  */
-class BackupRunFactory extends Factory
+class BackupRestoreRunFactory extends Factory
 {
-    protected $model = BackupRun::class;
+    protected $model = BackupRestoreRun::class;
 
     public function definition(): array
     {
@@ -18,12 +18,12 @@ class BackupRunFactory extends Factory
         $status = fake()->randomElement(['completed', 'failed']);
 
         return [
-            'type' => fake()->randomElement(['web', 'mysql', 'manual']),
-            'backup_mode' => 'full',
+            'restore_type' => fake()->randomElement(['website', 'database']),
+            'source_mode' => fake()->randomElement(['full', 'incremental']),
             'status' => $status,
-            'file_name' => fake()->domainWord().'.tar.gz',
-            'file_size_bytes' => fake()->numberBetween(1024 * 1024, 500 * 1024 * 1024),
-            'drive_file_id' => $status === 'completed' ? fake()->uuid() : null,
+            'target' => fake()->domainName(),
+            'source_drive_folder_id' => fake()->uuid(),
+            'source_drive_file_id' => $status === 'completed' ? fake()->uuid() : null,
             'error_message' => $status === 'failed' ? fake()->sentence() : null,
             'progress_percent' => $status === 'completed' ? 100 : fake()->numberBetween(0, 80),
             'started_at' => $startedAt,
@@ -45,15 +45,24 @@ class BackupRunFactory extends Factory
     {
         return $this->state(fn (): array => [
             'status' => 'failed',
-            'error_message' => 'Upload failed: quota exceeded',
+            'error_message' => 'Restore failed: file not found',
         ]);
     }
 
-    public function uploading(): static
+    public function downloading(): static
     {
         return $this->state(fn (): array => [
-            'status' => 'uploading',
-            'progress_percent' => fake()->numberBetween(10, 90),
+            'status' => 'downloading',
+            'progress_percent' => fake()->numberBetween(10, 50),
+            'finished_at' => null,
+        ]);
+    }
+
+    public function restoring(): static
+    {
+        return $this->state(fn (): array => [
+            'status' => 'restoring',
+            'progress_percent' => fake()->numberBetween(50, 90),
             'finished_at' => null,
         ]);
     }

@@ -343,6 +343,7 @@ Route::middleware('auth')->group(function (): void {
             Route::get('/connect', [BackupController::class, 'connect'])->name('connect');
             Route::get('/callback', [BackupController::class, 'callback'])->name('callback');
             Route::get('/history', [BackupController::class, 'history'])->name('history');
+            Route::get('/restore-history', [BackupController::class, 'restoreHistory'])->name('restore-history');
             Route::get('/folders', [BackupController::class, 'folders'])->name('folders');
             Route::get('/drive-quota', [BackupController::class, 'driveQuota'])->name('drive-quota');
             Route::get('/drive-files', [BackupController::class, 'driveFiles'])->name('drive-files');
@@ -359,6 +360,8 @@ Route::middleware('auth')->group(function (): void {
             Route::post('/run', [BackupController::class, 'run'])->name('run');
             Route::post('/{backupRun}/cancel', [BackupController::class, 'cancel'])->name('cancel');
             Route::post('/restart', [BackupController::class, 'restart'])->name('restart');
+            Route::post('/restore', [BackupController::class, 'restore'])->name('restore');
+            Route::post('/restore/{backupRestoreRun}/cancel', [BackupController::class, 'cancelRestore'])->name('restore.cancel');
         });
     });
 

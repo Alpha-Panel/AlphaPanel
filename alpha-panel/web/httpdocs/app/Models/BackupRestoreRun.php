@@ -6,17 +6,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class BackupRun extends Model
+class BackupRestoreRun extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'type',
-        'backup_mode',
+        'restore_type',
+        'source_mode',
         'status',
-        'file_name',
-        'file_size_bytes',
-        'drive_file_id',
+        'target',
+        'source_drive_folder_id',
+        'source_drive_file_id',
         'error_message',
         'progress_percent',
         'started_at',
@@ -27,7 +27,6 @@ class BackupRun extends Model
     protected function casts(): array
     {
         return [
-            'file_size_bytes' => 'integer',
             'progress_percent' => 'integer',
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
