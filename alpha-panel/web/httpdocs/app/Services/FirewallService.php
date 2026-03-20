@@ -104,12 +104,81 @@ class FirewallService
     }
 
     /**
+     * Create multiple firewall rules from arrays of sources and ports.
+     * Uses cartesian product when both sources and ports are provided.
+     *
+     * @param  array{chain: string, action: string, protocol?: string, sources?: array<int, string>|null, ports?: array<int, int>|null, comment?: string|null, enabled?: bool}  $params
+     */
+    public function addDbRules(array $params, int $userId): int
+    {
+        $sources = ! empty($params['sources']) ? $params['sources'] : [null];
+        $ports = ! empty($params['ports']) ? $params['ports'] : [null];
+        $count = 0;
+
+        foreach ($sources as $source) {
+            foreach ($ports as $port) {
+                $this->addDbRule([
+                    'chain' => $params['chain'],
+                    'action' => $params['action'],
+                    'protocol' => $params['protocol'] ?? 'all',
+                    'source' => $source,
+                    'port' => $port,
+                    'comment' => $params['comment'] ?? null,
+                    'enabled' => $params['enabled'] ?? true,
+                ], $userId);
+
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    /**
      * Delete a firewall rule from the database by its ID.
      */
     public function deleteDbRule(int $id): void
     {
         $rule = FirewallRule::findOrFail($id);
         $rule->delete();
+    }
+
+    /**
+     * Update an existing firewall rule in the database.
+     *
+     * @param  array{chain?: string, action?: string, protocol?: string, source?: string|null, port?: int|null, comment?: string|null, enabled?: bool}  $params
+     */
+    public function updateDbRule(int $id, array $params): FirewallRule
+    {
+        $rule = FirewallRule::findOrFail($id);
+
+        $updateData = [];
+
+        if (isset($params['chain'])) {
+            $updateData['chain'] = strtoupper($params['chain']);
+        }
+        if (isset($params['action'])) {
+            $updateData['action'] = strtoupper($params['action']);
+        }
+        if (array_key_exists('protocol', $params)) {
+            $updateData['protocol'] = strtolower($params['protocol'] ?? 'all');
+        }
+        if (array_key_exists('source', $params)) {
+            $updateData['source'] = $params['source'];
+        }
+        if (array_key_exists('port', $params)) {
+            $updateData['port'] = $params['port'];
+        }
+        if (array_key_exists('comment', $params)) {
+            $updateData['comment'] = $params['comment'];
+        }
+        if (array_key_exists('enabled', $params)) {
+            $updateData['enabled'] = $params['enabled'];
+        }
+
+        $rule->update($updateData);
+
+        return $rule->fresh('creator');
     }
 
     /**

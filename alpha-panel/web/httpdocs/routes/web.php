@@ -366,6 +366,7 @@ Route::middleware('auth')->group(function (): void {
         Route::post('security/firewall/apply', [FirewallController::class, 'apply'])->name('security.firewall.apply');
         Route::put('security/firewall/reorder', [FirewallController::class, 'reorder'])->name('security.firewall.reorder');
         Route::post('security/firewall/seed', [FirewallController::class, 'seed'])->name('security.firewall.seed');
+        Route::put('security/firewall/{rule}', [FirewallController::class, 'update'])->name('security.firewall.update');
         Route::put('security/firewall/{rule}/toggle', [FirewallController::class, 'toggle'])->name('security.firewall.toggle');
     });
 

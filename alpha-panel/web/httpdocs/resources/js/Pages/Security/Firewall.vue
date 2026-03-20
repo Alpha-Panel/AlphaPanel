@@ -116,101 +116,16 @@
                         </div>
                     </div>
 
-                    <!-- Add Rule Form -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-                        <h3 class="mb-3 text-sm font-semibold text-gray-800 dark:text-white/90">
-                            <i class="fa-solid fa-plus mr-1"></i>
+                    <!-- Add Rule Button -->
+                    <div class="flex justify-end">
+                        <button
+                            type="button"
+                            class="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-brand-500 px-4 text-sm font-medium text-white hover:bg-brand-600"
+                            @click="openAddModal"
+                        >
+                            <i class="fa-solid fa-plus"></i>
                             {{ t('Add Rule') }}
-                        </h3>
-                        <div class="flex flex-wrap items-end gap-3">
-                            <div class="flex flex-col gap-1">
-                                <label class="text-xs text-gray-500 dark:text-gray-400">{{ t('Chain') }}</label>
-                                <select
-                                    v-model="ruleForm.chain"
-                                    class="h-8 rounded-lg border border-gray-300 bg-transparent px-2 text-xs text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-gray-300"
-                                >
-                                    <option value="INPUT">INPUT</option>
-                                    <option value="OUTPUT">OUTPUT</option>
-                                </select>
-                            </div>
-                            <div class="flex flex-col gap-1">
-                                <label class="text-xs text-gray-500 dark:text-gray-400">{{ t('Action') }}</label>
-                                <select
-                                    v-model="ruleForm.action"
-                                    class="h-8 rounded-lg border border-gray-300 bg-transparent px-2 text-xs text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-gray-300"
-                                >
-                                    <option value="ACCEPT">ACCEPT</option>
-                                    <option value="DROP">DROP</option>
-                                    <option value="REJECT">REJECT</option>
-                                </select>
-                            </div>
-                            <div class="flex flex-col gap-1">
-                                <label class="text-xs text-gray-500 dark:text-gray-400">{{ t('Protocol') }}</label>
-                                <select
-                                    v-model="ruleForm.protocol"
-                                    class="h-8 rounded-lg border border-gray-300 bg-transparent px-2 text-xs text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-gray-300"
-                                >
-                                    <option value="all">{{ t('all') }}</option>
-                                    <option value="tcp">tcp</option>
-                                    <option value="udp">udp</option>
-                                    <option value="icmp">icmp</option>
-                                </select>
-                            </div>
-                            <div class="flex flex-col gap-1">
-                                <label class="text-xs text-gray-500 dark:text-gray-400">{{ t('Source IP') }}</label>
-                                <input
-                                    v-model="ruleForm.source"
-                                    type="text"
-                                    :placeholder="t('Leave empty for all IPs')"
-                                    class="h-8 w-44 rounded-lg border border-gray-300 bg-transparent px-3 text-xs text-gray-700 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-gray-300 dark:placeholder-gray-500"
-                                />
-                            </div>
-                            <div class="flex flex-col gap-1">
-                                <label class="text-xs text-gray-500 dark:text-gray-400">{{ t('Port') }}</label>
-                                <input
-                                    v-model="ruleForm.port"
-                                    type="number"
-                                    :placeholder="t('Leave empty for all ports')"
-                                    class="h-8 w-40 rounded-lg border border-gray-300 bg-transparent px-3 text-xs text-gray-700 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-gray-300 dark:placeholder-gray-500"
-                                />
-                            </div>
-                            <div class="flex flex-col gap-1">
-                                <label class="text-xs text-gray-500 dark:text-gray-400">{{ t('Comment') }}</label>
-                                <input
-                                    v-model="ruleForm.comment"
-                                    type="text"
-                                    :placeholder="t('Comment')"
-                                    class="h-8 w-44 rounded-lg border border-gray-300 bg-transparent px-3 text-xs text-gray-700 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-gray-300 dark:placeholder-gray-500"
-                                />
-                            </div>
-                            <div class="flex flex-col gap-1">
-                                <label class="text-xs text-gray-500 dark:text-gray-400">{{ t('Position') }}</label>
-                                <div class="flex items-center gap-2">
-                                    <select
-                                        v-model="positionMode"
-                                        class="h-8 rounded-lg border border-gray-300 bg-transparent px-2 text-xs text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-gray-300"
-                                    >
-                                        <option value="append">{{ t('Append to end') }}</option>
-                                        <option value="specific">{{ t('Specific position') }}</option>
-                                    </select>
-                                    <input
-                                        v-if="positionMode === 'specific'"
-                                        v-model="ruleForm.position"
-                                        type="number"
-                                        min="1"
-                                        class="h-8 w-16 rounded-lg border border-gray-300 bg-transparent px-2 text-xs text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-gray-300"
-                                    />
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                :disabled="addRuleLoading"
-                                class="inline-flex h-8 items-center justify-center rounded-lg bg-brand-500 px-4 text-xs font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
-                                @click="addRule"
-                            >
-                                {{ t('Add Rule') }}
-                            </button>
-                        </div>
+                        </button>
                     </div>
 
                     <!-- INPUT Rules Table -->
@@ -296,6 +211,13 @@
                                                     @click="moveRule('INPUT', index, 'down')"
                                                 >
                                                     <i class="fa-solid fa-arrow-down text-xs"></i>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-brand-300 text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-400 dark:hover:bg-brand-950"
+                                                    @click="openEditModal(rule)"
+                                                >
+                                                    <i class="fa-solid fa-pen text-xs"></i>
                                                 </button>
                                                 <button
                                                     type="button"
@@ -390,6 +312,13 @@
                                                 </button>
                                                 <button
                                                     type="button"
+                                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-brand-300 text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-400 dark:hover:bg-brand-950"
+                                                    @click="openEditModal(rule)"
+                                                >
+                                                    <i class="fa-solid fa-pen text-xs"></i>
+                                                </button>
+                                                <button
+                                                    type="button"
                                                     :disabled="deleteRuleLoading === rule.id"
                                                     class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-error-300 text-error-600 hover:bg-error-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-error-700 dark:text-error-400 dark:hover:bg-error-950"
                                                     @click="confirmDeleteRule(rule)"
@@ -404,6 +333,147 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Rule Add/Edit Modal -->
+                <Teleport to="body">
+                    <div
+                        v-if="showRuleModal"
+                        class="fixed inset-0 z-99999 flex items-center justify-center bg-black/50"
+                        @click.self="showRuleModal = false"
+                    >
+                        <div class="mx-4 w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-800 dark:bg-gray-900">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">
+                                    {{ editingRule ? t('Edit Rule') : t('Add Rule') }}
+                                </h3>
+                                <button
+                                    type="button"
+                                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                                    @click="showRuleModal = false"
+                                >
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+
+                            <div class="mt-4 space-y-4">
+                                <!-- Row 1: Chain + Action -->
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="flex flex-col gap-1">
+                                        <label class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('Chain') }}</label>
+                                        <select
+                                            v-model="modalForm.chain"
+                                            class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                                        >
+                                            <option value="INPUT">INPUT</option>
+                                            <option value="OUTPUT">OUTPUT</option>
+                                        </select>
+                                    </div>
+                                    <div class="flex flex-col gap-1">
+                                        <label class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('Action') }}</label>
+                                        <select
+                                            v-model="modalForm.action"
+                                            class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                                        >
+                                            <option value="ACCEPT">ACCEPT</option>
+                                            <option value="DROP">DROP</option>
+                                            <option value="REJECT">REJECT</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Row 2: Protocol -->
+                                <div class="flex flex-col gap-1">
+                                    <label class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('Protocol') }}</label>
+                                    <select
+                                        v-model="modalForm.protocol"
+                                        class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                                    >
+                                        <option value="all">{{ t('all') }}</option>
+                                        <option value="tcp">tcp</option>
+                                        <option value="udp">udp</option>
+                                        <option value="icmp">icmp</option>
+                                    </select>
+                                </div>
+
+                                <!-- Source IPs -->
+                                <div class="flex flex-col gap-1">
+                                    <label class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                                        {{ editingRule ? t('Source IP') : t('Source IPs (one per line)') }}
+                                    </label>
+                                    <textarea
+                                        v-if="!editingRule"
+                                        v-model="modalForm.sourcesText"
+                                        rows="3"
+                                        :placeholder="t('Leave empty for all IPs') + '\n192.168.1.1\n10.0.0.50'"
+                                        class="rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-gray-300 dark:placeholder-gray-500"
+                                    ></textarea>
+                                    <input
+                                        v-else
+                                        v-model="modalForm.source"
+                                        type="text"
+                                        :placeholder="t('Leave empty for all IPs')"
+                                        class="h-10 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-gray-300 dark:placeholder-gray-500"
+                                    />
+                                </div>
+
+                                <!-- Ports -->
+                                <div class="flex flex-col gap-1">
+                                    <label class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                                        {{ editingRule ? t('Port') : t('Ports (comma separated)') }}
+                                    </label>
+                                    <input
+                                        v-if="!editingRule"
+                                        v-model="modalForm.portsText"
+                                        type="text"
+                                        :placeholder="t('Leave empty for all ports') + ' — 80, 443, 8080'"
+                                        class="h-10 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-gray-300 dark:placeholder-gray-500"
+                                    />
+                                    <input
+                                        v-else
+                                        v-model="modalForm.port"
+                                        type="number"
+                                        :placeholder="t('Leave empty for all ports')"
+                                        class="h-10 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-gray-300 dark:placeholder-gray-500"
+                                    />
+                                </div>
+
+                                <!-- Comment -->
+                                <div class="flex flex-col gap-1">
+                                    <label class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('Comment') }}</label>
+                                    <input
+                                        v-model="modalForm.comment"
+                                        type="text"
+                                        :placeholder="t('Comment')"
+                                        class="h-10 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-gray-300 dark:placeholder-gray-500"
+                                    />
+                                </div>
+
+                                <!-- Info text for add mode -->
+                                <p v-if="!editingRule" class="text-xs text-gray-400 dark:text-gray-500">
+                                    {{ t('Each IP and port combination will create a separate rule.') }}
+                                </p>
+                            </div>
+
+                            <div class="mt-6 flex justify-end gap-2">
+                                <button
+                                    type="button"
+                                    class="inline-flex h-9 items-center justify-center rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                                    @click="showRuleModal = false"
+                                >
+                                    {{ t('Cancel') }}
+                                </button>
+                                <button
+                                    type="button"
+                                    :disabled="modalLoading"
+                                    class="inline-flex h-9 items-center justify-center rounded-lg bg-brand-500 px-4 text-sm font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
+                                    @click="submitModal"
+                                >
+                                    {{ editingRule ? t('Save Changes') : t('Add Rule') }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </Teleport>
 
                 <!-- Policy Change Confirmation Dialog -->
                 <Teleport to="body">
@@ -546,17 +616,19 @@ const containerOnline = computed(() => firewallData.value.live_status.container_
 const warnings = computed(() => firewallData.value.warnings);
 const hasNoRules = computed(() => inputRules.value.length === 0 && outputRules.value.length === 0);
 
-const ruleForm = reactive({
+const showRuleModal = ref(false);
+const editingRule = ref<FirewallRule | null>(null);
+const modalLoading = ref(false);
+const modalForm = reactive({
     chain: 'INPUT',
     action: 'ACCEPT',
     protocol: 'tcp',
-    source: '',
-    port: '' as string | number,
+    sourcesText: '',   // for add mode - textarea
+    portsText: '',     // for add mode - comma separated
+    source: '',        // for edit mode - single
+    port: '' as string | number,  // for edit mode - single
     comment: '',
-    position: '' as string | number,
 });
-const positionMode = ref('append');
-const addRuleLoading = ref(false);
 const deleteRuleLoading = ref<number | null>(null);
 const policyLoading = ref(false);
 const applyLoading = ref(false);
@@ -645,33 +717,95 @@ const changePolicy = async (): Promise<void> => {
     }
 };
 
-const addRule = async (): Promise<void> => {
-    addRuleLoading.value = true;
+const openAddModal = (): void => {
+    editingRule.value = null;
+    modalForm.chain = 'INPUT';
+    modalForm.action = 'ACCEPT';
+    modalForm.protocol = 'tcp';
+    modalForm.sourcesText = '';
+    modalForm.portsText = '';
+    modalForm.source = '';
+    modalForm.port = '';
+    modalForm.comment = '';
+    showRuleModal.value = true;
+};
+
+const openEditModal = (rule: FirewallRule): void => {
+    editingRule.value = rule;
+    modalForm.chain = rule.chain;
+    modalForm.action = rule.action;
+    modalForm.protocol = rule.protocol;
+    modalForm.sourcesText = '';
+    modalForm.portsText = '';
+    modalForm.source = rule.source ?? '';
+    modalForm.port = rule.port ?? '';
+    modalForm.comment = rule.comment ?? '';
+    showRuleModal.value = true;
+};
+
+const parseSources = (text: string): string[] => {
+    return text
+        .split(/[\n,]+/)
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+};
+
+const parsePorts = (text: string): number[] => {
+    return text
+        .split(/[\n,]+/)
+        .map(s => s.trim())
+        .filter(s => s.length > 0)
+        .map(s => parseInt(s, 10))
+        .filter(n => !isNaN(n) && n >= 1 && n <= 65535);
+};
+
+const submitModal = async (): Promise<void> => {
+    modalLoading.value = true;
     try {
-        const payload: Record<string, string | number | null> = {
-            chain: ruleForm.chain,
-            action: ruleForm.action,
-            protocol: ruleForm.protocol,
-            source: ruleForm.source.trim() || null,
-            port: ruleForm.port !== '' ? Number(ruleForm.port) : null,
-            comment: ruleForm.comment.trim() || null,
-            position: positionMode.value === 'specific' && ruleForm.position !== '' ? Number(ruleForm.position) : null,
-        };
+        if (editingRule.value) {
+            // Edit mode — single rule update
+            await axios.put(route('security.firewall.update', { rule: editingRule.value.id }), {
+                chain: modalForm.chain,
+                action: modalForm.action,
+                protocol: modalForm.protocol,
+                source: modalForm.source.trim() || null,
+                port: modalForm.port !== '' ? Number(modalForm.port) : null,
+                comment: modalForm.comment.trim() || null,
+            });
+            addToast('success', t('Rule updated successfully.'));
+        } else {
+            // Add mode — batch create
+            const sources = parseSources(modalForm.sourcesText);
+            const ports = parsePorts(modalForm.portsText);
 
-        await axios.post(route('security.firewall.store'), payload);
-        addToast('success', t('Firewall rule added successfully.'));
+            const payload: Record<string, unknown> = {
+                chain: modalForm.chain,
+                action: modalForm.action,
+                protocol: modalForm.protocol,
+                comment: modalForm.comment.trim() || null,
+            };
 
-        ruleForm.source = '';
-        ruleForm.port = '';
-        ruleForm.comment = '';
-        ruleForm.position = '';
-        positionMode.value = 'append';
+            if (sources.length > 0) {
+                payload.sources = sources;
+            }
+            if (ports.length > 0) {
+                payload.ports = ports;
+            }
 
+            const response = await axios.post(route('security.firewall.store'), payload);
+            const count = response.data.count ?? 1;
+            addToast('success', t(':count rules created successfully.').replace(':count', String(count)));
+        }
+        showRuleModal.value = false;
         await refreshData();
-    } catch {
-        addToast('error', t('Failed to add firewall rule.'));
+    } catch (error: unknown) {
+        if (editingRule.value) {
+            addToast('error', t('Failed to update firewall rule.'));
+        } else {
+            addToast('error', t('Failed to add firewall rule.'));
+        }
     } finally {
-        addRuleLoading.value = false;
+        modalLoading.value = false;
     }
 };
 

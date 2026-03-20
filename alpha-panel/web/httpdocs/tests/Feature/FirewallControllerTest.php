@@ -83,7 +83,7 @@ class FirewallControllerTest extends TestCase
         $response->assertForbidden();
     }
 
-    public function test_admin_can_add_rule(): void
+    public function test_admin_can_add_firewall_rule(): void
     {
         $admin = User::factory()->admin()->create();
 
@@ -91,26 +91,140 @@ class FirewallControllerTest extends TestCase
             'chain' => 'INPUT',
             'action' => 'ACCEPT',
             'protocol' => 'tcp',
-            'port' => 443,
-            'comment' => 'HTTPS',
+            'sources' => ['192.168.1.100'],
+            'ports' => [80],
+            'comment' => 'test rule',
         ]);
 
         $response->assertOk();
-        $response->assertJson([
-            'success' => true,
-        ]);
-        $response->assertJsonStructure([
-            'success',
-            'rule' => ['id', 'chain', 'action', 'protocol', 'port', 'comment'],
-        ]);
+        $response->assertJson(['success' => true, 'count' => 1]);
 
         $this->assertDatabaseHas('firewall_rules', [
             'chain' => 'INPUT',
             'action' => 'ACCEPT',
             'protocol' => 'tcp',
-            'port' => 443,
-            'comment' => 'HTTPS',
+            'source' => '192.168.1.100',
+            'port' => 80,
+            'comment' => 'test rule',
             'created_by' => $admin->id,
+        ]);
+    }
+
+    public function test_admin_can_add_rule_with_multiple_sources(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $response = $this->actingAs($admin)->postJson(route('security.firewall.store'), [
+            'chain' => 'INPUT',
+            'action' => 'ACCEPT',
+            'protocol' => 'all',
+            'sources' => ['192.168.1.1', '10.0.0.5', '203.0.113.50'],
+        ]);
+
+        $response->assertOk();
+        $response->assertJson(['success' => true, 'count' => 3]);
+
+        $this->assertDatabaseHas('firewall_rules', ['source' => '192.168.1.1', 'created_by' => $admin->id]);
+        $this->assertDatabaseHas('firewall_rules', ['source' => '10.0.0.5', 'created_by' => $admin->id]);
+        $this->assertDatabaseHas('firewall_rules', ['source' => '203.0.113.50', 'created_by' => $admin->id]);
+    }
+
+    public function test_admin_can_add_rule_with_multiple_ports(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $response = $this->actingAs($admin)->postJson(route('security.firewall.store'), [
+            'chain' => 'INPUT',
+            'action' => 'ACCEPT',
+            'protocol' => 'tcp',
+            'ports' => [80, 443],
+        ]);
+
+        $response->assertOk();
+        $response->assertJson(['success' => true, 'count' => 2]);
+
+        $this->assertDatabaseHas('firewall_rules', ['port' => 80, 'created_by' => $admin->id]);
+        $this->assertDatabaseHas('firewall_rules', ['port' => 443, 'created_by' => $admin->id]);
+    }
+
+    public function test_admin_can_add_rule_with_sources_and_ports(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $response = $this->actingAs($admin)->postJson(route('security.firewall.store'), [
+            'chain' => 'INPUT',
+            'action' => 'ACCEPT',
+            'protocol' => 'tcp',
+            'sources' => ['192.168.1.1', '10.0.0.5'],
+            'ports' => [80, 443],
+        ]);
+
+        $response->assertOk();
+        $response->assertJson(['success' => true, 'count' => 4]); // 2 IPs * 2 ports
+
+        $this->assertDatabaseHas('firewall_rules', ['source' => '192.168.1.1', 'port' => 80]);
+        $this->assertDatabaseHas('firewall_rules', ['source' => '192.168.1.1', 'port' => 443]);
+        $this->assertDatabaseHas('firewall_rules', ['source' => '10.0.0.5', 'port' => 80]);
+        $this->assertDatabaseHas('firewall_rules', ['source' => '10.0.0.5', 'port' => 443]);
+    }
+
+    public function test_admin_can_add_rule_with_no_source_no_port(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $response = $this->actingAs($admin)->postJson(route('security.firewall.store'), [
+            'chain' => 'INPUT',
+            'action' => 'DROP',
+            'protocol' => 'all',
+        ]);
+
+        $response->assertOk();
+        $response->assertJson(['success' => true, 'count' => 1]);
+
+        $this->assertDatabaseHas('firewall_rules', [
+            'chain' => 'INPUT',
+            'action' => 'DROP',
+            'protocol' => 'all',
+            'source' => null,
+            'port' => null,
+            'created_by' => $admin->id,
+        ]);
+    }
+
+    public function test_admin_can_update_firewall_rule(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $rule = FirewallRule::create([
+            'chain' => 'INPUT',
+            'action' => 'ACCEPT',
+            'protocol' => 'tcp',
+            'source' => '192.168.1.1',
+            'port' => 80,
+            'comment' => 'original',
+            'position' => 1,
+            'enabled' => true,
+            'created_by' => $admin->id,
+        ]);
+
+        $response = $this->actingAs($admin)->putJson(route('security.firewall.update', ['rule' => $rule->id]), [
+            'chain' => 'INPUT',
+            'action' => 'DROP',
+            'protocol' => 'tcp',
+            'source' => '10.0.0.1',
+            'port' => 443,
+            'comment' => 'updated',
+        ]);
+
+        $response->assertOk();
+        $response->assertJson(['success' => true]);
+
+        $this->assertDatabaseHas('firewall_rules', [
+            'id' => $rule->id,
+            'action' => 'DROP',
+            'source' => '10.0.0.1',
+            'port' => 443,
+            'comment' => 'updated',
         ]);
     }
 
@@ -304,7 +418,7 @@ class FirewallControllerTest extends TestCase
             'chain' => 'FORWARD',
             'action' => 'ACCEPT',
             'protocol' => 'tcp',
-            'port' => 443,
+            'ports' => [443],
         ]);
 
         $response->assertUnprocessable();
@@ -319,11 +433,42 @@ class FirewallControllerTest extends TestCase
             'chain' => 'INPUT',
             'action' => 'ALLOW',
             'protocol' => 'tcp',
-            'port' => 443,
+            'ports' => [443],
         ]);
 
         $response->assertUnprocessable();
         $response->assertJsonValidationErrors('action');
+    }
+
+    public function test_add_rule_with_invalid_source_ip_returns_422(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $response = $this->actingAs($admin)->postJson(route('security.firewall.store'), [
+            'chain' => 'INPUT',
+            'action' => 'ACCEPT',
+            'protocol' => 'tcp',
+            'sources' => ['not-an-ip'],
+            'ports' => [80],
+        ]);
+
+        $response->assertUnprocessable();
+        $response->assertJsonValidationErrors('sources.0');
+    }
+
+    public function test_add_rule_with_invalid_port_returns_422(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $response = $this->actingAs($admin)->postJson(route('security.firewall.store'), [
+            'chain' => 'INPUT',
+            'action' => 'ACCEPT',
+            'protocol' => 'tcp',
+            'ports' => [99999],
+        ]);
+
+        $response->assertUnprocessable();
+        $response->assertJsonValidationErrors('ports.0');
     }
 
     public function test_invalid_policy_returns_422(): void

@@ -40,11 +40,35 @@ class FirewallController extends Controller
         $user = $request->user();
         abort_unless($user->isAdmin(), 403);
 
-        $rule = $firewall->addDbRule($request->validated(), $user->id);
+        $count = $firewall->addDbRules($request->validated(), $user->id);
 
         return response()->json([
             'success' => true,
-            'rule' => $rule->load('creator'),
+            'count' => $count,
+        ]);
+    }
+
+    public function update(Request $request, FirewallRule $rule, FirewallService $firewall): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        abort_unless($user->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'chain' => ['required', Rule::in(['INPUT', 'OUTPUT'])],
+            'action' => ['required', Rule::in(['ACCEPT', 'DROP', 'REJECT'])],
+            'protocol' => ['required', Rule::in(['tcp', 'udp', 'icmp', 'all'])],
+            'source' => ['nullable', 'string', 'ip'],
+            'port' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'comment' => ['nullable', 'string', 'max:255'],
+            'enabled' => ['nullable', 'boolean'],
+        ]);
+
+        $updated = $firewall->updateDbRule($rule->id, $validated);
+
+        return response()->json([
+            'success' => true,
+            'rule' => $updated,
         ]);
     }
 
