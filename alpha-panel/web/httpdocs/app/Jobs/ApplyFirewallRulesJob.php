@@ -50,15 +50,17 @@ class ApplyFirewallRulesJob implements ShouldQueue
             $portainer->execInContainer($container, ['iptables', '-P', 'INPUT', $inputPolicy], 10);
             $portainer->execInContainer($container, ['iptables', '-P', 'OUTPUT', $outputPolicy], 10);
 
-            // 6. Apply rules in order
+            // 6. Apply rules in order (expand sources × ports per rule)
             foreach ($inputRules as $rule) {
-                $cmd = $this->buildIptablesCommand('INPUT', $rule);
-                $portainer->execInContainer($container, $cmd, 10);
+                foreach ($this->buildIptablesCommands('INPUT', $rule) as $cmd) {
+                    $portainer->execInContainer($container, $cmd, 10);
+                }
             }
 
             foreach ($outputRules as $rule) {
-                $cmd = $this->buildIptablesCommand('OUTPUT', $rule);
-                $portainer->execInContainer($container, $cmd, 10);
+                foreach ($this->buildIptablesCommands('OUTPUT', $rule) as $cmd) {
+                    $portainer->execInContainer($container, $cmd, 10);
+                }
             }
 
             // 7. Persist
@@ -94,32 +96,42 @@ class ApplyFirewallRulesJob implements ShouldQueue
     }
 
     /**
-     * Build an iptables command array from a FirewallRule model.
+     * Build iptables command arrays from a FirewallRule, expanding sources × ports.
      *
-     * @return array<int, string>
+     * @return array<int, array<int, string>>
      */
-    private function buildIptablesCommand(string $chain, FirewallRule $rule): array
+    private function buildIptablesCommands(string $chain, FirewallRule $rule): array
     {
-        $cmd = ['iptables', '-A', $chain];
+        $sources = $rule->sources ?? [null];
+        $ports = $rule->ports ?? [null];
+        $commands = [];
 
-        if ($rule->source !== null && $rule->source !== '') {
-            $cmd = [...$cmd, '-s', $rule->source];
-        }
+        foreach ($sources as $source) {
+            foreach ($ports as $port) {
+                $cmd = ['iptables', '-A', $chain];
 
-        if ($rule->protocol !== 'all') {
-            $cmd = [...$cmd, '-p', $rule->protocol];
+                if ($source !== null && $source !== '') {
+                    $cmd = [...$cmd, '-s', $source];
+                }
 
-            if ($rule->port !== null && in_array($rule->protocol, ['tcp', 'udp'], true)) {
-                $cmd = [...$cmd, '-m', $rule->protocol, '--dport', (string) $rule->port];
+                if ($rule->protocol !== 'all') {
+                    $cmd = [...$cmd, '-p', $rule->protocol];
+
+                    if ($port !== null && in_array($rule->protocol, ['tcp', 'udp'], true)) {
+                        $cmd = [...$cmd, '-m', $rule->protocol, '--dport', (string) $port];
+                    }
+                }
+
+                if ($rule->comment !== null && $rule->comment !== '') {
+                    $cmd = [...$cmd, '-m', 'comment', '--comment', $rule->comment];
+                }
+
+                $cmd = [...$cmd, '-j', $rule->action];
+
+                $commands[] = $cmd;
             }
         }
 
-        if ($rule->comment !== null && $rule->comment !== '') {
-            $cmd = [...$cmd, '-m', 'comment', '--comment', $rule->comment];
-        }
-
-        $cmd = [...$cmd, '-j', $rule->action];
-
-        return $cmd;
+        return $commands;
     }
 }

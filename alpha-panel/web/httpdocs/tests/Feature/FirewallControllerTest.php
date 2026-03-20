@@ -99,15 +99,14 @@ class FirewallControllerTest extends TestCase
         $response->assertOk();
         $response->assertJson(['success' => true, 'count' => 1]);
 
-        $this->assertDatabaseHas('firewall_rules', [
-            'chain' => 'INPUT',
-            'action' => 'ACCEPT',
-            'protocol' => 'tcp',
-            'source' => '192.168.1.100',
-            'port' => 80,
-            'comment' => 'test rule',
-            'created_by' => $admin->id,
-        ]);
+        $rule = FirewallRule::where('created_by', $admin->id)->latest('id')->first();
+        $this->assertNotNull($rule);
+        $this->assertSame('INPUT', $rule->chain);
+        $this->assertSame('ACCEPT', $rule->action);
+        $this->assertSame('tcp', $rule->protocol);
+        $this->assertSame(['192.168.1.100'], $rule->sources);
+        $this->assertSame([80], $rule->ports);
+        $this->assertSame('test rule', $rule->comment);
     }
 
     public function test_admin_can_add_rule_with_multiple_sources(): void
@@ -122,11 +121,12 @@ class FirewallControllerTest extends TestCase
         ]);
 
         $response->assertOk();
-        $response->assertJson(['success' => true, 'count' => 3]);
+        $response->assertJson(['success' => true, 'count' => 1]);
 
-        $this->assertDatabaseHas('firewall_rules', ['source' => '192.168.1.1', 'created_by' => $admin->id]);
-        $this->assertDatabaseHas('firewall_rules', ['source' => '10.0.0.5', 'created_by' => $admin->id]);
-        $this->assertDatabaseHas('firewall_rules', ['source' => '203.0.113.50', 'created_by' => $admin->id]);
+        $rule = FirewallRule::where('created_by', $admin->id)->latest('id')->first();
+        $this->assertNotNull($rule);
+        $this->assertSame(['192.168.1.1', '10.0.0.5', '203.0.113.50'], $rule->sources);
+        $this->assertNull($rule->ports);
     }
 
     public function test_admin_can_add_rule_with_multiple_ports(): void
@@ -141,10 +141,12 @@ class FirewallControllerTest extends TestCase
         ]);
 
         $response->assertOk();
-        $response->assertJson(['success' => true, 'count' => 2]);
+        $response->assertJson(['success' => true, 'count' => 1]);
 
-        $this->assertDatabaseHas('firewall_rules', ['port' => 80, 'created_by' => $admin->id]);
-        $this->assertDatabaseHas('firewall_rules', ['port' => 443, 'created_by' => $admin->id]);
+        $rule = FirewallRule::where('created_by', $admin->id)->latest('id')->first();
+        $this->assertNotNull($rule);
+        $this->assertNull($rule->sources);
+        $this->assertSame([80, 443], $rule->ports);
     }
 
     public function test_admin_can_add_rule_with_sources_and_ports(): void
@@ -160,12 +162,12 @@ class FirewallControllerTest extends TestCase
         ]);
 
         $response->assertOk();
-        $response->assertJson(['success' => true, 'count' => 4]); // 2 IPs * 2 ports
+        $response->assertJson(['success' => true, 'count' => 1]);
 
-        $this->assertDatabaseHas('firewall_rules', ['source' => '192.168.1.1', 'port' => 80]);
-        $this->assertDatabaseHas('firewall_rules', ['source' => '192.168.1.1', 'port' => 443]);
-        $this->assertDatabaseHas('firewall_rules', ['source' => '10.0.0.5', 'port' => 80]);
-        $this->assertDatabaseHas('firewall_rules', ['source' => '10.0.0.5', 'port' => 443]);
+        $rule = FirewallRule::where('created_by', $admin->id)->latest('id')->first();
+        $this->assertNotNull($rule);
+        $this->assertSame(['192.168.1.1', '10.0.0.5'], $rule->sources);
+        $this->assertSame([80, 443], $rule->ports);
     }
 
     public function test_admin_can_add_rule_with_no_source_no_port(): void
@@ -181,14 +183,12 @@ class FirewallControllerTest extends TestCase
         $response->assertOk();
         $response->assertJson(['success' => true, 'count' => 1]);
 
-        $this->assertDatabaseHas('firewall_rules', [
-            'chain' => 'INPUT',
-            'action' => 'DROP',
-            'protocol' => 'all',
-            'source' => null,
-            'port' => null,
-            'created_by' => $admin->id,
-        ]);
+        $rule = FirewallRule::where('created_by', $admin->id)->latest('id')->first();
+        $this->assertNotNull($rule);
+        $this->assertSame('INPUT', $rule->chain);
+        $this->assertSame('DROP', $rule->action);
+        $this->assertNull($rule->sources);
+        $this->assertNull($rule->ports);
     }
 
     public function test_admin_can_update_firewall_rule(): void
@@ -199,8 +199,8 @@ class FirewallControllerTest extends TestCase
             'chain' => 'INPUT',
             'action' => 'ACCEPT',
             'protocol' => 'tcp',
-            'source' => '192.168.1.1',
-            'port' => 80,
+            'sources' => ['192.168.1.1'],
+            'ports' => [80],
             'comment' => 'original',
             'position' => 1,
             'enabled' => true,
@@ -211,21 +211,19 @@ class FirewallControllerTest extends TestCase
             'chain' => 'INPUT',
             'action' => 'DROP',
             'protocol' => 'tcp',
-            'source' => '10.0.0.1',
-            'port' => 443,
+            'sources' => ['10.0.0.1', '10.0.0.2'],
+            'ports' => [443, 8080],
             'comment' => 'updated',
         ]);
 
         $response->assertOk();
         $response->assertJson(['success' => true]);
 
-        $this->assertDatabaseHas('firewall_rules', [
-            'id' => $rule->id,
-            'action' => 'DROP',
-            'source' => '10.0.0.1',
-            'port' => 443,
-            'comment' => 'updated',
-        ]);
+        $rule->refresh();
+        $this->assertSame('DROP', $rule->action);
+        $this->assertSame(['10.0.0.1', '10.0.0.2'], $rule->sources);
+        $this->assertSame([443, 8080], $rule->ports);
+        $this->assertSame('updated', $rule->comment);
     }
 
     public function test_admin_can_get_data(): void
@@ -238,7 +236,7 @@ class FirewallControllerTest extends TestCase
             'chain' => 'INPUT',
             'action' => 'ACCEPT',
             'protocol' => 'tcp',
-            'port' => 80,
+            'ports' => [80],
             'position' => 1,
             'enabled' => true,
             'created_by' => $admin->id,
@@ -263,7 +261,7 @@ class FirewallControllerTest extends TestCase
             'chain' => 'INPUT',
             'action' => 'ACCEPT',
             'protocol' => 'tcp',
-            'port' => 8080,
+            'ports' => [8080],
             'position' => 1,
             'enabled' => true,
             'created_by' => $admin->id,
@@ -321,7 +319,7 @@ class FirewallControllerTest extends TestCase
             'chain' => 'INPUT',
             'action' => 'ACCEPT',
             'protocol' => 'tcp',
-            'port' => 80,
+            'ports' => [80],
             'position' => 1,
             'enabled' => true,
             'created_by' => $admin->id,
@@ -331,7 +329,7 @@ class FirewallControllerTest extends TestCase
             'chain' => 'INPUT',
             'action' => 'ACCEPT',
             'protocol' => 'tcp',
-            'port' => 443,
+            'ports' => [443],
             'position' => 2,
             'enabled' => true,
             'created_by' => $admin->id,
@@ -341,7 +339,7 @@ class FirewallControllerTest extends TestCase
             'chain' => 'INPUT',
             'action' => 'DROP',
             'protocol' => 'tcp',
-            'port' => 22,
+            'ports' => [22],
             'position' => 3,
             'enabled' => true,
             'created_by' => $admin->id,
@@ -374,21 +372,19 @@ class FirewallControllerTest extends TestCase
         // The seed should have imported port 80 and 443 rules (skipping RELATED,ESTABLISHED and loopback)
         $this->assertTrue($response->json('imported') >= 2);
 
-        $this->assertDatabaseHas('firewall_rules', [
-            'chain' => 'INPUT',
-            'action' => 'ACCEPT',
-            'protocol' => 'tcp',
-            'port' => 80,
-            'created_by' => $admin->id,
-        ]);
+        // Seeded rules now store ports as JSON arrays
+        $rule80 = FirewallRule::where('created_by', $admin->id)
+            ->whereJsonContains('ports', 80)
+            ->first();
+        $this->assertNotNull($rule80);
+        $this->assertSame('INPUT', $rule80->chain);
+        $this->assertSame('ACCEPT', $rule80->action);
+        $this->assertSame('tcp', $rule80->protocol);
 
-        $this->assertDatabaseHas('firewall_rules', [
-            'chain' => 'INPUT',
-            'action' => 'ACCEPT',
-            'protocol' => 'tcp',
-            'port' => 443,
-            'created_by' => $admin->id,
-        ]);
+        $rule443 = FirewallRule::where('created_by', $admin->id)
+            ->whereJsonContains('ports', 443)
+            ->first();
+        $this->assertNotNull($rule443);
     }
 
     public function test_observer_marks_pending_changes(): void
@@ -401,7 +397,7 @@ class FirewallControllerTest extends TestCase
             'chain' => 'INPUT',
             'action' => 'ACCEPT',
             'protocol' => 'tcp',
-            'port' => 3306,
+            'ports' => [3306],
             'position' => 1,
             'enabled' => true,
             'created_by' => $admin->id,

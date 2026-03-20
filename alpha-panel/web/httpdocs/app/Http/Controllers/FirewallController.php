@@ -58,8 +58,10 @@ class FirewallController extends Controller
             'chain' => ['required', Rule::in(['INPUT', 'OUTPUT'])],
             'action' => ['required', Rule::in(['ACCEPT', 'DROP', 'REJECT'])],
             'protocol' => ['required', Rule::in(['tcp', 'udp', 'icmp', 'all'])],
-            'source' => ['nullable', 'string', 'ip'],
-            'port' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'sources' => ['nullable', 'array'],
+            'sources.*' => ['string', 'ip'],
+            'ports' => ['nullable', 'array'],
+            'ports.*' => ['integer', 'min:1', 'max:65535'],
             'comment' => ['nullable', 'string', 'max:255'],
             'enabled' => ['nullable', 'boolean'],
         ]);

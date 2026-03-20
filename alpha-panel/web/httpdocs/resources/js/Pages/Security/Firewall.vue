@@ -177,8 +177,8 @@
                                             <span :class="actionBadgeClass(rule.action)">{{ rule.action }}</span>
                                         </td>
                                         <td class="py-2 text-xs text-gray-700 dark:text-gray-300">{{ rule.protocol }}</td>
-                                        <td class="py-2 font-mono text-xs text-gray-700 dark:text-gray-300">{{ rule.source ?? t('any') }}</td>
-                                        <td class="py-2 text-xs text-gray-700 dark:text-gray-300">{{ rule.port ?? t('all') }}</td>
+                                        <td class="py-2 font-mono text-xs text-gray-700 dark:text-gray-300">{{ formatSources(rule.sources) }}</td>
+                                        <td class="py-2 text-xs text-gray-700 dark:text-gray-300">{{ formatPorts(rule.ports) }}</td>
                                         <td class="py-2 text-xs text-gray-500 dark:text-gray-400">{{ rule.comment ?? '-' }}</td>
                                         <td class="py-2">
                                             <button
@@ -275,8 +275,8 @@
                                             <span :class="actionBadgeClass(rule.action)">{{ rule.action }}</span>
                                         </td>
                                         <td class="py-2 text-xs text-gray-700 dark:text-gray-300">{{ rule.protocol }}</td>
-                                        <td class="py-2 font-mono text-xs text-gray-700 dark:text-gray-300">{{ rule.source ?? t('any') }}</td>
-                                        <td class="py-2 text-xs text-gray-700 dark:text-gray-300">{{ rule.port ?? t('all') }}</td>
+                                        <td class="py-2 font-mono text-xs text-gray-700 dark:text-gray-300">{{ formatSources(rule.sources) }}</td>
+                                        <td class="py-2 text-xs text-gray-700 dark:text-gray-300">{{ formatPorts(rule.ports) }}</td>
                                         <td class="py-2 text-xs text-gray-500 dark:text-gray-400">{{ rule.comment ?? '-' }}</td>
                                         <td class="py-2">
                                             <button
@@ -364,8 +364,8 @@
                                             v-model="modalForm.chain"
                                             class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
                                         >
-                                            <option value="INPUT">INPUT</option>
-                                            <option value="OUTPUT">OUTPUT</option>
+                                            <option value="INPUT" class="bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300">INPUT</option>
+                                            <option value="OUTPUT" class="bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300">OUTPUT</option>
                                         </select>
                                     </div>
                                     <div class="flex flex-col gap-1">
@@ -374,9 +374,9 @@
                                             v-model="modalForm.action"
                                             class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
                                         >
-                                            <option value="ACCEPT">ACCEPT</option>
-                                            <option value="DROP">DROP</option>
-                                            <option value="REJECT">REJECT</option>
+                                            <option value="ACCEPT" class="bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300">ACCEPT</option>
+                                            <option value="DROP" class="bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300">DROP</option>
+                                            <option value="REJECT" class="bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300">REJECT</option>
                                         </select>
                                     </div>
                                 </div>
@@ -388,52 +388,36 @@
                                         v-model="modalForm.protocol"
                                         class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
                                     >
-                                        <option value="all">{{ t('all') }}</option>
-                                        <option value="tcp">tcp</option>
-                                        <option value="udp">udp</option>
-                                        <option value="icmp">icmp</option>
+                                        <option value="all" class="bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300">{{ t('all') }}</option>
+                                        <option value="tcp" class="bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300">tcp</option>
+                                        <option value="udp" class="bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300">udp</option>
+                                        <option value="icmp" class="bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300">icmp</option>
                                     </select>
                                 </div>
 
                                 <!-- Source IPs -->
                                 <div class="flex flex-col gap-1">
                                     <label class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                                        {{ editingRule ? t('Source IP') : t('Source IPs (one per line)') }}
+                                        {{ t('Source IPs (one per line)') }}
                                     </label>
                                     <textarea
-                                        v-if="!editingRule"
                                         v-model="modalForm.sourcesText"
                                         rows="3"
                                         :placeholder="t('Leave empty for all IPs') + '\n192.168.1.1\n10.0.0.50'"
-                                        class="rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-gray-300 dark:placeholder-gray-500"
+                                        class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:placeholder-gray-500"
                                     ></textarea>
-                                    <input
-                                        v-else
-                                        v-model="modalForm.source"
-                                        type="text"
-                                        :placeholder="t('Leave empty for all IPs')"
-                                        class="h-10 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-gray-300 dark:placeholder-gray-500"
-                                    />
                                 </div>
 
                                 <!-- Ports -->
                                 <div class="flex flex-col gap-1">
                                     <label class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                                        {{ editingRule ? t('Port') : t('Ports (comma separated)') }}
+                                        {{ t('Ports (comma separated)') }}
                                     </label>
                                     <input
-                                        v-if="!editingRule"
                                         v-model="modalForm.portsText"
                                         type="text"
                                         :placeholder="t('Leave empty for all ports') + ' — 80, 443, 8080'"
-                                        class="h-10 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-gray-300 dark:placeholder-gray-500"
-                                    />
-                                    <input
-                                        v-else
-                                        v-model="modalForm.port"
-                                        type="number"
-                                        :placeholder="t('Leave empty for all ports')"
-                                        class="h-10 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-gray-300 dark:placeholder-gray-500"
+                                        class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:placeholder-gray-500"
                                     />
                                 </div>
 
@@ -444,14 +428,10 @@
                                         v-model="modalForm.comment"
                                         type="text"
                                         :placeholder="t('Comment')"
-                                        class="h-10 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-gray-300 dark:placeholder-gray-500"
+                                        class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:placeholder-gray-500"
                                     />
                                 </div>
 
-                                <!-- Info text for add mode -->
-                                <p v-if="!editingRule" class="text-xs text-gray-400 dark:text-gray-500">
-                                    {{ t('Each IP and port combination will create a separate rule.') }}
-                                </p>
                             </div>
 
                             <div class="mt-6 flex justify-end gap-2">
@@ -569,8 +549,8 @@ interface FirewallRule {
     chain: string;
     action: string;
     protocol: string;
-    source: string | null;
-    port: number | null;
+    sources: string[] | null;
+    ports: number[] | null;
     comment: string | null;
     position: number;
     enabled: boolean;
@@ -623,10 +603,8 @@ const modalForm = reactive({
     chain: 'INPUT',
     action: 'ACCEPT',
     protocol: 'tcp',
-    sourcesText: '',   // for add mode - textarea
-    portsText: '',     // for add mode - comma separated
-    source: '',        // for edit mode - single
-    port: '' as string | number,  // for edit mode - single
+    sourcesText: '',
+    portsText: '',
     comment: '',
 });
 const deleteRuleLoading = ref<number | null>(null);
@@ -643,6 +621,29 @@ const showDeleteConfirm = ref(false);
 const pendingDeleteRule = ref<FirewallRule | null>(null);
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
+
+const toArray = (value: unknown): string[] | number[] | null => {
+    if (value === null || value === undefined) return null;
+    if (Array.isArray(value)) return value.length > 0 ? value : null;
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch { /* not JSON */ }
+        return value.trim() ? [value.trim()] : null;
+    }
+    return null;
+};
+
+const formatSources = (sources: unknown): string => {
+    const arr = toArray(sources);
+    return arr ? arr.join(', ') : t('any');
+};
+
+const formatPorts = (ports: unknown): string => {
+    const arr = toArray(ports);
+    return arr ? arr.join(', ') : t('all');
+};
 
 const actionBadgeClass = (action: string): string => {
     const base = 'rounded-full px-2 py-0.5 text-xs font-semibold';
@@ -724,8 +725,6 @@ const openAddModal = (): void => {
     modalForm.protocol = 'tcp';
     modalForm.sourcesText = '';
     modalForm.portsText = '';
-    modalForm.source = '';
-    modalForm.port = '';
     modalForm.comment = '';
     showRuleModal.value = true;
 };
@@ -735,10 +734,10 @@ const openEditModal = (rule: FirewallRule): void => {
     modalForm.chain = rule.chain;
     modalForm.action = rule.action;
     modalForm.protocol = rule.protocol;
-    modalForm.sourcesText = '';
-    modalForm.portsText = '';
-    modalForm.source = rule.source ?? '';
-    modalForm.port = rule.port ?? '';
+    const srcArr = toArray(rule.sources);
+    const prtArr = toArray(rule.ports);
+    modalForm.sourcesText = srcArr ? srcArr.join('\n') : '';
+    modalForm.portsText = prtArr ? prtArr.join(', ') : '';
     modalForm.comment = rule.comment ?? '';
     showRuleModal.value = true;
 };
@@ -762,39 +761,29 @@ const parsePorts = (text: string): number[] => {
 const submitModal = async (): Promise<void> => {
     modalLoading.value = true;
     try {
+        const sources = parseSources(modalForm.sourcesText);
+        const ports = parsePorts(modalForm.portsText);
+
+        const payload: Record<string, unknown> = {
+            chain: modalForm.chain,
+            action: modalForm.action,
+            protocol: modalForm.protocol,
+            comment: modalForm.comment.trim() || null,
+        };
+
+        if (sources.length > 0) {
+            payload.sources = sources;
+        }
+        if (ports.length > 0) {
+            payload.ports = ports;
+        }
+
         if (editingRule.value) {
-            // Edit mode — single rule update
-            await axios.put(route('security.firewall.update', { rule: editingRule.value.id }), {
-                chain: modalForm.chain,
-                action: modalForm.action,
-                protocol: modalForm.protocol,
-                source: modalForm.source.trim() || null,
-                port: modalForm.port !== '' ? Number(modalForm.port) : null,
-                comment: modalForm.comment.trim() || null,
-            });
+            await axios.put(route('security.firewall.update', { rule: editingRule.value.id }), payload);
             addToast('success', t('Rule updated successfully.'));
         } else {
-            // Add mode — batch create
-            const sources = parseSources(modalForm.sourcesText);
-            const ports = parsePorts(modalForm.portsText);
-
-            const payload: Record<string, unknown> = {
-                chain: modalForm.chain,
-                action: modalForm.action,
-                protocol: modalForm.protocol,
-                comment: modalForm.comment.trim() || null,
-            };
-
-            if (sources.length > 0) {
-                payload.sources = sources;
-            }
-            if (ports.length > 0) {
-                payload.ports = ports;
-            }
-
-            const response = await axios.post(route('security.firewall.store'), payload);
-            const count = response.data.count ?? 1;
-            addToast('success', t(':count rules created successfully.').replace(':count', String(count)));
+            await axios.post(route('security.firewall.store'), payload);
+            addToast('success', t('Rule created successfully.'));
         }
         showRuleModal.value = false;
         await refreshData();

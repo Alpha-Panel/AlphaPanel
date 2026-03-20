@@ -17,8 +17,8 @@ class FirewallRule extends Model
         'chain',
         'action',
         'protocol',
-        'source',
-        'port',
+        'sources',
+        'ports',
         'comment',
         'position',
         'enabled',
@@ -29,7 +29,8 @@ class FirewallRule extends Model
     protected function casts(): array
     {
         return [
-            'port' => 'integer',
+            'sources' => 'array',
+            'ports' => 'array',
             'position' => 'integer',
             'enabled' => 'boolean',
         ];

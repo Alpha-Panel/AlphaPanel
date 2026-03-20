@@ -82,7 +82,7 @@ class FirewallService
     /**
      * Create a new firewall rule in the database with auto-positioned ordering.
      *
-     * @param  array{chain: string, action: string, protocol?: string, source?: string|null, port?: int|null, comment?: string|null, enabled?: bool}  $params
+     * @param  array{chain: string, action: string, protocol?: string, sources?: array<int, string>|null, ports?: array<int, int>|null, comment?: string|null, enabled?: bool}  $params
      */
     public function addDbRule(array $params, int $userId): FirewallRule
     {
@@ -94,8 +94,8 @@ class FirewallService
             'chain' => $chain,
             'action' => strtoupper($params['action']),
             'protocol' => strtolower($params['protocol'] ?? 'all'),
-            'source' => $params['source'] ?? null,
-            'port' => $params['port'] ?? null,
+            'sources' => ! empty($params['sources']) ? $params['sources'] : null,
+            'ports' => ! empty($params['ports']) ? $params['ports'] : null,
             'comment' => $params['comment'] ?? null,
             'position' => $maxPosition + 1,
             'enabled' => $params['enabled'] ?? true,
@@ -104,34 +104,15 @@ class FirewallService
     }
 
     /**
-     * Create multiple firewall rules from arrays of sources and ports.
-     * Uses cartesian product when both sources and ports are provided.
+     * Create a single firewall rule storing sources and ports as JSON arrays.
      *
      * @param  array{chain: string, action: string, protocol?: string, sources?: array<int, string>|null, ports?: array<int, int>|null, comment?: string|null, enabled?: bool}  $params
      */
     public function addDbRules(array $params, int $userId): int
     {
-        $sources = ! empty($params['sources']) ? $params['sources'] : [null];
-        $ports = ! empty($params['ports']) ? $params['ports'] : [null];
-        $count = 0;
+        $this->addDbRule($params, $userId);
 
-        foreach ($sources as $source) {
-            foreach ($ports as $port) {
-                $this->addDbRule([
-                    'chain' => $params['chain'],
-                    'action' => $params['action'],
-                    'protocol' => $params['protocol'] ?? 'all',
-                    'source' => $source,
-                    'port' => $port,
-                    'comment' => $params['comment'] ?? null,
-                    'enabled' => $params['enabled'] ?? true,
-                ], $userId);
-
-                $count++;
-            }
-        }
-
-        return $count;
+        return 1;
     }
 
     /**
@@ -146,7 +127,7 @@ class FirewallService
     /**
      * Update an existing firewall rule in the database.
      *
-     * @param  array{chain?: string, action?: string, protocol?: string, source?: string|null, port?: int|null, comment?: string|null, enabled?: bool}  $params
+     * @param  array{chain?: string, action?: string, protocol?: string, sources?: array<int, string>|null, ports?: array<int, int>|null, comment?: string|null, enabled?: bool}  $params
      */
     public function updateDbRule(int $id, array $params): FirewallRule
     {
@@ -163,11 +144,11 @@ class FirewallService
         if (array_key_exists('protocol', $params)) {
             $updateData['protocol'] = strtolower($params['protocol'] ?? 'all');
         }
-        if (array_key_exists('source', $params)) {
-            $updateData['source'] = $params['source'];
+        if (array_key_exists('sources', $params)) {
+            $updateData['sources'] = ! empty($params['sources']) ? $params['sources'] : null;
         }
-        if (array_key_exists('port', $params)) {
-            $updateData['port'] = $params['port'];
+        if (array_key_exists('ports', $params)) {
+            $updateData['ports'] = ! empty($params['ports']) ? $params['ports'] : null;
         }
         if (array_key_exists('comment', $params)) {
             $updateData['comment'] = $params['comment'];
@@ -263,8 +244,8 @@ class FirewallService
                     'chain' => $chain,
                     'action' => strtoupper($action),
                     'protocol' => strtolower($protocol),
-                    'source' => $source,
-                    'port' => $port,
+                    'sources' => $source !== null ? [$source] : null,
+                    'ports' => $port !== null ? [$port] : null,
                     'comment' => $comment,
                     'position' => $position,
                     'enabled' => true,
@@ -394,7 +375,7 @@ class FirewallService
         if ($inputPolicy === 'DROP') {
             $hasSshAccept = FirewallRule::input()
                 ->enabled()
-                ->where('port', 22)
+                ->whereJsonContains('ports', 22)
                 ->where('action', 'ACCEPT')
                 ->exists();
 
