@@ -411,7 +411,7 @@
                                     <dt class="text-white/50">{{ t('Username') }}</dt>
                                     <dd><code class="rounded bg-white/10 px-2 py-0.5 text-cyan-200">{{ domain.ftp_user.username }}</code></dd>
                                     <dt class="text-white/50">{{ t('Home Path') }}</dt>
-                                    <dd><code class="rounded bg-white/10 px-2 py-0.5 text-cyan-200">{{ domain.ftp_user.home_path }}</code></dd>
+                                    <dd><code class="rounded bg-white/10 px-2 py-0.5 text-cyan-200">{{ domain.ftp_user.homedir }}</code></dd>
                                     <dt class="text-white/50">{{ t('UID') }}</dt>
                                     <dd>{{ domain.ftp_user.uid }}</dd>
                                 </dl>

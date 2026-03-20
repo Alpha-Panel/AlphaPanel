@@ -10,9 +10,12 @@ class FtpUser extends Model
     protected $fillable = [
         'domain_id',
         'username',
-        'home_path',
+        'homedir',
         'encrypted_password',
+        'password',
         'uid',
+        'gid',
+        'shell',
     ];
 
     /**

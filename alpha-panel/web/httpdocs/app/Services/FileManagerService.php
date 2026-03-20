@@ -224,8 +224,7 @@ class FileManagerService
      */
     private function resolveSymlinkTarget(string $target, string $currentResolved, string $segment): string
     {
-        // Try to strip the FTP user's home_path to get a relative path
-        $homePath = rtrim($this->ftpUser->home_path ?? '', '/');
+        $homePath = rtrim($this->ftpUser->homedir ?? '', '/');
 
         if ($homePath !== '' && str_starts_with($target, $homePath.'/')) {
             return ltrim(substr($target, strlen($homePath)), '/');

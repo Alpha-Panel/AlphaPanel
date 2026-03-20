@@ -9,6 +9,7 @@ use App\Models\Domain;
 use App\Models\PhpVersion;
 use App\Models\User;
 use App\Services\CloudflareDnsService;
+use Database\Seeders\PhpVersionSeeder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Queue;
 use Mockery\MockInterface;
@@ -22,7 +23,7 @@ class DomainTest extends TestCase
     {
         parent::setUp();
 
-        $this->seed(\Database\Seeders\PhpVersionSeeder::class);
+        $this->seed(PhpVersionSeeder::class);
     }
 
     public function test_subdomain_root_path_derivation(): void
@@ -151,7 +152,7 @@ class DomainTest extends TestCase
         ]);
         $domain->ftpUser()->create([
             'username' => 'ftpuser'.$domain->id,
-            'home_path' => "/var/www/vhosts/{$domain->fqdn}",
+            'homedir' => "/var/www/vhosts/{$domain->fqdn}",
             'uid' => 20000 + $domain->id,
             'encrypted_password' => 'OldPassword123!',
         ]);

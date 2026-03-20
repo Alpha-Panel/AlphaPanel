@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Enums\DomainStatus;
+use App\Enums\DomainType;
 use App\Events\DomainProvisionProgress;
 use App\Models\AuditLog;
 use App\Models\Domain;
@@ -65,7 +66,7 @@ class RenameDomainJob implements ShouldQueue
             $this->progress($domain, 55, 'Updating FTP user configuration...');
             $domain->load('ftpUser');
             if ($domain->ftpUser) {
-                $ftpUserService->updateHomePath($domain->ftpUser, $domain->getBasePath());
+                $ftpUserService->updateHomedir($domain->ftpUser, $domain->getBasePath());
             }
 
             // Step 5: Write new domain config (HTTP-only first, SSL will be handled by ProvisionDomainJob)
@@ -76,7 +77,7 @@ class RenameDomainJob implements ShouldQueue
             $this->progress($domain, 85, 'Reloading web server...');
             $reloadService->reloadCaddy();
 
-            if ($domain->type === \App\Enums\DomainType::ApacheReverseProxy) {
+            if ($domain->type === DomainType::ApacheReverseProxy) {
                 $reloadService->reloadApache();
                 if ($domain->phpVersion) {
                     $reloadService->reloadPhpFpm($domain->phpVersion);

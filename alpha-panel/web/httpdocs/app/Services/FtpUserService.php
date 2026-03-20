@@ -10,60 +10,78 @@ use Illuminate\Support\Facades\Process;
 
 class FtpUserService
 {
+    private const DUMMY_PASSWORD = '12345';
+
     public function __construct(
         private PortainerService $portainer,
     ) {}
 
     /**
      * Create an FTP user for a domain and sync the users.env file.
+     *
+     * ProFTPD authenticates via MySQL (password column).
+     * The users.env file is only used for system user creation in PHP containers.
      */
     public function addUser(Domain $domain, string $username, string $password): FtpUser
     {
+        $uid = $this->getNextUid();
+
         $ftpUser = FtpUser::create([
             'domain_id' => $domain->id,
             'username' => $username,
-            'home_path' => $domain->getBasePath(),
+            'homedir' => $domain->getBasePath(),
             'encrypted_password' => $password,
-            'uid' => $this->getNextUid(),
+            'password' => $this->hashPasswordForFtp($password),
+            'uid' => $uid,
+            'gid' => $uid,
         ]);
 
-        $this->syncUsersEnv($ftpUser->username, $password);
-        $this->restartFtpContainers();
+        $this->syncUsersEnv(targetUsername: $ftpUser->username, oldUsername: null);
+        $this->restartPhpContainers();
 
         return $ftpUser;
     }
 
     /**
      * Update an FTP user's password and/or username.
+     *
+     * Password changes update MySQL only — ProFTPD reads live, no restart needed.
+     * Username changes require PHP container restart for system user rename.
      */
     public function updateUser(FtpUser $ftpUser, ?string $password = null, ?string $username = null): void
     {
         $oldUsername = $ftpUser->username;
+        $usernameChanged = $username && $username !== $oldUsername;
 
-        if ($username && $username !== $oldUsername) {
+        if ($usernameChanged) {
             $ftpUser->update(['username' => $username]);
         }
 
         if ($password) {
-            $ftpUser->update(['encrypted_password' => $password]);
+            $ftpUser->update([
+                'encrypted_password' => $password,
+                'password' => $this->hashPasswordForFtp($password),
+            ]);
         }
 
         $this->syncUsersEnv(
             targetUsername: $ftpUser->username,
-            targetPassword: $password,
-            oldUsername: ($username && $username !== $oldUsername) ? $oldUsername : null,
+            oldUsername: $usernameChanged ? $oldUsername : null,
         );
-        $this->restartFtpContainers();
+
+        if ($usernameChanged) {
+            $this->restartPhpContainers();
+        }
     }
 
     /**
-     * Update FTP user's home path (used during domain rename).
+     * Update FTP user's homedir (used during domain rename).
      */
-    public function updateHomePath(FtpUser $ftpUser, string $newPath): void
+    public function updateHomedir(FtpUser $ftpUser, string $newPath): void
     {
-        $ftpUser->update(['home_path' => $newPath]);
+        $ftpUser->update(['homedir' => $newPath]);
         $this->syncUsersEnv();
-        $this->restartFtpContainers();
+        $this->restartPhpContainers();
     }
 
     /**
@@ -73,7 +91,17 @@ class FtpUserService
     {
         $ftpUser->delete();
         $this->syncUsersEnv();
-        $this->recreateFtpContainers();
+        $this->recreatePhpContainers();
+    }
+
+    /**
+     * Generate a ProFTPD-compatible SHA256 password hash.
+     *
+     * Format: {sha256} + base64(raw_sha256_bytes)
+     */
+    public function hashPasswordForFtp(string $password): string
+    {
+        return '{sha256}'.base64_encode(hex2bin(hash('sha256', $password)));
     }
 
     /**
@@ -127,23 +155,20 @@ class FtpUserService
     /**
      * Sync the users.env file preserving existing entries not managed by the panel.
      *
-     * Merges file-based entries with DB records: file entries are kept as-is,
-     * DB entries are added or updated on top. Only DB-managed entries get modified.
+     * DB-managed entries use a dummy password since ProFTPD authenticates via MySQL.
+     * The users.env file is only used for system user creation in PHP containers.
      */
     public function syncUsersEnv(
         ?string $targetUsername = null,
-        ?string $targetPassword = null,
         ?string $oldUsername = null,
     ): void {
         $existingEntries = $this->parseUsersEnv();
 
-        // Build a map keyed by username from the existing file
         $fileMap = [];
         foreach ($existingEntries as $entry) {
             $fileMap[$entry['username']] = $entry;
         }
 
-        // Handle username rename in the file
         if ($oldUsername && $targetUsername && isset($fileMap[$oldUsername])) {
             $renamed = $fileMap[$oldUsername];
             $renamed['username'] = $targetUsername;
@@ -151,35 +176,19 @@ class FtpUserService
             $fileMap[$targetUsername] = $renamed;
         }
 
-        // Apply new password if provided
-        if ($targetUsername && $targetPassword && isset($fileMap[$targetUsername])) {
-            $fileMap[$targetUsername]['password'] = $targetPassword;
-        }
-
-        // Get all DB-managed usernames
         $dbUsers = FtpUser::all();
         $dbUsernames = $dbUsers->pluck('username')->all();
 
-        // Merge: start with existing file entries (preserving non-DB users),
-        // then add/update DB-managed entries
         $merged = [];
 
-        // Keep all file entries that are NOT managed by DB (external users)
         foreach ($fileMap as $username => $entry) {
             if (! in_array($username, $dbUsernames)) {
                 $merged[$username] = "{$entry['username']}|{$entry['password']}|{$entry['path']}|{$entry['uid']}";
             }
         }
 
-        // Add/update DB-managed entries
         foreach ($dbUsers as $ftpUser) {
-            $password = $fileMap[$ftpUser->username]['password'] ?? 'CHANGE_ME';
-
-            if ($targetUsername === $ftpUser->username && $targetPassword) {
-                $password = $targetPassword;
-            }
-
-            $merged[$ftpUser->username] = "{$ftpUser->username}|{$password}|{$ftpUser->home_path}|{$ftpUser->uid}";
+            $merged[$ftpUser->username] = "{$ftpUser->username}|".self::DUMMY_PASSWORD."|{$ftpUser->homedir}|{$ftpUser->uid}";
         }
 
         $lines = array_values($merged);
@@ -229,12 +238,11 @@ class FtpUserService
     }
 
     /**
-     * Restart the FTP, php-code-server, and frankenphp containers to sync users.
+     * Restart only the PHP containers (not FTP — ProFTPD reads from MySQL).
      */
-    public function restartFtpContainers(): void
+    public function restartPhpContainers(): void
     {
         $containers = [
-            config('panel.ftp_container', 'ftp-server'),
             config('panel.php_code_server_container', 'php-code-server'),
             'frankenphp',
         ];
@@ -249,26 +257,22 @@ class FtpUserService
     }
 
     /**
-     * Recreate FTP and php-code-server containers using docker compose.
-     *
-     * This is the service-scoped equivalent of:
-     * - down -v
-     * - up -d --force-recreate
+     * Recreate PHP containers using docker compose (for user removal).
      */
-    public function recreateFtpContainers(): void
+    public function recreatePhpContainers(): void
     {
         $composeProjectRoot = (string) config('panel.compose_project_root', '');
-        $services = $this->getComposeServices();
+        $services = $this->getPhpComposeServices();
 
         if ($services === []) {
-            Log::warning('Skipping compose recreate for FTP containers: no service names configured.');
+            Log::warning('Skipping compose recreate for PHP containers: no service names configured.');
 
             return;
         }
 
         if ($composeProjectRoot === '' || ! File::isDirectory($composeProjectRoot)) {
             Log::warning("Compose project root not found ({$composeProjectRoot}). Falling back to container restart.");
-            $this->restartFtpContainers();
+            $this->restartPhpContainers();
 
             return;
         }
@@ -280,7 +284,7 @@ class FtpUserService
 
             if ($removeResult->failed()) {
                 Log::warning(
-                    'docker compose rm failed for FTP stack recreate: '.
+                    'docker compose rm failed for PHP container recreate: '.
                     trim($removeResult->errorOutput() ?: $removeResult->output())
                 );
             }
@@ -291,28 +295,27 @@ class FtpUserService
 
             if ($upResult->failed()) {
                 Log::error(
-                    'docker compose up failed for FTP stack recreate: '.
+                    'docker compose up failed for PHP container recreate: '.
                     trim($upResult->errorOutput() ?: $upResult->output())
                 );
-                $this->restartFtpContainers();
+                $this->restartPhpContainers();
 
                 return;
             }
 
-            Log::info('Recreated FTP-related containers via docker compose: '.implode(', ', $services));
+            Log::info('Recreated PHP containers via docker compose: '.implode(', ', $services));
         } catch (\Throwable $e) {
-            Log::error("Failed to recreate FTP-related containers via compose: {$e->getMessage()}");
-            $this->restartFtpContainers();
+            Log::error("Failed to recreate PHP containers via compose: {$e->getMessage()}");
+            $this->restartPhpContainers();
         }
     }
 
     /**
      * @return array<int, string>
      */
-    private function getComposeServices(): array
+    private function getPhpComposeServices(): array
     {
         $services = [
-            trim((string) config('panel.ftp_container', 'ftp-server')),
             trim((string) config('panel.php_code_server_container', 'php-code-server')),
             'frankenphp',
         ];

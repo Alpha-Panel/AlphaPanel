@@ -355,30 +355,35 @@ services:
       - vhost_network
 
   ftp:
-    image: delfer/alpine-ftp-server:latest
+    image: serversideup/proftpd:v1.0.2
     container_name: ftp-server
     hostname: ftp-server
     restart: always
     ports:
       - "${PRIVATE_NETWORK_IP}:21:21"                        # komut kanalı (FTPS explicit)
+      - "${PRIVATE_NETWORK_IP}:990:990"                      # FTPS implicit
       - "${PRIVATE_NETWORK_IP}:21000-21010:21000-21010"      # pasif mod port aralığı
     environment:
-      ADDRESS: ${PANEL_DOMAIN}
-      BASE_DOMAIN: ${BASE_DOMAIN}
-      MIN_PORT: 21000
-      MAX_PORT: 21010
-      TLS_CERT: /tmp/ftp-ssl/fullchain.pem
-      TLS_KEY: /tmp/ftp-ssl/privkey.pem
-    env_file:
-      - ./ftp-config/users.env
-    entrypoint: ["/init.sh"]
+      FTP_MASQUERADE_ADDRESS: ${PUBLIC_NETWORK_IP}
+      FTP_TLS_REQUIRED: "on"
+      FTP_TLS_CERTIFICATE_FILE: /etc/letsencrypt/live/${BASE_DOMAIN}/fullchain.pem
+      FTP_TLS_CERTIFICATE_KEY_FILE: /etc/letsencrypt/live/${BASE_DOMAIN}/privkey.pem
+      FTP_PASSIVE_PORT_RANGE_START: 21000
+      FTP_PASSIVE_PORT_RANGE_END: 21010
+      MYSQL_HOST: mysql
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ftp_reader
+      MYSQL_PASSWORD: ${FTP_MYSQL_PASSWORD}
+      MYSQL_PORT: 3306
+      FTP_SQL_USERS_TABLE: ftp_users
     volumes:
       - ./vhosts:/var/www/vhosts:rw
-      - ./ftp-config/users.env:/config/users.env:ro
-      - ./ftp-config/init.sh:/init.sh:ro
       - ./letsencrypt:/etc/letsencrypt:ro
+      - ./ftp-config/proftpd.conf:/etc/proftpd/proftpd.conf:ro
     networks:
       - vhost_network
+    depends_on:
+      - mysql
 
   jenkins:
     build:
@@ -486,11 +491,12 @@ services:
     image: portainer/agent:2.39.0-alpine
     container_name: portainer-agent
     restart: always
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /var/lib/docker/volumes:/var/lib/docker/volumes
+    environment:
+      - DOCKER_HOST=tcp://docker-socket-proxy:2375
     networks:
       - vhost_network
+    depends_on:
+      - docker-socket-proxy
 
   docker-socket-proxy:
     image: tecnativa/docker-socket-proxy:v0.4.2
