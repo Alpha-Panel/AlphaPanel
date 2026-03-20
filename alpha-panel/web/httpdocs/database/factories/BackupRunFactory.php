@@ -19,7 +19,6 @@ class BackupRunFactory extends Factory
 
         return [
             'type' => fake()->randomElement(['web', 'mysql', 'manual']),
-            'backup_mode' => 'full',
             'status' => $status,
             'file_name' => fake()->domainWord().'.tar.gz',
             'file_size_bytes' => fake()->numberBetween(1024 * 1024, 500 * 1024 * 1024),

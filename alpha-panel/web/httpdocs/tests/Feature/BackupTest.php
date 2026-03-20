@@ -131,7 +131,6 @@ class BackupTest extends TestCase
         $response = $this->actingAs($admin)->post(route('backups.settings'), [
             'is_enabled' => true,
             'backup_retention_days' => 0,
-            'backup_mode' => 'full',
         ]);
 
         $response->assertSessionHasErrors('backup_retention_days');
@@ -146,7 +145,6 @@ class BackupTest extends TestCase
             'backup_retention_days' => 30,
             'backup_schedule' => 'daily',
             'backup_time' => '03:00',
-            'backup_mode' => 'full',
         ]);
 
         $response->assertRedirect(route('backups.index'));
@@ -166,7 +164,6 @@ class BackupTest extends TestCase
             'backup_retention_days' => 14,
             'backup_schedule' => 'daily',
             'backup_time' => '03:00',
-            'backup_mode' => 'full',
         ]);
 
         $this->assertDatabaseHas('audit_logs', [

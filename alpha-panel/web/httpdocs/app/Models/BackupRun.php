@@ -12,7 +12,6 @@ class BackupRun extends Model
 
     protected $fillable = [
         'type',
-        'backup_mode',
         'status',
         'file_name',
         'file_size_bytes',

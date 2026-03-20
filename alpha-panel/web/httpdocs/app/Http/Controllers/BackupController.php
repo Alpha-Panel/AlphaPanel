@@ -3,11 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Events\BackupProgress;
-use App\Events\RestoreProgress;
-use App\Jobs\BackupRestoreJob;
 use App\Jobs\BackupUploadJob;
 use App\Models\AuditLog;
-use App\Models\BackupRestoreRun;
 use App\Models\BackupRun;
 use App\Models\BackupSetting;
 use App\Services\GoogleDriveService;
@@ -30,12 +27,6 @@ class BackupController extends Controller
             ->limit(50)
             ->get();
 
-        $recentRestoreRuns = BackupRestoreRun::query()
-            ->with('triggeredByUser:id,name')
-            ->latest()
-            ->limit(20)
-            ->get();
-
         return Inertia::render('Backups/Index', [
             'settings' => [
                 'is_connected' => $settings->isConnected(),
@@ -46,7 +37,6 @@ class BackupController extends Controller
                 'backup_retention_days' => $settings->backup_retention_days,
                 'backup_schedule' => $settings->backup_schedule ?? 'daily',
                 'backup_time' => $settings->backup_time ?? '03:00',
-                'backup_mode' => $settings->backup_mode ?? 'full',
                 'last_backup_at' => $settings->last_backup_at?->format(config('app.display_datetime_format', 'd.m.Y H:i:s')),
                 'has_credentials' => config('backup.google.client_id') !== null
                     && config('backup.google.client_id') !== '',
@@ -54,25 +44,12 @@ class BackupController extends Controller
             'recent_runs' => $recentRuns->map(fn (BackupRun $run) => [
                 'id' => $run->id,
                 'type' => $run->type,
-                'backup_mode' => $run->backup_mode ?? 'full',
                 'status' => $run->status,
                 'file_name' => $run->file_name,
                 'file_size' => $run->file_size_bytes,
                 'progress_percent' => $run->progress_percent,
                 'error_message' => $run->error_message,
                 'drive_file_id' => $run->drive_file_id,
-                'started_at' => $run->started_at?->format(config('app.display_datetime_format', 'd.m.Y H:i:s')),
-                'finished_at' => $run->finished_at?->format(config('app.display_datetime_format', 'd.m.Y H:i:s')),
-                'triggered_by' => $run->triggeredByUser?->name,
-            ]),
-            'recent_restore_runs' => $recentRestoreRuns->map(fn (BackupRestoreRun $run) => [
-                'id' => $run->id,
-                'restore_type' => $run->restore_type,
-                'source_mode' => $run->source_mode,
-                'status' => $run->status,
-                'target' => $run->target,
-                'error_message' => $run->error_message,
-                'progress_percent' => $run->progress_percent,
                 'started_at' => $run->started_at?->format(config('app.display_datetime_format', 'd.m.Y H:i:s')),
                 'finished_at' => $run->finished_at?->format(config('app.display_datetime_format', 'd.m.Y H:i:s')),
                 'triggered_by' => $run->triggeredByUser?->name,
@@ -165,7 +142,6 @@ class BackupController extends Controller
             'backup_retention_days' => ['required', 'integer', 'min:1', 'max:365'],
             'backup_schedule' => ['required', 'in:daily,every_2_days,every_3_days,weekly,every_2_weeks,monthly'],
             'backup_time' => ['required', 'date_format:H:i'],
-            'backup_mode' => ['required', 'in:full,incremental'],
         ]);
 
         $settings = BackupSetting::instance();
@@ -174,7 +150,7 @@ class BackupController extends Controller
         AuditLog::create([
             'user_id' => $request->user()->id,
             'action' => 'backup_settings_updated',
-            'summary' => "Backup settings updated: enabled={$validated['is_enabled']}, schedule={$validated['backup_schedule']} at {$validated['backup_time']}, retention={$validated['backup_retention_days']}d, mode={$validated['backup_mode']}",
+            'summary' => "Backup settings updated: enabled={$validated['is_enabled']}, schedule={$validated['backup_schedule']} at {$validated['backup_time']}, retention={$validated['backup_retention_days']}d",
         ]);
 
         return redirect()->route('backups.index')
@@ -376,84 +352,6 @@ class BackupController extends Controller
     public function history(): JsonResponse
     {
         $runs = BackupRun::query()
-            ->with('triggeredByUser:id,name')
-            ->latest()
-            ->paginate(20);
-
-        return response()->json($runs);
-    }
-
-    public function restore(Request $request): RedirectResponse
-    {
-        $validated = $request->validate([
-            'restore_type' => ['required', 'in:website,database'],
-            'source_mode' => ['required', 'in:full,incremental'],
-            'target' => ['required', 'string', 'max:255'],
-            'source_drive_folder_id' => ['nullable', 'string', 'max:255'],
-            'source_drive_file_id' => ['nullable', 'string', 'max:255'],
-        ]);
-
-        $settings = BackupSetting::instance();
-
-        if (! $settings->isConnected()) {
-            return redirect()->route('backups.index')
-                ->with('error', __('Google Drive is not connected.'));
-        }
-
-        // Prevent concurrent restores
-        $activeRestore = BackupRestoreRun::whereIn('status', ['pending', 'downloading', 'restoring'])->exists();
-
-        if ($activeRestore) {
-            return redirect()->route('backups.index')
-                ->with('error', __('A restore operation is already in progress.'));
-        }
-
-        $restoreRun = BackupRestoreRun::create([
-            ...$validated,
-            'status' => 'pending',
-            'triggered_by' => $request->user()->id,
-        ]);
-
-        BackupRestoreJob::dispatch($restoreRun->id);
-
-        AuditLog::create([
-            'user_id' => $request->user()->id,
-            'action' => 'backup_restore_started',
-            'summary' => "Restore started: {$validated['restore_type']} — {$validated['target']} ({$validated['source_mode']} mode)",
-        ]);
-
-        return redirect()->route('backups.index')
-            ->with('success', __('Restore job started. You can track progress below.'));
-    }
-
-    public function cancelRestore(Request $request, BackupRestoreRun $backupRestoreRun): RedirectResponse
-    {
-        if (! in_array($backupRestoreRun->status, ['pending', 'downloading', 'restoring'])) {
-            return redirect()->route('backups.index')
-                ->with('error', __('This restore is not in a cancellable state.'));
-        }
-
-        $backupRestoreRun->update([
-            'status' => 'cancelled',
-            'finished_at' => now(),
-            'error_message' => __('Cancelled by user'),
-        ]);
-
-        RestoreProgress::dispatch($backupRestoreRun->id, $backupRestoreRun->progress_percent, __('Restore cancelled'), 'cancelled');
-
-        AuditLog::create([
-            'user_id' => $request->user()->id,
-            'action' => 'backup_restore_cancelled',
-            'summary' => "Restore #{$backupRestoreRun->id} cancelled by user",
-        ]);
-
-        return redirect()->route('backups.index')
-            ->with('success', __('Restore cancelled.'));
-    }
-
-    public function restoreHistory(): JsonResponse
-    {
-        $runs = BackupRestoreRun::query()
             ->with('triggeredByUser:id,name')
             ->latest()
             ->paginate(20);
