@@ -343,6 +343,22 @@ const menuGroups = computed(() => {
                     });
                 }
 
+                if (can('panel.ftp-bans.view')) {
+                    items.push({
+                        iconClass: 'fa-solid fa-ban',
+                        name: t('FTP Bans'),
+                        href: route('security.ftp-bans.index'),
+                    });
+                }
+
+                if (can('panel.firewall.view')) {
+                    items.push({
+                        iconClass: 'fa-solid fa-fire-flame-curved',
+                        name: t('Firewall'),
+                        href: route('security.firewall.index'),
+                    });
+                }
+
                 if (canAny('panel.waf-rules.view', 'panel.waf-rules.manage')) {
                     items.push({
                         iconClass: 'fa-solid fa-shield-virus',

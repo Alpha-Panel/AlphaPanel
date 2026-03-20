@@ -49,6 +49,10 @@ return [
             'panel.docker.actions' => 'Execute Docker container actions',
             'panel.domains.create' => 'Create new domains',
             'panel.domains.delete' => 'Delete domains',
+            'panel.ftp-bans.view' => 'View FTP IP bans',
+            'panel.ftp-bans.manage' => 'Manage FTP IP bans (ban/unban)',
+            'panel.firewall.view' => 'View firewall rules',
+            'panel.firewall.manage' => 'Manage firewall rules',
         ],
     ],
 

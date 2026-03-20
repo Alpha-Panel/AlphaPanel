@@ -17,6 +17,8 @@ use App\Http\Controllers\DomainProvisionController;
 use App\Http\Controllers\DomainSupervisorController;
 use App\Http\Controllers\DomainUserController;
 use App\Http\Controllers\FileManagerController;
+use App\Http\Controllers\FirewallController;
+use App\Http\Controllers\FtpBanController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ManifestController;
 use App\Http\Controllers\PhpSettingsController;
@@ -337,6 +339,30 @@ Route::middleware('auth')->group(function (): void {
         Route::post('security/waf-global-rules', [WafGlobalRuleController::class, 'store'])->name('security.waf-global.store');
         Route::put('security/waf-global-rules/{rule}', [WafGlobalRuleController::class, 'update'])->name('security.waf-global.update');
         Route::delete('security/waf-global-rules/{rule}', [WafGlobalRuleController::class, 'destroy'])->name('security.waf-global.destroy');
+    });
+
+    Route::middleware('permission:panel.ftp-bans.view')->group(function (): void {
+        Route::get('security/ftp-bans', [FtpBanController::class, 'index'])->name('security.ftp-bans.index');
+        Route::get('security/ftp-bans/data', [FtpBanController::class, 'data'])->name('security.ftp-bans.data');
+        Route::get('security/ftp-bans/log', [FtpBanController::class, 'log'])->name('security.ftp-bans.log');
+    });
+
+    Route::middleware('permission:panel.ftp-bans.manage')->group(function (): void {
+        Route::post('security/ftp-bans', [FtpBanController::class, 'store'])->name('security.ftp-bans.store');
+        Route::delete('security/ftp-bans', [FtpBanController::class, 'destroy'])->name('security.ftp-bans.destroy');
+        Route::post('security/ftp-bans/whitelist', [FtpBanController::class, 'whitelistStore'])->name('security.ftp-bans.whitelist.store');
+        Route::delete('security/ftp-bans/whitelist', [FtpBanController::class, 'whitelistDestroy'])->name('security.ftp-bans.whitelist.destroy');
+    });
+
+    Route::middleware('permission:panel.firewall.view')->group(function (): void {
+        Route::get('security/firewall', [FirewallController::class, 'index'])->name('security.firewall.index');
+        Route::get('security/firewall/data', [FirewallController::class, 'data'])->name('security.firewall.data');
+    });
+
+    Route::middleware('permission:panel.firewall.manage')->group(function (): void {
+        Route::post('security/firewall', [FirewallController::class, 'store'])->name('security.firewall.store');
+        Route::delete('security/firewall', [FirewallController::class, 'destroy'])->name('security.firewall.destroy');
+        Route::put('security/firewall/policy', [FirewallController::class, 'policy'])->name('security.firewall.policy');
     });
 
     Route::middleware('permission:panel.backups.view')->group(function (): void {
