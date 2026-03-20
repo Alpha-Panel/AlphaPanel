@@ -467,6 +467,61 @@ class FirewallControllerTest extends TestCase
         $response->assertJsonValidationErrors('ports.0');
     }
 
+    public function test_admin_can_add_rule_with_cidr_source(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $response = $this->actingAs($admin)->postJson(route('security.firewall.store'), [
+            'chain' => 'INPUT',
+            'action' => 'ACCEPT',
+            'protocol' => 'all',
+            'sources' => ['10.10.0.0/24', '192.168.1.0/16'],
+        ]);
+
+        $response->assertOk();
+        $response->assertJson(['success' => true, 'count' => 1]);
+
+        $rule = FirewallRule::where('created_by', $admin->id)->latest('id')->first();
+        $this->assertNotNull($rule);
+        $this->assertSame(['10.10.0.0/24', '192.168.1.0/16'], $rule->sources);
+    }
+
+    public function test_admin_can_update_rule_clearing_sources_and_ports(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $rule = FirewallRule::create([
+            'chain' => 'INPUT',
+            'action' => 'ACCEPT',
+            'protocol' => 'tcp',
+            'sources' => ['192.168.1.1'],
+            'ports' => [80],
+            'comment' => 'test',
+            'position' => 1,
+            'enabled' => true,
+            'created_by' => $admin->id,
+        ]);
+
+        // Update with null sources/ports (clear them)
+        $response = $this->actingAs($admin)->putJson(route('security.firewall.update', ['rule' => $rule->id]), [
+            'chain' => 'INPUT',
+            'action' => 'DROP',
+            'protocol' => 'all',
+            'sources' => null,
+            'ports' => null,
+            'comment' => 'cleared',
+        ]);
+
+        $response->assertOk();
+
+        $rule->refresh();
+        $this->assertSame('DROP', $rule->action);
+        $this->assertSame('all', $rule->protocol);
+        $this->assertNull($rule->sources);
+        $this->assertNull($rule->ports);
+        $this->assertSame('cleared', $rule->comment);
+    }
+
     public function test_invalid_policy_returns_422(): void
     {
         $admin = User::factory()->admin()->create();

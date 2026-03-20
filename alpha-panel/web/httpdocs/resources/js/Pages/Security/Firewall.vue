@@ -362,21 +362,21 @@
                                         <label class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('Chain') }}</label>
                                         <select
                                             v-model="modalForm.chain"
-                                            class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                                            class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:[color-scheme:dark]"
                                         >
-                                            <option value="INPUT" class="bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300">INPUT</option>
-                                            <option value="OUTPUT" class="bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300">OUTPUT</option>
+                                            <option value="INPUT">INPUT</option>
+                                            <option value="OUTPUT">OUTPUT</option>
                                         </select>
                                     </div>
                                     <div class="flex flex-col gap-1">
                                         <label class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('Action') }}</label>
                                         <select
                                             v-model="modalForm.action"
-                                            class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                                            class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:[color-scheme:dark]"
                                         >
-                                            <option value="ACCEPT" class="bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300">ACCEPT</option>
-                                            <option value="DROP" class="bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300">DROP</option>
-                                            <option value="REJECT" class="bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300">REJECT</option>
+                                            <option value="ACCEPT">ACCEPT</option>
+                                            <option value="DROP">DROP</option>
+                                            <option value="REJECT">REJECT</option>
                                         </select>
                                     </div>
                                 </div>
@@ -386,12 +386,12 @@
                                     <label class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('Protocol') }}</label>
                                     <select
                                         v-model="modalForm.protocol"
-                                        class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                                        class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:[color-scheme:dark]"
                                     >
-                                        <option value="all" class="bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300">{{ t('all') }}</option>
-                                        <option value="tcp" class="bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300">tcp</option>
-                                        <option value="udp" class="bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300">udp</option>
-                                        <option value="icmp" class="bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300">icmp</option>
+                                        <option value="all">{{ t('all') }}</option>
+                                        <option value="tcp">tcp</option>
+                                        <option value="udp">udp</option>
+                                        <option value="icmp">icmp</option>
                                     </select>
                                 </div>
 
@@ -769,14 +769,9 @@ const submitModal = async (): Promise<void> => {
             action: modalForm.action,
             protocol: modalForm.protocol,
             comment: modalForm.comment.trim() || null,
+            sources: sources.length > 0 ? sources : null,
+            ports: ports.length > 0 ? ports : null,
         };
-
-        if (sources.length > 0) {
-            payload.sources = sources;
-        }
-        if (ports.length > 0) {
-            payload.ports = ports;
-        }
 
         if (editingRule.value) {
             await axios.put(route('security.firewall.update', { rule: editingRule.value.id }), payload);
