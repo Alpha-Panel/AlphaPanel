@@ -18,7 +18,7 @@ class FtpBanController extends Controller
         abort_unless($user->isAdmin(), 403);
 
         return Inertia::render('Security/FtpBans', [
-            'bans' => $ftpBan->getActiveBans(),
+            'bans' => ['hosts' => $this->mapBansForFrontend($ftpBan->getActiveBans())],
             'whitelist' => $ftpBan->getWhitelist(),
         ]);
     }
@@ -30,7 +30,7 @@ class FtpBanController extends Controller
         abort_unless($user->isAdmin(), 403);
 
         return response()->json([
-            'bans' => $ftpBan->getActiveBans(),
+            'bans' => ['hosts' => $this->mapBansForFrontend($ftpBan->getActiveBans())],
             'whitelist' => $ftpBan->getWhitelist(),
         ]);
     }
@@ -88,8 +88,13 @@ class FtpBanController extends Controller
 
         $lines = min(500, max(10, (int) $request->query('lines', 100)));
 
+        $entries = $ftpBan->getBanLog($lines);
+        $content = collect($entries)
+            ->map(fn (array $e): string => ($e['timestamp'] ? "[{$e['timestamp']}] " : '').$e['message'])
+            ->implode("\n");
+
         return response()->json([
-            'entries' => $ftpBan->getBanLog($lines),
+            'content' => $content,
         ]);
     }
 
@@ -127,5 +132,21 @@ class FtpBanController extends Controller
         return response()->json([
             'success' => true,
         ]);
+    }
+
+    /**
+     * Map raw ban data from FtpBanService to the format expected by the Vue frontend.
+     *
+     * @param  array<int, array{ip: string, since: string|null, rule: string|null}>  $bans
+     * @return array<int, array{ip: string, reason: string, added: string|null, expires: string|null}>
+     */
+    private function mapBansForFrontend(array $bans): array
+    {
+        return collect($bans)->map(fn (array $ban): array => [
+            'ip' => $ban['ip'],
+            'reason' => $ban['rule'] ?? 'Manual ban',
+            'added' => $ban['since'],
+            'expires' => null,
+        ])->values()->all();
     }
 }

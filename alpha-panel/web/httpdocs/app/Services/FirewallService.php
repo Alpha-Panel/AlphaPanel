@@ -3,7 +3,11 @@
 namespace App\Services;
 
 use App\Exceptions\PortainerException;
+use App\Jobs\ApplyFirewallRulesJob;
+use App\Models\FirewallPolicy;
+use App\Models\FirewallRule;
 use App\Services\Portainer\ExecResult;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -25,12 +29,202 @@ class FirewallService
         'FORWARD',
     ];
 
+    /**
+     * Standard iptables actions that can be stored in the database.
+     * Custom chain targets (UFW-*, f2b-*, etc.) are system-managed and should be skipped.
+     *
+     * @var array<int, string>
+     */
+    private const ALLOWED_ACTIONS = [
+        'ACCEPT',
+        'DROP',
+        'REJECT',
+        'RETURN',
+        'LOG',
+    ];
+
     public function __construct(
         private PortainerService $portainer,
     ) {}
 
+    // =========================================================================
+    // DB-Backed Methods (new "save to DB, then Apply" pattern)
+    // =========================================================================
+
     /**
-     * Get structured firewall rules for INPUT and OUTPUT chains.
+     * Get all firewall rules from the database with policies and live status.
+     *
+     * @return array{
+     *   input: array{policy: string, rules: Collection<int, FirewallRule>},
+     *   output: array{policy: string, rules: Collection<int, FirewallRule>},
+     *   pending_changes: bool,
+     *   live_status: array{container_online: bool, live_input_policy: string, live_output_policy: string},
+     *   warnings: array<int, string>
+     * }
+     */
+    public function getDbRules(): array
+    {
+        return [
+            'input' => [
+                'policy' => FirewallPolicy::getPolicy('INPUT'),
+                'rules' => FirewallRule::input()->ordered()->with('creator')->get(),
+            ],
+            'output' => [
+                'policy' => FirewallPolicy::getPolicy('OUTPUT'),
+                'rules' => FirewallRule::output()->ordered()->with('creator')->get(),
+            ],
+            'pending_changes' => $this->hasPendingChanges(),
+            'live_status' => $this->getLiveStatus(),
+            'warnings' => $this->generateDbWarnings(),
+        ];
+    }
+
+    /**
+     * Create a new firewall rule in the database with auto-positioned ordering.
+     *
+     * @param  array{chain: string, action: string, protocol?: string, source?: string|null, port?: int|null, comment?: string|null, enabled?: bool}  $params
+     */
+    public function addDbRule(array $params, int $userId): FirewallRule
+    {
+        $chain = strtoupper($params['chain']);
+
+        $maxPosition = FirewallRule::where('chain', $chain)->max('position') ?? 0;
+
+        return FirewallRule::create([
+            'chain' => $chain,
+            'action' => strtoupper($params['action']),
+            'protocol' => strtolower($params['protocol'] ?? 'all'),
+            'source' => $params['source'] ?? null,
+            'port' => $params['port'] ?? null,
+            'comment' => $params['comment'] ?? null,
+            'position' => $maxPosition + 1,
+            'enabled' => $params['enabled'] ?? true,
+            'created_by' => $userId,
+        ]);
+    }
+
+    /**
+     * Delete a firewall rule from the database by its ID.
+     */
+    public function deleteDbRule(int $id): void
+    {
+        $rule = FirewallRule::findOrFail($id);
+        $rule->delete();
+    }
+
+    /**
+     * Reorder firewall rules based on an ordered array of IDs.
+     *
+     * @param  array<int, int>  $orderedIds
+     */
+    public function reorderRules(array $orderedIds): void
+    {
+        foreach ($orderedIds as $position => $id) {
+            FirewallRule::where('id', $id)->update(['position' => $position + 1]);
+        }
+
+        Cache::put('firewall:pending_changes', true);
+    }
+
+    /**
+     * Dispatch the ApplyFirewallRulesJob to apply DB rules to iptables.
+     */
+    public function apply(): void
+    {
+        ApplyFirewallRulesJob::dispatch();
+    }
+
+    /**
+     * Check whether there are unapplied changes in the database.
+     */
+    public function hasPendingChanges(): bool
+    {
+        return (bool) Cache::get('firewall:pending_changes', false);
+    }
+
+    /**
+     * Import live iptables rules into the database (seed from current state).
+     *
+     * Skips Docker-managed rules, established/related rules, and loopback rules.
+     * Returns the number of rules imported.
+     */
+    public function seedFromLive(int $userId): int
+    {
+        $count = 0;
+
+        foreach (['INPUT', 'OUTPUT'] as $chain) {
+            try {
+                $result = $this->execInFirewall(['iptables', '-S', $chain]);
+            } catch (PortainerException) {
+                continue;
+            }
+
+            $lines = array_filter(array_map('trim', explode("\n", $result->output)));
+            $position = (FirewallRule::where('chain', $chain)->max('position') ?? 0) + 1;
+
+            foreach ($lines as $line) {
+                if (! str_starts_with($line, "-A {$chain}")) {
+                    continue;
+                }
+
+                if ($this->isDockerRelated($line)) {
+                    continue;
+                }
+
+                if ($this->isEstablishedRelated($line) || str_contains($line, '-i lo') || str_contains($line, '-o lo')) {
+                    continue;
+                }
+
+                $action = $this->extractFlag($line, '-j');
+                $protocol = $this->extractFlag($line, '-p') ?? 'all';
+                $source = $this->extractFlag($line, '-s');
+                $port = $this->extractPort($line);
+                $comment = $this->extractComment($line);
+
+                if ($action === null) {
+                    continue;
+                }
+
+                // Skip non-standard actions (UFW-*, f2b-*, custom chains)
+                if (! in_array(strtoupper($action), self::ALLOWED_ACTIONS, true)) {
+                    continue;
+                }
+
+                FirewallRule::create([
+                    'chain' => $chain,
+                    'action' => strtoupper($action),
+                    'protocol' => strtolower($protocol),
+                    'source' => $source,
+                    'port' => $port,
+                    'comment' => $comment,
+                    'position' => $position,
+                    'enabled' => true,
+                    'created_by' => $userId,
+                ]);
+
+                $position++;
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    /**
+     * Save the chain policy to the database.
+     */
+    public function setPolicy(string $chain, string $policy): void
+    {
+        FirewallPolicy::setPolicy($chain, $policy);
+        Cache::put('firewall:pending_changes', true);
+    }
+
+    // =========================================================================
+    // Live iptables Reading (preserved from original implementation)
+    // =========================================================================
+
+    /**
+     * Get structured firewall rules directly from live iptables for INPUT and OUTPUT chains.
      *
      * @return array{
      *   input: array{policy: string, rules: array<int, array{num: int, action: string, protocol: string, source: string, port: int|null, comment: string|null, deletable: bool}>},
@@ -85,129 +279,95 @@ class FirewallService
     }
 
     /**
-     * Add an iptables rule.
+     * Get the live container status and policies.
      *
-     * @param  array{chain: string, action: string, protocol: string, source?: string|null, port?: int|null, comment?: string|null, position?: int|null}  $params
+     * @return array{container_online: bool, live_input_policy: string, live_output_policy: string}
      */
-    public function addRule(array $params): ExecResult
-    {
-        $chain = strtoupper($params['chain']);
-        $action = strtoupper($params['action']);
-        $protocol = strtolower($params['protocol']);
-        $source = $params['source'] ?? null;
-        $port = $params['port'] ?? null;
-        $comment = $params['comment'] ?? null;
-        $position = $params['position'] ?? null;
-
-        $this->rejectDockerChain($chain);
-
-        $command = ['iptables'];
-
-        if ($position !== null) {
-            $command = [...$command, '-I', $chain, (string) $position];
-        } else {
-            $command = [...$command, '-A', $chain];
-        }
-
-        if ($source !== null && $source !== '') {
-            $command = [...$command, '-s', $source];
-        }
-
-        if ($protocol !== 'all') {
-            $command = [...$command, '-p', $protocol];
-
-            if ($port !== null && in_array($protocol, ['tcp', 'udp'], true)) {
-                $command = [...$command, '-m', $protocol, '--dport', (string) $port];
-            }
-        }
-
-        if ($comment !== null && $comment !== '') {
-            $command = [...$command, '-m', 'comment', '--comment', $comment];
-        }
-
-        $command = [...$command, '-j', $action];
-
-        $result = $this->execInFirewall($command);
-
-        if ($result->isSuccessful()) {
-            $this->persist();
-            $this->clearCache();
-        }
-
-        return $result;
-    }
-
-    /**
-     * Delete a rule by chain and rule number.
-     */
-    public function deleteRule(string $chain, int $ruleNumber): ExecResult
-    {
-        $chain = strtoupper($chain);
-        $this->rejectDockerChain($chain);
-
-        $rules = $this->getRules();
-        $chainKey = strtolower($chain);
-        $chainRules = $rules[$chainKey]['rules'] ?? [];
-
-        foreach ($chainRules as $rule) {
-            if ($rule['num'] === $ruleNumber && ! $rule['deletable']) {
-                return new ExecResult(
-                    exitCode: 1,
-                    output: '',
-                    errorOutput: "Rule #{$ruleNumber} in {$chain} is a system rule and cannot be deleted.",
-                );
-            }
-        }
-
-        $result = $this->execInFirewall(['iptables', '-D', $chain, (string) $ruleNumber]);
-
-        if ($result->isSuccessful()) {
-            $this->persist();
-            $this->clearCache();
-        }
-
-        return $result;
-    }
-
-    /**
-     * Change the default policy for a chain.
-     */
-    public function setPolicy(string $chain, string $policy): ExecResult
-    {
-        $chain = strtoupper($chain);
-        $policy = strtoupper($policy);
-
-        $this->rejectDockerChain($chain);
-
-        $result = $this->execInFirewall(['iptables', '-P', $chain, $policy]);
-
-        if ($result->isSuccessful()) {
-            $this->persist();
-            $this->clearCache();
-        }
-
-        return $result;
-    }
-
-    /**
-     * Persist current iptables rules to disk so they survive container restarts.
-     */
-    public function persist(): void
+    public function getLiveStatus(): array
     {
         try {
-            $result = $this->execInFirewall(['sh', '-c', 'iptables-save > /etc/iptables/rules.v4']);
+            $inputResult = $this->execInFirewall(['iptables', '-S', 'INPUT']);
+            $outputResult = $this->execInFirewall(['iptables', '-S', 'OUTPUT']);
 
-            if (! $result->isSuccessful()) {
-                Log::warning('Firewall: failed to persist iptables rules', [
-                    'error' => $result->errorOutput,
-                ]);
-            }
+            return [
+                'container_online' => true,
+                'live_input_policy' => $this->parsePolicy($inputResult->output, 'INPUT'),
+                'live_output_policy' => $this->parsePolicy($outputResult->output, 'OUTPUT'),
+            ];
         } catch (PortainerException $e) {
-            Log::warning('Firewall: failed to persist iptables rules', [
+            Log::warning('Firewall: failed to get live status', [
                 'error' => $e->getMessage(),
             ]);
+
+            return [
+                'container_online' => false,
+                'live_input_policy' => 'UNKNOWN',
+                'live_output_policy' => 'UNKNOWN',
+            ];
         }
     }
+
+    // =========================================================================
+    // Warnings
+    // =========================================================================
+
+    /**
+     * Generate warning messages based on DB rule state.
+     *
+     * @return array<int, string>
+     */
+    private function generateDbWarnings(): array
+    {
+        $warnings = [];
+
+        $inputPolicy = FirewallPolicy::getPolicy('INPUT');
+
+        if ($inputPolicy === 'DROP') {
+            $hasSshAccept = FirewallRule::input()
+                ->enabled()
+                ->where('port', 22)
+                ->where('action', 'ACCEPT')
+                ->exists();
+
+            if (! $hasSshAccept) {
+                $warnings[] = 'SSH (port 22) ACCEPT rule not found in INPUT chain with DROP policy. You may lose remote access.';
+            }
+        }
+
+        return $warnings;
+    }
+
+    /**
+     * Generate warning messages based on live rule state.
+     *
+     * @param  array{input: array{policy: string, rules: array<int, array{num: int, action: string, protocol: string, source: string, port: int|null, comment: string|null, deletable: bool}>}, output: array{policy: string, rules: array<int, array{num: int, action: string, protocol: string, source: string, port: int|null, comment: string|null, deletable: bool}>}}  $rules
+     * @return array<int, string>
+     */
+    private function generateWarnings(array $rules): array
+    {
+        $warnings = [];
+
+        if ($rules['input']['policy'] === 'DROP') {
+            $hasSshAccept = false;
+
+            foreach ($rules['input']['rules'] as $rule) {
+                if ($rule['port'] === 22 && $rule['action'] === 'ACCEPT') {
+                    $hasSshAccept = true;
+                    break;
+                }
+            }
+
+            if (! $hasSshAccept) {
+                $warnings[] = 'SSH (port 22) ACCEPT rule not found in INPUT chain with DROP policy. You may lose remote access.';
+            }
+        }
+
+        return $warnings;
+    }
+
+    // =========================================================================
+    // Parsing Helpers (preserved from original implementation)
+    // =========================================================================
 
     /**
      * Parse `iptables -S <chain>` output into structured rule data.
@@ -271,33 +431,9 @@ class FirewallService
         return 'ACCEPT';
     }
 
-    /**
-     * Generate warning messages based on current rule state.
-     *
-     * @param  array{input: array{policy: string, rules: array<int, array{num: int, action: string, protocol: string, source: string, port: int|null, comment: string|null, deletable: bool}>}, output: array{policy: string, rules: array<int, array{num: int, action: string, protocol: string, source: string, port: int|null, comment: string|null, deletable: bool}>}}  $rules
-     * @return array<int, string>
-     */
-    private function generateWarnings(array $rules): array
-    {
-        $warnings = [];
-
-        if ($rules['input']['policy'] === 'DROP') {
-            $hasSshAccept = false;
-
-            foreach ($rules['input']['rules'] as $rule) {
-                if ($rule['port'] === 22 && $rule['action'] === 'ACCEPT') {
-                    $hasSshAccept = true;
-                    break;
-                }
-            }
-
-            if (! $hasSshAccept) {
-                $warnings[] = 'SSH (port 22) ACCEPT rule not found in INPUT chain with DROP policy. You may lose remote access.';
-            }
-        }
-
-        return $warnings;
-    }
+    // =========================================================================
+    // Detection Helpers (preserved from original implementation)
+    // =========================================================================
 
     /**
      * Check if a rule line references Docker-managed chains or interfaces.
@@ -372,19 +508,9 @@ class FirewallService
         return null;
     }
 
-    /**
-     * Reject any operation on Docker-managed chains.
-     *
-     * @throws \InvalidArgumentException
-     */
-    private function rejectDockerChain(string $chain): void
-    {
-        foreach (self::DOCKER_CHAINS as $dockerChain) {
-            if (str_contains(strtoupper($chain), $dockerChain)) {
-                throw new \InvalidArgumentException("Cannot modify Docker-managed chain: {$chain}");
-            }
-        }
-    }
+    // =========================================================================
+    // Infrastructure
+    // =========================================================================
 
     /**
      * Run a command inside the firewall-manager container via Portainer.
@@ -399,7 +525,7 @@ class FirewallService
     }
 
     /**
-     * Clear the cached rules.
+     * Clear the cached live rules.
      */
     private function clearCache(): void
     {

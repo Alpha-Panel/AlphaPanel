@@ -3,7 +3,9 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Route;
+use Spatie\Permission\Exceptions\PermissionAlreadyExists;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -33,6 +35,9 @@ class SyncPermissions extends Command
             $this->warn('⚡ DRY-RUN mode — no database changes will be made.');
             $this->newLine();
         }
+
+        // Clear Spatie permission cache before any queries to avoid stale state
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
         // Collect all permission names from config
         $configPermissions = $this->collectPermissions($config);
@@ -69,9 +74,9 @@ class SyncPermissions extends Command
     /**
      * Collect all permissions from config groups.
      *
-     * @return \Illuminate\Support\Collection<string, string>
+     * @return Collection<string, string>
      */
-    private function collectPermissions(array $config): \Illuminate\Support\Collection
+    private function collectPermissions(array $config): Collection
     {
         return collect($config)
             ->filter(fn ($group) => is_array($group) && isset($group['permissions']))
@@ -104,7 +109,11 @@ class SyncPermissions extends Command
             $this->line("   + {$name}");
 
             if (! $dryRun) {
-                Permission::create(['name' => $name, 'guard_name' => 'web']);
+                try {
+                    Permission::create(['name' => $name, 'guard_name' => 'web']);
+                } catch (PermissionAlreadyExists) {
+                    $this->warn("   ⚠ {$name} already exists, skipping.");
+                }
             }
         }
 

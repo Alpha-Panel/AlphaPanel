@@ -363,6 +363,10 @@ Route::middleware('auth')->group(function (): void {
         Route::post('security/firewall', [FirewallController::class, 'store'])->name('security.firewall.store');
         Route::delete('security/firewall', [FirewallController::class, 'destroy'])->name('security.firewall.destroy');
         Route::put('security/firewall/policy', [FirewallController::class, 'policy'])->name('security.firewall.policy');
+        Route::post('security/firewall/apply', [FirewallController::class, 'apply'])->name('security.firewall.apply');
+        Route::put('security/firewall/reorder', [FirewallController::class, 'reorder'])->name('security.firewall.reorder');
+        Route::post('security/firewall/seed', [FirewallController::class, 'seed'])->name('security.firewall.seed');
+        Route::put('security/firewall/{rule}/toggle', [FirewallController::class, 'toggle'])->name('security.firewall.toggle');
     });
 
     Route::middleware('permission:panel.backups.view')->group(function (): void {

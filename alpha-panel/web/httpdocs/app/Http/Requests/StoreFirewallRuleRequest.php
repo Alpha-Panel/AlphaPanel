@@ -23,6 +23,7 @@ class StoreFirewallRuleRequest extends FormRequest
             'port' => ['nullable', 'integer', 'min:1', 'max:65535'],
             'comment' => ['nullable', 'string', 'max:100'],
             'position' => ['nullable', 'integer', 'min:1'],
+            'enabled' => ['nullable', 'boolean'],
         ];
     }
 }

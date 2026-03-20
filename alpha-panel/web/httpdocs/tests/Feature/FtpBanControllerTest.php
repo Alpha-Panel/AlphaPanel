@@ -63,7 +63,7 @@ class FtpBanControllerTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonStructure([
-            'bans',
+            'bans' => ['hosts'],
             'whitelist',
         ]);
     }
@@ -206,7 +206,8 @@ class FtpBanControllerTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonStructure([
-            'entries',
+            'content',
         ]);
+        $this->assertIsString($response->json('content'));
     }
 }

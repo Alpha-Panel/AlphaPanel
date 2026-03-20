@@ -7,6 +7,44 @@
                 <Toast />
 
                 <div class="space-y-4">
+                    <!-- Pending Changes Banner -->
+                    <div
+                        v-if="pendingChanges"
+                        class="flex items-center justify-between gap-3 rounded-2xl border border-warning-300 bg-warning-100 p-4 text-sm text-warning-900 dark:border-warning-800 dark:bg-warning-950 dark:text-warning-100"
+                    >
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-triangle-exclamation text-base"></i>
+                            {{ t('There are unapplied changes. Click the Apply button to apply rules to the system.') }}
+                        </div>
+                        <button
+                            type="button"
+                            :disabled="applyLoading"
+                            class="inline-flex h-8 shrink-0 items-center justify-center rounded-lg bg-warning-600 px-4 text-xs font-medium text-white hover:bg-warning-700 disabled:cursor-not-allowed disabled:opacity-40"
+                            @click="applyChanges"
+                        >
+                            {{ t('Apply Changes') }}
+                        </button>
+                    </div>
+
+                    <!-- Seed Banner -->
+                    <div
+                        v-if="hasNoRules"
+                        class="flex items-center justify-between gap-3 rounded-2xl border border-blue-light-300 bg-blue-light-100 p-4 text-sm text-blue-light-900 dark:border-blue-light-800 dark:bg-blue-light-950 dark:text-blue-light-100"
+                    >
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-circle-info text-base"></i>
+                            {{ t('No rules saved in database. You can import current iptables rules.') }}
+                        </div>
+                        <button
+                            type="button"
+                            :disabled="seedLoading"
+                            class="inline-flex h-8 shrink-0 items-center justify-center rounded-lg bg-brand-500 px-4 text-xs font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
+                            @click="seedRules"
+                        >
+                            {{ t('Import Current Rules') }}
+                        </button>
+                    </div>
+
                     <!-- Warning Banners -->
                     <div
                         v-for="(warning, index) in warnings"
@@ -37,11 +75,17 @@
                                 >
                                     {{ inputPolicy }}
                                 </span>
+                                <span
+                                    v-if="liveStatus.live_input_policy && liveStatus.live_input_policy !== inputPolicy"
+                                    class="text-xs text-warning-600 dark:text-warning-400"
+                                >
+                                    ({{ t('Live') }}: {{ liveStatus.live_input_policy }})
+                                </span>
                                 <button
                                     type="button"
                                     :disabled="policyLoading"
                                     class="inline-flex h-8 items-center justify-center rounded-lg border border-gray-300 px-3 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-                                    @click="confirmPolicyChange"
+                                    @click="confirmPolicyChange('INPUT')"
                                 >
                                     {{ t('Switch to :policy').replace(':policy', inputPolicy === 'ACCEPT' ? 'DROP' : 'ACCEPT') }}
                                 </button>
@@ -197,39 +241,71 @@
                                         <th class="pb-2">{{ t('Source') }}</th>
                                         <th class="pb-2">{{ t('Port') }}</th>
                                         <th class="pb-2">{{ t('Comment') }}</th>
+                                        <th class="pb-2">{{ t('Enabled') }}</th>
                                         <th class="pb-2">{{ t('Actions') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr v-if="inputRules.length === 0">
-                                        <td colspan="7" class="py-4 text-center text-gray-500 dark:text-gray-400">{{ t('No INPUT rules.') }}</td>
+                                        <td colspan="8" class="py-4 text-center text-gray-500 dark:text-gray-400">{{ t('No INPUT rules.') }}</td>
                                     </tr>
                                     <tr
-                                        v-for="rule in inputRules"
-                                        :key="`input-${rule.num}`"
-                                        class="border-b border-gray-100 align-top last:border-0 dark:border-gray-800"
+                                        v-for="(rule, index) in inputRules"
+                                        :key="`input-${rule.id}`"
+                                        :class="[
+                                            'border-b border-gray-100 align-top last:border-0 dark:border-gray-800',
+                                            !rule.enabled ? 'opacity-50' : '',
+                                        ]"
                                     >
-                                        <td class="py-2 text-xs text-gray-700 dark:text-gray-300">{{ rule.num }}</td>
+                                        <td class="py-2 text-xs text-gray-700 dark:text-gray-300">{{ rule.position }}</td>
                                         <td class="py-2">
                                             <span :class="actionBadgeClass(rule.action)">{{ rule.action }}</span>
                                         </td>
                                         <td class="py-2 text-xs text-gray-700 dark:text-gray-300">{{ rule.protocol }}</td>
-                                        <td class="py-2 font-mono text-xs text-gray-700 dark:text-gray-300">{{ rule.source }}</td>
+                                        <td class="py-2 font-mono text-xs text-gray-700 dark:text-gray-300">{{ rule.source ?? t('any') }}</td>
                                         <td class="py-2 text-xs text-gray-700 dark:text-gray-300">{{ rule.port ?? t('all') }}</td>
                                         <td class="py-2 text-xs text-gray-500 dark:text-gray-400">{{ rule.comment ?? '-' }}</td>
                                         <td class="py-2">
                                             <button
-                                                v-if="rule.deletable"
                                                 type="button"
-                                                :disabled="deleteRuleLoading === `INPUT-${rule.num}`"
-                                                class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-error-300 text-error-600 hover:bg-error-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-error-700 dark:text-error-400 dark:hover:bg-error-950"
-                                                @click="confirmDeleteRule('INPUT', rule.num)"
+                                                :disabled="toggleLoading === rule.id"
+                                                class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40"
+                                                :class="rule.enabled ? 'bg-brand-500' : 'bg-gray-300 dark:bg-gray-600'"
+                                                @click="toggleRule(rule)"
                                             >
-                                                <i class="fa-solid fa-trash-can text-xs"></i>
+                                                <span
+                                                    class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200"
+                                                    :class="rule.enabled ? 'translate-x-4.5' : 'translate-x-0.5'"
+                                                ></span>
                                             </button>
-                                            <span v-else class="inline-flex h-7 w-7 items-center justify-center text-gray-400 dark:text-gray-600">
-                                                <i class="fa-solid fa-lock text-xs"></i>
-                                            </span>
+                                        </td>
+                                        <td class="py-2">
+                                            <div class="flex items-center gap-1">
+                                                <button
+                                                    type="button"
+                                                    :disabled="index === 0"
+                                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                                                    @click="moveRule('INPUT', index, 'up')"
+                                                >
+                                                    <i class="fa-solid fa-arrow-up text-xs"></i>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    :disabled="index === inputRules.length - 1"
+                                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                                                    @click="moveRule('INPUT', index, 'down')"
+                                                >
+                                                    <i class="fa-solid fa-arrow-down text-xs"></i>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    :disabled="deleteRuleLoading === rule.id"
+                                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-error-300 text-error-600 hover:bg-error-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-error-700 dark:text-error-400 dark:hover:bg-error-950"
+                                                    @click="confirmDeleteRule(rule)"
+                                                >
+                                                    <i class="fa-solid fa-trash-can text-xs"></i>
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -256,39 +332,71 @@
                                         <th class="pb-2">{{ t('Source') }}</th>
                                         <th class="pb-2">{{ t('Port') }}</th>
                                         <th class="pb-2">{{ t('Comment') }}</th>
+                                        <th class="pb-2">{{ t('Enabled') }}</th>
                                         <th class="pb-2">{{ t('Actions') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr v-if="outputRules.length === 0">
-                                        <td colspan="7" class="py-4 text-center text-gray-500 dark:text-gray-400">{{ t('No OUTPUT rules.') }}</td>
+                                        <td colspan="8" class="py-4 text-center text-gray-500 dark:text-gray-400">{{ t('No OUTPUT rules.') }}</td>
                                     </tr>
                                     <tr
-                                        v-for="rule in outputRules"
-                                        :key="`output-${rule.num}`"
-                                        class="border-b border-gray-100 align-top last:border-0 dark:border-gray-800"
+                                        v-for="(rule, index) in outputRules"
+                                        :key="`output-${rule.id}`"
+                                        :class="[
+                                            'border-b border-gray-100 align-top last:border-0 dark:border-gray-800',
+                                            !rule.enabled ? 'opacity-50' : '',
+                                        ]"
                                     >
-                                        <td class="py-2 text-xs text-gray-700 dark:text-gray-300">{{ rule.num }}</td>
+                                        <td class="py-2 text-xs text-gray-700 dark:text-gray-300">{{ rule.position }}</td>
                                         <td class="py-2">
                                             <span :class="actionBadgeClass(rule.action)">{{ rule.action }}</span>
                                         </td>
                                         <td class="py-2 text-xs text-gray-700 dark:text-gray-300">{{ rule.protocol }}</td>
-                                        <td class="py-2 font-mono text-xs text-gray-700 dark:text-gray-300">{{ rule.source }}</td>
+                                        <td class="py-2 font-mono text-xs text-gray-700 dark:text-gray-300">{{ rule.source ?? t('any') }}</td>
                                         <td class="py-2 text-xs text-gray-700 dark:text-gray-300">{{ rule.port ?? t('all') }}</td>
                                         <td class="py-2 text-xs text-gray-500 dark:text-gray-400">{{ rule.comment ?? '-' }}</td>
                                         <td class="py-2">
                                             <button
-                                                v-if="rule.deletable"
                                                 type="button"
-                                                :disabled="deleteRuleLoading === `OUTPUT-${rule.num}`"
-                                                class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-error-300 text-error-600 hover:bg-error-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-error-700 dark:text-error-400 dark:hover:bg-error-950"
-                                                @click="confirmDeleteRule('OUTPUT', rule.num)"
+                                                :disabled="toggleLoading === rule.id"
+                                                class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40"
+                                                :class="rule.enabled ? 'bg-brand-500' : 'bg-gray-300 dark:bg-gray-600'"
+                                                @click="toggleRule(rule)"
                                             >
-                                                <i class="fa-solid fa-trash-can text-xs"></i>
+                                                <span
+                                                    class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200"
+                                                    :class="rule.enabled ? 'translate-x-4.5' : 'translate-x-0.5'"
+                                                ></span>
                                             </button>
-                                            <span v-else class="inline-flex h-7 w-7 items-center justify-center text-gray-400 dark:text-gray-600">
-                                                <i class="fa-solid fa-lock text-xs"></i>
-                                            </span>
+                                        </td>
+                                        <td class="py-2">
+                                            <div class="flex items-center gap-1">
+                                                <button
+                                                    type="button"
+                                                    :disabled="index === 0"
+                                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                                                    @click="moveRule('OUTPUT', index, 'up')"
+                                                >
+                                                    <i class="fa-solid fa-arrow-up text-xs"></i>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    :disabled="index === outputRules.length - 1"
+                                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                                                    @click="moveRule('OUTPUT', index, 'down')"
+                                                >
+                                                    <i class="fa-solid fa-arrow-down text-xs"></i>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    :disabled="deleteRuleLoading === rule.id"
+                                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-error-300 text-error-600 hover:bg-error-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-error-700 dark:text-error-400 dark:hover:bg-error-950"
+                                                    @click="confirmDeleteRule(rule)"
+                                                >
+                                                    <i class="fa-solid fa-trash-can text-xs"></i>
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -309,7 +417,7 @@
                                 {{ t('Change Default Policy') }}
                             </h3>
                             <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                                {{ t('Are you sure you want to change the INPUT default policy to :policy? This can affect all incoming connections.').replace(':policy', pendingPolicy) }}
+                                {{ t('Are you sure you want to change the :chain default policy to :policy? This will be saved to the database and applied when you click Apply Changes.').replace(':chain', pendingPolicyChain).replace(':policy', pendingPolicyValue) }}
                             </p>
                             <div class="mt-4 flex justify-end gap-2">
                                 <button
@@ -344,7 +452,10 @@
                                 {{ t('Delete Firewall Rule') }}
                             </h3>
                             <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                                {{ t('Are you sure you want to delete rule #:num from the :chain chain?').replace(':num', String(pendingDeleteRule?.num ?? '')).replace(':chain', pendingDeleteRule?.chain ?? '') }}
+                                {{ t('Are you sure you want to delete this :chain rule?').replace(':chain', pendingDeleteRule?.chain ?? '') }}
+                                <span v-if="pendingDeleteRule?.comment" class="block mt-1 font-medium">
+                                    "{{ pendingDeleteRule.comment }}"
+                                </span>
                             </p>
                             <div class="mt-4 flex justify-end gap-2">
                                 <button
@@ -384,25 +495,39 @@ import { useToast } from '@/Composables/useToast';
 import { useI18n } from '@/Composables/useI18n';
 
 interface FirewallRule {
-    num: number;
+    id: number;
+    chain: string;
     action: string;
     protocol: string;
-    source: string;
+    source: string | null;
     port: number | null;
     comment: string | null;
-    deletable: boolean;
+    position: number;
+    enabled: boolean;
+    created_by: number;
+    creator?: { id: number; name: string };
+    created_at: string;
+    updated_at: string;
 }
 
-interface FirewallChain {
-    policy: string;
-    rules: FirewallRule[];
+interface LiveStatus {
+    container_online: boolean;
+    live_input_policy: string;
+    live_output_policy: string;
 }
 
 interface FirewallPayload {
-    input: FirewallChain;
-    output: FirewallChain;
+    input: {
+        policy: string;
+        rules: FirewallRule[];
+    };
+    output: {
+        policy: string;
+        rules: FirewallRule[];
+    };
+    pending_changes: boolean;
+    live_status: LiveStatus;
     warnings: string[];
-    container_online: boolean;
 }
 
 const props = defineProps<{ firewall: FirewallPayload }>();
@@ -415,8 +540,11 @@ const inputPolicy = computed(() => firewallData.value.input.policy);
 const outputPolicy = computed(() => firewallData.value.output.policy);
 const inputRules = computed(() => firewallData.value.input.rules);
 const outputRules = computed(() => firewallData.value.output.rules);
+const pendingChanges = computed(() => firewallData.value.pending_changes);
+const liveStatus = computed(() => firewallData.value.live_status);
+const containerOnline = computed(() => firewallData.value.live_status.container_online);
 const warnings = computed(() => firewallData.value.warnings);
-const containerOnline = computed(() => firewallData.value.container_online);
+const hasNoRules = computed(() => inputRules.value.length === 0 && outputRules.value.length === 0);
 
 const ruleForm = reactive({
     chain: 'INPUT',
@@ -429,14 +557,18 @@ const ruleForm = reactive({
 });
 const positionMode = ref('append');
 const addRuleLoading = ref(false);
-const deleteRuleLoading = ref<string | null>(null);
+const deleteRuleLoading = ref<number | null>(null);
 const policyLoading = ref(false);
+const applyLoading = ref(false);
+const seedLoading = ref(false);
+const toggleLoading = ref<number | null>(null);
 
 const showPolicyConfirm = ref(false);
-const pendingPolicy = ref('');
+const pendingPolicyChain = ref('');
+const pendingPolicyValue = ref('');
 
 const showDeleteConfirm = ref(false);
-const pendingDeleteRule = ref<{ chain: string; num: number } | null>(null);
+const pendingDeleteRule = ref<FirewallRule | null>(null);
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -463,8 +595,36 @@ const refreshData = async (): Promise<void> => {
     }
 };
 
-const confirmPolicyChange = (): void => {
-    pendingPolicy.value = inputPolicy.value === 'ACCEPT' ? 'DROP' : 'ACCEPT';
+const applyChanges = async (): Promise<void> => {
+    applyLoading.value = true;
+    try {
+        await axios.post(route('security.firewall.apply'));
+        addToast('success', t('Firewall rules applied successfully.'));
+        await refreshData();
+    } catch {
+        addToast('error', t('Failed to apply firewall rules.'));
+    } finally {
+        applyLoading.value = false;
+    }
+};
+
+const seedRules = async (): Promise<void> => {
+    seedLoading.value = true;
+    try {
+        await axios.post(route('security.firewall.seed'));
+        addToast('success', t('Current iptables rules imported successfully.'));
+        await refreshData();
+    } catch {
+        addToast('error', t('Failed to import iptables rules.'));
+    } finally {
+        seedLoading.value = false;
+    }
+};
+
+const confirmPolicyChange = (chain: string): void => {
+    const currentPolicy = chain === 'INPUT' ? inputPolicy.value : outputPolicy.value;
+    pendingPolicyChain.value = chain;
+    pendingPolicyValue.value = currentPolicy === 'ACCEPT' ? 'DROP' : 'ACCEPT';
     showPolicyConfirm.value = true;
 };
 
@@ -472,14 +632,14 @@ const changePolicy = async (): Promise<void> => {
     policyLoading.value = true;
     try {
         await axios.put(route('security.firewall.policy'), {
-            chain: 'INPUT',
-            policy: pendingPolicy.value,
+            chain: pendingPolicyChain.value,
+            policy: pendingPolicyValue.value,
         });
-        addToast('success', t('INPUT policy changed to :policy.').replace(':policy', pendingPolicy.value));
+        addToast('success', t(':chain policy changed to :policy.').replace(':chain', pendingPolicyChain.value).replace(':policy', pendingPolicyValue.value));
         showPolicyConfirm.value = false;
         await refreshData();
     } catch {
-        addToast('error', t('Failed to change INPUT policy.'));
+        addToast('error', t('Failed to change :chain policy.').replace(':chain', pendingPolicyChain.value));
     } finally {
         policyLoading.value = false;
     }
@@ -515,22 +675,59 @@ const addRule = async (): Promise<void> => {
     }
 };
 
-const confirmDeleteRule = (chain: string, num: number): void => {
-    pendingDeleteRule.value = { chain, num };
+const toggleRule = async (rule: FirewallRule): Promise<void> => {
+    toggleLoading.value = rule.id;
+    try {
+        await axios.put(route('security.firewall.toggle', { rule: rule.id }), {
+            enabled: !rule.enabled,
+        });
+        await refreshData();
+    } catch {
+        addToast('error', t('Failed to toggle rule.'));
+    } finally {
+        toggleLoading.value = null;
+    }
+};
+
+const moveRule = async (chain: string, index: number, direction: 'up' | 'down'): Promise<void> => {
+    const rules = chain === 'INPUT' ? inputRules.value : outputRules.value;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= rules.length) return;
+
+    // Swap in local array
+    const temp = rules[index];
+    rules[index] = rules[targetIndex];
+    rules[targetIndex] = temp;
+
+    // Send new order (flat array of IDs — backend assigns positions by index)
+    const orderedIds = rules.map(r => r.id);
+    try {
+        await axios.put(route('security.firewall.reorder'), {
+            rules: orderedIds,
+        });
+        await refreshData();
+    } catch {
+        addToast('error', t('Failed to reorder rules.'));
+        await refreshData();
+    }
+};
+
+const confirmDeleteRule = (rule: FirewallRule): void => {
+    pendingDeleteRule.value = rule;
     showDeleteConfirm.value = true;
 };
 
 const deleteRule = async (): Promise<void> => {
     if (!pendingDeleteRule.value) return;
 
-    const { chain, num } = pendingDeleteRule.value;
-    deleteRuleLoading.value = `${chain}-${num}`;
+    const rule = pendingDeleteRule.value;
+    deleteRuleLoading.value = rule.id;
 
     try {
         await axios.delete(route('security.firewall.destroy'), {
-            data: { chain, rule_number: num },
+            data: { id: rule.id },
         });
-        addToast('success', t('Firewall rule #:num deleted.').replace(':num', String(num)));
+        addToast('success', t('Firewall rule deleted.'));
         showDeleteConfirm.value = false;
         pendingDeleteRule.value = null;
         await refreshData();

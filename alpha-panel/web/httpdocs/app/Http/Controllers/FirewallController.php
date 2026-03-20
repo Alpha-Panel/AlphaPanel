@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreFirewallRuleRequest;
+use App\Models\FirewallRule;
 use App\Models\User;
 use App\Services\FirewallService;
 use Illuminate\Http\JsonResponse;
@@ -20,7 +21,7 @@ class FirewallController extends Controller
         abort_unless($user->isAdmin(), 403);
 
         return Inertia::render('Security/Firewall', [
-            'firewall' => $firewall->getRules(),
+            'firewall' => $firewall->getDbRules(),
         ]);
     }
 
@@ -30,7 +31,7 @@ class FirewallController extends Controller
         $user = $request->user();
         abort_unless($user->isAdmin(), 403);
 
-        return response()->json($firewall->getRules());
+        return response()->json($firewall->getDbRules());
     }
 
     public function store(StoreFirewallRuleRequest $request, FirewallService $firewall): JsonResponse
@@ -39,13 +40,12 @@ class FirewallController extends Controller
         $user = $request->user();
         abort_unless($user->isAdmin(), 403);
 
-        $result = $firewall->addRule($request->validated());
+        $rule = $firewall->addDbRule($request->validated(), $user->id);
 
         return response()->json([
-            'success' => $result->isSuccessful(),
-            'output' => $result->output,
-            'error' => $result->errorOutput,
-        ], $result->isSuccessful() ? 200 : 422);
+            'success' => true,
+            'rule' => $rule->load('creator'),
+        ]);
     }
 
     public function destroy(Request $request, FirewallService $firewall): JsonResponse
@@ -55,17 +55,12 @@ class FirewallController extends Controller
         abort_unless($user->isAdmin(), 403);
 
         $validated = $request->validate([
-            'chain' => ['required', Rule::in(['INPUT', 'OUTPUT'])],
-            'rule_number' => ['required', 'integer', 'min:1'],
+            'id' => ['required', 'integer', 'exists:firewall_rules,id'],
         ]);
 
-        $result = $firewall->deleteRule($validated['chain'], (int) $validated['rule_number']);
+        $firewall->deleteDbRule((int) $validated['id']);
 
-        return response()->json([
-            'success' => $result->isSuccessful(),
-            'output' => $result->output,
-            'error' => $result->errorOutput,
-        ], $result->isSuccessful() ? 200 : 422);
+        return response()->json(['success' => true]);
     }
 
     public function policy(Request $request, FirewallService $firewall): JsonResponse
@@ -79,12 +74,64 @@ class FirewallController extends Controller
             'policy' => ['required', Rule::in(['ACCEPT', 'DROP'])],
         ]);
 
-        $result = $firewall->setPolicy($validated['chain'], $validated['policy']);
+        $firewall->setPolicy($validated['chain'], $validated['policy']);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function apply(Request $request, FirewallService $firewall): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        abort_unless($user->isAdmin(), 403);
+
+        $firewall->apply();
+
+        return response()->json(['success' => true, 'message' => 'Firewall rules are being applied.']);
+    }
+
+    public function reorder(Request $request, FirewallService $firewall): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        abort_unless($user->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'rules' => ['required', 'array'],
+            'rules.*' => ['required', 'integer', 'exists:firewall_rules,id'],
+        ]);
+
+        $firewall->reorderRules($validated['rules']);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function seed(Request $request, FirewallService $firewall): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        abort_unless($user->isAdmin(), 403);
+
+        $count = $firewall->seedFromLive($user->id);
 
         return response()->json([
-            'success' => $result->isSuccessful(),
-            'output' => $result->output,
-            'error' => $result->errorOutput,
-        ], $result->isSuccessful() ? 200 : 422);
+            'success' => true,
+            'imported' => $count,
+        ]);
+    }
+
+    public function toggle(Request $request, FirewallRule $rule): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        abort_unless($user->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'enabled' => ['required', 'boolean'],
+        ]);
+
+        $rule->update(['enabled' => $validated['enabled']]);
+
+        return response()->json(['success' => true]);
     }
 }

@@ -325,45 +325,17 @@ const menuGroups = computed(() => {
                 const items: SidebarMenuItem[] = [];
 
                 if (can('panel.users.manage')) {
+                    const userMgmtSubItems = [
+                        { name: t('Users'), href: route('users.list') },
+                        { name: t('Roles'), href: route('roles.index') },
+                    ];
+                    if (isAdmin.value) {
+                        userMgmtSubItems.push({ name: t('Push Notifications'), href: route('admin.push-notifications.index') });
+                    }
                     items.push({
                         icon: UserCircleIcon,
                         name: t('User Management'),
-                        subItems: [
-                            { name: t('Users'), href: route('users.list') },
-                            { name: t('Roles'), href: route('roles.index') },
-                        ],
-                    });
-                }
-
-                if (can('panel.crowdsec.view')) {
-                    items.push({
-                        iconClass: 'fa-solid fa-shield-halved',
-                        name: t('CrowdSec'),
-                        href: route('security.crowdsec.index'),
-                    });
-                }
-
-                if (can('panel.ftp-bans.view')) {
-                    items.push({
-                        iconClass: 'fa-solid fa-ban',
-                        name: t('FTP Bans'),
-                        href: route('security.ftp-bans.index'),
-                    });
-                }
-
-                if (can('panel.firewall.view')) {
-                    items.push({
-                        iconClass: 'fa-solid fa-fire-flame-curved',
-                        name: t('Firewall'),
-                        href: route('security.firewall.index'),
-                    });
-                }
-
-                if (canAny('panel.waf-rules.view', 'panel.waf-rules.manage')) {
-                    items.push({
-                        iconClass: 'fa-solid fa-shield-virus',
-                        name: t('WAF Rules'),
-                        href: route('security.waf-global.index'),
+                        subItems: userMgmtSubItems,
                     });
                 }
 
@@ -372,14 +344,6 @@ const menuGroups = computed(() => {
                         iconClass: 'fa-solid fa-cloud-arrow-up',
                         name: t('Backups'),
                         href: route('backups.index'),
-                    });
-                }
-
-                if (isAdmin.value) {
-                    items.push({
-                        iconClass: 'fa-solid fa-bell',
-                        name: t('Push Notifications'),
-                        href: route('admin.push-notifications.index'),
                     });
                 }
 
@@ -425,6 +389,29 @@ const menuGroups = computed(() => {
                         href: externalLinks.value.n8n,
                         external: true,
                     });
+                }
+
+                if (canAny('panel.firewall.view', 'panel.waf-rules.view', 'panel.waf-rules.manage', 'panel.crowdsec.view', 'panel.ftp-bans.view')) {
+                    const securitySubItems: Array<{ name: string; href: string }> = [];
+                    if (can('panel.firewall.view')) {
+                        securitySubItems.push({ name: t('Firewall'), href: route('security.firewall.index') });
+                    }
+                    if (canAny('panel.waf-rules.view', 'panel.waf-rules.manage')) {
+                        securitySubItems.push({ name: t('WAF Rules'), href: route('security.waf-global.index') });
+                    }
+                    if (can('panel.crowdsec.view')) {
+                        securitySubItems.push({ name: t('CrowdSec'), href: route('security.crowdsec.index') });
+                    }
+                    if (can('panel.ftp-bans.view')) {
+                        securitySubItems.push({ name: t('FTP Bans'), href: route('security.ftp-bans.index') });
+                    }
+                    if (securitySubItems.length > 0) {
+                        items.push({
+                            iconClass: 'fa-solid fa-shield-halved',
+                            name: t('Security'),
+                            subItems: securitySubItems,
+                        });
+                    }
                 }
 
                 return items;
