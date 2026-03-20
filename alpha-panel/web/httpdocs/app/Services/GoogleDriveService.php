@@ -629,11 +629,6 @@ class GoogleDriveService
         ]);
 
         foreach ($folderResponse->getFiles() as $folder) {
-            // Live mirror folder — never delete
-            if ($folder->getName() === 'websites') {
-                continue;
-            }
-
             $modifiedTime = Carbon::parse($folder->getModifiedTime());
 
             if ($modifiedTime->lt($cutoff)) {

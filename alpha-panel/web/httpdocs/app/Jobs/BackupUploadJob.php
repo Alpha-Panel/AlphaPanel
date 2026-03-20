@@ -98,7 +98,7 @@ class BackupUploadJob implements ShouldQueue
             BackupProgress::dispatch($run->id, 50, __('Starting website backups...'), 'uploading');
 
             if ($backupMode === 'incremental') {
-                $this->backupWebsitesIncremental($driveService, $settings->drive_folder_id, $run);
+                $this->backupWebsitesIncremental($driveService, $dateFolderId, $run);
             } else {
                 $this->backupWebsites($driveService, $dateFolderId, $tempBase, $run);
             }
@@ -317,7 +317,7 @@ class BackupUploadJob implements ShouldQueue
         }
     }
 
-    private function backupWebsitesIncremental(GoogleDriveService $driveService, string $rootFolderId, BackupRun $run): void
+    private function backupWebsitesIncremental(GoogleDriveService $driveService, string $dateFolderId, BackupRun $run): void
     {
         $vhostsPath = config('backup.vhosts_path', '/var/www/vhosts');
         $exclude = config('backup.vhosts_exclude', []);
@@ -337,8 +337,7 @@ class BackupUploadJob implements ShouldQueue
             return;
         }
 
-        // Persistent websites/ folder at root level (live mirror, not date-based)
-        $websitesFolderId = $driveService->findOrCreateFolderPath('websites', $rootFolderId);
+        $websitesFolderId = $driveService->findOrCreateFolderPath('websites', $dateFolderId);
         $total = count($dirs);
 
         foreach ($dirs as $i => $dir) {
@@ -356,35 +355,34 @@ class BackupUploadJob implements ShouldQueue
             // 2. Get previous known state from manifests
             $previousState = $this->getLastKnownState($domain);
 
-            // 3. Diff into three buckets: new, changed (in-place update), deleted
-            $toUpload = [];   // New files — no previous manifest entry
-            $toUpdate = [];   // Changed files — have drive_file_id, update in-place
-            $toDelete = [];   // Removed files — delete from Drive
+            // 3. Diff: new, changed, deleted
+            $toUpload = [];
+            $toDelete = [];
 
             foreach ($localFiles as $relativePath => $fileInfo) {
                 if (! isset($previousState[$relativePath])) {
+                    // New file
                     $toUpload[$relativePath] = $fileInfo;
                 } elseif (
                     $previousState[$relativePath]['file_size'] !== $fileInfo['size']
                     || $previousState[$relativePath]['file_mtime'] !== $fileInfo['mtime']
                 ) {
-                    $toUpdate[$relativePath] = array_merge($fileInfo, [
-                        'drive_file_id' => $previousState[$relativePath]['drive_file_id'],
-                    ]);
+                    // Changed file
+                    $toUpload[$relativePath] = $fileInfo;
                 }
             }
 
             foreach ($previousState as $relativePath => $manifestInfo) {
-                if (! isset($localFiles[$relativePath]) && $manifestInfo['drive_file_id']) {
-                    $toDelete[$relativePath] = $manifestInfo['drive_file_id'];
+                if (! isset($localFiles[$relativePath])) {
+                    $toDelete[] = $relativePath;
                 }
             }
 
-            if (empty($toUpload) && empty($toUpdate) && empty($toDelete)) {
+            if (empty($toUpload) && empty($toDelete)) {
                 continue;
             }
 
-            // 4. Upload new files
+            // 4. Upload changed/new files
             foreach ($toUpload as $relativePath => $fileInfo) {
                 if ($this->isCancelled($run)) {
                     return;
@@ -413,37 +411,8 @@ class BackupUploadJob implements ShouldQueue
                 $this->totalBytes += $fileInfo['size'];
             }
 
-            // 5. Update changed files in-place on Drive
-            foreach ($toUpdate as $relativePath => $fileInfo) {
-                if ($this->isCancelled($run)) {
-                    return;
-                }
-
-                $updateResult = $driveService->updateFile($fileInfo['drive_file_id'], $fileInfo['full_path']);
-
-                BackupFileManifest::create([
-                    'backup_run_id' => $run->id,
-                    'domain' => $domain,
-                    'relative_path' => $relativePath,
-                    'file_size' => $fileInfo['size'],
-                    'file_mtime' => $fileInfo['mtime'],
-                    'drive_file_id' => $updateResult['id'],
-                    'action' => 'upload',
-                    'created_at' => now(),
-                ]);
-
-                $this->totalFiles++;
-                $this->totalBytes += $fileInfo['size'];
-            }
-
-            // 6. Delete removed files from Drive
-            foreach ($toDelete as $relativePath => $driveFileId) {
-                try {
-                    $driveService->deleteFileById($driveFileId);
-                } catch (\Throwable $e) {
-                    Log::warning("Failed to delete {$relativePath} from Drive: {$e->getMessage()}");
-                }
-
+            // 5. Mark deleted files
+            foreach ($toDelete as $relativePath) {
                 BackupFileManifest::create([
                     'backup_run_id' => $run->id,
                     'domain' => $domain,
