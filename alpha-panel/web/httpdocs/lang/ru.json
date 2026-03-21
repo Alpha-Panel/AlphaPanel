@@ -466,6 +466,7 @@
     "FTP ban data could not be refreshed.": "Не удалось обновить данные о блокировках FTP.",
     "FTP Bans": "Блокировки FTP",
     "FTP container is offline.": "FTP-контейнер не в сети.",
+    "FTP Container": "FTP-контейнер",
     "FTP Password": "Пароль FTP",
     "FTP password updated successfully.": "Пароль FTP успешно обновлен.",
     "FTP update failed.": "Обновление FTP не удалось.",

@@ -472,6 +472,7 @@
     "FTP ban data could not be refreshed.": "FTP yasak verileri yenilenemedi.",
     "FTP Bans": "FTP Yasakları",
     "FTP container is offline.": "FTP konteyneri çevrimdışı.",
+    "FTP Container": "FTP Konteyneri",
     "FTP Password": "FTP Parolası",
     "FTP password updated successfully.": "FTP parolası başarıyla güncellendi.",
     "FTP update failed.": "FTP güncellemesi başarısız oldu.",

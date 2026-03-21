@@ -466,6 +466,7 @@
     "FTP ban data could not be refreshed.": "FTP-Sperrdaten konnten nicht aktualisiert werden.",
     "FTP Bans": "FTP-Sperren",
     "FTP container is offline.": "FTP-Container ist offline.",
+    "FTP Container": "FTP-Container",
     "FTP Password": "FTP-Passwort",
     "FTP password updated successfully.": "FTP-Passwort erfolgreich aktualisiert.",
     "FTP update failed.": "FTP-Aktualisierung fehlgeschlagen.",
