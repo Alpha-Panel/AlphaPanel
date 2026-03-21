@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\User;
 use App\Services\FtpBanService;
 use Illuminate\Http\JsonResponse;
@@ -48,6 +49,15 @@ class FtpBanController extends Controller
         try {
             $result = $ftpBan->banHost($validated['ip']);
 
+            if ($result->isSuccessful()) {
+                AuditLog::create([
+                    'user_id' => $user->id,
+                    'action' => 'ftp_ban_created',
+                    'summary' => sprintf('FTP ban added for IP %s', $validated['ip']),
+                    'details' => json_encode(['ip' => $validated['ip']]),
+                ]);
+            }
+
             return response()->json([
                 'success' => $result->isSuccessful(),
                 'output' => $result->output,
@@ -72,6 +82,15 @@ class FtpBanController extends Controller
         ]);
 
         $result = $ftpBan->permitHost($validated['ip']);
+
+        if ($result->isSuccessful()) {
+            AuditLog::create([
+                'user_id' => $user->id,
+                'action' => 'ftp_ban_removed',
+                'summary' => sprintf('FTP ban removed for IP %s', $validated['ip']),
+                'details' => json_encode(['ip' => $validated['ip']]),
+            ]);
+        }
 
         return response()->json([
             'success' => $result->isSuccessful(),
@@ -111,6 +130,13 @@ class FtpBanController extends Controller
 
         $entry = $ftpBan->addToWhitelist($validated['ip'], $validated['note'] ?? null, $user->id);
 
+        AuditLog::create([
+            'user_id' => $user->id,
+            'action' => 'ftp_whitelist_added',
+            'summary' => sprintf('FTP whitelist entry added for IP %s', $validated['ip']),
+            'details' => json_encode(['ip' => $validated['ip'], 'note' => $validated['note'] ?? null]),
+        ]);
+
         return response()->json([
             'success' => true,
             'entry' => $entry->load('creator'),
@@ -128,6 +154,13 @@ class FtpBanController extends Controller
         ]);
 
         $ftpBan->removeFromWhitelist($validated['ip']);
+
+        AuditLog::create([
+            'user_id' => $user->id,
+            'action' => 'ftp_whitelist_removed',
+            'summary' => sprintf('FTP whitelist entry removed for IP %s', $validated['ip']),
+            'details' => json_encode(['ip' => $validated['ip']]),
+        ]);
 
         return response()->json([
             'success' => true,

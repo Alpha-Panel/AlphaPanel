@@ -37,6 +37,7 @@ class FirewallService
     /**
      * Get all firewall rules from the database with policies.
      *
+     * @param  string|null  $clientIp  The current user's IP for context-aware warnings.
      * @return array{
      *   input: array{policy: string, rules: Collection<int, FirewallRule>},
      *   output: array{policy: string, rules: Collection<int, FirewallRule>},
@@ -44,7 +45,7 @@ class FirewallService
      *   warnings: array<int, string>
      * }
      */
-    public function getDbRules(): array
+    public function getDbRules(?string $clientIp = null): array
     {
         return [
             'input' => [
@@ -56,7 +57,7 @@ class FirewallService
                 'rules' => FirewallRule::output()->ordered()->with('creator')->get(),
             ],
             'pending_changes' => $this->hasPendingChanges(),
-            'warnings' => $this->generateDbWarnings(),
+            'warnings' => $this->generateDbWarnings($clientIp),
         ];
     }
 
@@ -322,26 +323,71 @@ class FirewallService
     /**
      * Generate warning messages based on DB rule state.
      *
+     * @param  string|null  $clientIp  The current user's IP address.
      * @return array<int, string>
      */
-    private function generateDbWarnings(): array
+    private function generateDbWarnings(?string $clientIp = null): array
     {
         $warnings = [];
 
         $inputPolicy = FirewallPolicy::getPolicy('INPUT');
 
         if ($inputPolicy === 'DROP') {
-            $hasSshAccept = FirewallRule::input()
+            $hasSshCovered = FirewallRule::input()
                 ->enabled()
                 ->whereJsonContains('ports', 22)
                 ->where('action', 'ACCEPT')
                 ->exists();
 
-            if (! $hasSshAccept) {
+            // If no explicit port 22 rule, check for blanket IP allow (no port restriction)
+            // that covers the user's current connection IP.
+            if (! $hasSshCovered && $clientIp !== null) {
+                $blanketRules = FirewallRule::input()
+                    ->enabled()
+                    ->where('action', 'ACCEPT')
+                    ->whereNull('ports')
+                    ->whereNotNull('sources')
+                    ->get();
+
+                foreach ($blanketRules as $rule) {
+                    foreach ((array) $rule->sources as $source) {
+                        if ($this->ipMatchesCidr($clientIp, $source)) {
+                            $hasSshCovered = true;
+                            break 2;
+                        }
+                    }
+                }
+            }
+
+            if (! $hasSshCovered) {
                 $warnings[] = 'SSH (port 22) ACCEPT rule not found in INPUT chain with DROP policy. You may lose remote access.';
             }
         }
 
         return $warnings;
+    }
+
+    /**
+     * Check whether an IP address falls within a CIDR range (or matches exactly).
+     */
+    private function ipMatchesCidr(string $ip, string $cidr): bool
+    {
+        if (! str_contains($cidr, '/')) {
+            return $ip === $cidr;
+        }
+
+        [$subnet, $bits] = explode('/', $cidr, 2);
+        $bits = (int) $bits;
+
+        $ipLong = ip2long($ip);
+        $subnetLong = ip2long($subnet);
+
+        if ($ipLong === false || $subnetLong === false) {
+            return false;
+        }
+
+        $mask = -1 << (32 - $bits);
+
+        return ($ipLong & $mask) === ($subnetLong & $mask);
     }
 }

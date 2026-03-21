@@ -7,28 +7,6 @@
                 <Toast />
 
                 <div class="space-y-4">
-                    <!-- Pending Changes Banner -->
-                    <div
-                        v-if="pendingChanges"
-                        class="flex items-center justify-between gap-3 rounded-2xl border border-warning-300 bg-warning-100 p-4 text-sm text-warning-900 dark:border-warning-800 dark:bg-warning-950 dark:text-warning-100"
-                    >
-                        <div class="flex items-center gap-3">
-                            <i class="fa-solid fa-triangle-exclamation text-base"></i>
-                            {{ t('Your rules have changed. Generate the UFW command set and run it manually on the server via SSH.') }}
-                        </div>
-                        <div class="flex shrink-0 items-center gap-2">
-                            <button
-                                type="button"
-                                :disabled="previewLoading"
-                                class="inline-flex h-8 items-center justify-center rounded-lg border border-warning-400 px-4 text-xs font-medium text-warning-700 hover:bg-warning-200 disabled:cursor-not-allowed disabled:opacity-40 dark:border-warning-600 dark:text-warning-200 dark:hover:bg-warning-900"
-                                @click="loadPreview"
-                            >
-                                <i class="fa-solid fa-code mr-1.5"></i>
-                                {{ t('Generate Script') }}
-                            </button>
-                        </div>
-                    </div>
-
                     <!-- Warning Banners -->
                     <div
                         v-for="(warning, index) in warnings"
@@ -134,8 +112,17 @@
                         </div>
                     </div>
 
-                    <!-- Add Rule Button -->
-                    <div class="flex justify-end">
+                    <!-- Action Buttons -->
+                    <div class="flex justify-end gap-2">
+                        <button
+                            type="button"
+                            :disabled="previewLoading"
+                            class="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                            @click="loadPreview"
+                        >
+                            <i class="fa-solid fa-code"></i>
+                            {{ t('Generate Script') }}
+                        </button>
                         <button
                             type="button"
                             class="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-brand-500 px-4 text-sm font-medium text-white hover:bg-brand-600"
@@ -168,6 +155,7 @@
                             <table class="w-full text-sm">
                                 <thead>
                                     <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                                        <th class="w-6 pb-2"></th>
                                         <th class="pb-2">#</th>
                                         <th class="pb-2">{{ t('Action') }}</th>
                                         <th class="pb-2">{{ t('Protocol') }}</th>
@@ -180,16 +168,27 @@
                                 </thead>
                                 <tbody>
                                     <tr v-if="inputRules.length === 0">
-                                        <td colspan="8" class="py-4 text-center text-gray-500 dark:text-gray-400">{{ t('No INPUT rules.') }}</td>
+                                        <td colspan="9" class="py-4 text-center text-gray-500 dark:text-gray-400">{{ t('No INPUT rules.') }}</td>
                                     </tr>
                                     <tr
                                         v-for="(rule, index) in inputRules"
                                         :key="`input-${rule.id}`"
+                                        draggable="true"
                                         :class="[
-                                            'border-b border-gray-100 align-top last:border-0 dark:border-gray-800',
+                                            'border-b border-gray-100 align-top last:border-0 dark:border-gray-800 transition-colors duration-150',
                                             !rule.enabled ? 'opacity-50' : '',
+                                            dragOverId === `input-${rule.id}` ? 'bg-brand-50 dark:bg-brand-500/10' : '',
+                                            dragSourceId === `input-${rule.id}` ? 'opacity-30' : '',
                                         ]"
+                                        @dragstart="onDragStart($event, 'INPUT', index)"
+                                        @dragover.prevent="onDragOver($event, 'INPUT', index, rule.id)"
+                                        @dragleave="onDragLeave($event, rule.id, 'INPUT')"
+                                        @drop.prevent="onDrop($event, 'INPUT', index)"
+                                        @dragend="onDragEnd"
                                     >
+                                        <td class="cursor-grab py-2 text-xs text-gray-400 active:cursor-grabbing dark:text-gray-500">
+                                            <i class="fa-solid fa-grip-vertical"></i>
+                                        </td>
                                         <td class="py-2 text-xs text-gray-700 dark:text-gray-300">{{ rule.position }}</td>
                                         <td class="py-2">
                                             <span :class="actionBadgeClass(rule.action)">{{ rule.action }}</span>
@@ -266,6 +265,7 @@
                             <table class="w-full text-sm">
                                 <thead>
                                     <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                                        <th class="w-6 pb-2"></th>
                                         <th class="pb-2">#</th>
                                         <th class="pb-2">{{ t('Action') }}</th>
                                         <th class="pb-2">{{ t('Protocol') }}</th>
@@ -278,16 +278,27 @@
                                 </thead>
                                 <tbody>
                                     <tr v-if="outputRules.length === 0">
-                                        <td colspan="8" class="py-4 text-center text-gray-500 dark:text-gray-400">{{ t('No OUTPUT rules.') }}</td>
+                                        <td colspan="9" class="py-4 text-center text-gray-500 dark:text-gray-400">{{ t('No OUTPUT rules.') }}</td>
                                     </tr>
                                     <tr
                                         v-for="(rule, index) in outputRules"
                                         :key="`output-${rule.id}`"
+                                        draggable="true"
                                         :class="[
-                                            'border-b border-gray-100 align-top last:border-0 dark:border-gray-800',
+                                            'border-b border-gray-100 align-top last:border-0 dark:border-gray-800 transition-colors duration-150',
                                             !rule.enabled ? 'opacity-50' : '',
+                                            dragOverId === `output-${rule.id}` ? 'bg-brand-50 dark:bg-brand-500/10' : '',
+                                            dragSourceId === `output-${rule.id}` ? 'opacity-30' : '',
                                         ]"
+                                        @dragstart="onDragStart($event, 'OUTPUT', index)"
+                                        @dragover.prevent="onDragOver($event, 'OUTPUT', index, rule.id)"
+                                        @dragleave="onDragLeave($event, rule.id, 'OUTPUT')"
+                                        @drop.prevent="onDrop($event, 'OUTPUT', index)"
+                                        @dragend="onDragEnd"
                                     >
+                                        <td class="cursor-grab py-2 text-xs text-gray-400 active:cursor-grabbing dark:text-gray-500">
+                                            <i class="fa-solid fa-grip-vertical"></i>
+                                        </td>
                                         <td class="py-2 text-xs text-gray-700 dark:text-gray-300">{{ rule.position }}</td>
                                         <td class="py-2">
                                             <span :class="actionBadgeClass(rule.action)">{{ rule.action }}</span>
@@ -601,7 +612,6 @@ const inputPolicy = computed(() => firewallData.value.input.policy);
 const outputPolicy = computed(() => firewallData.value.output.policy);
 const inputRules = computed(() => firewallData.value.input.rules);
 const outputRules = computed(() => firewallData.value.output.rules);
-const pendingChanges = computed(() => firewallData.value.pending_changes);
 const warnings = computed(() => firewallData.value.warnings);
 
 const showRuleModal = ref(false);
@@ -618,6 +628,12 @@ const modalForm = reactive({
 const deleteRuleLoading = ref<number | null>(null);
 const policyLoading = ref(false);
 const toggleLoading = ref<number | null>(null);
+
+// Drag & drop state
+const dragSourceId = ref<string | null>(null);
+const dragOverId = ref<string | null>(null);
+const dragChain = ref<string | null>(null);
+const dragFromIndex = ref<number | null>(null);
 
 const showPreview = ref(false);
 const previewScript = ref('');
@@ -836,6 +852,67 @@ const moveRule = async (chain: string, index: number, direction: 'up' | 'down'):
         addToast('error', t('Failed to reorder rules.'));
         await refreshData();
     }
+};
+
+// ── Drag & Drop handlers ──
+
+const onDragStart = (event: DragEvent, chain: string, index: number): void => {
+    const rules = chain === 'INPUT' ? inputRules.value : outputRules.value;
+    const rule = rules[index];
+    dragSourceId.value = `${chain.toLowerCase()}-${rule.id}`;
+    dragChain.value = chain;
+    dragFromIndex.value = index;
+    if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', String(rule.id));
+    }
+};
+
+const onDragOver = (_event: DragEvent, chain: string, _index: number, ruleId: number): void => {
+    if (dragChain.value !== chain) return; // Don't allow cross-chain drag
+    dragOverId.value = `${chain.toLowerCase()}-${ruleId}`;
+};
+
+const onDragLeave = (event: DragEvent, ruleId: number, chain: string): void => {
+    const related = event.relatedTarget as HTMLElement | null;
+    const row = (event.currentTarget as HTMLElement);
+    if (related && row.contains(related)) return; // Still inside the same row
+    if (dragOverId.value === `${chain.toLowerCase()}-${ruleId}`) {
+        dragOverId.value = null;
+    }
+};
+
+const onDrop = async (_event: DragEvent, chain: string, toIndex: number): Promise<void> => {
+    const fromIndex = dragFromIndex.value;
+    if (dragChain.value !== chain || fromIndex === null || fromIndex === toIndex) {
+        onDragEnd();
+        return;
+    }
+
+    const rules = chain === 'INPUT' ? inputRules.value : outputRules.value;
+
+    // Move the rule in local array
+    const [moved] = rules.splice(fromIndex, 1);
+    rules.splice(toIndex, 0, moved);
+
+    onDragEnd();
+
+    // Persist new order
+    const orderedIds = rules.map(r => r.id);
+    try {
+        await axios.put(route('security.firewall.reorder'), { rules: orderedIds });
+        await refreshData();
+    } catch {
+        addToast('error', t('Failed to reorder rules.'));
+        await refreshData();
+    }
+};
+
+const onDragEnd = (): void => {
+    dragSourceId.value = null;
+    dragOverId.value = null;
+    dragChain.value = null;
+    dragFromIndex.value = null;
 };
 
 const confirmDeleteRule = (rule: FirewallRule): void => {

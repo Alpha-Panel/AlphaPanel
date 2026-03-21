@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AuditLog;
 use App\Models\FirewallRule;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -525,5 +526,265 @@ class FirewallControllerTest extends TestCase
 
         $response->assertUnprocessable();
         $response->assertJsonValidationErrors('policy');
+    }
+
+    // ── SSH Warning Suppression Tests ──────────────────────────────
+
+    public function test_ssh_warning_shown_when_drop_policy_and_no_ssh_rule(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        // Clean pre-existing INPUT ACCEPT rules (rolled back after test)
+        FirewallRule::input()->where('action', 'ACCEPT')->delete();
+
+        $this->actingAs($admin)->putJson(route('security.firewall.policy'), [
+            'chain' => 'INPUT',
+            'policy' => 'DROP',
+        ])->assertOk();
+
+        $response = $this->actingAs($admin)->getJson(route('security.firewall.data'));
+
+        $response->assertOk();
+        $warnings = $response->json('warnings');
+        $this->assertNotEmpty($warnings);
+        $this->assertStringContainsString('SSH', $warnings[0]);
+    }
+
+    public function test_ssh_warning_hidden_when_blanket_ip_allow_matches_client(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        // Clean pre-existing INPUT ACCEPT rules (rolled back after test)
+        FirewallRule::input()->where('action', 'ACCEPT')->delete();
+
+        $this->actingAs($admin)->putJson(route('security.firewall.policy'), [
+            'chain' => 'INPUT',
+            'policy' => 'DROP',
+        ])->assertOk();
+
+        // Blanket allow (no ports) for the test client IP (127.0.0.1 in tests)
+        FirewallRule::create([
+            'chain' => 'INPUT',
+            'action' => 'ACCEPT',
+            'protocol' => 'all',
+            'sources' => ['127.0.0.1'],
+            'ports' => null,
+            'position' => 1,
+            'enabled' => true,
+            'created_by' => $admin->id,
+        ]);
+
+        $response = $this->actingAs($admin)->getJson(route('security.firewall.data'));
+
+        $response->assertOk();
+        $warnings = $response->json('warnings');
+        $this->assertEmpty($warnings);
+    }
+
+    public function test_ssh_warning_hidden_when_cidr_blanket_allow_matches_client(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        // Clean pre-existing INPUT ACCEPT rules (rolled back after test)
+        FirewallRule::input()->where('action', 'ACCEPT')->delete();
+
+        $this->actingAs($admin)->putJson(route('security.firewall.policy'), [
+            'chain' => 'INPUT',
+            'policy' => 'DROP',
+        ])->assertOk();
+
+        // CIDR range that includes 127.0.0.1
+        FirewallRule::create([
+            'chain' => 'INPUT',
+            'action' => 'ACCEPT',
+            'protocol' => 'all',
+            'sources' => ['127.0.0.0/8'],
+            'ports' => null,
+            'position' => 1,
+            'enabled' => true,
+            'created_by' => $admin->id,
+        ]);
+
+        $response = $this->actingAs($admin)->getJson(route('security.firewall.data'));
+
+        $response->assertOk();
+        $warnings = $response->json('warnings');
+        $this->assertEmpty($warnings);
+    }
+
+    public function test_ssh_warning_still_shown_when_ip_allow_has_ports(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        // Clean pre-existing INPUT ACCEPT rules (rolled back after test)
+        FirewallRule::input()->where('action', 'ACCEPT')->delete();
+
+        $this->actingAs($admin)->putJson(route('security.firewall.policy'), [
+            'chain' => 'INPUT',
+            'policy' => 'DROP',
+        ])->assertOk();
+
+        // IP allow with specific ports (NOT blanket) — should still warn
+        FirewallRule::create([
+            'chain' => 'INPUT',
+            'action' => 'ACCEPT',
+            'protocol' => 'tcp',
+            'sources' => ['127.0.0.1'],
+            'ports' => [80, 443],
+            'position' => 1,
+            'enabled' => true,
+            'created_by' => $admin->id,
+        ]);
+
+        $response = $this->actingAs($admin)->getJson(route('security.firewall.data'));
+
+        $response->assertOk();
+        $warnings = $response->json('warnings');
+        $this->assertNotEmpty($warnings);
+        $this->assertStringContainsString('SSH', $warnings[0]);
+    }
+
+    // ── Audit Logging Tests ────────────────────────────────────────
+
+    public function test_store_creates_audit_log(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->postJson(route('security.firewall.store'), [
+            'chain' => 'INPUT',
+            'action' => 'ACCEPT',
+            'protocol' => 'tcp',
+            'sources' => ['192.168.1.100'],
+            'ports' => [80],
+            'comment' => 'audit test',
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'action' => 'firewall_rule_created',
+        ]);
+    }
+
+    public function test_update_creates_audit_log(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $rule = FirewallRule::create([
+            'chain' => 'INPUT',
+            'action' => 'ACCEPT',
+            'protocol' => 'tcp',
+            'ports' => [80],
+            'position' => 1,
+            'enabled' => true,
+            'created_by' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)->putJson(route('security.firewall.update', ['rule' => $rule->id]), [
+            'chain' => 'INPUT',
+            'action' => 'DROP',
+            'protocol' => 'tcp',
+            'ports' => [443],
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'action' => 'firewall_rule_updated',
+        ]);
+
+        $log = AuditLog::where('action', 'firewall_rule_updated')->latest('id')->first();
+        $this->assertNotNull($log);
+        $details = json_decode($log->details, true);
+        $this->assertArrayHasKey('old', $details);
+        $this->assertArrayHasKey('new', $details);
+    }
+
+    public function test_destroy_creates_audit_log(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $rule = FirewallRule::create([
+            'chain' => 'INPUT',
+            'action' => 'ACCEPT',
+            'protocol' => 'tcp',
+            'ports' => [8080],
+            'position' => 1,
+            'enabled' => true,
+            'created_by' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)->deleteJson(route('security.firewall.destroy'), [
+            'id' => $rule->id,
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'action' => 'firewall_rule_deleted',
+        ]);
+    }
+
+    public function test_policy_change_creates_audit_log(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->putJson(route('security.firewall.policy'), [
+            'chain' => 'INPUT',
+            'policy' => 'DROP',
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'action' => 'firewall_policy_changed',
+        ]);
+
+        $log = AuditLog::where('action', 'firewall_policy_changed')->latest('id')->first();
+        $this->assertNotNull($log);
+        $this->assertStringContainsString('INPUT', $log->summary);
+        $this->assertStringContainsString('DROP', $log->summary);
+    }
+
+    public function test_reorder_creates_audit_log(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $ruleA = FirewallRule::create([
+            'chain' => 'INPUT', 'action' => 'ACCEPT', 'protocol' => 'tcp',
+            'ports' => [80], 'position' => 1, 'enabled' => true, 'created_by' => $admin->id,
+        ]);
+        $ruleB = FirewallRule::create([
+            'chain' => 'INPUT', 'action' => 'ACCEPT', 'protocol' => 'tcp',
+            'ports' => [443], 'position' => 2, 'enabled' => true, 'created_by' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)->putJson(route('security.firewall.reorder'), [
+            'rules' => [$ruleB->id, $ruleA->id],
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'action' => 'firewall_rules_reordered',
+        ]);
+    }
+
+    public function test_toggle_creates_audit_log(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $rule = FirewallRule::create([
+            'chain' => 'INPUT', 'action' => 'ACCEPT', 'protocol' => 'tcp',
+            'ports' => [80], 'position' => 1, 'enabled' => true, 'created_by' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)->putJson(route('security.firewall.toggle', ['rule' => $rule->id]), [
+            'enabled' => false,
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'action' => 'firewall_rule_toggled',
+        ]);
+
+        $log = AuditLog::where('action', 'firewall_rule_toggled')->latest('id')->first();
+        $this->assertNotNull($log);
+        $this->assertStringContainsString('disabled', $log->summary);
     }
 }

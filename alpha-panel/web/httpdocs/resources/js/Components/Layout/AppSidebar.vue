@@ -194,6 +194,7 @@
                                                         },
                                                     ]"
                                                 >
+                                                    <i v-if="subItem.iconClass" :class="[subItem.iconClass, 'mr-2 w-4 text-center text-xs opacity-70']"></i>
                                                     {{ subItem.name }}
                                                 </Link>
                                             </li>
@@ -299,7 +300,7 @@ interface SidebarMenuItem {
     href?: string;
     external?: boolean;
     action?: () => void;
-    subItems?: Array<{ name: string; href: string }>;
+    subItems?: Array<{ name: string; href: string; iconClass?: string }>;
 }
 
 const menuGroups = computed(() => {
@@ -326,11 +327,11 @@ const menuGroups = computed(() => {
 
                 if (can('panel.users.manage')) {
                     const userMgmtSubItems = [
-                        { name: t('Users'), href: route('users.list') },
-                        { name: t('Roles'), href: route('roles.index') },
+                        { name: t('Users'), href: route('users.list'), iconClass: 'fa-solid fa-users' },
+                        { name: t('Roles'), href: route('roles.index'), iconClass: 'fa-solid fa-user-shield' },
                     ];
                     if (isAdmin.value) {
-                        userMgmtSubItems.push({ name: t('Push Notifications'), href: route('admin.push-notifications.index') });
+                        userMgmtSubItems.push({ name: t('Push Notifications'), href: route('admin.push-notifications.index'), iconClass: 'fa-solid fa-bell' });
                     }
                     items.push({
                         icon: UserCircleIcon,
@@ -392,18 +393,18 @@ const menuGroups = computed(() => {
                 }
 
                 if (canAny('panel.firewall.view', 'panel.waf-rules.view', 'panel.waf-rules.manage', 'panel.crowdsec.view', 'panel.ftp-bans.view')) {
-                    const securitySubItems: Array<{ name: string; href: string }> = [];
+                    const securitySubItems: Array<{ name: string; href: string; iconClass?: string }> = [];
                     if (can('panel.firewall.view')) {
-                        securitySubItems.push({ name: t('Firewall'), href: route('security.firewall.index') });
+                        securitySubItems.push({ name: t('Firewall'), href: route('security.firewall.index'), iconClass: 'fa-solid fa-fire' });
                     }
                     if (canAny('panel.waf-rules.view', 'panel.waf-rules.manage')) {
-                        securitySubItems.push({ name: t('WAF Rules'), href: route('security.waf-global.index') });
+                        securitySubItems.push({ name: t('WAF Rules'), href: route('security.waf-global.index'), iconClass: 'fa-solid fa-shield' });
                     }
                     if (can('panel.crowdsec.view')) {
-                        securitySubItems.push({ name: t('CrowdSec'), href: route('security.crowdsec.index') });
+                        securitySubItems.push({ name: t('CrowdSec'), href: route('security.crowdsec.index'), iconClass: 'fa-solid fa-robot' });
                     }
                     if (can('panel.ftp-bans.view')) {
-                        securitySubItems.push({ name: t('FTP Bans'), href: route('security.ftp-bans.index') });
+                        securitySubItems.push({ name: t('FTP Bans'), href: route('security.ftp-bans.index'), iconClass: 'fa-solid fa-ban' });
                     }
                     if (securitySubItems.length > 0) {
                         items.push({
