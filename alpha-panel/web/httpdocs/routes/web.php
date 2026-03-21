@@ -31,6 +31,7 @@ use App\Http\Controllers\TerminalLogController;
 use App\Http\Controllers\TwoFactorAuthController;
 use App\Http\Controllers\UserAccountsController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\SystemUpdateController;
 use App\Http\Controllers\WafGlobalRuleController;
 use App\Http\Controllers\WebAuthn\WebAuthnLoginController;
 use App\Http\Controllers\WebAuthn\WebAuthnRegisterController;
@@ -367,6 +368,20 @@ Route::middleware('auth')->group(function (): void {
         Route::put('security/firewall/reorder', [FirewallController::class, 'reorder'])->name('security.firewall.reorder');
         Route::put('security/firewall/{rule}', [FirewallController::class, 'update'])->name('security.firewall.update');
         Route::put('security/firewall/{rule}/toggle', [FirewallController::class, 'toggle'])->name('security.firewall.toggle');
+    });
+
+    // System Updates
+    Route::middleware('permission:panel.system.updates')->group(function (): void {
+        Route::prefix('system/updates')->name('system.updates.')->group(function (): void {
+            Route::get('/', [SystemUpdateController::class, 'index'])->name('index');
+            Route::get('/check', [SystemUpdateController::class, 'check'])->name('check');
+            Route::post('/panel', [SystemUpdateController::class, 'updatePanel'])->name('panel');
+            Route::post('/mysql/prepare', [SystemUpdateController::class, 'prepareMysqlUpgrade'])->name('mysql.prepare');
+            Route::post('/mysql/apply', [SystemUpdateController::class, 'applyMysqlUpgrade'])->name('mysql.apply');
+            Route::post('/mysql/rollback', [SystemUpdateController::class, 'rollbackMysqlUpgrade'])->name('mysql.rollback');
+            Route::post('/mysql/cleanup', [SystemUpdateController::class, 'cleanupMysqlBackup'])->name('mysql.cleanup');
+            Route::get('/task/{taskId}', [SystemUpdateController::class, 'taskStatus'])->name('task.status');
+        });
     });
 
     Route::middleware('permission:panel.backups.view')->group(function (): void {

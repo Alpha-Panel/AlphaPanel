@@ -1,0 +1,13 @@
+{
+  "version": "1.0.0",
+  "channel": "stable",
+  "min_php": "8.4",
+  "services": {
+    "mysql": "9.3.0",
+    "redis": "7.4.8",
+    "vaultwarden": "1.35.4",
+    "meilisearch": "1.16",
+    "crowdsec": "1.7.6",
+    "portainer": "2.39.0"
+  }
+}

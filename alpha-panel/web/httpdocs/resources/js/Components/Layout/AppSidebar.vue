@@ -415,6 +415,14 @@ const menuGroups = computed(() => {
                     }
                 }
 
+                if (can('panel.system.updates')) {
+                    items.push({
+                        iconClass: 'fa-solid fa-arrow-up-from-bracket',
+                        name: t('System Updates'),
+                        href: route('system.updates.index'),
+                    });
+                }
+
                 return items;
             })(),
         },

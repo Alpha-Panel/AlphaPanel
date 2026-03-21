@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Inertia\Middleware;
 
@@ -78,6 +79,9 @@ class HandleInertiaRequests extends Middleware
             'rtl_locales' => $rtlLocales,
             'translations' => fn () => $this->loadLocaleTranslations($locale),
             'vapid_public_key' => config('webpush.vapid.public_key'),
+            'update_available' => fn () => $user?->hasRole('admin')
+                ? (bool) Cache::get('system:update_available', false)
+                : false,
         ];
     }
 

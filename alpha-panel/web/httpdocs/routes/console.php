@@ -81,6 +81,27 @@ Schedule::call(function (): void {
 |
 */
 
+/*
+|--------------------------------------------------------------------------
+| Daily Update Check
+|--------------------------------------------------------------------------
+|
+| Checks GitHub releases and Docker Hub for available updates.
+| Notifies admin users when new versions are found.
+|
+*/
+
+try {
+    if (config('panel.update.auto_check')) {
+        Schedule::job(new \App\Jobs\CheckForUpdatesJob)
+            ->daily()
+            ->name('check-for-updates')
+            ->withoutOverlapping();
+    }
+} catch (Throwable) {
+    // Config may not be available yet
+}
+
 Schedule::command('panel:security-audit')
     ->weeklyOn(1, '03:00')
     ->name('security-audit')

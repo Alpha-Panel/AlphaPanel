@@ -215,6 +215,7 @@ PANEL_DB_USER=alphapanel
 PANEL_DB_PASS=$(gen_secret 16)
 CROWDSEC_FIREWALL_BOUNCER_KEY=$(gen_secret)
 CROWDSEC_DASHBOARD_API_KEY=$(gen_secret)
+UPDATE_AGENT_SECRET=$(gen_secret)
 REVERB_APP_ID=$(gen_secret 4)
 REVERB_APP_KEY=$(gen_secret 16)
 REVERB_APP_SECRET=$(gen_secret)
@@ -359,6 +360,7 @@ CF_API_TOKEN=${CF_API_TOKEN}
 ADMIN_EMAIL=${ADMIN_EMAIL}
 
 # ─── MySQL ────────────────────────────────────────────────────
+MYSQL_VERSION=9.3.0
 MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD}"
 
 # ─── Meilisearch ──────────────────────────────────────────────
@@ -411,6 +413,10 @@ PANEL_DB_NAME=${PANEL_DB_NAME}
 PANEL_DB_USER=${PANEL_DB_USER}
 PANEL_DB_PASS=${PANEL_DB_PASS}
 PMA_URL=https://${PMA_DOMAIN}:8443/index.php?server=2
+
+# ─── Update Agent ────────────────────────────────────────────
+UPDATE_AGENT_SECRET=${UPDATE_AGENT_SECRET}
+PANEL_GITHUB_REPO=alphapanel/alphapanel-docker
 
 # ─── CrowdSec / Coraza ────────────────────────────────────────
 CROWDSEC_FIREWALL_BOUNCER_KEY=${CROWDSEC_FIREWALL_BOUNCER_KEY}
@@ -511,6 +517,12 @@ PANEL_SSH_HOST=${DOCKER_HOST_IP:-172.17.0.1}
 PANEL_SSH_PORT=22
 PANEL_SSH_USER=root
 PANEL_SSH_KEY_PATH=/root/.ssh/alphapanel_ed25519
+
+# ─── Update Agent ────────────────────────────────────────────
+UPDATE_AGENT_URL=http://update-agent:8100
+UPDATE_AGENT_SECRET=${UPDATE_AGENT_SECRET}
+PANEL_GITHUB_REPO=alphapanel/alphapanel-docker
+UPDATE_AUTO_CHECK=true
 EOF
 ok "Alpha Panel .env created."
 

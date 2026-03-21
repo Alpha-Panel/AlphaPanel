@@ -498,6 +498,24 @@ services:
     networks:
       - vhost_network
 
+  update-agent:
+    build:
+      context: ./update-agent
+      dockerfile: Dockerfile
+    container_name: update-agent
+    restart: always
+    environment:
+      UPDATE_AGENT_SECRET: ${UPDATE_AGENT_SECRET}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_HOST: mysql
+      GITHUB_REPO: ${PANEL_GITHUB_REPO:-alphapanel/alphapanel-docker}
+      PROJECT_ROOT: /project
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/project
+    networks:
+      - vhost_network
+
   docker-socket-proxy:
     image: tecnativa/docker-socket-proxy:v0.4.2
     container_name: docker-socket-proxy

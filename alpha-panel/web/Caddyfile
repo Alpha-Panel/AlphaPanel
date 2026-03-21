@@ -82,6 +82,15 @@
 			versions 1.1
 		}
 	}
+	# MySQL upgrade test phpMyAdmin (only responds when pma-upgrade-test container is running)
+	@upgrade_test_pma {
+		path /upgrade-test-pma /upgrade-test-pma/*
+	}
+	handle @upgrade_test_pma {
+		uri strip_prefix /upgrade-test-pma
+		reverse_proxy http://pma-upgrade-test:80
+	}
+
 	php_server {
 		root /var/www/AlphaPanel/httpdocs/public
 		worker {

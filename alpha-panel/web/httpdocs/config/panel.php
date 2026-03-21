@@ -129,6 +129,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | System Updates
+    |--------------------------------------------------------------------------
+    */
+    'update' => [
+        'github_repo' => env('PANEL_GITHUB_REPO', 'alphapanel/alphapanel-docker'),
+        'agent_url' => env('UPDATE_AGENT_URL', 'http://update-agent:8100'),
+        'agent_secret' => env('UPDATE_AGENT_SECRET'),
+        'check_interval' => (int) env('UPDATE_CHECK_INTERVAL', 86400),
+        'auto_check' => (bool) env('UPDATE_AUTO_CHECK', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | System Reserved Domains
     |--------------------------------------------------------------------------
     | These domains are used by system services and cannot be registered

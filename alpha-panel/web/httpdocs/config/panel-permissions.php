@@ -53,6 +53,7 @@ return [
             'panel.ftp-bans.manage' => 'Manage FTP IP bans (ban/unban)',
             'panel.firewall.view' => 'View firewall rules',
             'panel.firewall.manage' => 'Manage firewall rules',
+            'panel.system.updates' => 'View and manage system updates',
         ],
     ],
 
