@@ -126,7 +126,7 @@
                                 <div>
                                     <div class="mb-1.5 flex items-center justify-between text-sm">
                                         <span class="text-gray-600 dark:text-gray-400">{{ t('CPU Usage') }}</span>
-                                        <span class="font-medium text-gray-800 dark:text-white/90">{{ stats.cpu_percent !== null ? stats.cpu_percent.toFixed(1) + '%' : t('N/A') }}</span>
+                                        <span class="font-medium text-gray-800 dark:text-white/90">{{ stats.cpu_percent != null ? Number(stats.cpu_percent).toFixed(1) + '%' : t('N/A') }}</span>
                                     </div>
                                     <div class="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                                         <div
@@ -141,8 +141,8 @@
                                     <div class="mb-1.5 flex items-center justify-between text-sm">
                                         <span class="text-gray-600 dark:text-gray-400">{{ t('Memory') }}</span>
                                         <span class="font-medium text-gray-800 dark:text-white/90">
-                                            {{ stats.mem_usage_mb !== null ? stats.mem_usage_mb.toFixed(1) + ' MB' : t('N/A') }}
-                                            <span v-if="stats.mem_limit_mb" class="text-gray-400"> / {{ stats.mem_limit_mb.toFixed(0) }} MB</span>
+                                            {{ stats.mem_usage_mb != null ? Number(stats.mem_usage_mb).toFixed(1) + ' MB' : t('N/A') }}
+                                            <span v-if="stats.mem_limit_mb" class="text-gray-400"> / {{ Number(stats.mem_limit_mb).toFixed(0) }} MB</span>
                                         </span>
                                     </div>
                                     <div class="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
@@ -459,6 +459,14 @@ const memoryPercent = computed(() => {
 
 let statsInterval: ReturnType<typeof setInterval> | null = null;
 
+const defaultStats: StatsPayload = {
+    cpu_percent: null,
+    mem_usage_mb: null,
+    mem_limit_mb: null,
+    net_rx: null,
+    net_tx: null,
+};
+
 const fetchStats = async (): Promise<void> => {
     if (currentStatus.value !== 'running') {
         return;
@@ -466,7 +474,11 @@ const fetchStats = async (): Promise<void> => {
 
     try {
         const response = await axios.get(route('docker-services.stats', props.service.id));
-        stats.value = response.data.stats;
+        const data = response.data.stats;
+
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+            stats.value = { ...defaultStats, ...data };
+        }
     } catch {
         // Silently fail — stats are non-critical
     }

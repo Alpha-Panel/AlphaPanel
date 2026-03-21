@@ -41,10 +41,17 @@ class SystemUpdateController extends Controller
         ]);
     }
 
-    public function check(UpdateService $service): JsonResponse
+    public function check(Request $request, UpdateService $service): JsonResponse
     {
         try {
             $result = $service->checkForUpdates();
+
+            AuditLog::create([
+                'user_id' => $request->user()->id,
+                'action' => 'system_update.check',
+                'ip_address' => $request->ip(),
+                'details' => 'Manual update check performed',
+            ]);
 
             return response()->json($result);
         } catch (\Throwable $e) {
@@ -82,6 +89,13 @@ class SystemUpdateController extends Controller
                 'status' => UpdateStatus::Failed,
                 'error_message' => $e->getMessage(),
                 'finished_at' => now(),
+            ]);
+
+            AuditLog::create([
+                'user_id' => $request->user()->id,
+                'action' => 'system_update.panel.failed',
+                'ip_address' => $request->ip(),
+                'details' => "Panel update failed: {$e->getMessage()}",
             ]);
 
             return response()->json(['error' => $e->getMessage()], 500);
@@ -131,6 +145,13 @@ class SystemUpdateController extends Controller
                 'finished_at' => now(),
             ]);
 
+            AuditLog::create([
+                'user_id' => $request->user()->id,
+                'action' => 'system_update.mysql.prepare_failed',
+                'ip_address' => $request->ip(),
+                'details' => "MySQL upgrade preparation failed: {$e->getMessage()}",
+            ]);
+
             return response()->json(['error' => $e->getMessage()], 500);
         }
 
@@ -154,6 +175,13 @@ class SystemUpdateController extends Controller
         try {
             $taskId = $service->applyMysqlUpgrade();
         } catch (\Throwable $e) {
+            AuditLog::create([
+                'user_id' => $request->user()->id,
+                'action' => 'system_update.mysql.apply_failed',
+                'ip_address' => $request->ip(),
+                'details' => "MySQL upgrade apply failed: {$e->getMessage()}",
+            ]);
+
             return response()->json(['error' => $e->getMessage()], 500);
         }
 
@@ -180,6 +208,13 @@ class SystemUpdateController extends Controller
         try {
             $taskId = $service->rollbackMysqlUpgrade();
         } catch (\Throwable $e) {
+            AuditLog::create([
+                'user_id' => $request->user()->id,
+                'action' => 'system_update.mysql.rollback_failed',
+                'ip_address' => $request->ip(),
+                'details' => "MySQL upgrade rollback failed: {$e->getMessage()}",
+            ]);
+
             return response()->json(['error' => $e->getMessage()], 500);
         }
 
