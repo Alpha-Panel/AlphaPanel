@@ -105,15 +105,15 @@ class FirewallController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function apply(Request $request, FirewallService $firewall): JsonResponse
+    public function preview(Request $request, FirewallService $firewall): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
         abort_unless($user->isAdmin(), 403);
 
-        $firewall->apply();
-
-        return response()->json(['success' => true, 'message' => 'Firewall rules are being applied.']);
+        return response()->json([
+            'script' => $firewall->buildApplyScript(),
+        ]);
     }
 
     public function reorder(Request $request, FirewallService $firewall): JsonResponse
@@ -130,20 +130,6 @@ class FirewallController extends Controller
         $firewall->reorderRules($validated['rules']);
 
         return response()->json(['success' => true]);
-    }
-
-    public function seed(Request $request, FirewallService $firewall): JsonResponse
-    {
-        /** @var User $user */
-        $user = $request->user();
-        abort_unless($user->isAdmin(), 403);
-
-        $count = $firewall->seedFromLive($user->id);
-
-        return response()->json([
-            'success' => true,
-            'imported' => $count,
-        ]);
     }
 
     public function toggle(Request $request, FirewallRule $rule): JsonResponse

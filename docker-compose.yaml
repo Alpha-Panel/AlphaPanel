@@ -386,24 +386,6 @@ services:
     depends_on:
       - mysql
 
-  firewall-manager:
-    image: alpine:3.21
-    container_name: firewall-manager
-    restart: always
-    network_mode: host
-    cap_add:
-      - NET_ADMIN
-    volumes:
-      - ./firewall-rules:/etc/iptables
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        apk add --no-cache iptables ip6tables
-        if [ -f /etc/iptables/rules.v4 ]; then iptables-restore < /etc/iptables/rules.v4 || true; fi
-        if [ -f /etc/iptables/rules.v6 ]; then ip6tables-restore < /etc/iptables/rules.v6 || true; fi
-        echo "Firewall manager ready"
-        sleep infinity
-
   jenkins:
     build:
       context: ./jenkins

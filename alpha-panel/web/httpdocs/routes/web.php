@@ -357,15 +357,14 @@ Route::middleware('auth')->group(function (): void {
     Route::middleware('permission:panel.firewall.view')->group(function (): void {
         Route::get('security/firewall', [FirewallController::class, 'index'])->name('security.firewall.index');
         Route::get('security/firewall/data', [FirewallController::class, 'data'])->name('security.firewall.data');
+        Route::get('security/firewall/preview', [FirewallController::class, 'preview'])->name('security.firewall.preview');
     });
 
     Route::middleware('permission:panel.firewall.manage')->group(function (): void {
         Route::post('security/firewall', [FirewallController::class, 'store'])->name('security.firewall.store');
         Route::delete('security/firewall', [FirewallController::class, 'destroy'])->name('security.firewall.destroy');
         Route::put('security/firewall/policy', [FirewallController::class, 'policy'])->name('security.firewall.policy');
-        Route::post('security/firewall/apply', [FirewallController::class, 'apply'])->name('security.firewall.apply');
         Route::put('security/firewall/reorder', [FirewallController::class, 'reorder'])->name('security.firewall.reorder');
-        Route::post('security/firewall/seed', [FirewallController::class, 'seed'])->name('security.firewall.seed');
         Route::put('security/firewall/{rule}', [FirewallController::class, 'update'])->name('security.firewall.update');
         Route::put('security/firewall/{rule}/toggle', [FirewallController::class, 'toggle'])->name('security.firewall.toggle');
     });

@@ -14,35 +14,19 @@
                     >
                         <div class="flex items-center gap-3">
                             <i class="fa-solid fa-triangle-exclamation text-base"></i>
-                            {{ t('There are unapplied changes. Click the Apply button to apply rules to the system.') }}
+                            {{ t('Your rules have changed. Generate the UFW command set and run it manually on the server via SSH.') }}
                         </div>
-                        <button
-                            type="button"
-                            :disabled="applyLoading"
-                            class="inline-flex h-8 shrink-0 items-center justify-center rounded-lg bg-warning-600 px-4 text-xs font-medium text-white hover:bg-warning-700 disabled:cursor-not-allowed disabled:opacity-40"
-                            @click="applyChanges"
-                        >
-                            {{ t('Apply Changes') }}
-                        </button>
-                    </div>
-
-                    <!-- Seed Banner -->
-                    <div
-                        v-if="hasNoRules"
-                        class="flex items-center justify-between gap-3 rounded-2xl border border-blue-light-300 bg-blue-light-100 p-4 text-sm text-blue-light-900 dark:border-blue-light-800 dark:bg-blue-light-950 dark:text-blue-light-100"
-                    >
-                        <div class="flex items-center gap-3">
-                            <i class="fa-solid fa-circle-info text-base"></i>
-                            {{ t('No rules saved in database. You can import current iptables rules.') }}
+                        <div class="flex shrink-0 items-center gap-2">
+                            <button
+                                type="button"
+                                :disabled="previewLoading"
+                                class="inline-flex h-8 items-center justify-center rounded-lg border border-warning-400 px-4 text-xs font-medium text-warning-700 hover:bg-warning-200 disabled:cursor-not-allowed disabled:opacity-40 dark:border-warning-600 dark:text-warning-200 dark:hover:bg-warning-900"
+                                @click="loadPreview"
+                            >
+                                <i class="fa-solid fa-code mr-1.5"></i>
+                                {{ t('Generate Script') }}
+                            </button>
                         </div>
-                        <button
-                            type="button"
-                            :disabled="seedLoading"
-                            class="inline-flex h-8 shrink-0 items-center justify-center rounded-lg bg-brand-500 px-4 text-xs font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
-                            @click="seedRules"
-                        >
-                            {{ t('Import Current Rules') }}
-                        </button>
                     </div>
 
                     <!-- Warning Banners -->
@@ -60,8 +44,56 @@
                         {{ warning }}
                     </div>
 
-                    <!-- Policy & Status Cards -->
-                    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <!-- UFW Command Preview Panel -->
+                    <div
+                        v-if="showPreview"
+                        class="rounded-2xl border border-gray-200 bg-gray-950 p-5 dark:border-gray-700"
+                    >
+                        <div class="mb-3 flex items-center justify-between">
+                            <h3 class="text-sm font-semibold text-green-400">
+                                <i class="fa-solid fa-terminal mr-1.5"></i>
+                                {{ t('UFW Command Set') }}
+                            </h3>
+                            <div class="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    class="inline-flex h-7 items-center justify-center rounded-md border border-gray-600 px-3 text-xs font-medium text-gray-300 hover:bg-gray-800"
+                                    @click="copyPreview"
+                                >
+                                    <i :class="copySuccess ? 'fa-solid fa-check' : 'fa-regular fa-copy'" class="mr-1.5"></i>
+                                    {{ copySuccess ? t('Copied!') : t('Copy') }}
+                                </button>
+                                <button
+                                    type="button"
+                                    class="inline-flex h-7 items-center justify-center rounded-md border border-gray-600 px-3 text-xs font-medium text-gray-300 hover:bg-gray-800"
+                                    @click="showPreview = false; previewScript = ''"
+                                >
+                                    <i class="fa-solid fa-xmark mr-1.5"></i>
+                                    {{ t('Close') }}
+                                </button>
+                            </div>
+                        </div>
+                        <pre class="max-h-96 overflow-auto rounded-lg bg-black/50 p-4 font-mono text-xs leading-6 text-green-400"><template v-for="(line, i) in previewScript.split('\n')" :key="i"><span class="select-none text-gray-600">{{ String(i + 1).padStart(2, ' ') }}  </span>{{ line }}
+</template></pre>
+                        <p class="mt-3 text-xs text-gray-500">
+                            {{ t('Run these commands on your server via SSH or VM Console. Simply copy and paste them into the terminal.') }}
+                        </p>
+                        <div class="mt-3 rounded-lg border border-gray-700 bg-gray-900 p-3">
+                            <p class="mb-2 text-xs font-semibold text-yellow-400">
+                                <i class="fa-solid fa-circle-info mr-1"></i>
+                                {{ t('Manual Application Instructions') }}
+                            </p>
+                            <ol class="list-inside list-decimal space-y-1 text-xs text-gray-400">
+                                <li>{{ t('Copy the commands above using the Copy button') }}</li>
+                                <li>{{ t('Connect to your server via SSH or VM Console') }}</li>
+                                <li>{{ t('Paste and run the commands') }}</li>
+                                <li>{{ t('Verify with: ufw status numbered') }}</li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    <!-- Policy Cards -->
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
                             <p class="text-xs uppercase text-gray-500 dark:text-gray-400">{{ t('INPUT Default Policy') }}</p>
                             <div class="mt-2 flex items-center gap-3">
@@ -74,12 +106,6 @@
                                     ]"
                                 >
                                     {{ inputPolicy }}
-                                </span>
-                                <span
-                                    v-if="liveStatus.live_input_policy && liveStatus.live_input_policy !== inputPolicy"
-                                    class="text-xs text-warning-600 dark:text-warning-400"
-                                >
-                                    ({{ t('Live') }}: {{ liveStatus.live_input_policy }})
                                 </span>
                                 <button
                                     type="button"
@@ -103,14 +129,6 @@
                                     ]"
                                 >
                                     {{ outputPolicy }}
-                                </span>
-                            </p>
-                        </div>
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-                            <p class="text-xs uppercase text-gray-500 dark:text-gray-400">{{ t('Container Status') }}</p>
-                            <p class="mt-1 text-2xl font-semibold">
-                                <span :class="containerOnline ? 'text-success-600 dark:text-success-400' : 'text-error-600 dark:text-error-400'">
-                                    {{ containerOnline ? t('Online') : t('Offline') }}
                                 </span>
                             </p>
                         </div>
@@ -467,7 +485,7 @@
                                 {{ t('Change Default Policy') }}
                             </h3>
                             <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                                {{ t('Are you sure you want to change the :chain default policy to :policy? This will be saved to the database and applied when you click Apply Changes.').replace(':chain', pendingPolicyChain).replace(':policy', pendingPolicyValue) }}
+                                {{ t('Are you sure you want to change the :chain default policy to :policy? This will be saved to the database. Generate the script and run it on the server to apply.').replace(':chain', pendingPolicyChain).replace(':policy', pendingPolicyValue) }}
                             </p>
                             <div class="mt-4 flex justify-end gap-2">
                                 <button
@@ -560,12 +578,6 @@ interface FirewallRule {
     updated_at: string;
 }
 
-interface LiveStatus {
-    container_online: boolean;
-    live_input_policy: string;
-    live_output_policy: string;
-}
-
 interface FirewallPayload {
     input: {
         policy: string;
@@ -576,7 +588,6 @@ interface FirewallPayload {
         rules: FirewallRule[];
     };
     pending_changes: boolean;
-    live_status: LiveStatus;
     warnings: string[];
 }
 
@@ -591,10 +602,7 @@ const outputPolicy = computed(() => firewallData.value.output.policy);
 const inputRules = computed(() => firewallData.value.input.rules);
 const outputRules = computed(() => firewallData.value.output.rules);
 const pendingChanges = computed(() => firewallData.value.pending_changes);
-const liveStatus = computed(() => firewallData.value.live_status);
-const containerOnline = computed(() => firewallData.value.live_status.container_online);
 const warnings = computed(() => firewallData.value.warnings);
-const hasNoRules = computed(() => inputRules.value.length === 0 && outputRules.value.length === 0);
 
 const showRuleModal = ref(false);
 const editingRule = ref<FirewallRule | null>(null);
@@ -609,9 +617,12 @@ const modalForm = reactive({
 });
 const deleteRuleLoading = ref<number | null>(null);
 const policyLoading = ref(false);
-const applyLoading = ref(false);
-const seedLoading = ref(false);
 const toggleLoading = ref<number | null>(null);
+
+const showPreview = ref(false);
+const previewScript = ref('');
+const previewLoading = ref(false);
+const copySuccess = ref(false);
 
 const showPolicyConfirm = ref(false);
 const pendingPolicyChain = ref('');
@@ -668,29 +679,26 @@ const refreshData = async (): Promise<void> => {
     }
 };
 
-const applyChanges = async (): Promise<void> => {
-    applyLoading.value = true;
+const loadPreview = async (): Promise<void> => {
+    previewLoading.value = true;
     try {
-        await axios.post(route('security.firewall.apply'));
-        addToast('success', t('Firewall rules applied successfully.'));
-        await refreshData();
+        const response = await axios.get<{ script: string }>(route('security.firewall.preview'));
+        previewScript.value = response.data.script;
+        showPreview.value = true;
     } catch {
-        addToast('error', t('Failed to apply firewall rules.'));
+        addToast('error', t('Failed to load command preview.'));
     } finally {
-        applyLoading.value = false;
+        previewLoading.value = false;
     }
 };
 
-const seedRules = async (): Promise<void> => {
-    seedLoading.value = true;
+const copyPreview = async (): Promise<void> => {
     try {
-        await axios.post(route('security.firewall.seed'));
-        addToast('success', t('Current iptables rules imported successfully.'));
-        await refreshData();
+        await navigator.clipboard.writeText(previewScript.value);
+        copySuccess.value = true;
+        setTimeout(() => { copySuccess.value = false; }, 2000);
     } catch {
-        addToast('error', t('Failed to import iptables rules.'));
-    } finally {
-        seedLoading.value = false;
+        addToast('error', t('Failed to copy to clipboard.'));
     }
 };
 

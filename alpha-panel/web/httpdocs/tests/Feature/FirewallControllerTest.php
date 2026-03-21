@@ -2,72 +2,19 @@
 
 namespace Tests\Feature;
 
-use App\Exceptions\PortainerException;
-use App\Jobs\ApplyFirewallRulesJob;
 use App\Models\FirewallRule;
 use App\Models\User;
-use App\Services\Portainer\ExecResult;
-use App\Services\PortainerService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Queue;
-use Mockery\MockInterface;
 use Tests\TestCase;
 
 class FirewallControllerTest extends TestCase
 {
     use DatabaseTransactions;
 
-    /**
-     * Mock PortainerService to return empty/offline data so DB operations
-     * don't attempt real container calls (used by getLiveStatus in getDbRules).
-     */
-    private function mockPortainerOffline(): void
-    {
-        $this->mock(PortainerService::class, function (MockInterface $mock): void {
-            $mock->shouldReceive('execInContainer')
-                ->andThrow(new PortainerException('Container offline'));
-        });
-    }
-
-    /**
-     * Mock PortainerService to return sample iptables -S output for seeding.
-     */
-    private function mockPortainerForSeed(): void
-    {
-        $inputOutput = implode("\n", [
-            '-P INPUT ACCEPT',
-            '-A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT',
-            '-A INPUT -i lo -j ACCEPT',
-            '-A INPUT -p tcp -m tcp --dport 80 -j ACCEPT',
-            '-A INPUT -p tcp -m tcp --dport 443 -j ACCEPT',
-        ]);
-
-        $outputOutput = '-P OUTPUT ACCEPT';
-
-        $this->mock(PortainerService::class, function (MockInterface $mock) use ($inputOutput, $outputOutput): void {
-            $mock->shouldReceive('execInContainer')
-                ->andReturnUsing(function (string $container, array $command) use ($inputOutput, $outputOutput): ExecResult {
-                    $cmdString = implode(' ', $command);
-
-                    if (str_contains($cmdString, 'iptables -S INPUT')) {
-                        return new ExecResult(exitCode: 0, output: $inputOutput, errorOutput: '');
-                    }
-
-                    if (str_contains($cmdString, 'iptables -S OUTPUT')) {
-                        return new ExecResult(exitCode: 0, output: $outputOutput, errorOutput: '');
-                    }
-
-                    return new ExecResult(exitCode: 0, output: '', errorOutput: '');
-                });
-        });
-    }
-
     public function test_admin_can_view_firewall_page(): void
     {
         $admin = User::factory()->admin()->create();
-
-        $this->mockPortainerOffline();
 
         $response = $this->actingAs($admin)->get(route('security.firewall.index'));
 
@@ -230,8 +177,6 @@ class FirewallControllerTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
 
-        $this->mockPortainerOffline();
-
         FirewallRule::create([
             'chain' => 'INPUT',
             'action' => 'ACCEPT',
@@ -297,18 +242,94 @@ class FirewallControllerTest extends TestCase
         ]);
     }
 
-    public function test_apply_dispatches_job(): void
+    public function test_admin_can_preview_commands(): void
     {
-        Queue::fake();
-
         $admin = User::factory()->admin()->create();
 
-        $response = $this->actingAs($admin)->postJson(route('security.firewall.apply'));
+        FirewallRule::create([
+            'chain' => 'INPUT',
+            'action' => 'ACCEPT',
+            'protocol' => 'tcp',
+            'sources' => ['192.168.1.100'],
+            'ports' => [80],
+            'comment' => 'HTTP access',
+            'position' => 1,
+            'enabled' => true,
+            'created_by' => $admin->id,
+        ]);
+
+        $response = $this->actingAs($admin)->getJson(route('security.firewall.preview'));
 
         $response->assertOk();
-        $response->assertJson(['success' => true]);
+        $response->assertJsonStructure(['script']);
 
-        Queue::assertPushed(ApplyFirewallRulesJob::class);
+        $script = $response->json('script');
+        $this->assertStringContainsString('ufw --force reset', $script);
+        $this->assertStringContainsString('ufw default', $script);
+        $this->assertStringContainsString('ufw allow in', $script);
+        $this->assertStringContainsString('192.168.1.100', $script);
+        $this->assertStringContainsString('port', $script);
+        $this->assertStringContainsString('80', $script);
+        // Full script now includes the enable command
+        $this->assertStringContainsString('ufw --force enable', $script);
+        // Must include FORWARD ACCEPT for Docker safety
+        $this->assertStringContainsString('iptables -P FORWARD ACCEPT', $script);
+    }
+
+    public function test_non_admin_cannot_preview_commands(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->getJson(route('security.firewall.preview'));
+
+        $response->assertForbidden();
+    }
+
+    public function test_preview_contains_correct_ufw_commands_for_rules(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        FirewallRule::create([
+            'chain' => 'INPUT',
+            'action' => 'ACCEPT',
+            'protocol' => 'all',
+            'sources' => ['10.0.0.0/24'],
+            'position' => 1,
+            'enabled' => true,
+            'created_by' => $admin->id,
+        ]);
+
+        FirewallRule::create([
+            'chain' => 'INPUT',
+            'action' => 'ACCEPT',
+            'protocol' => 'tcp',
+            'ports' => [443],
+            'position' => 2,
+            'enabled' => true,
+            'created_by' => $admin->id,
+        ]);
+
+        FirewallRule::create([
+            'chain' => 'INPUT',
+            'action' => 'DROP',
+            'protocol' => 'all',
+            'sources' => ['5.6.7.8'],
+            'position' => 3,
+            'enabled' => false, // disabled — should NOT appear
+            'created_by' => $admin->id,
+        ]);
+
+        $response = $this->actingAs($admin)->getJson(route('security.firewall.preview'));
+
+        $script = $response->json('script');
+
+        // Enabled rules should be present
+        $this->assertStringContainsString('10.0.0.0/24', $script);
+        $this->assertStringContainsString('443', $script);
+        $this->assertStringContainsString('tcp', $script);
+
+        // Disabled rule should NOT be present
+        $this->assertStringNotContainsString('5.6.7.8', $script);
     }
 
     public function test_admin_can_reorder_rules(): void
@@ -356,35 +377,6 @@ class FirewallControllerTest extends TestCase
         $this->assertDatabaseHas('firewall_rules', ['id' => $ruleC->id, 'position' => 1]);
         $this->assertDatabaseHas('firewall_rules', ['id' => $ruleA->id, 'position' => 2]);
         $this->assertDatabaseHas('firewall_rules', ['id' => $ruleB->id, 'position' => 3]);
-    }
-
-    public function test_admin_can_seed_from_live(): void
-    {
-        $admin = User::factory()->admin()->create();
-
-        $this->mockPortainerForSeed();
-
-        $response = $this->actingAs($admin)->postJson(route('security.firewall.seed'));
-
-        $response->assertOk();
-        $response->assertJson(['success' => true]);
-
-        // The seed should have imported port 80 and 443 rules (skipping RELATED,ESTABLISHED and loopback)
-        $this->assertTrue($response->json('imported') >= 2);
-
-        // Seeded rules now store ports as JSON arrays
-        $rule80 = FirewallRule::where('created_by', $admin->id)
-            ->whereJsonContains('ports', 80)
-            ->first();
-        $this->assertNotNull($rule80);
-        $this->assertSame('INPUT', $rule80->chain);
-        $this->assertSame('ACCEPT', $rule80->action);
-        $this->assertSame('tcp', $rule80->protocol);
-
-        $rule443 = FirewallRule::where('created_by', $admin->id)
-            ->whereJsonContains('ports', 443)
-            ->first();
-        $this->assertNotNull($rule443);
     }
 
     public function test_observer_marks_pending_changes(): void
