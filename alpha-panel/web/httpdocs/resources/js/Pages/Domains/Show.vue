@@ -195,6 +195,12 @@
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
+                            <Link v-if="can('panel.docker-services.manage')" :href="route('domains.docker-services.index', domain.id)" class="quick-link">
+                                <i class="fa-brands fa-docker quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('Docker Services') }}</span>
+                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                            </Link>
+
                             <Link v-if="can('domain.logs.view')" :href="route('domains.logs.index', domain.id)" class="quick-link">
                                 <i class="fa-solid fa-file-lines quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('Logs') }}</span>

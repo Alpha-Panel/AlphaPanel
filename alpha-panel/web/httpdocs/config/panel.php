@@ -142,6 +142,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Docker Services
+    |--------------------------------------------------------------------------
+    */
+    'docker_services' => [
+        'compose_path' => env('DOCKER_SERVICES_COMPOSE_PATH', '/docker_compose_project_root/external-services/docker-services.yaml'),
+        'local_services_path' => env('LOCAL_SERVICES_COMPOSE_PATH', '/docker_compose_project_root/external-services/local-services.yaml'),
+        'volume_base_path' => env('DOCKER_SERVICES_VOLUME_BASE', '/docker_compose_project_root/external-services'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | System Reserved Domains
     |--------------------------------------------------------------------------
     | These domains are used by system services and cannot be registered

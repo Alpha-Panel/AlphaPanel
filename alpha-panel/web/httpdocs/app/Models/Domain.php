@@ -130,6 +130,11 @@ class Domain extends Model
         return $this->hasMany(DomainCronJob::class);
     }
 
+    public function dockerServiceBindings(): HasMany
+    {
+        return $this->hasMany(DockerServiceDomainBinding::class);
+    }
+
     /**
      * Users granted access to this domain (via pivot table).
      */

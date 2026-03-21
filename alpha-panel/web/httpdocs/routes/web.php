@@ -7,6 +7,9 @@ use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CrowdSecController;
 use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\DnsController;
+use App\Http\Controllers\DockerHubController;
+use App\Http\Controllers\DockerServiceController;
+use App\Http\Controllers\DockerServiceDomainBindingController;
 use App\Http\Controllers\DomainCloudflareController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\DomainCronJobController;
@@ -26,12 +29,12 @@ use App\Http\Controllers\PmaSsoController;
 use App\Http\Controllers\PushDeviceController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SystemUpdateController;
 use App\Http\Controllers\TerminalController;
 use App\Http\Controllers\TerminalLogController;
 use App\Http\Controllers\TwoFactorAuthController;
 use App\Http\Controllers\UserAccountsController;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\SystemUpdateController;
 use App\Http\Controllers\WafGlobalRuleController;
 use App\Http\Controllers\WebAuthn\WebAuthnLoginController;
 use App\Http\Controllers\WebAuthn\WebAuthnRegisterController;
@@ -407,6 +410,39 @@ Route::middleware('auth')->group(function (): void {
             Route::post('/{backupRun}/cancel', [BackupController::class, 'cancel'])->name('cancel');
             Route::post('/restart', [BackupController::class, 'restart'])->name('restart');
         });
+    });
+
+    // Docker Services
+    Route::middleware('permission:panel.docker-services.view')->group(function (): void {
+        Route::get('docker-services', [DockerServiceController::class, 'index'])->name('docker-services.index');
+        Route::get('docker-services/create', [DockerServiceController::class, 'create'])->name('docker-services.create');
+        Route::get('docker-services/{dockerService}', [DockerServiceController::class, 'show'])->name('docker-services.show');
+        Route::get('docker-services/{dockerService}/edit', [DockerServiceController::class, 'edit'])->name('docker-services.edit');
+        Route::get('docker-services/{dockerService}/logs', [DockerServiceController::class, 'logs'])->name('docker-services.logs');
+        Route::get('docker-services/{dockerService}/stats', [DockerServiceController::class, 'stats'])->name('docker-services.stats');
+    });
+
+    Route::middleware('permission:panel.docker-services.manage')->group(function (): void {
+        Route::post('docker-services', [DockerServiceController::class, 'store'])->name('docker-services.store');
+        Route::put('docker-services/{dockerService}', [DockerServiceController::class, 'update'])->name('docker-services.update');
+        Route::delete('docker-services/{dockerService}', [DockerServiceController::class, 'destroy'])->name('docker-services.destroy');
+        Route::post('docker-services/{dockerService}/action', [DockerServiceController::class, 'action'])->name('docker-services.action');
+        Route::post('docker-services/{dockerService}/sync-status', [DockerServiceController::class, 'syncStatus'])->name('docker-services.sync-status');
+    });
+
+    // Docker Hub API
+    Route::middleware('permission:panel.docker-services.view')->prefix('docker-hub')->name('docker-hub.')->group(function (): void {
+        Route::get('search', [DockerHubController::class, 'search'])->name('search');
+        Route::get('popular', [DockerHubController::class, 'popular'])->name('popular');
+        Route::get('tags', [DockerHubController::class, 'tags'])->name('tags');
+        Route::get('image-config', [DockerHubController::class, 'imageConfig'])->name('image-config');
+    });
+
+    // Domain Docker Service Bindings
+    Route::middleware('permission:panel.docker-services.manage')->group(function (): void {
+        Route::get('domains/{domain}/docker-services', [DockerServiceDomainBindingController::class, 'index'])->name('domains.docker-services.index');
+        Route::post('domains/{domain}/docker-services', [DockerServiceDomainBindingController::class, 'store'])->name('domains.docker-services.store');
+        Route::delete('domains/{domain}/docker-services/{binding}', [DockerServiceDomainBindingController::class, 'destroy'])->name('domains.docker-services.destroy');
     });
 
     // Domain User Management (shared access)

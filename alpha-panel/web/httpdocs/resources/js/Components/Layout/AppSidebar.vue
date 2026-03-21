@@ -348,6 +348,14 @@ const menuGroups = computed(() => {
                     });
                 }
 
+                if (canAny('panel.docker-services.view', 'panel.docker-services.manage')) {
+                    items.push({
+                        iconClass: 'fa-brands fa-docker',
+                        name: t('Docker Services'),
+                        href: route('docker-services.index'),
+                    });
+                }
+
                 if (can('panel.terminal.access')) {
                     items.push({
                         iconClass: 'fa-solid fa-terminal',

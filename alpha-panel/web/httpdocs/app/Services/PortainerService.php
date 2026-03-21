@@ -366,6 +366,159 @@ class PortainerService
     }
 
     /**
+     * Pull a Docker image from the registry.
+     */
+    public function pullImage(string $image, string $tag = 'latest'): bool
+    {
+        Log::info("Portainer pulling image: {$image}:{$tag}");
+
+        $response = $this->request(300)
+            ->post($this->dockerApiUrl("/images/create?fromImage={$image}&tag={$tag}"));
+
+        if ($response->successful()) {
+            Log::info("Image {$image}:{$tag} pulled successfully.");
+
+            return true;
+        }
+
+        Log::error("Failed to pull image {$image}:{$tag}: {$response->status()} {$response->body()}");
+
+        return false;
+    }
+
+    /**
+     * Create a persistent container (not one-shot).
+     *
+     * @param  array<string, mixed>  $config  Docker container config
+     * @return string Container ID
+     */
+    public function createPersistentContainer(array $config, ?string $name = null): string
+    {
+        $image = $config['Image'] ?? 'unknown';
+        Log::info("Portainer creating persistent container from image: {$image}".($name ? " (name: {$name})" : ''));
+
+        $url = '/containers/create';
+        if ($name !== null) {
+            $url .= '?name='.urlencode($name);
+        }
+
+        $response = $this->request()
+            ->post($this->dockerApiUrl($url), $config);
+
+        if (! $response->successful()) {
+            throw new PortainerException("Failed to create persistent container: {$response->status()} {$response->body()}");
+        }
+
+        return $response->json('Id');
+    }
+
+    /**
+     * Remove a container.
+     */
+    public function removeContainer(string $containerIdOrName, bool $force = false): bool
+    {
+        $containerId = $this->resolveContainerId($containerIdOrName);
+
+        Log::info("Portainer removing container: {$containerIdOrName} (force: ".($force ? 'true' : 'false').')');
+
+        $forceParam = $force ? 'true' : 'false';
+        $response = $this->request()
+            ->delete($this->dockerApiUrl("/containers/{$containerId}?force={$forceParam}&v=true"));
+
+        if ($response->successful() || $response->status() === 404) {
+            Log::info("Container {$containerIdOrName} removed successfully.");
+
+            return true;
+        }
+
+        Log::error("Failed to remove container {$containerIdOrName}: {$response->status()} {$response->body()}");
+
+        return false;
+    }
+
+    /**
+     * Get container logs.
+     */
+    public function getContainerLogs(string $containerIdOrName, int $tail = 200, bool $timestamps = true): string
+    {
+        $containerId = $this->resolveContainerId($containerIdOrName);
+
+        $timestampsParam = $timestamps ? 'true' : 'false';
+        $response = $this->request()
+            ->get($this->dockerApiUrl("/containers/{$containerId}/logs"), [
+                'stdout' => 'true',
+                'stderr' => 'true',
+                'tail' => (string) $tail,
+                'timestamps' => $timestampsParam,
+            ]);
+
+        if (! $response->successful()) {
+            throw new PortainerException("Failed to get container logs: {$response->status()} {$response->body()}");
+        }
+
+        return $this->stripDockerStreamHeaders($response->body());
+    }
+
+    /**
+     * Inspect a container for detailed info.
+     *
+     * @return array<string, mixed>
+     */
+    public function inspectContainer(string $containerIdOrName): array
+    {
+        $containerId = $this->resolveContainerId($containerIdOrName);
+
+        $response = $this->request()
+            ->get($this->dockerApiUrl("/containers/{$containerId}/json"));
+
+        if (! $response->successful()) {
+            throw new PortainerException("Failed to inspect container: {$response->status()} {$response->body()}");
+        }
+
+        return $response->json();
+    }
+
+    /**
+     * Inspect an image for config (env vars, exposed ports, volumes).
+     *
+     * @return array<string, mixed>
+     */
+    public function inspectImage(string $image): array
+    {
+        $response = $this->request()
+            ->get($this->dockerApiUrl("/images/{$image}/json"));
+
+        if (! $response->successful()) {
+            throw new PortainerException("Failed to inspect image {$image}: {$response->status()} {$response->body()}");
+        }
+
+        return $response->json();
+    }
+
+    /**
+     * Connect a container to a network.
+     */
+    public function connectNetwork(string $containerId, string $networkName): bool
+    {
+        Log::info("Portainer connecting container {$containerId} to network: {$networkName}");
+
+        $response = $this->request()
+            ->post($this->dockerApiUrl("/networks/{$networkName}/connect"), [
+                'Container' => $containerId,
+            ]);
+
+        if ($response->successful()) {
+            Log::info("Container {$containerId} connected to network {$networkName} successfully.");
+
+            return true;
+        }
+
+        Log::error("Failed to connect container {$containerId} to network {$networkName}: {$response->status()} {$response->body()}");
+
+        return false;
+    }
+
+    /**
      * Demultiplex Docker stream output into stdout and stderr.
      *
      * Docker stream format: 8-byte header per frame

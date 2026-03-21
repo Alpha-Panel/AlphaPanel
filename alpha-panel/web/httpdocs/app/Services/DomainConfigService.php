@@ -397,6 +397,9 @@ class DomainConfigService
 
         $lines = [];
 
+        // Docker service bindings (handle_path routes before main handler)
+        $lines = array_merge($lines, $this->renderDockerServiceBindings($domain, $indent));
+
         if ($domain->type === DomainType::CaddyWebServer) {
             if ($domain->enable_worker) {
                 $lines[] = "{$indent}php_server {";
@@ -424,6 +427,57 @@ class DomainConfigService
             $lines[] = "{$indent}    header_up X-Remote-Addr    {client_ip}";
             $lines[] = "{$indent}    header_up CF-Connecting-IP {client_ip}";
             $lines[] = "{$indent}}";
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Render reverse proxy directives for Docker service bindings.
+     *
+     * @return array<int, string>
+     */
+    private function renderDockerServiceBindings(Domain $domain, string $indent): array
+    {
+        $bindings = $domain->dockerServiceBindings()
+            ->with('dockerService')
+            ->get();
+
+        if ($bindings->isEmpty()) {
+            return [];
+        }
+
+        $lines = [];
+
+        foreach ($bindings as $binding) {
+            $service = $binding->dockerService;
+            if (! $service) {
+                continue;
+            }
+
+            $containerName = $service->name;
+            $port = $binding->container_port;
+            $prefix = $binding->path_prefix;
+
+            if ($prefix) {
+                // Path-prefix based routing
+                $lines[] = "{$indent}handle_path {$prefix}/* {";
+                $lines[] = "{$indent}    reverse_proxy http://{$containerName}:{$port} {";
+                $lines[] = "{$indent}        header_up Host {upstream_hostport}";
+                $lines[] = "{$indent}        header_up X-Forwarded-For {client_ip}";
+                $lines[] = "{$indent}        header_up X-Real-IP {client_ip}";
+                $lines[] = "{$indent}        header_up X-Forwarded-Proto {scheme}";
+                $lines[] = "{$indent}    }";
+                $lines[] = "{$indent}}";
+            } else {
+                // Root-level reverse proxy (entire domain proxied to service)
+                $lines[] = "{$indent}reverse_proxy http://{$containerName}:{$port} {";
+                $lines[] = "{$indent}    header_up Host {upstream_hostport}";
+                $lines[] = "{$indent}    header_up X-Forwarded-For {client_ip}";
+                $lines[] = "{$indent}    header_up X-Real-IP {client_ip}";
+                $lines[] = "{$indent}    header_up X-Forwarded-Proto {scheme}";
+                $lines[] = "{$indent}}";
+            }
         }
 
         return $lines;

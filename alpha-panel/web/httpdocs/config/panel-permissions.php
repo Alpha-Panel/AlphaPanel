@@ -54,6 +54,8 @@ return [
             'panel.firewall.view' => 'View firewall rules',
             'panel.firewall.manage' => 'Manage firewall rules',
             'panel.system.updates' => 'View and manage system updates',
+            'panel.docker-services.view' => 'View Docker services',
+            'panel.docker-services.manage' => 'Create, edit and delete Docker services',
         ],
     ],
 

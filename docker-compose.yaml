@@ -525,8 +525,8 @@ services:
       IMAGES: 1
       EXEC: 1
       POST: 1
-      NETWORKS: 0
-      VOLUMES: 0
+      NETWORKS: 1
+      VOLUMES: 1
       SERVICES: 0
       TASKS: 0
       NODES: 0
