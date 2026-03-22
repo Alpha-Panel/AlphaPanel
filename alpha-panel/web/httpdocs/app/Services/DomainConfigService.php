@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Enums\DomainType;
 use App\Enums\IpAccessMode;
 use App\Models\Domain;
+use App\Models\DomainIpRule;
 use App\Models\PhpVersion;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 
@@ -432,6 +434,8 @@ class DomainConfigService
     /**
      * Wrap server directives with IP access control if configured.
      *
+     * Supports both domain-wide rules (path='') and path-scoped rules.
+     *
      * @param  array<int, string>  $serverDirectives
      * @return array<int, string>
      */
@@ -444,11 +448,54 @@ class DomainConfigService
             return $serverDirectives;
         }
 
-        $ips = $rules->pluck('ip_address')->implode(' ');
-        $lines = [];
+        $globalIps = $rules->where('path', '')->pluck('ip_address')->values()->all();
+        $pathGroups = $rules->where('path', '!=', '')->groupBy('path');
 
         if ($domain->ip_access_mode === IpAccessMode::Whitelist) {
-            $lines[] = "{$indent}@allowed client_ip {$ips}";
+            return $this->buildWhitelistConfig($serverDirectives, $indent, $globalIps, $pathGroups);
+        }
+
+        return $this->buildBlacklistConfig($serverDirectives, $indent, $globalIps, $pathGroups);
+    }
+
+    /**
+     * Build Caddy whitelist config with path-scoped and global rules.
+     *
+     * @param  array<int, string>  $serverDirectives
+     * @param  array<int, string>  $globalIps
+     * @param  Collection<string, Collection<int, DomainIpRule>>  $pathGroups
+     * @return array<int, string>
+     */
+    private function buildWhitelistConfig(array $serverDirectives, string $indent, array $globalIps, $pathGroups): array
+    {
+        $lines = [];
+        $counter = 0;
+
+        foreach ($pathGroups as $path => $rules) {
+            $counter++;
+            $pathIps = $rules->pluck('ip_address')->all();
+            $allAllowed = array_values(array_unique(array_merge($globalIps, $pathIps)));
+            $ipList = implode(' ', $allAllowed);
+
+            $lines[] = "{$indent}@path_allow_{$counter} {";
+            $lines[] = "{$indent}    path {$path}";
+            $lines[] = "{$indent}    client_ip {$ipList}";
+            $lines[] = "{$indent}}";
+            $lines[] = "{$indent}handle @path_allow_{$counter} {";
+            foreach ($serverDirectives as $directive) {
+                $lines[] = $directive !== '' ? "    {$directive}" : '';
+            }
+            $lines[] = "{$indent}}";
+
+            $lines[] = "{$indent}@path_deny_{$counter} path {$path}";
+            $lines[] = "{$indent}handle @path_deny_{$counter} {";
+            $lines[] = "{$indent}    respond \"Access denied\" 403";
+            $lines[] = "{$indent}}";
+        }
+
+        if (! empty($globalIps)) {
+            $ipList = implode(' ', $globalIps);
+            $lines[] = "{$indent}@allowed client_ip {$ipList}";
             $lines[] = "{$indent}handle @allowed {";
             foreach ($serverDirectives as $directive) {
                 $lines[] = $directive !== '' ? "    {$directive}" : '';
@@ -457,15 +504,49 @@ class DomainConfigService
             $lines[] = "{$indent}handle {";
             $lines[] = "{$indent}    respond \"Access denied\" 403";
             $lines[] = "{$indent}}";
-        } elseif ($domain->ip_access_mode === IpAccessMode::Blacklist) {
-            $lines[] = "{$indent}@blocked client_ip {$ips}";
-            $lines[] = "{$indent}handle @blocked {";
-            $lines[] = "{$indent}    respond \"Access denied\" 403";
-            $lines[] = "{$indent}}";
+        } else {
             $lines = array_merge($lines, $serverDirectives);
         }
 
         return $lines;
+    }
+
+    /**
+     * Build Caddy blacklist config with path-scoped and global rules.
+     *
+     * @param  array<int, string>  $serverDirectives
+     * @param  array<int, string>  $globalIps
+     * @param  Collection<string, Collection<int, DomainIpRule>>  $pathGroups
+     * @return array<int, string>
+     */
+    private function buildBlacklistConfig(array $serverDirectives, string $indent, array $globalIps, $pathGroups): array
+    {
+        $lines = [];
+        $counter = 0;
+
+        foreach ($pathGroups as $path => $rules) {
+            $counter++;
+            $pathIps = $rules->pluck('ip_address')->all();
+            $ipList = implode(' ', $pathIps);
+
+            $lines[] = "{$indent}@path_block_{$counter} {";
+            $lines[] = "{$indent}    path {$path}";
+            $lines[] = "{$indent}    client_ip {$ipList}";
+            $lines[] = "{$indent}}";
+            $lines[] = "{$indent}handle @path_block_{$counter} {";
+            $lines[] = "{$indent}    respond \"Access denied\" 403";
+            $lines[] = "{$indent}}";
+        }
+
+        if (! empty($globalIps)) {
+            $ipList = implode(' ', $globalIps);
+            $lines[] = "{$indent}@blocked client_ip {$ipList}";
+            $lines[] = "{$indent}handle @blocked {";
+            $lines[] = "{$indent}    respond \"Access denied\" 403";
+            $lines[] = "{$indent}}";
+        }
+
+        return array_merge($lines, $serverDirectives);
     }
 
     /**

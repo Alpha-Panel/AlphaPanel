@@ -10,8 +10,14 @@ class DomainIpRule extends Model
     protected $fillable = [
         'domain_id',
         'ip_address',
+        'path',
         'note',
         'created_by',
+    ];
+
+    /** @var array<string, mixed> */
+    protected $attributes = [
+        'path' => '',
     ];
 
     public function domain(): BelongsTo

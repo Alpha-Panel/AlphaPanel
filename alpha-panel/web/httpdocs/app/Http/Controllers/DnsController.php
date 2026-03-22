@@ -43,8 +43,8 @@ class DnsController extends Controller
                     : $record->content;
 
                 $proxiedIcon = $record->proxied
-                    ? '<img src="https://www.cloudflare.com/img/logo-cloudflare-dark.svg" class="cloud" alt="Proxied">'
-                    : '<span class="text-muted">DNS only</span>';
+                    ? '<img src="'.asset('img/cf-proxied.svg').'" class="cloud" alt="Proxied">'
+                    : '<img src="'.asset('img/cf-dns-only.svg').'" class="cloud" alt="DNS Only">';
 
                 $data[] = [
                     'id' => $record->id,

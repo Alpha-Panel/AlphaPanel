@@ -239,6 +239,127 @@ class DomainIpAccessTest extends TestCase
         ]);
     }
 
+    // ─── Path-Based Rules ─────────────────────────────────────────
+
+    public function test_can_add_ip_rule_with_path(): void
+    {
+        $response = $this->actingAs($this->admin)
+            ->postJson(route('domains.ip-access.store', $this->domain), [
+                'ip_address' => '10.0.0.1',
+                'path' => '/admin*',
+                'note' => 'Admin only',
+            ]);
+
+        $response->assertOk();
+
+        $this->assertDatabaseHas('domain_ip_rules', [
+            'domain_id' => $this->domain->id,
+            'ip_address' => '10.0.0.1',
+            'path' => '/admin*',
+            'note' => 'Admin only',
+        ]);
+    }
+
+    public function test_can_add_same_ip_with_different_paths(): void
+    {
+        DomainIpRule::create([
+            'domain_id' => $this->domain->id,
+            'ip_address' => '10.0.0.1',
+            'path' => '/admin*',
+            'created_by' => $this->admin->id,
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->postJson(route('domains.ip-access.store', $this->domain), [
+                'ip_address' => '10.0.0.1',
+                'path' => '/api/*',
+            ]);
+
+        $response->assertOk();
+
+        $this->assertDatabaseCount('domain_ip_rules', 2);
+    }
+
+    public function test_duplicate_ip_with_same_path_is_rejected(): void
+    {
+        DomainIpRule::create([
+            'domain_id' => $this->domain->id,
+            'ip_address' => '10.0.0.1',
+            'path' => '/admin*',
+            'created_by' => $this->admin->id,
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->postJson(route('domains.ip-access.store', $this->domain), [
+                'ip_address' => '10.0.0.1',
+                'path' => '/admin*',
+            ]);
+
+        $response->assertUnprocessable();
+        $response->assertJsonValidationErrors('ip_address');
+    }
+
+    public function test_path_must_start_with_slash(): void
+    {
+        $response = $this->actingAs($this->admin)
+            ->postJson(route('domains.ip-access.store', $this->domain), [
+                'ip_address' => '10.0.0.1',
+                'path' => 'admin*',
+            ]);
+
+        $response->assertUnprocessable();
+        $response->assertJsonValidationErrors('path');
+    }
+
+    public function test_empty_path_stores_as_domain_wide(): void
+    {
+        $response = $this->actingAs($this->admin)
+            ->postJson(route('domains.ip-access.store', $this->domain), [
+                'ip_address' => '10.0.0.1',
+                'path' => null,
+            ]);
+
+        $response->assertOk();
+
+        $this->assertDatabaseHas('domain_ip_rules', [
+            'domain_id' => $this->domain->id,
+            'ip_address' => '10.0.0.1',
+            'path' => '',
+        ]);
+    }
+
+    public function test_path_with_invalid_characters_is_rejected(): void
+    {
+        $response = $this->actingAs($this->admin)
+            ->postJson(route('domains.ip-access.store', $this->domain), [
+                'ip_address' => '10.0.0.1',
+                'path' => '/admin;drop',
+            ]);
+
+        $response->assertUnprocessable();
+        $response->assertJsonValidationErrors('path');
+    }
+
+    public function test_same_ip_allowed_as_global_and_path_scoped(): void
+    {
+        DomainIpRule::create([
+            'domain_id' => $this->domain->id,
+            'ip_address' => '10.0.0.1',
+            'path' => '',
+            'created_by' => $this->admin->id,
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->postJson(route('domains.ip-access.store', $this->domain), [
+                'ip_address' => '10.0.0.1',
+                'path' => '/admin*',
+            ]);
+
+        $response->assertOk();
+
+        $this->assertDatabaseCount('domain_ip_rules', 2);
+    }
+
     // ─── Config Generation ───────────────────────────────────────
 
     public function test_mode_update_triggers_config_regeneration(): void

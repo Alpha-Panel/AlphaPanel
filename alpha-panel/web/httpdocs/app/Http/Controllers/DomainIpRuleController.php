@@ -68,11 +68,14 @@ class DomainIpRuleController extends Controller
             'user_id' => $request->user()->id,
             'action' => 'ip_rule_added',
             'domain_id' => $domain->id,
-            'summary' => "Added IP rule {$rule->ip_address} to {$domain->fqdn}.",
-            'details' => json_encode([
+            'summary' => $rule->path
+                ? "Added IP rule {$rule->ip_address} for path {$rule->path} to {$domain->fqdn}."
+                : "Added IP rule {$rule->ip_address} to {$domain->fqdn}.",
+            'details' => json_encode(array_filter([
                 'ip_address' => $rule->ip_address,
+                'path' => $rule->path ?: null,
                 'note' => $rule->note,
-            ], JSON_THROW_ON_ERROR),
+            ]), JSON_THROW_ON_ERROR),
         ]);
 
         return response()->json([
@@ -84,6 +87,7 @@ class DomainIpRuleController extends Controller
     public function destroy(Request $request, Domain $domain, DomainIpRule $rule): JsonResponse
     {
         $ipAddress = $rule->ip_address;
+        $path = $rule->path;
 
         $rule->delete();
 
@@ -93,7 +97,9 @@ class DomainIpRuleController extends Controller
             'user_id' => $request->user()->id,
             'action' => 'ip_rule_removed',
             'domain_id' => $domain->id,
-            'summary' => "Removed IP rule {$ipAddress} from {$domain->fqdn}.",
+            'summary' => $path
+                ? "Removed IP rule {$ipAddress} for path {$path} from {$domain->fqdn}."
+                : "Removed IP rule {$ipAddress} from {$domain->fqdn}.",
         ]);
 
         return response()->json(['message' => __('IP rule removed successfully.')]);

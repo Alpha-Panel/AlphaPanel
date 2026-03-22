@@ -121,6 +121,15 @@
                                     />
                                     <p v-if="addErrors.ip_address" class="mt-1 text-xs text-error-500">{{ addErrors.ip_address }}</p>
                                 </div>
+                                <div class="w-40 shrink-0">
+                                    <input
+                                        v-model="addForm.path"
+                                        type="text"
+                                        class="form-input font-mono"
+                                        :placeholder="t('Path (optional)')"
+                                    />
+                                    <p v-if="addErrors.path" class="mt-1 text-xs text-error-500">{{ addErrors.path }}</p>
+                                </div>
                                 <div class="flex-1">
                                     <input
                                         v-model="addForm.note"
@@ -142,7 +151,7 @@
                                 </button>
                             </div>
                             <p class="mt-2 text-xs text-gray-400 dark:text-gray-500">
-                                {{ t('CIDR notation supported (e.g. 192.168.1.0/24, 10.0.0.0/8, or single IP 1.2.3.4)') }}
+                                {{ t('CIDR notation supported (e.g. 192.168.1.0/24). Path is optional — use wildcards like /admin* to restrict by path.') }}
                             </p>
                         </div>
 
@@ -161,6 +170,7 @@
                                 <thead>
                                     <tr class="border-b border-gray-200 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:border-gray-700 dark:text-gray-400">
                                         <th class="pb-3 pr-4">{{ t('IP Address') }}</th>
+                                        <th class="pb-3 pr-4">{{ t('Path') }}</th>
                                         <th class="pb-3 pr-4">{{ t('Note') }}</th>
                                         <th class="pb-3 pr-4">{{ t('Created By') }}</th>
                                         <th class="pb-3 pr-4">{{ t('Created At') }}</th>
@@ -178,6 +188,17 @@
                                             <code class="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-300">
                                                 {{ rule.ip_address }}
                                             </code>
+                                        </td>
+                                        <td class="py-3 pr-4">
+                                            <code
+                                                v-if="rule.path"
+                                                class="rounded bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+                                            >
+                                                {{ rule.path }}
+                                            </code>
+                                            <span v-else class="text-xs text-gray-400 dark:text-gray-500">
+                                                {{ t('All paths') }}
+                                            </span>
                                         </td>
                                         <td class="py-3 pr-4 text-gray-600 dark:text-gray-400">
                                             {{ rule.note || '-' }}
@@ -238,6 +259,7 @@ import { formatDateTime } from '@/utils/dateTime';
 interface IpRule {
     id: number;
     ip_address: string;
+    path: string;
     note: string | null;
     creator: { id: number; name: string } | null;
     created_at: string;
@@ -268,6 +290,7 @@ const addLoading = ref(false);
 const addErrors = reactive<Record<string, string>>({});
 const addForm = reactive({
     ip_address: '',
+    path: '',
     note: '',
 });
 
@@ -321,11 +344,13 @@ const addRule = async (): Promise<void> => {
     try {
         const response = await axios.post(route('domains.ip-access.store', props.domain.id), {
             ip_address: addForm.ip_address,
+            path: addForm.path || null,
             note: addForm.note || null,
         });
 
         localRules.push(response.data.rule);
         addForm.ip_address = '';
+        addForm.path = '';
         addForm.note = '';
         addToast('success', response.data.message ?? t('IP rule added successfully.'));
     } catch (error: any) {
@@ -350,7 +375,9 @@ const deleteRule = async (rule: IpRule): Promise<void> => {
 
     const result = await swal.fire({
         title: t('Delete IP Rule?'),
-        text: t('This will remove the IP access rule for :ip.', { ip: rule.ip_address }),
+        text: rule.path
+            ? t('This will remove the IP access rule for :ip on path :path.', { ip: rule.ip_address, path: rule.path })
+            : t('This will remove the IP access rule for :ip.', { ip: rule.ip_address }),
         icon: 'warning',
         showCancelButton: true,
         confirmButtonText: t('Delete'),
