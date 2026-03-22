@@ -361,3 +361,82 @@ layer(base);
   text-align: center;
   font-size: 24px;
 }
+
+/* SweetAlert2 — dark theme overrides */
+.dark .swal2-popup {
+  background: #1d2939;
+  color: #f2f4f7;
+  border: 1px solid #344054;
+  border-radius: 1rem;
+}
+
+.dark .swal2-title {
+  color: #f2f4f7;
+}
+
+.dark .swal2-html-container {
+  color: #98a2b3;
+}
+
+.dark .swal2-icon.swal2-warning {
+  border-color: #fdb022;
+  color: #fdb022;
+}
+
+.dark .swal2-icon.swal2-warning .swal2-icon-content {
+  color: #fdb022;
+}
+
+.dark .swal2-icon.swal2-error {
+  border-color: #f04438;
+}
+
+.dark .swal2-icon.swal2-error [class^='swal2-x-mark-line'] {
+  background-color: #f04438;
+}
+
+.dark .swal2-icon.swal2-success {
+  border-color: #12b76a;
+  color: #12b76a;
+}
+
+.dark .swal2-icon.swal2-success .swal2-success-line-tip,
+.dark .swal2-icon.swal2-success .swal2-success-line-long {
+  background-color: #12b76a;
+}
+
+.dark .swal2-icon.swal2-success .swal2-success-ring {
+  border-color: rgba(18, 183, 106, 0.3);
+}
+
+.dark .swal2-icon.swal2-info {
+  border-color: #0ba5ec;
+  color: #0ba5ec;
+}
+
+.swal2-popup {
+  border-radius: 1rem;
+}
+
+.swal2-popup .swal2-actions .swal2-confirm {
+  border-radius: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  padding: 0.5rem 1.25rem;
+}
+
+.swal2-popup .swal2-actions .swal2-cancel {
+  border-radius: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  padding: 0.5rem 1.25rem;
+}
+
+.dark .swal2-popup .swal2-actions .swal2-cancel {
+  background-color: #344054;
+  color: #d0d5dd;
+}
+
+.dark .swal2-popup .swal2-actions .swal2-cancel:hover {
+  background-color: #475467;
+}

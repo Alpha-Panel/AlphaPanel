@@ -158,28 +158,39 @@
                                 </button>
                             </div>
                             <div class="space-y-2">
-                                <div v-for="(port, index) in ports" :key="index" class="flex items-center gap-1.5">
-                                    <input
-                                        v-model="port.host"
-                                        type="text"
-                                        class="form-input w-28"
-                                        :placeholder="t('Host (optional)')"
-                                    />
-                                    <span class="text-gray-400">:</span>
+                                <div
+                                    v-for="(port, index) in ports"
+                                    :key="index"
+                                    class="flex items-center gap-1.5"
+                                >
                                     <input
                                         v-model="port.container"
                                         type="text"
-                                        class="form-input w-28"
+                                        class="form-input font-mono text-sm"
+                                        style="width: 7rem"
                                         :placeholder="t('Container')"
                                     />
-                                    <select v-model="port.protocol" class="form-input w-[4.5rem] shrink-0 px-1.5 text-xs">
+                                    <span class="text-gray-400">:</span>
+                                    <input
+                                        v-model="port.host"
+                                        type="text"
+                                        class="form-input font-mono text-sm"
+                                        style="width: 7rem"
+                                        :placeholder="t('Host')"
+                                    />
+                                    <select
+                                        v-model="port.protocol"
+                                        class="form-input text-xs"
+                                        style="width: 4.5rem; padding-left: 0.375rem; padding-right: 0.375rem"
+                                    >
                                         <option value="tcp">TCP</option>
                                         <option value="udp">UDP</option>
                                     </select>
                                     <button
                                         type="button"
                                         @click="removePort(index)"
-                                        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:text-error-500"
+                                        class="flex items-center justify-center rounded-lg text-gray-400 hover:text-error-500"
+                                        style="width: 2rem; height: 2rem"
                                     >
                                         <i class="fa-solid fa-xmark text-xs"></i>
                                     </button>

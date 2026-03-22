@@ -86,7 +86,7 @@ class DeployDockerServiceJob implements ShouldQueue
                 ], JSON_THROW_ON_ERROR),
             ]);
 
-            DockerDeployCompleted::dispatch($service->id, $service->display_name, $userId);
+            DockerDeployCompleted::dispatch($service->id, $service->display_name ?? $service->name, $userId);
 
             Log::info("Docker service deployed: {$service->name}");
         } catch (\Exception $e) {
@@ -104,7 +104,7 @@ class DeployDockerServiceJob implements ShouldQueue
 
             DockerDeployFailed::dispatch(
                 $service->id,
-                $service->display_name,
+                $service->display_name ?? $service->name,
                 $userId,
                 $e->getMessage(),
             );
@@ -122,7 +122,7 @@ class DeployDockerServiceJob implements ShouldQueue
 
         DockerDeployProgress::dispatch(
             $this->service->id,
-            $this->service->display_name,
+            $this->service->display_name ?? $this->service->name,
             $userId,
             $percent,
             $message,

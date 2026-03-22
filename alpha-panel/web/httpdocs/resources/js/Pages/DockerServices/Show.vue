@@ -274,7 +274,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
 import SidebarProvider from '@/Components/Layout/SidebarProvider.vue';
@@ -285,6 +285,7 @@ import { useToast } from '@/Composables/useToast';
 import { useI18n } from '@/Composables/useI18n';
 import { formatDateTime } from '@/utils/dateTime';
 import { loadSweetAlert } from '@/utils/sweetalert';
+import type { SharedProps } from '@/types/inertia';
 
 interface DomainBinding {
     id: number;
@@ -556,10 +557,52 @@ const unbindDomain = async (binding: DomainBinding): Promise<void> => {
     }
 };
 
+// Real-time status updates via WebSocket
+let echoChannel: string | null = null;
+
+function subscribeToDeployEvents(): void {
+    if (typeof window.Echo === 'undefined') return;
+
+    const page = usePage<SharedProps>();
+    const userId = page.props.auth?.user?.id;
+    if (!userId) return;
+
+    echoChannel = `user.${userId}`;
+    window.Echo.private(echoChannel)
+        .listen('.DockerDeployCompleted', (event: { service_id: number }) => {
+            if (event.service_id === props.service.id) {
+                currentStatus.value = 'running';
+                router.reload({ only: ['service'] });
+                fetchStats();
+                fetchLogs();
+            }
+        })
+        .listen('.DockerDeployFailed', (event: { service_id: number; error: string }) => {
+            if (event.service_id === props.service.id) {
+                currentStatus.value = 'failed';
+                addToast('error', event.error);
+            }
+        })
+        .listen('.DockerDeployProgress', (event: { service_id: number; percent: number; message: string }) => {
+            if (event.service_id === props.service.id) {
+                currentStatus.value = 'pending';
+            }
+        });
+}
+
+function unsubscribeFromDeployEvents(): void {
+    if (!echoChannel || typeof window.Echo === 'undefined') return;
+    window.Echo.private(echoChannel)
+        .stopListening('.DockerDeployCompleted')
+        .stopListening('.DockerDeployFailed')
+        .stopListening('.DockerDeployProgress');
+}
+
 // Lifecycle
 onMounted(() => {
     fetchLogs();
     fetchStats();
+    subscribeToDeployEvents();
 
     statsInterval = setInterval(fetchStats, 5000);
 });
@@ -568,6 +611,7 @@ onBeforeUnmount(() => {
     if (statsInterval !== null) {
         clearInterval(statsInterval);
     }
+    unsubscribeFromDeployEvents();
 });
 </script>
 

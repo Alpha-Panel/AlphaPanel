@@ -437,29 +437,36 @@
                                             class="flex items-center gap-1.5"
                                         >
                                             <input
-                                                v-model.number="row.host_port"
-                                                type="number"
-                                                min="1"
-                                                max="65535"
-                                                :placeholder="t('Host (optional)')"
-                                                class="form-input w-28 shrink-0 font-mono text-xs"
-                                            />
-                                            <span class="text-gray-400">:</span>
-                                            <input
                                                 v-model.number="row.container_port"
                                                 type="number"
                                                 min="1"
                                                 max="65535"
                                                 :placeholder="t('Container')"
-                                                class="form-input flex-1 font-mono text-xs"
+                                                class="form-input font-mono text-sm"
+                                                style="width: 7rem"
                                             />
-                                            <select v-model="row.protocol" class="form-input w-[4.5rem] shrink-0 px-1.5 text-xs">
+                                            <span class="text-gray-400">:</span>
+                                            <input
+                                                v-model.number="row.host_port"
+                                                type="number"
+                                                min="1"
+                                                max="65535"
+                                                :placeholder="t('Host')"
+                                                class="form-input font-mono text-sm"
+                                                style="width: 7rem"
+                                            />
+                                            <select
+                                                v-model="row.protocol"
+                                                class="form-input text-xs"
+                                                style="width: 4.5rem; padding-left: 0.375rem; padding-right: 0.375rem"
+                                            >
                                                 <option value="tcp">TCP</option>
                                                 <option value="udp">UDP</option>
                                             </select>
                                             <button
                                                 type="button"
-                                                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+                                                class="flex items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+                                                style="width: 2rem; height: 2rem"
                                                 @click="removePort(index)"
                                             >
                                                 <i class="bx bx-trash text-sm"></i>

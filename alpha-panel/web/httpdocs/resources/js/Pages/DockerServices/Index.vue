@@ -219,8 +219,8 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
 import SidebarProvider from '@/Components/Layout/SidebarProvider.vue';
@@ -231,6 +231,8 @@ import { useI18n } from '@/Composables/useI18n';
 import { useCan } from '@/Composables/useCan';
 import { useToast } from '@/Composables/useToast';
 import { formatDateTime } from '@/utils/dateTime';
+import { loadSweetAlert } from '@/utils/sweetalert';
+import type { SharedProps } from '@/types/inertia';
 
 interface DockerServiceUser {
     id: number;
@@ -383,12 +385,21 @@ const syncAllStatuses = async (): Promise<void> => {
     }
 };
 
-const deleteService = (service: DockerService): void => {
-    if (!confirm(t('Are you sure you want to delete :name? This will remove the container and all associated data.', {
-        name: service.display_name || service.name,
-    }))) {
-        return;
-    }
+const deleteService = async (service: DockerService): Promise<void> => {
+    const swal = await loadSweetAlert();
+    if (!swal) return;
+
+    const result = await swal.fire({
+        title: t('Remove Service?'),
+        text: t('This will stop and remove the container. This action cannot be undone.'),
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#f04438',
+        confirmButtonText: t('Yes, remove it'),
+        cancelButtonText: t('Cancel'),
+    });
+
+    if (!result.isConfirmed) return;
 
     router.delete(route('docker-services.destroy', service.id), {
         onSuccess: () => {
@@ -399,4 +410,32 @@ const deleteService = (service: DockerService): void => {
         },
     });
 };
+
+// Real-time status updates via WebSocket
+let echoChannel: string | null = null;
+
+onMounted(() => {
+    if (typeof window.Echo === 'undefined') return;
+
+    const page = usePage<SharedProps>();
+    const userId = page.props.auth?.user?.id;
+    if (!userId) return;
+
+    echoChannel = `user.${userId}`;
+    window.Echo.private(echoChannel)
+        .listen('.DockerDeployCompleted', () => {
+            router.reload({ only: ['services'] });
+        })
+        .listen('.DockerDeployFailed', () => {
+            router.reload({ only: ['services'] });
+        });
+});
+
+onBeforeUnmount(() => {
+    if (echoChannel && typeof window.Echo !== 'undefined') {
+        window.Echo.private(echoChannel)
+            .stopListening('.DockerDeployCompleted')
+            .stopListening('.DockerDeployFailed');
+    }
+});
 </script>
