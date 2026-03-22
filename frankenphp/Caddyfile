@@ -73,7 +73,7 @@
 }
 
 {
-	admin frankenphp:2019
+	admin localhost:2019
 
 	servers {
 		client_ip_headers CF-Connecting-IP X-Forwarded-For X-Real-IP
