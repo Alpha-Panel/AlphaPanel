@@ -31,7 +31,7 @@ class CertbotService
     {
         $fqdn = $domain->fqdn;
         $adminEmail = config('panel.certbot_email');
-        $image = config('panel.portainer_certbot_image', 'alphapanel-docker-certbot-init:latest');
+        $image = config('panel.portainer_certbot_image', 'certbot/dns-cloudflare:v5.4.0');
         $hostRoot = config('panel.compose_project_root_host');
 
         $certbotCommand = implode(' ', [
@@ -96,7 +96,7 @@ class CertbotService
     {
         $fqdn = $domain->fqdn;
         $adminEmail = config('panel.certbot_email');
-        $image = config('panel.portainer_certbot_image', 'alphapanel-docker-certbot-init:latest');
+        $image = config('panel.portainer_certbot_image', 'certbot/dns-cloudflare:v5.4.0');
         $hostRoot = config('panel.compose_project_root_host');
 
         $domains = [escapeshellarg($fqdn)];
@@ -157,7 +157,7 @@ class CertbotService
     public function renewCertificate(Domain $domain): bool
     {
         $fqdn = $domain->fqdn;
-        $image = config('panel.portainer_certbot_image', 'alphapanel-docker-certbot-init:latest');
+        $image = config('panel.portainer_certbot_image', 'certbot/dns-cloudflare:v5.4.0');
         $hostRoot = config('panel.compose_project_root_host');
 
         $certbotCommand = implode(' ', [

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Exceptions\PortainerException;
 use App\Models\PhpVersion;
 use App\Services\Portainer\ExecResult;
 use App\Services\PortainerService;
@@ -18,7 +19,7 @@ class ReloadServiceTest extends TestCase
             'panel.caddy_admin_url' => 'http://frankenphp:2019',
             'panel.frankenphp_container' => 'frankenphp',
             'panel.php_code_server_container' => 'php-code-server',
-            'panel.caddy_main_config' => '/etc/frankenphp/Caddyfile',
+            'panel.caddy_reload_config' => '/etc/frankenphp/Caddyfile',
         ]);
     }
 
@@ -36,20 +37,16 @@ class ReloadServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
-    public function test_reload_caddy_tries_default_config_path_when_configured_path_fails(): void
+    public function test_reload_caddy_uses_custom_reload_config_path(): void
     {
         config([
-            'panel.caddy_main_config' => '/etc/frankenphp-container/Caddyfile',
+            'panel.caddy_reload_config' => '/custom/path/Caddyfile',
         ]);
 
         $mock = $this->mock(PortainerService::class);
         $mock->shouldReceive('execInContainer')
             ->once()
-            ->with('frankenphp', ['frankenphp', 'reload', '--config', '/etc/frankenphp-container/Caddyfile'])
-            ->andReturn(new ExecResult(exitCode: 1, output: '', errorOutput: 'Invalid config path'));
-        $mock->shouldReceive('execInContainer')
-            ->once()
-            ->with('frankenphp', ['frankenphp', 'reload', '--config', '/etc/frankenphp/Caddyfile'])
+            ->with('frankenphp', ['frankenphp', 'reload', '--config', '/custom/path/Caddyfile'])
             ->andReturn(new ExecResult(exitCode: 0, output: 'OK', errorOutput: ''));
 
         $service = app(ReloadService::class);
@@ -58,17 +55,9 @@ class ReloadServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
-    public function test_reload_caddy_returns_false_when_all_reload_commands_fail(): void
+    public function test_reload_caddy_returns_false_on_failure(): void
     {
-        config([
-            'panel.caddy_main_config' => '/etc/frankenphp-container/Caddyfile',
-        ]);
-
         $mock = $this->mock(PortainerService::class);
-        $mock->shouldReceive('execInContainer')
-            ->once()
-            ->with('frankenphp', ['frankenphp', 'reload', '--config', '/etc/frankenphp-container/Caddyfile'])
-            ->andReturn(new ExecResult(exitCode: 1, output: '', errorOutput: 'Invalid config path'));
         $mock->shouldReceive('execInContainer')
             ->once()
             ->with('frankenphp', ['frankenphp', 'reload', '--config', '/etc/frankenphp/Caddyfile'])
@@ -129,7 +118,7 @@ class ReloadServiceTest extends TestCase
         $mock = $this->mock(PortainerService::class);
         $mock->shouldReceive('execInContainer')
             ->once()
-            ->andThrow(new \App\Exceptions\PortainerException('Connection refused'));
+            ->andThrow(new PortainerException('Connection refused'));
 
         $service = app(ReloadService::class);
         $result = $service->reloadApache();

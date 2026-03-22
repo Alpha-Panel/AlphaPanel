@@ -7,6 +7,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'caddy_main_config' => env('PANEL_CADDY_MAIN_CONFIG', '/etc/frankenphp-container/Caddyfile'),
+    'caddy_reload_config' => env('PANEL_CADDY_RELOAD_CONFIG', '/etc/frankenphp/Caddyfile'),
     'caddy_sites_base' => env('PANEL_CADDY_SITES_BASE', '/etc/frankenphp-container/sites-enabled'),
     'apache_sites_base' => env('PANEL_APACHE_SITES_BASE', '/etc/apache2/sites-enabled'),
     'letsencrypt_base' => env('PANEL_LETSENCRYPT_BASE', '/etc/letsencrypt/live'),
@@ -31,7 +32,7 @@ return [
     'portainer_endpoint_id' => env('PORTAINER_ENDPOINT_ID', 1),
     'compose_project_root' => env('COMPOSE_PROJECT_ROOT', '/docker_compose_project_root'),
     'compose_project_root_host' => env('COMPOSE_PROJECT_ROOT_HOST', '/opt/alphapanel'),
-    'portainer_certbot_image' => env('PORTAINER_CERTBOT_IMAGE', 'alphapanel-docker-certbot-init:latest'),
+    'portainer_certbot_image' => env('PORTAINER_CERTBOT_IMAGE', 'certbot/dns-cloudflare:v5.4.0'),
 
     /*
     |--------------------------------------------------------------------------

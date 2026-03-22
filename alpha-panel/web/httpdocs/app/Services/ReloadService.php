@@ -12,28 +12,20 @@ class ReloadService
     ) {}
 
     /**
-     * Reload Caddy by executing frankenphp reload inside the container.
+     * Reload Caddy by executing frankenphp reload inside the frankenphp container.
+     *
+     * Note: caddy_main_config is the Caddyfile path inside alpha_panel_web (/etc/frankenphp-container/Caddyfile).
+     * Inside the frankenphp container the same file is mounted at /etc/frankenphp/Caddyfile,
+     * so we use caddy_reload_config (which defaults to the frankenphp container path).
      */
     public function reloadCaddy(): bool
     {
         $container = (string) config('panel.frankenphp_container', 'frankenphp');
-        $configuredConfigPath = (string) config('panel.caddy_main_config', '/etc/frankenphp/Caddyfile');
-        $defaultConfigPath = '/etc/frankenphp/Caddyfile';
-        $commands = [
-            ['frankenphp', 'reload', '--config', $configuredConfigPath],
-        ];
+        $configPath = (string) config('panel.caddy_reload_config', '/etc/frankenphp/Caddyfile');
 
-        if ($configuredConfigPath !== $defaultConfigPath) {
-            $commands[] = ['frankenphp', 'reload', '--config', $defaultConfigPath];
-        }
-
-        foreach ($commands as $command) {
-            if ($this->execInContainer($container, $command)) {
-                return true;
-            }
-        }
-
-        return false;
+        return $this->execInContainer($container, [
+            'frankenphp', 'reload', '--config', $configPath,
+        ]);
     }
 
     /**

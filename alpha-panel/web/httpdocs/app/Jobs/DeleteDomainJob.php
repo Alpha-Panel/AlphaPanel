@@ -11,6 +11,7 @@ use App\Notifications\DomainNotification;
 use App\Services\CloudflareDnsService;
 use App\Services\DomainConfigService;
 use App\Services\FtpUserService;
+use App\Services\PortainerService;
 use App\Services\ReloadService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -171,6 +172,9 @@ class DeleteDomainJob implements ShouldQueue
             }
         }
 
+        // Unlock immutable .user.ini files so the directory can be cleaned up
+        $this->unlockUserIniFiles($domain);
+
         $configService->removeConfigs($domain);
         if ($domain->sharesWebRootWithParent()) {
             Log::info("Skipped filesystem cleanup for {$domain->fqdn} because it shares web root with parent domain.");
@@ -212,6 +216,30 @@ class DeleteDomainJob implements ShouldQueue
         if (File::isFile($renewalFile)) {
             File::delete($renewalFile);
             Log::info("Removed certificate renewal config: {$renewalFile}");
+        }
+    }
+
+    /**
+     * Unlock immutable .user.ini files in the domain's base path.
+     *
+     * .user.ini files are locked with chattr +i to prevent site owners from
+     * modifying open_basedir restrictions. Before deletion, we must remove
+     * the immutable flag so the directory can be cleaned up.
+     */
+    private function unlockUserIniFiles(Domain $domain): void
+    {
+        $basePath = escapeshellarg($domain->getBasePath());
+        $container = (string) config('panel.frankenphp_container', 'frankenphp');
+
+        try {
+            $portainer = app(PortainerService::class);
+            $portainer->execInContainer($container, [
+                'sh', '-c', "find {$basePath} -name '.user.ini' -exec chattr -i {} \\; 2>/dev/null || true",
+            ]);
+
+            Log::info("Unlocked .user.ini files in {$domain->getBasePath()} for {$domain->fqdn}");
+        } catch (\Exception $e) {
+            Log::warning("Failed to unlock .user.ini for {$domain->fqdn}: {$e->getMessage()}");
         }
     }
 

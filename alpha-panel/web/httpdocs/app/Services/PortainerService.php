@@ -245,6 +245,22 @@ class PortainerService
         $createResponse = $this->request($timeout)
             ->post($this->dockerApiUrl('/containers/create'), $config);
 
+        // If image not found locally, attempt to pull it from registry
+        if ($createResponse->status() === 404 && str_contains($createResponse->body(), 'No such image')) {
+            Log::info("Image {$image} not found locally, attempting to pull...");
+
+            $pulled = $this->pullImage(
+                ...array_pad(explode(':', $image, 2), 2, 'latest')
+            );
+
+            if (! $pulled) {
+                throw new PortainerException("Failed to create container: image {$image} not found locally and pull failed");
+            }
+
+            $createResponse = $this->request($timeout)
+                ->post($this->dockerApiUrl('/containers/create'), $config);
+        }
+
         if (! $createResponse->successful()) {
             throw new PortainerException("Failed to create container: {$createResponse->status()} {$createResponse->body()}");
         }
