@@ -8,6 +8,6 @@
     "vaultwarden": "1.35.4",
     "meilisearch": "1.16",
     "crowdsec": "1.7.6",
-    "portainer": "2.39.0"
+    "portainer": "2.39.1"
   }
 }
