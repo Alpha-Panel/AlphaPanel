@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Enums\DomainStatus;
 use App\Models\AuditLog;
 use App\Models\BackupRun;
+use App\Models\BackupSetting;
 use App\Models\Domain;
 use App\Models\ManagedDatabase;
 use App\Models\User;
 use App\Services\CloudflareDnsService;
 use App\Services\CrowdSecService;
+use App\Services\GoogleDriveService;
 use App\Services\HostMetricsService;
 use App\Services\MysqlAdminService;
 use App\Services\PortainerService;
@@ -30,6 +32,8 @@ class HomeController extends Controller
 
     private const CROWDSEC_SUMMARY_CACHE_KEY = 'dashboard:crowdsec-summary:v1';
 
+    private const GOOGLE_DRIVE_SUMMARY_CACHE_KEY = 'dashboard:google-drive-summary:v1';
+
     private const HOST_METRICS_CACHE_SECONDS = 15;
 
     private const DOCKER_SERVICES_CACHE_SECONDS = 20;
@@ -37,6 +41,8 @@ class HomeController extends Controller
     private const MYSQL_PROCESS_LIST_CACHE_SECONDS = 15;
 
     private const CROWDSEC_SUMMARY_CACHE_SECONDS = 20;
+
+    private const GOOGLE_DRIVE_SUMMARY_CACHE_SECONDS = 120;
 
     public function index(Request $request): Response
     {
@@ -55,6 +61,7 @@ class HomeController extends Controller
                 'docker_services' => null,
                 'mysql_monitor' => null,
                 'crowdsec' => null,
+                'google_drive' => null,
                 'active_backup' => $user->isAdmin()
                     ? BackupRun::whereIn('status', ['uploading', 'running'])->latest('started_at')
                         ->first(['id', 'status', 'progress_percent', 'started_at'])
@@ -147,6 +154,7 @@ class HomeController extends Controller
             'docker_services' => $user->isAdmin() ? $this->buildDockerServices($useCache) : null,
             'mysql_monitor' => $user->isAdmin() ? $this->buildMysqlMonitor($showSleeping, $useCache) : null,
             'crowdsec' => $user->isAdmin() ? $this->buildCrowdSecSummary($useCache) : null,
+            'google_drive' => $user->isAdmin() ? $this->buildGoogleDriveSummary($useCache) : null,
             'active_backup' => $user->isAdmin()
                 ? BackupRun::where('status', 'uploading')->latest('started_at')
                     ->first(['id', 'status', 'progress_percent', 'started_at'])
@@ -384,11 +392,50 @@ class HomeController extends Controller
         }
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function buildGoogleDriveSummary(bool $useCache): ?array
+    {
+        $settings = BackupSetting::instance();
+
+        if (! $settings->isConnected()) {
+            return null;
+        }
+
+        $summary = [
+            'connected' => true,
+            'connected_email' => $settings->connected_email,
+            'last_backup_at' => $settings->last_backup_at?->diffForHumans(),
+            'last_backup_at_formatted' => $settings->last_backup_at?->format(config('app.display_datetime_format', 'd.m.Y H:i:s')),
+            'quota_usage' => null,
+            'quota_limit' => null,
+        ];
+
+        try {
+            $quota = $useCache
+                ? Cache::remember(
+                    self::GOOGLE_DRIVE_SUMMARY_CACHE_KEY,
+                    now()->addSeconds(self::GOOGLE_DRIVE_SUMMARY_CACHE_SECONDS),
+                    fn (): array => app(GoogleDriveService::class)->getStorageQuota(),
+                )
+                : app(GoogleDriveService::class)->getStorageQuota();
+
+            $summary['quota_usage'] = $quota['usage'] ?? null;
+            $summary['quota_limit'] = $quota['limit'] ?? null;
+        } catch (\Throwable) {
+            // Quota fetch failed — still show the card with connection info
+        }
+
+        return $summary;
+    }
+
     private function clearDashboardMetricCache(): void
     {
         Cache::forget(self::HOST_METRICS_CACHE_KEY);
         Cache::forget(self::DOCKER_SERVICES_CACHE_KEY);
         Cache::forget(self::MYSQL_PROCESS_LIST_CACHE_KEY);
         Cache::forget(self::CROWDSEC_SUMMARY_CACHE_KEY);
+        Cache::forget(self::GOOGLE_DRIVE_SUMMARY_CACHE_KEY);
     }
 }

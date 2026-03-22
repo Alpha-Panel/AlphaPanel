@@ -62,7 +62,11 @@
                     <div
                         :class="[
                             'grid grid-cols-1 gap-4 md:gap-6',
-                            isAdmin ? 'sm:grid-cols-2 xl:grid-cols-5' : 'sm:grid-cols-2 xl:grid-cols-3',
+                            isAdmin
+                                ? googleDrive
+                                    ? 'sm:grid-cols-2 xl:grid-cols-6'
+                                    : 'sm:grid-cols-2 xl:grid-cols-5'
+                                : 'sm:grid-cols-2 xl:grid-cols-3',
                         ]"
                     >
                         <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
@@ -136,6 +140,63 @@
                             </div>
                         </div>
 
+                        <!-- Google Drive Card -->
+                        <div
+                            v-if="isAdmin && googleDrive"
+                            class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]"
+                        >
+                            <div class="flex items-center gap-4">
+                                <div class="relative flex h-12 w-12 items-center justify-center rounded-xl bg-success-50 dark:bg-success-500/20">
+                                    <svg v-if="!metricsLoading && googleDrive.quota_usage != null && googleDrive.quota_limit" class="h-12 w-12 -rotate-90" viewBox="0 0 36 36">
+                                        <circle cx="18" cy="18" r="14" fill="none" class="stroke-gray-200 dark:stroke-gray-700" stroke-width="3" />
+                                        <circle cx="18" cy="18" r="14" fill="none" :class="driveQuotaColor" stroke-width="3" stroke-linecap="round" :stroke-dasharray="driveCircumference" :stroke-dashoffset="driveDashOffset" class="transition-all duration-1000 ease-out" />
+                                    </svg>
+                                    <div v-else class="flex h-12 w-12 items-center justify-center">
+                                        <i class="bx bx-cloud text-2xl text-success-500 dark:text-success-300"></i>
+                                    </div>
+                                    <div v-if="!metricsLoading && googleDrive.quota_usage != null && googleDrive.quota_limit" class="absolute inset-0 flex items-center justify-center">
+                                        <span class="text-[9px] font-bold text-gray-700 dark:text-white">{{ Math.round(driveQuotaPercent) }}%</span>
+                                    </div>
+                                </div>
+                                <div v-if="metricsLoading" class="min-w-0 flex-1">
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('Google Drive') }}</p>
+                                    <div class="mt-1 h-7 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                    <div class="mt-1 h-3 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                </div>
+                                <div v-else class="min-w-0">
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('Google Drive') }}</p>
+                                    <h3 v-if="googleDrive.quota_usage != null && googleDrive.quota_limit" class="text-lg font-semibold text-gray-800 dark:text-white/90">
+                                        {{ humanSize(googleDrive.quota_usage) }}
+                                        <span class="text-xs font-normal text-gray-500 dark:text-gray-400">/ {{ humanSize(googleDrive.quota_limit) }}</span>
+                                    </h3>
+                                    <h3 v-else class="text-lg font-semibold text-gray-800 dark:text-white/90">
+                                        {{ t('Connected') }}
+                                    </h3>
+                                    <p class="truncate text-xs text-gray-500 dark:text-gray-400" :title="googleDrive.last_backup_at_formatted ?? ''">
+                                        <template v-if="googleDrive.last_backup_at">
+                                            {{ t('Last Backup') }}: {{ googleDrive.last_backup_at }}
+                                        </template>
+                                        <template v-else>
+                                            {{ t('No backups yet') }}
+                                        </template>
+                                    </p>
+                                    <div class="mt-1 flex items-center gap-2">
+                                        <span class="inline-flex rounded-full bg-success-500/15 px-2 py-0.5 text-[11px] font-semibold text-success-600 dark:text-success-300">
+                                            {{ t('Connected') }}
+                                        </span>
+                                        <Link
+                                            :href="route('backups.index')"
+                                            class="inline-flex items-center gap-1 text-xs font-medium text-brand-500 hover:text-brand-600"
+                                        >
+                                            {{ t('Details') }}
+                                            <i class="bx bx-right-arrow-alt text-sm"></i>
+                                        </Link>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CrowdSec Card -->
                         <div
                             v-if="isAdmin"
                             class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]"
@@ -768,6 +829,15 @@ interface CrowdSecSummary {
     last_sync_at: string;
 }
 
+interface GoogleDriveSummary {
+    connected: boolean;
+    connected_email: string | null;
+    last_backup_at: string | null;
+    last_backup_at_formatted: string | null;
+    quota_usage: number | null;
+    quota_limit: number | null;
+}
+
 interface ActiveBackup {
     id: number;
     status: string;
@@ -783,6 +853,7 @@ interface DashboardPayload {
     docker_services: DockerServices | null;
     mysql_monitor: MysqlMonitor | null;
     crowdsec: CrowdSecSummary | null;
+    google_drive: GoogleDriveSummary | null;
     active_backup: ActiveBackup | null;
 }
 
@@ -842,6 +913,7 @@ const hostMetrics = computed(() => dashboard.value.host_metrics);
 const dockerServices = computed(() => dashboard.value.docker_services);
 const mysqlMonitor = computed(() => dashboard.value.mysql_monitor);
 const crowdsec = computed(() => dashboard.value.crowdsec);
+const googleDrive = computed(() => dashboard.value.google_drive);
 const recentDomains = computed(() => dashboard.value.recent_domains ?? []);
 const crowdsecTopScenario = computed(() => {
     const top = crowdsec.value?.top_scenarios?.[0];
@@ -851,6 +923,24 @@ const crowdsecTopScenario = computed(() => {
 
     return `${top.name} (${top.count})`;
 });
+const driveQuotaPercent = computed(() => {
+    const drive = googleDrive.value;
+    if (!drive?.quota_usage || !drive?.quota_limit) return 0;
+    return Math.min(100, (drive.quota_usage / drive.quota_limit) * 100);
+});
+
+const driveQuotaColor = computed(() => {
+    if (driveQuotaPercent.value >= 90) return 'stroke-red-500';
+    if (driveQuotaPercent.value >= 70) return 'stroke-amber-500';
+    return 'stroke-brand-500';
+});
+
+const driveCircumference = 2 * Math.PI * 14;
+
+const driveDashOffset = computed(() => {
+    return driveCircumference - (driveQuotaPercent.value / 100) * driveCircumference;
+});
+
 const containers = computed(() => dockerServices.value?.containers ?? []);
 const filteredContainers = computed(() => {
     const q = containerSearch.value.toLowerCase().trim();
@@ -1010,6 +1100,13 @@ const truncate = (value: string, max: number): string => {
     }
 
     return `${value.slice(0, max - 3)}...`;
+};
+
+const humanSize = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return (bytes / Math.pow(1024, i)).toFixed(i > 1 ? 1 : 0) + ' ' + units[i];
 };
 
 const openTerminal = (container: DockerContainer): void => {
