@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\DomainStatus;
 use App\Enums\DomainType;
+use App\Enums\IpAccessMode;
 use App\Enums\SslMethod;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -42,6 +43,7 @@ class Domain extends Model
         'modsecurity_custom_rules',
         'cors_enabled',
         'cors_allowed_origins',
+        'ip_access_mode',
     ];
 
     /** @return array<string, string> */
@@ -56,6 +58,7 @@ class Domain extends Model
             'worker_watch' => 'boolean',
             'cloudflare_enabled' => 'boolean',
             'ssl_method' => SslMethod::class,
+            'ip_access_mode' => IpAccessMode::class,
             'bypass_reverse_proxy' => 'boolean',
             'modsecurity_enabled' => 'boolean',
             'modsecurity_ip_allowlist' => 'array',
@@ -133,6 +136,11 @@ class Domain extends Model
     public function dockerServiceBindings(): HasMany
     {
         return $this->hasMany(DockerServiceDomainBinding::class);
+    }
+
+    public function ipRules(): HasMany
+    {
+        return $this->hasMany(DomainIpRule::class);
     }
 
     /**

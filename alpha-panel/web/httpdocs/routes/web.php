@@ -10,6 +10,7 @@ use App\Http\Controllers\DnsController;
 use App\Http\Controllers\DockerHubController;
 use App\Http\Controllers\DockerServiceController;
 use App\Http\Controllers\DockerServiceDomainBindingController;
+use App\Http\Controllers\DomainIpRuleController;
 use App\Http\Controllers\DomainCloudflareController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\DomainCronJobController;
@@ -444,6 +445,16 @@ Route::middleware('auth')->group(function (): void {
         Route::post('domains/{domain}/docker-services', [DockerServiceDomainBindingController::class, 'store'])->name('domains.docker-services.store');
         Route::delete('domains/{domain}/docker-services/{binding}', [DockerServiceDomainBindingController::class, 'destroy'])->name('domains.docker-services.destroy');
     });
+
+    // Domain IP Access Control
+    Route::get('domains/{domain}/ip-access', [DomainIpRuleController::class, 'index'])
+        ->name('domains.ip-access.index');
+    Route::put('domains/{domain}/ip-access/mode', [DomainIpRuleController::class, 'updateMode'])
+        ->name('domains.ip-access.update-mode');
+    Route::post('domains/{domain}/ip-access', [DomainIpRuleController::class, 'store'])
+        ->name('domains.ip-access.store');
+    Route::delete('domains/{domain}/ip-access/{rule}', [DomainIpRuleController::class, 'destroy'])
+        ->name('domains.ip-access.destroy');
 
     // Domain User Management (shared access)
     Route::get('domains/{domain}/users', [DomainUserController::class, 'index'])->name('domains.users.index');

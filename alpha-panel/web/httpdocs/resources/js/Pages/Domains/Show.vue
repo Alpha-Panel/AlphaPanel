@@ -213,6 +213,12 @@
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
+                            <Link :href="route('domains.ip-access.index', domain.id)" class="quick-link">
+                                <i class="fa-solid fa-shield-halved quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('IP Access Control') }}</span>
+                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                            </Link>
+
                             <button type="button" @click="openJenkinsModal(domain.fqdn)" class="quick-link">
                                 <i class="fa-brands fa-jenkins quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('Jenkins file') }}</span>
@@ -353,6 +359,18 @@
                                 <Link :href="route('domains.modsecurity.index', subdomain.id)" class="quick-link">
                                     <i class="fa-solid fa-shield-virus quick-link-icon"></i>
                                     <span class="quick-link-label">{{ t('WAF') }}</span>
+                                    <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                                </Link>
+
+                                <Link v-if="can('panel.docker-services.manage')" :href="route('domains.docker-services.index', subdomain.id)" class="quick-link">
+                                    <i class="fa-brands fa-docker quick-link-icon"></i>
+                                    <span class="quick-link-label">{{ t('Docker Services') }}</span>
+                                    <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                                </Link>
+
+                                <Link :href="route('domains.ip-access.index', subdomain.id)" class="quick-link">
+                                    <i class="fa-solid fa-shield-halved quick-link-icon"></i>
+                                    <span class="quick-link-label">{{ t('IP Access Control') }}</span>
                                     <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                                 </Link>
 

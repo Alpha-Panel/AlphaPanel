@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\DomainType;
+use App\Enums\IpAccessMode;
 use App\Models\Domain;
 use App\Models\PhpVersion;
 use Illuminate\Support\Facades\File;
@@ -134,7 +135,8 @@ class DomainConfigService
         $lines[] = '    encode zstd br gzip';
         $lines = array_merge($lines, $this->renderAcmeChallengePath('    '));
 
-        $lines = array_merge($lines, $this->renderServerDirectives($domain, $fqdn, $rootPath, '    '));
+        $serverDirectives = $this->renderServerDirectives($domain, $fqdn, $rootPath, '    ');
+        $lines = array_merge($lines, $this->wrapWithIpAccessControl($domain, $serverDirectives, '    '));
 
         if (! $isLegacy) {
             $lines[] = '    log {';
@@ -222,7 +224,8 @@ class DomainConfigService
         $lines[] = '    encode zstd br gzip';
         $lines = array_merge($lines, $this->renderAcmeChallengePath('    '));
 
-        $lines = array_merge($lines, $this->renderServerDirectives($domain, $fqdn, $rootPath, '    '));
+        $serverDirectives = $this->renderServerDirectives($domain, $fqdn, $rootPath, '    ');
+        $lines = array_merge($lines, $this->wrapWithIpAccessControl($domain, $serverDirectives, '    '));
 
         if (! $isLegacy) {
             $lines[] = '    log {';
@@ -421,6 +424,45 @@ class DomainConfigService
             if (! $isLegacy) {
                 $lines[] = "{$indent}file_server";
             }
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Wrap server directives with IP access control if configured.
+     *
+     * @param  array<int, string>  $serverDirectives
+     * @return array<int, string>
+     */
+    private function wrapWithIpAccessControl(Domain $domain, array $serverDirectives, string $indent): array
+    {
+        $domain->loadMissing('ipRules');
+        $rules = $domain->ipRules;
+
+        if ($domain->ip_access_mode === null || $domain->ip_access_mode === IpAccessMode::None || $rules->isEmpty()) {
+            return $serverDirectives;
+        }
+
+        $ips = $rules->pluck('ip_address')->implode(' ');
+        $lines = [];
+
+        if ($domain->ip_access_mode === IpAccessMode::Whitelist) {
+            $lines[] = "{$indent}@allowed client_ip {$ips}";
+            $lines[] = "{$indent}handle @allowed {";
+            foreach ($serverDirectives as $directive) {
+                $lines[] = $directive !== '' ? "    {$directive}" : '';
+            }
+            $lines[] = "{$indent}}";
+            $lines[] = "{$indent}handle {";
+            $lines[] = "{$indent}    respond \"Access denied\" 403";
+            $lines[] = "{$indent}}";
+        } elseif ($domain->ip_access_mode === IpAccessMode::Blacklist) {
+            $lines[] = "{$indent}@blocked client_ip {$ips}";
+            $lines[] = "{$indent}handle @blocked {";
+            $lines[] = "{$indent}    respond \"Access denied\" 403";
+            $lines[] = "{$indent}}";
+            $lines = array_merge($lines, $serverDirectives);
         }
 
         return $lines;
