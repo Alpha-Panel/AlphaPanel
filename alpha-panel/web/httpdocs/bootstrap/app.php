@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AddCspHeaders;
 use App\Http\Middleware\AddEarlyHints;
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -26,7 +27,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
         ]);
 
-        $middleware->prependToGroup('web', AddEarlyHints::class);
+        $middleware->prependToGroup('web', AddCspHeaders::class);
+        $middleware->appendToGroup('web', AddEarlyHints::class);
         $middleware->appendToGroup('web', SetLocale::class);
         $middleware->appendToGroup('web', HandleInertiaRequests::class);
         $middleware->appendToGroup('web', VerifyOTP::class);

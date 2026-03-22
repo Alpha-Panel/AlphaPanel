@@ -76,18 +76,16 @@ class AddEarlyHints
         $header = Cache::remember('early_hints_link_header', 3600, function () {
             $parts = [];
 
-            // Vite manifest assets
+            // Vite manifest assets — ES modules need crossorigin, CSS does not
             foreach ($this->getViteAssets() as $asset) {
-                $parts[] = "<{$asset['url']}>; rel=preload; as={$asset['as']}; crossorigin";
+                $crossorigin = $asset['as'] === 'script' ? '; crossorigin' : '';
+                $parts[] = "<{$asset['url']}>; rel=preload; as={$asset['as']}{$crossorigin}";
             }
 
             // Theme assets
             foreach (self::THEME_ASSETS as $asset) {
                 $parts[] = "<{$asset['path']}>; rel=preload; as={$asset['as']}";
             }
-
-            // External CDN — Bootstrap CSS
-            $parts[] = '<https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css>; rel=preload; as=style; crossorigin';
 
             // Google Fonts preconnect
             $parts[] = '<https://fonts.googleapis.com>; rel=preconnect';
