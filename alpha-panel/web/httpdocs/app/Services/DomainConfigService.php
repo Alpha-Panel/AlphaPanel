@@ -134,14 +134,9 @@ class DomainConfigService
         $lines[] = '    encode zstd br gzip';
         $lines = array_merge($lines, $this->renderAcmeChallengePath('    '));
 
-        if (! $isLegacy) {
-            $lines[] = "    root * {$rootPath}";
-        }
-
         $lines = array_merge($lines, $this->renderServerDirectives($domain, $fqdn, $rootPath, '    '));
 
         if (! $isLegacy) {
-            $lines[] = '    file_server';
             $lines[] = '    log {';
             $lines[] = "        output file /var/log/caddy/{$fqdn}.log";
             $lines[] = '        format console';
@@ -227,14 +222,9 @@ class DomainConfigService
         $lines[] = '    encode zstd br gzip';
         $lines = array_merge($lines, $this->renderAcmeChallengePath('    '));
 
-        if (! $isLegacy) {
-            $lines[] = "    root * {$rootPath}";
-        }
-
         $lines = array_merge($lines, $this->renderServerDirectives($domain, $fqdn, $rootPath, '    '));
 
         if (! $isLegacy) {
-            $lines[] = '    file_server';
             $lines[] = '    log {';
             $lines[] = "        output file /var/log/caddy/{$fqdn}.log";
             $lines[] = '        format json';
@@ -396,9 +386,54 @@ class DomainConfigService
         }
 
         $lines = [];
+        $isLegacy = $domain->type === DomainType::ApacheReverseProxy;
 
         // Docker service bindings (handle_path routes before main handler)
-        $lines = array_merge($lines, $this->renderDockerServiceBindings($domain, $indent));
+        $dockerBindingLines = $this->renderDockerServiceBindings($domain, $indent);
+        $hasDockerBindings = ! empty($dockerBindingLines);
+
+        if ($hasDockerBindings) {
+            $lines = array_merge($lines, $dockerBindingLines);
+
+            // Wrap main handler in handle block for mutual exclusion with handle_path blocks
+            $lines[] = "{$indent}handle {";
+            $hi = "{$indent}    ";
+
+            if (! $isLegacy) {
+                $lines[] = "{$hi}root * {$rootPath}";
+            }
+
+            $lines = array_merge($lines, $this->renderMainHandler($domain, $fqdn, $rootPath, $hi));
+
+            if (! $isLegacy) {
+                $lines[] = "{$hi}file_server";
+            }
+
+            $lines[] = "{$indent}}";
+        } else {
+            // No Docker bindings — flat directives
+            if (! $isLegacy) {
+                $lines[] = "{$indent}root * {$rootPath}";
+            }
+
+            $lines = array_merge($lines, $this->renderMainHandler($domain, $fqdn, $rootPath, $indent));
+
+            if (! $isLegacy) {
+                $lines[] = "{$indent}file_server";
+            }
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Render the main application handler (php_server or reverse_proxy to Apache).
+     *
+     * @return array<int, string>
+     */
+    private function renderMainHandler(Domain $domain, string $fqdn, string $rootPath, string $indent): array
+    {
+        $lines = [];
 
         if ($domain->type === DomainType::CaddyWebServer) {
             if ($domain->enable_worker) {
@@ -460,6 +495,8 @@ class DomainConfigService
             $prefix = $binding->path_prefix;
 
             if ($prefix) {
+                // Redirect exact path to include trailing slash
+                $lines[] = "{$indent}redir {$prefix} {$prefix}/ 308";
                 // Path-prefix based routing
                 $lines[] = "{$indent}handle_path {$prefix}/* {";
                 $lines[] = "{$indent}    reverse_proxy http://{$containerName}:{$port} {";

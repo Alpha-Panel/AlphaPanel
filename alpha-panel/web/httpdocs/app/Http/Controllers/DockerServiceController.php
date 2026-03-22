@@ -6,10 +6,12 @@ use App\Http\Requests\StoreDockerServiceRequest;
 use App\Http\Requests\UpdateDockerServiceRequest;
 use App\Models\AuditLog;
 use App\Models\DockerService;
+use App\Services\ComposeFileService;
 use App\Services\DockerServiceManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -82,6 +84,13 @@ class DockerServiceController extends Controller
         $changes = array_keys(array_diff_assoc($newValues, $currentValues));
 
         $dockerService->update($validated);
+
+        // Regenerate compose file to reflect changes
+        try {
+            app(ComposeFileService::class)->writeServiceFile($dockerService);
+        } catch (\Exception $e) {
+            Log::warning("Compose file update failed for {$dockerService->name}: {$e->getMessage()}");
+        }
 
         AuditLog::create([
             'user_id' => $request->user()->id,

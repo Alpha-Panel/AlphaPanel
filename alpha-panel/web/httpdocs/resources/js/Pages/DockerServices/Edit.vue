@@ -158,12 +158,12 @@
                                 </button>
                             </div>
                             <div class="space-y-2">
-                                <div v-for="(port, index) in ports" :key="index" class="flex items-center gap-2">
+                                <div v-for="(port, index) in ports" :key="index" class="flex items-center gap-1.5">
                                     <input
                                         v-model="port.host"
                                         type="text"
                                         class="form-input w-28"
-                                        :placeholder="t('Host')"
+                                        :placeholder="t('Host (optional)')"
                                     />
                                     <span class="text-gray-400">:</span>
                                     <input
@@ -172,7 +172,7 @@
                                         class="form-input w-28"
                                         :placeholder="t('Container')"
                                     />
-                                    <select v-model="port.protocol" class="form-input w-24">
+                                    <select v-model="port.protocol" class="form-input w-[4.5rem] shrink-0 px-1.5 text-xs">
                                         <option value="tcp">TCP</option>
                                         <option value="udp">UDP</option>
                                     </select>

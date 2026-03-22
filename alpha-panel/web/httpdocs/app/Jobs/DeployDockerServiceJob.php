@@ -3,6 +3,9 @@
 namespace App\Jobs;
 
 use App\Enums\DockerServiceStatus;
+use App\Events\DockerDeployCompleted;
+use App\Events\DockerDeployFailed;
+use App\Events\DockerDeployProgress;
 use App\Models\AuditLog;
 use App\Models\DockerService;
 use App\Services\ComposeFileService;
@@ -32,32 +35,43 @@ class DeployDockerServiceJob implements ShouldQueue
         ComposeFileService $composeFile,
     ): void {
         $service = $this->service;
+        $userId = $this->triggeredBy ?? $service->created_by ?? 0;
 
         $service->update(['status' => DockerServiceStatus::Pending]);
+        $this->progress(5, __('Starting deployment...'));
 
         try {
-            // Pull image
+            // Step 1: Pull image
+            $this->progress(10, __('Pulling image :image::tag...', [
+                'image' => $service->image,
+                'tag' => $service->tag,
+            ]));
             $portainer->pullImage($service->image, $service->tag);
 
-            // Build container config
+            // Step 2: Build container config
+            $this->progress(40, __('Creating container...'));
             $config = $this->buildContainerConfig($service, $portainer);
 
-            // Create container
+            // Step 3: Create container
+            $this->progress(55, __('Configuring container...'));
             $containerId = $portainer->createPersistentContainer($config, $service->name);
-
             $service->update(['container_id' => $containerId]);
 
-            // Start container
+            // Step 4: Start container
+            $this->progress(70, __('Starting container...'));
             $portainer->startContainer($containerId);
-
             $service->update(['status' => DockerServiceStatus::Running]);
 
-            // Regenerate compose file (best-effort, non-fatal)
+            // Step 5: Write compose file
+            $this->progress(85, __('Writing compose file...'));
             try {
-                $composeFile->regenerate();
+                $composeFile->writeServiceFile($service);
             } catch (\Exception $e) {
-                Log::warning("Compose file regeneration failed for {$service->name}: {$e->getMessage()}");
+                Log::warning("Compose file write failed for {$service->name}: {$e->getMessage()}");
             }
+
+            // Step 6: Done
+            $this->progress(100, __('Deployment complete!'));
 
             AuditLog::create([
                 'user_id' => $this->triggeredBy,
@@ -71,6 +85,8 @@ class DeployDockerServiceJob implements ShouldQueue
                     'container_id' => $containerId,
                 ], JSON_THROW_ON_ERROR),
             ]);
+
+            DockerDeployCompleted::dispatch($service->id, $service->display_name, $userId);
 
             Log::info("Docker service deployed: {$service->name}");
         } catch (\Exception $e) {
@@ -86,8 +102,31 @@ class DeployDockerServiceJob implements ShouldQueue
                 ], JSON_THROW_ON_ERROR),
             ]);
 
+            DockerDeployFailed::dispatch(
+                $service->id,
+                $service->display_name,
+                $userId,
+                $e->getMessage(),
+            );
+
             Log::error("Failed to deploy Docker service {$service->name}: {$e->getMessage()}");
         }
+    }
+
+    /**
+     * Broadcast a progress update via WebSocket.
+     */
+    private function progress(int $percent, string $message): void
+    {
+        $userId = $this->triggeredBy ?? $this->service->created_by ?? 0;
+
+        DockerDeployProgress::dispatch(
+            $this->service->id,
+            $this->service->display_name,
+            $userId,
+            $percent,
+            $message,
+        );
     }
 
     /**

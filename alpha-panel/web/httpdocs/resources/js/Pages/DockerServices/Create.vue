@@ -434,15 +434,15 @@
                                         <div
                                             v-for="(row, index) in portRows"
                                             :key="index"
-                                            class="flex items-center gap-2"
+                                            class="flex items-center gap-1.5"
                                         >
                                             <input
                                                 v-model.number="row.host_port"
                                                 type="number"
                                                 min="1"
                                                 max="65535"
-                                                :placeholder="t('Host port')"
-                                                class="form-input flex-1 font-mono text-xs"
+                                                :placeholder="t('Host (optional)')"
+                                                class="form-input w-28 shrink-0 font-mono text-xs"
                                             />
                                             <span class="text-gray-400">:</span>
                                             <input
@@ -450,24 +450,24 @@
                                                 type="number"
                                                 min="1"
                                                 max="65535"
-                                                :placeholder="t('Container port')"
+                                                :placeholder="t('Container')"
                                                 class="form-input flex-1 font-mono text-xs"
                                             />
-                                            <select v-model="row.protocol" class="form-input w-20 shrink-0 text-xs">
+                                            <select v-model="row.protocol" class="form-input w-[4.5rem] shrink-0 px-1.5 text-xs">
                                                 <option value="tcp">TCP</option>
                                                 <option value="udp">UDP</option>
                                             </select>
                                             <button
                                                 type="button"
-                                                class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+                                                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
                                                 @click="removePort(index)"
                                             >
-                                                <i class="bx bx-trash text-base"></i>
+                                                <i class="bx bx-trash text-sm"></i>
                                             </button>
                                         </div>
                                     </div>
                                     <p v-else class="text-xs text-gray-400 dark:text-gray-500">
-                                        {{ t('No ports configured.') }}
+                                        {{ t('No ports configured. Services on the Docker network are accessible via container name without port mapping.') }}
                                     </p>
                                 </div>
 
@@ -627,7 +627,7 @@
                                             :key="index"
                                             class="font-mono text-xs text-gray-700 dark:text-gray-300"
                                         >
-                                            {{ port.host_port }}:{{ port.container_port }}/{{ port.protocol }}
+                                            <template v-if="port.host_port">{{ port.host_port }}:</template>{{ port.container_port }}/{{ port.protocol }}
                                         </div>
                                     </div>
                                 </div>

@@ -74,10 +74,10 @@ class DockerServiceManager
                 $this->portainer->removeContainer($service->container_id, force: true);
             }
 
-            $service->delete();
+            // Remove compose file for this service
+            $this->composeFile->removeServiceFile($service);
 
-            // Regenerate compose file
-            $this->composeFile->regenerate();
+            $service->delete();
 
             Log::info("Docker service removed: {$service->name}");
         } catch (\Exception $e) {
