@@ -544,6 +544,7 @@ interface CheckResultData {
 const props = defineProps<{
     current_version: CurrentVersion;
     agent_healthy: boolean;
+    cached_check: CheckResultData | null;
     recent_updates: UpdateItem[];
 }>();
 
@@ -551,7 +552,7 @@ const serviceEntries = computed(() => Object.entries(props.current_version.servi
 
 // Check for updates state
 const checkLoading = ref(false);
-const checkResult = ref<CheckResultData | null>(null);
+const checkResult = ref<CheckResultData | null>(props.cached_check ?? null);
 const checkError = ref<string | null>(null);
 
 // Panel update state
