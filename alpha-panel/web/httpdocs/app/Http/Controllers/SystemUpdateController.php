@@ -37,8 +37,8 @@ class SystemUpdateController extends Controller
                     'message' => $u->message,
                     'error_message' => $u->error_message,
                     'triggered_by' => $u->triggeredByUser?->name,
-                    'started_at' => $u->started_at?->format('d.m.Y H:i:s'),
-                    'finished_at' => $u->finished_at?->format('d.m.Y H:i:s'),
+                    'started_at' => $u->started_at?->toIso8601String(),
+                    'finished_at' => $u->finished_at?->toIso8601String(),
                 ]),
         ]);
     }

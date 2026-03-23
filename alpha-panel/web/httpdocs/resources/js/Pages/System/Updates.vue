@@ -194,10 +194,13 @@
                                 <i class="bx bx-error-circle mt-0.5 text-xl text-warning-600 dark:text-warning-400"></i>
                                 <div>
                                     <h5 class="font-semibold text-warning-800 dark:text-warning-200">
-                                        {{ t('Major MySQL upgrade requires downtime') }}
+                                        {{ checkResult.mysql_update.is_major ? t('Major MySQL upgrade requires downtime') : t('MySQL minor update available') }}
                                     </h5>
                                     <p class="mt-1 text-sm text-warning-700 dark:text-warning-300">
-                                        {{ t('This is a major version upgrade. Your database will be unavailable during the migration process. Ensure you have a recent backup before proceeding.') }}
+                                        {{ checkResult.mysql_update.is_major
+                                            ? t('This is a major version upgrade. Your database will be unavailable during the migration process. Ensure you have a recent backup before proceeding.')
+                                            : t('A minor MySQL version update is available. This update includes bug fixes and security patches. Your database will be briefly unavailable during the update.')
+                                        }}
                                     </p>
                                 </div>
                             </div>
@@ -534,10 +537,12 @@ interface CheckResultData {
     panel_update: {
         latest_version: string;
         release_notes: string | null;
+        release_url: string | null;
     } | null;
     mysql_update: {
         current_version: string;
         target_version: string;
+        is_major: boolean;
     } | null;
 }
 
@@ -611,77 +616,103 @@ async function checkForUpdates() {
     }
 }
 
+// JSON POST helper (avoids Inertia expecting an Inertia response from async endpoints)
+async function jsonPost(url: string, body: Record<string, unknown> = {}): Promise<any> {
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': getCsrfToken(),
+        },
+        body: JSON.stringify(body),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.error || data.message || t('An unexpected error occurred.'));
+    }
+
+    return data;
+}
+
 // Panel update
-function startPanelUpdate() {
+async function startPanelUpdate() {
     panelUpdateProcessing.value = true;
     showPanelUpdateConfirm.value = false;
 
-    router.post(route('system.updates.panel'), {}, {
-        preserveScroll: true,
-        onFinish: () => {
-            panelUpdateProcessing.value = false;
-        },
-    });
+    try {
+        await jsonPost(route('system.updates.panel'));
+        router.reload();
+    } catch (err: unknown) {
+        checkError.value = err instanceof Error ? err.message : t('An unexpected error occurred.');
+    } finally {
+        panelUpdateProcessing.value = false;
+    }
 }
 
 // MySQL upgrade actions
-function prepareMysqlUpgrade() {
+async function prepareMysqlUpgrade() {
     mysqlPrepareProcessing.value = true;
 
-    router.post(route('system.updates.mysql.prepare'), {}, {
-        preserveScroll: true,
-        onSuccess: () => {
-            mysqlStage.value = 'prepared';
-        },
-        onFinish: () => {
-            mysqlPrepareProcessing.value = false;
-        },
-    });
+    try {
+        await jsonPost(route('system.updates.mysql.prepare'), {
+            target_version: checkResult.value?.mysql_update?.target_version ?? '',
+        });
+        mysqlStage.value = 'prepared';
+        router.reload();
+    } catch (err: unknown) {
+        checkError.value = err instanceof Error ? err.message : t('An unexpected error occurred.');
+    } finally {
+        mysqlPrepareProcessing.value = false;
+    }
 }
 
-function applyMysqlUpgrade() {
+async function applyMysqlUpgrade() {
     mysqlApplyProcessing.value = true;
     showMysqlApplyConfirm.value = false;
 
-    router.post(route('system.updates.mysql.apply'), {}, {
-        preserveScroll: true,
-        onSuccess: () => {
-            mysqlStage.value = 'applied';
-        },
-        onFinish: () => {
-            mysqlApplyProcessing.value = false;
-        },
-    });
+    try {
+        await jsonPost(route('system.updates.mysql.apply'));
+        mysqlStage.value = 'applied';
+        router.reload();
+    } catch (err: unknown) {
+        checkError.value = err instanceof Error ? err.message : t('An unexpected error occurred.');
+    } finally {
+        mysqlApplyProcessing.value = false;
+    }
 }
 
-function rollbackMysqlUpgrade() {
+async function rollbackMysqlUpgrade() {
     mysqlRollbackProcessing.value = true;
     showMysqlRollbackConfirm.value = false;
 
-    router.post(route('system.updates.mysql.rollback'), {}, {
-        preserveScroll: true,
-        onSuccess: () => {
-            mysqlStage.value = 'idle';
-        },
-        onFinish: () => {
-            mysqlRollbackProcessing.value = false;
-        },
-    });
+    try {
+        await jsonPost(route('system.updates.mysql.rollback'));
+        mysqlStage.value = 'idle';
+        router.reload();
+    } catch (err: unknown) {
+        checkError.value = err instanceof Error ? err.message : t('An unexpected error occurred.');
+    } finally {
+        mysqlRollbackProcessing.value = false;
+    }
 }
 
-function deleteMysqlBackup() {
+async function deleteMysqlBackup() {
     mysqlDeleteBackupProcessing.value = true;
     showMysqlDeleteBackupConfirm.value = false;
 
-    router.post(route('system.updates.mysql.delete-backup'), {}, {
-        preserveScroll: true,
-        onSuccess: () => {
-            mysqlStage.value = 'idle';
-        },
-        onFinish: () => {
-            mysqlDeleteBackupProcessing.value = false;
-        },
-    });
+    try {
+        await jsonPost(route('system.updates.mysql.cleanup'));
+        mysqlStage.value = 'idle';
+        router.reload();
+    } catch (err: unknown) {
+        checkError.value = err instanceof Error ? err.message : t('An unexpected error occurred.');
+    } finally {
+        mysqlDeleteBackupProcessing.value = false;
+    }
 }
 
 function refreshPage() {

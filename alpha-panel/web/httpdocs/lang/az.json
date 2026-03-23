@@ -645,6 +645,8 @@
     "Main Domain": "Əsas domen",
     "Main domain path: :path": "Əsas domen yolu: :path",
     "Major MySQL upgrade requires downtime": "Böyük MySQL yüksəltməsi fasilə tələb edir",
+    "MySQL minor update available": "MySQL kiçik yeniləmə mövcuddur",
+    "A minor MySQL version update is available. This update includes bug fixes and security patches. Your database will be briefly unavailable during the update.": "Kiçik bir MySQL versiya yeniləməsi mövcuddur. Bu yeniləmə xəta düzəltmələri və təhlükəsizlik yamaları ehtiva edir. Yeniləmə zamanı verilənlər bazanız qısa müddət ərzində əlçatmaz olacaq.",
     "Manage background processes for your Laravel application. Changes are applied immediately to the server.": "Laravel tətbiqiniz üçün arxa plan proseslərini idarə edin. Dəyişikliklər dərhal serverə tətbiq olunur.",
     "Manage Cloudflare settings and cache": "Cloudflare parametrlərini və keşi idarə et",
     "Manage CrowdSec decisions": "CrowdSec qərarlarını idarə et",

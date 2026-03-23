@@ -41,17 +41,57 @@ class UpdateService
     }
 
     /**
-     * @return array{panel: array, mysql: array}
+     * @return array{panel_update: array|null, mysql_update: array|null}
      */
     public function checkForUpdates(): array
     {
         $response = $this->request(60)->get('/check');
 
-        $data = $response->json();
+        $raw = $response->json();
+
+        $data = $this->normalizeCheckResult($raw);
 
         Cache::put('system:latest_version_check', $data, now()->addHours(6));
 
         return $data;
+    }
+
+    /**
+     * Transform raw agent response to the format the frontend expects.
+     *
+     * @return array{panel_update: array|null, mysql_update: array|null}
+     */
+    private function normalizeCheckResult(array $raw): array
+    {
+        $panel = $raw['panel'] ?? [];
+        $mysql = $raw['mysql'] ?? [];
+
+        $panelUpdate = null;
+        if (! empty($panel['update_available'])) {
+            $panelUpdate = [
+                'latest_version' => $panel['latest'] ?? $panel['latest_version'] ?? 'unknown',
+                'release_notes' => $panel['release_notes'] ?? null,
+                'release_url' => $panel['release_url'] ?? null,
+            ];
+        }
+
+        $mysqlUpdate = null;
+        if (! empty($mysql['minor_update_available']) || ! empty($mysql['major_upgrade_available'])) {
+            $targetVersion = ! empty($mysql['major_upgrade_available'])
+                ? ($mysql['latest_major'] ?? $mysql['latest_minor'] ?? 'unknown')
+                : ($mysql['latest_minor'] ?? 'unknown');
+
+            $mysqlUpdate = [
+                'current_version' => $mysql['current'] ?? 'unknown',
+                'target_version' => $targetVersion,
+                'is_major' => ! empty($mysql['major_upgrade_available']),
+            ];
+        }
+
+        return [
+            'panel_update' => $panelUpdate,
+            'mysql_update' => $mysqlUpdate,
+        ];
     }
 
     /**

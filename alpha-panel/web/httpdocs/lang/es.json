@@ -645,6 +645,8 @@
     "Main Domain": "Dominio principal",
     "Main domain path: :path": "Ruta del dominio principal: :path",
     "Major MySQL upgrade requires downtime": "La actualización mayor de MySQL requiere tiempo de inactividad",
+    "MySQL minor update available": "Actualización menor de MySQL disponible",
+    "A minor MySQL version update is available. This update includes bug fixes and security patches. Your database will be briefly unavailable during the update.": "Una actualización menor de MySQL está disponible. Esta actualización incluye correcciones de errores y parches de seguridad. Su base de datos no estará disponible brevemente durante la actualización.",
     "Manage background processes for your Laravel application. Changes are applied immediately to the server.": "Gestione procesos en segundo plano para su aplicación Laravel. Los cambios se aplican inmediatamente al servidor.",
     "Manage Cloudflare settings and cache": "Gestionar configuración y caché de Cloudflare",
     "Manage CrowdSec decisions": "Gestionar decisiones de CrowdSec",

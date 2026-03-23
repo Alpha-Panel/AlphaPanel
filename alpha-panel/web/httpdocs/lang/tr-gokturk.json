@@ -650,6 +650,8 @@
     "Main Domain": "𐰉𐰀𐱁 𐰑𐰆𐰢𐰀𐰃𐰤",
     "Main domain path: :path": "𐰀𐱃𐰀 𐰑𐰆𐰢𐰀𐰃𐰤 𐰖𐰆𐰞𐰆: :path",
     "Major MySQL upgrade requires downtime": "𐰉𐰇𐰖𐰇𐰚 𐰢𐰖𐰾𐰸𐰞 𐰖𐰇𐰚𐰾𐰁𐰞𐱃𐰢𐰁𐰾𐰃 𐰯𐰀𐰾𐰃𐰞𐰁 𐰚𐰁𐰺𐰁𐰚",
+    "MySQL minor update available": "𐰢𐰃𐰾𐰴𐰠 𐰚𐰃𐰲𐰃𐰚 𐰖𐰪𐰃𐰞𐰀𐰴𐰆 𐰉𐰀𐰺",
+    "A minor MySQL version update is available. This update includes bug fixes and security patches. Your database will be briefly unavailable during the update.": "𐰚𐰃𐰲𐰃𐰚 𐰋𐰃𐰼 𐰢𐰃𐰾𐰴𐰠 𐱅𐰈𐰼𐰈𐰢 𐰖𐰪𐰃𐰞𐰀𐰴𐰆𐰽𐰆 𐰉𐰀𐰺. 𐰉𐰆 𐰖𐰪𐰃𐰞𐰀𐰴𐰆 𐰖𐰪𐰞𐰃𐱁 𐱅𐰈𐰔�ٔ𐱅𐰢𐰁𐰠𐰼𐰃 𐰋𐰁 𐰸𐰆𐰺𐰴𐰃𐰭𐰲𐰽𐰃𐰔𐰞𐰃𐰴 𐰖𐰀𐰢𐰀𐰞𐰀𐰺𐰃 𐰃𐰲𐰼𐰃𐰼. 𐰖𐰪𐰃𐰞𐰀𐰴𐰆 𐰽𐰃𐰺𐰀𐰽𐰃𐰭𐰑𐰀 𐰋𐰃𐰠𐰃𐰏𐰃𐰠𐰼 𐰉𐰀𐰔𐰀𐰭𐰃𐰔 𐰴𐰃𐰾𐰴𐰀 𐰽𐰈𐰼𐰁𐰠𐰃 𐰁𐰠𐰲𐰀𐱅𐰢𐰀𐰔 𐰉𐰆𐰞𐰆𐰺.",
     "Manage background processes for your Laravel application. Changes are applied immediately to the server.": "𐰞𐰀𐰺𐰀𐰉𐰁𐰞 𐰆𐰖𐰍𐰆𐰞𐰀𐰾𐰃 𐰇𐰲𐰇𐰤 𐰀𐰺𐰸𐰀 𐰯𐰞𐰀𐰤 𐰃𐱁𐰞𐰁𐰺𐰤𐰃 𐰖𐰇𐰤𐰁𐱃. 𐰑𐰁𐰍𐰃𐱁𐰃𐰚𐰞𐰃𐰚𐰞𐰁𐰺 𐰾𐰁𐰺𐰉𐰁𐰺𐰍𐰁 𐰑𐰁𐰺𐰴𐰀𐰞 𐰆𐰖𐰍𐰆𐰞𐰀𐰤𐰆𐰺.",
     "Manage Cloudflare settings and cache": "𐰸𐰞𐰀𐰆𐰑𐰯𐰞𐰁𐰖𐰺 𐱃𐰇𐰔𐰇𐰚𐰞𐰁𐰺𐰃𐰤 𐰴𐰁𐰢 𐰇𐰤𐰉𐰁𐰞𐰞𐰁𐰚𐰃𐰤 𐰖𐰇𐰤𐰁𐱃",
     "Manage CrowdSec decisions": "𐰸𐰺𐰀𐰆𐰑𐰾𐰁𐰸 𐰸𐰀𐰺𐰀𐰺𐰞𐰀𐰺𐰃𐰤 𐰖𐰇𐰤𐰁𐱃",
