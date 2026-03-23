@@ -378,7 +378,7 @@ Route::middleware('auth')->group(function (): void {
     Route::middleware('permission:panel.system.updates')->group(function (): void {
         Route::prefix('system/updates')->name('system.updates.')->group(function (): void {
             Route::get('/', [SystemUpdateController::class, 'index'])->name('index');
-            Route::get('/check', [SystemUpdateController::class, 'check'])->name('check');
+            Route::post('/check', [SystemUpdateController::class, 'check'])->name('check');
             Route::post('/panel', [SystemUpdateController::class, 'updatePanel'])->name('panel');
             Route::post('/mysql/prepare', [SystemUpdateController::class, 'prepareMysqlUpgrade'])->name('mysql.prepare');
             Route::post('/mysql/apply', [SystemUpdateController::class, 'applyMysqlUpgrade'])->name('mysql.apply');
