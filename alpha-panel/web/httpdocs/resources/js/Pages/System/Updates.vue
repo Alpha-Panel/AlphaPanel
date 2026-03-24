@@ -216,26 +216,8 @@
                             </span>
                         </div>
 
-                        <!-- MySQL Upgrade Progress -->
-                        <div v-if="mysqlUpgradeProgress.active" class="mt-4">
-                            <div class="flex items-center justify-between">
-                                <p class="text-sm font-medium text-warning-800 dark:text-warning-200">
-                                    {{ mysqlUpgradeProgress.message || t('Processing MySQL upgrade...') }}
-                                </p>
-                                <span class="text-sm font-semibold text-warning-700 dark:text-warning-300">
-                                    {{ mysqlUpgradeProgress.percent }}%
-                                </span>
-                            </div>
-                            <div class="mt-2 h-2 overflow-hidden rounded-full bg-warning-200 dark:bg-warning-800">
-                                <div
-                                    class="h-full rounded-full bg-warning-500 transition-all duration-300"
-                                    :style="{ width: mysqlUpgradeProgress.percent + '%' }"
-                                ></div>
-                            </div>
-                        </div>
-
                         <!-- MySQL Upgrade Steps -->
-                        <div v-else class="mt-4 flex flex-wrap items-center gap-3">
+                        <div class="mt-4 flex flex-wrap items-center gap-3">
                             <template v-if="mysqlStage === 'idle'">
                                 <button
                                     @click="prepareMysqlUpgrade"
@@ -248,9 +230,24 @@
                             </template>
 
                             <template v-else-if="mysqlStage === 'preparing'">
-                                <div class="w-full rounded-lg bg-brand-50 p-3 text-sm text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
-                                    <i class="bx bx-loader-alt bx-spin mr-1"></i>
-                                    {{ t('Preparing upgrade test environment... This may take several minutes.') }}
+                                <div class="w-full space-y-3">
+                                    <div class="rounded-lg bg-brand-50 p-3 text-sm text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
+                                        <div class="flex items-center justify-between">
+                                            <span>
+                                                <i class="bx bx-loader-alt bx-spin mr-1"></i>
+                                                {{ mysqlUpgradeProgress.message || t('Preparing upgrade test environment... This may take several minutes.') }}
+                                            </span>
+                                            <span v-if="mysqlUpgradeProgress.percent > 0" class="font-semibold">
+                                                {{ mysqlUpgradeProgress.percent }}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div v-if="mysqlUpgradeProgress.percent > 0" class="h-2 overflow-hidden rounded-full bg-brand-200 dark:bg-brand-800">
+                                        <div
+                                            class="h-full rounded-full bg-brand-500 transition-all duration-300"
+                                            :style="{ width: mysqlUpgradeProgress.percent + '%' }"
+                                        ></div>
+                                    </div>
                                 </div>
                             </template>
 
@@ -277,6 +274,50 @@
                                     <i class="fa-solid fa-database"></i>
                                     {{ t('Apply Upgrade') }}
                                 </button>
+                            </template>
+
+                            <template v-else-if="mysqlStage === 'applying'">
+                                <div class="w-full space-y-3">
+                                    <div class="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">
+                                        <div class="flex items-center justify-between">
+                                            <span>
+                                                <i class="bx bx-loader-alt bx-spin mr-1"></i>
+                                                {{ mysqlUpgradeProgress.message || t('Applying upgrade to production. Database will be briefly unavailable.') }}
+                                            </span>
+                                            <span v-if="mysqlUpgradeProgress.percent > 0" class="font-semibold">
+                                                {{ mysqlUpgradeProgress.percent }}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div v-if="mysqlUpgradeProgress.percent > 0" class="h-2 overflow-hidden rounded-full bg-red-200 dark:bg-red-800">
+                                        <div
+                                            class="h-full rounded-full bg-red-500 transition-all duration-300"
+                                            :style="{ width: mysqlUpgradeProgress.percent + '%' }"
+                                        ></div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <template v-else-if="mysqlStage === 'rolling_back'">
+                                <div class="w-full space-y-3">
+                                    <div class="rounded-lg bg-warning-50 p-3 text-sm text-warning-700 dark:bg-warning-500/10 dark:text-warning-300">
+                                        <div class="flex items-center justify-between">
+                                            <span>
+                                                <i class="bx bx-loader-alt bx-spin mr-1"></i>
+                                                {{ mysqlUpgradeProgress.message || t('Rolling back MySQL upgrade...') }}
+                                            </span>
+                                            <span v-if="mysqlUpgradeProgress.percent > 0" class="font-semibold">
+                                                {{ mysqlUpgradeProgress.percent }}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div v-if="mysqlUpgradeProgress.percent > 0" class="h-2 overflow-hidden rounded-full bg-warning-200 dark:bg-warning-800">
+                                        <div
+                                            class="h-full rounded-full bg-warning-500 transition-all duration-300"
+                                            :style="{ width: mysqlUpgradeProgress.percent + '%' }"
+                                        ></div>
+                                    </div>
+                                </div>
                             </template>
 
                             <template v-else-if="mysqlStage === 'applied'">
@@ -553,11 +594,14 @@ interface CheckResultData {
     } | null;
 }
 
+type MysqlStage = 'idle' | 'preparing' | 'prepared' | 'applying' | 'applied' | 'rolling_back';
+
 const props = defineProps<{
     current_version: CurrentVersion;
     agent_healthy: boolean;
     cached_check: CheckResultData | null;
     mysql_stage: string;
+    active_progress: { percent: number; message: string } | null;
     recent_updates: UpdateItem[];
 }>();
 
@@ -574,18 +618,20 @@ const panelUpdateProcessing = ref(false);
 const panelUpdateProgress = ref({ active: false, percent: 0, message: '' });
 
 // MySQL upgrade state
-const mysqlStage = ref<'idle' | 'preparing' | 'prepared' | 'applied'>(
-    (props.mysql_stage as 'idle' | 'preparing' | 'prepared' | 'applied') ?? 'idle',
-);
+const mysqlStage = ref<MysqlStage>((props.mysql_stage as MysqlStage) ?? 'idle');
 const mysqlPrepareProcessing = ref(false);
 const mysqlApplyProcessing = ref(false);
 const mysqlRollbackProcessing = ref(false);
 const mysqlDeleteBackupProcessing = ref(false);
-const mysqlUpgradeProgress = ref({ active: false, percent: 0, message: '' });
+const mysqlUpgradeProgress = ref({
+    active: props.active_progress !== null,
+    percent: props.active_progress?.percent ?? 0,
+    message: props.active_progress?.message ?? '',
+});
 const showMysqlApplyConfirm = ref(false);
 const showMysqlRollbackConfirm = ref(false);
 const showMysqlDeleteBackupConfirm = ref(false);
-const pmaUrl = ref<string | null>(null);
+const pmaUrl = ref<string | null>(mysqlStage.value === 'prepared' ? '/upgrade-test-pma/' : null);
 
 // Check for updates
 function checkForUpdates() {
@@ -704,7 +750,8 @@ onMounted(() => {
                 };
 
                 if (e.stage) {
-                    mysqlStage.value = e.stage;
+                    mysqlStage.value = e.stage as MysqlStage;
+                    pmaUrl.value = e.stage === 'prepared' ? '/upgrade-test-pma/' : null;
                 }
             }
 

@@ -53,6 +53,9 @@ class UpdateService
 
         Cache::put('system:latest_version_check', $data, now()->addHours(6));
 
+        $hasUpdate = ! empty($data['panel_update']) || ! empty($data['mysql_update']);
+        Cache::put('system:update_available', $hasUpdate, now()->addHours(6));
+
         return $data;
     }
 

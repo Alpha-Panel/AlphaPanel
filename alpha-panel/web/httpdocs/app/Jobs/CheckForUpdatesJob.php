@@ -36,15 +36,14 @@ class CheckForUpdatesJob implements ShouldQueue
             return;
         }
 
-        $panelUpdate = $result['panel']['update_available'] ?? false;
-        $mysqlMajor = $result['mysql']['major_upgrade_available'] ?? false;
-        $mysqlMinor = $result['mysql']['minor_update_available'] ?? false;
+        $panelUpdate = ! empty($result['panel_update']);
+        $mysqlUpdate = ! empty($result['mysql_update']);
 
-        if (! $panelUpdate && ! $mysqlMajor && ! $mysqlMinor) {
+        if (! $panelUpdate && ! $mysqlUpdate) {
             return;
         }
 
-        $body = $this->buildNotificationBody($result, $panelUpdate, $mysqlMajor, $mysqlMinor);
+        $body = $this->buildNotificationBody($result);
 
         $admins = User::whereHas('roles', fn ($q) => $q->where('name', 'admin'))->get();
 
@@ -59,24 +58,20 @@ class CheckForUpdatesJob implements ShouldQueue
         }
     }
 
-    private function buildNotificationBody(array $result, bool $panelUpdate, bool $mysqlMajor, bool $mysqlMinor): string
+    private function buildNotificationBody(array $result): string
     {
         $parts = [];
 
-        if ($panelUpdate) {
-            $current = $result['panel']['current'] ?? '?';
-            $latest = $result['panel']['latest'] ?? '?';
-            $parts[] = __('Panel: :current → :latest', ['current' => $current, 'latest' => $latest]);
+        if (! empty($result['panel_update'])) {
+            $latest = $result['panel_update']['latest_version'] ?? '?';
+            $parts[] = __('Panel update: :latest available', ['latest' => $latest]);
         }
 
-        if ($mysqlMajor) {
-            $current = $result['mysql']['current'] ?? '?';
-            $latest = $result['mysql']['latest_major'] ?? '?';
-            $parts[] = __('MySQL major: :current → :latest', ['current' => $current, 'latest' => $latest]);
-        } elseif ($mysqlMinor) {
-            $current = $result['mysql']['current'] ?? '?';
-            $latest = $result['mysql']['latest_minor'] ?? '?';
-            $parts[] = __('MySQL minor: :current → :latest', ['current' => $current, 'latest' => $latest]);
+        if (! empty($result['mysql_update'])) {
+            $current = $result['mysql_update']['current_version'] ?? '?';
+            $target = $result['mysql_update']['target_version'] ?? '?';
+            $type = ($result['mysql_update']['is_major'] ?? false) ? 'major' : 'minor';
+            $parts[] = __("MySQL {$type}: :current → :target", ['current' => $current, 'target' => $target]);
         }
 
         return implode(' | ', $parts);

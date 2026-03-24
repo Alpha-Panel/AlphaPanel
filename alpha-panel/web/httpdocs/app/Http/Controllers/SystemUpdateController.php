@@ -25,14 +25,31 @@ class SystemUpdateController extends Controller
             ->first();
 
         $mysqlStage = 'idle';
+        $activeProgress = null;
+
         if ($latestMysqlUpdate) {
+            $operation = $latestMysqlUpdate->rollback_info['operation'] ?? 'prepare';
+
             $mysqlStage = match ($latestMysqlUpdate->status) {
-                UpdateStatus::InProgress => 'preparing',
-                UpdateStatus::Completed => 'prepared',
-                UpdateStatus::Failed => 'idle',
-                UpdateStatus::RolledBack => 'idle',
+                UpdateStatus::InProgress => match ($operation) {
+                    'apply' => 'applying',
+                    'rollback' => 'rolling_back',
+                    default => 'preparing',
+                },
+                UpdateStatus::Completed => match ($operation) {
+                    'apply' => 'applied',
+                    default => 'prepared',
+                },
+                UpdateStatus::Failed, UpdateStatus::RolledBack => 'idle',
                 default => 'idle',
             };
+
+            if ($latestMysqlUpdate->status === UpdateStatus::InProgress) {
+                $activeProgress = [
+                    'percent' => $latestMysqlUpdate->progress_percent,
+                    'message' => $latestMysqlUpdate->message,
+                ];
+            }
         }
 
         return Inertia::render('System/Updates', [
@@ -40,6 +57,7 @@ class SystemUpdateController extends Controller
             'agent_healthy' => $service->isAgentHealthy(),
             'cached_check' => Cache::get('system:latest_version_check'),
             'mysql_stage' => $mysqlStage,
+            'active_progress' => $activeProgress,
             'recent_updates' => SystemUpdate::query()
                 ->with('triggeredByUser:id,name')
                 ->latest()
@@ -170,7 +188,7 @@ class SystemUpdateController extends Controller
             return back()->with('error', __('MySQL upgrade preparation failed: :message', ['message' => $e->getMessage()]));
         }
 
-        dispatch(new MonitorUpdateProgressJob($update, $taskId));
+        dispatch(new MonitorUpdateProgressJob($update, $taskId, 'prepare'));
 
         return back()->with('success', __('MySQL upgrade preparation started.'));
     }
@@ -202,7 +220,12 @@ class SystemUpdateController extends Controller
             ->first();
 
         if ($update) {
-            dispatch(new MonitorUpdateProgressJob($update, $taskId));
+            $update->update([
+                'status' => UpdateStatus::InProgress,
+                'message' => __('Applying MySQL upgrade...'),
+                'rollback_info' => array_merge($update->rollback_info ?? [], ['operation' => 'apply']),
+            ]);
+            dispatch(new MonitorUpdateProgressJob($update, $taskId, 'apply'));
         }
 
         return back()->with('success', __('MySQL upgrade applied.'));
@@ -235,8 +258,12 @@ class SystemUpdateController extends Controller
             ->first();
 
         if ($update) {
-            $update->update(['status' => UpdateStatus::RolledBack]);
-            dispatch(new MonitorUpdateProgressJob($update, $taskId));
+            $update->update([
+                'status' => UpdateStatus::InProgress,
+                'message' => __('Rolling back MySQL upgrade...'),
+                'rollback_info' => array_merge($update->rollback_info ?? [], ['operation' => 'rollback']),
+            ]);
+            dispatch(new MonitorUpdateProgressJob($update, $taskId, 'rollback'));
         }
 
         return back()->with('success', __('MySQL upgrade rolled back.'));

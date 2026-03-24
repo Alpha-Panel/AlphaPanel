@@ -12,6 +12,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class MonitorUpdateProgressJob implements ShouldQueue
@@ -27,6 +28,7 @@ class MonitorUpdateProgressJob implements ShouldQueue
     public function __construct(
         public SystemUpdate $systemUpdate,
         public string $taskId,
+        public string $operation = 'prepare',
     ) {}
 
     public function handle(UpdateService $service): void
@@ -106,6 +108,13 @@ class MonitorUpdateProgressJob implements ShouldQueue
                     'finished_at' => now(),
                 ]);
 
+                // Clear update badge after panel update or mysql apply
+                if ($this->systemUpdate->type === UpdateType::PanelUpdate
+                    || ($this->systemUpdate->type === UpdateType::MysqlUpgrade && $this->operation === 'apply')
+                ) {
+                    Cache::forget('system:update_available');
+                }
+
                 UpdateProgress::dispatch(
                     $this->systemUpdate->id,
                     100,
@@ -124,6 +133,14 @@ class MonitorUpdateProgressJob implements ShouldQueue
                     'error_message' => $message,
                     'finished_at' => now(),
                 ]);
+
+                UpdateProgress::dispatch(
+                    $this->systemUpdate->id,
+                    $percent,
+                    $message,
+                    'failed',
+                    $broadcastType,
+                );
 
                 return;
             }
@@ -164,8 +181,11 @@ class MonitorUpdateProgressJob implements ShouldQueue
             return null;
         }
 
-        // If this was a prepare task (status was in_progress, from_version set, to_version set)
-        // the completion means "prepared" stage
-        return 'prepared';
+        return match ($this->operation) {
+            'prepare' => 'prepared',
+            'apply' => 'applied',
+            'rollback' => 'idle',
+            default => 'prepared',
+        };
     }
 }

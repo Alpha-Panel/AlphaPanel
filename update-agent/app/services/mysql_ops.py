@@ -2,23 +2,40 @@ from __future__ import annotations
 
 import logging
 import re
+import shlex
 from pathlib import Path
 
 from app.services.panel_ops import CommandResult, run_cmd
 
 logger = logging.getLogger(__name__)
 
-_MYSQLDUMP_PARAMS = (
-    "--single-transaction "
-    "--routines "
-    "--triggers "
-    "--events "
-    "--hex-blob "
-    "--default-character-set=utf8mb4 "
-    "--set-gtid-purged=OFF "
-    "--column-statistics=0 "
-    "--all-databases"
-)
+_MYSQLDUMP_BASE_PARAMS = [
+    "--single-transaction",
+    "--routines",
+    "--triggers",
+    "--events",
+    "--hex-blob",
+    "--default-character-set=utf8mb4",
+    "--skip-ssl",
+    "--all-databases",
+]
+
+
+async def _get_mysqldump_params() -> str:
+    """Build mysqldump params, detecting supported flags at runtime."""
+    params = list(_MYSQLDUMP_BASE_PARAMS)
+
+    # Test if --set-gtid-purged is supported
+    result = await run_cmd("mysqldump --help 2>&1 | grep -q 'set-gtid-purged'", timeout=5)
+    if result.ok:
+        params.insert(-1, "--set-gtid-purged=OFF")
+
+    # Test if --column-statistics is supported
+    result = await run_cmd("mysqldump --help 2>&1 | grep -q 'column-statistics'", timeout=5)
+    if result.ok:
+        params.insert(-1, "--column-statistics=0")
+
+    return " ".join(params)
 
 _IMPORT_PREAMBLE = (
     "SET FOREIGN_KEY_CHECKS=0; "
@@ -29,17 +46,20 @@ _IMPORT_PREAMBLE = (
 
 def _mysql_cli(host: str, port: int, user: str, password: str) -> str:
     """Build the base mysql CLI invocation string."""
+    escaped_pw = shlex.quote(password)
     return (
         f"mysql -h {host} -P {port} -u {user} "
-        f"-p'{password}' --default-character-set=utf8mb4"
+        f"-p{escaped_pw} --default-character-set=utf8mb4 --skip-ssl"
     )
 
 
-def _mysqldump_cli(host: str, port: int, user: str, password: str) -> str:
+async def _mysqldump_cli(host: str, port: int, user: str, password: str) -> str:
     """Build the base mysqldump CLI invocation string."""
+    params = await _get_mysqldump_params()
+    escaped_pw = shlex.quote(password)
     return (
         f"mysqldump -h {host} -P {port} -u {user} "
-        f"-p'{password}' {_MYSQLDUMP_PARAMS}"
+        f"-p{escaped_pw} {params}"
     )
 
 
@@ -149,7 +169,7 @@ async def safe_mysqldump(
     output_path: str,
 ) -> CommandResult:
     """Run mysqldump with safe parameters and write to output_path."""
-    cli = _mysqldump_cli(host, port, user, password)
+    cli = await _mysqldump_cli(host, port, user, password)
     cmd = f"{cli} > {output_path}"
     return await run_cmd(cmd, timeout=1800)
 
