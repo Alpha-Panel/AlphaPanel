@@ -9,6 +9,7 @@ use App\Models\AuditLog;
 use App\Models\SystemUpdate;
 use App\Services\UpdateService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
@@ -18,10 +19,27 @@ class SystemUpdateController extends Controller
 {
     public function index(UpdateService $service): Response
     {
+        $latestMysqlUpdate = SystemUpdate::query()
+            ->where('type', UpdateType::MysqlUpgrade)
+            ->latest()
+            ->first();
+
+        $mysqlStage = 'idle';
+        if ($latestMysqlUpdate) {
+            $mysqlStage = match ($latestMysqlUpdate->status) {
+                UpdateStatus::InProgress => 'preparing',
+                UpdateStatus::Completed => 'prepared',
+                UpdateStatus::Failed => 'idle',
+                UpdateStatus::RolledBack => 'idle',
+                default => 'idle',
+            };
+        }
+
         return Inertia::render('System/Updates', [
             'current_version' => $service->getCurrentVersion(),
             'agent_healthy' => $service->isAgentHealthy(),
             'cached_check' => Cache::get('system:latest_version_check'),
+            'mysql_stage' => $mysqlStage,
             'recent_updates' => SystemUpdate::query()
                 ->with('triggeredByUser:id,name')
                 ->latest()
@@ -43,10 +61,10 @@ class SystemUpdateController extends Controller
         ]);
     }
 
-    public function check(Request $request, UpdateService $service): JsonResponse
+    public function check(Request $request, UpdateService $service): RedirectResponse
     {
         try {
-            $result = $service->checkForUpdates();
+            $service->checkForUpdates();
 
             AuditLog::create([
                 'user_id' => $request->user()->id,
@@ -55,15 +73,13 @@ class SystemUpdateController extends Controller
                 'details' => 'Manual update check performed',
             ]);
 
-            return response()->json($result);
+            return back()->with('success', __('Update check completed.'));
         } catch (\Throwable $e) {
-            return response()->json([
-                'error' => __('Failed to check for updates: :message', ['message' => $e->getMessage()]),
-            ], 503);
+            return back()->with('error', __('Failed to check for updates: :message', ['message' => $e->getMessage()]));
         }
     }
 
-    public function updatePanel(Request $request, UpdateService $service): JsonResponse
+    public function updatePanel(Request $request, UpdateService $service): RedirectResponse
     {
         $currentVersion = $service->getCurrentVersion();
 
@@ -100,18 +116,15 @@ class SystemUpdateController extends Controller
                 'details' => "Panel update failed: {$e->getMessage()}",
             ]);
 
-            return response()->json(['error' => $e->getMessage()], 500);
+            return back()->with('error', __('Panel update failed: :message', ['message' => $e->getMessage()]));
         }
 
         dispatch(new MonitorUpdateProgressJob($update, $taskId));
 
-        return response()->json([
-            'update_id' => $update->id,
-            'task_id' => $taskId,
-        ]);
+        return back()->with('success', __('Panel update started.'));
     }
 
-    public function prepareMysqlUpgrade(Request $request, UpdateService $service): JsonResponse
+    public function prepareMysqlUpgrade(Request $request, UpdateService $service): RedirectResponse
     {
         $request->validate([
             'target_version' => 'required|string|max:20',
@@ -154,18 +167,15 @@ class SystemUpdateController extends Controller
                 'details' => "MySQL upgrade preparation failed: {$e->getMessage()}",
             ]);
 
-            return response()->json(['error' => $e->getMessage()], 500);
+            return back()->with('error', __('MySQL upgrade preparation failed: :message', ['message' => $e->getMessage()]));
         }
 
         dispatch(new MonitorUpdateProgressJob($update, $taskId));
 
-        return response()->json([
-            'update_id' => $update->id,
-            'task_id' => $taskId,
-        ]);
+        return back()->with('success', __('MySQL upgrade preparation started.'));
     }
 
-    public function applyMysqlUpgrade(Request $request, UpdateService $service): JsonResponse
+    public function applyMysqlUpgrade(Request $request, UpdateService $service): RedirectResponse
     {
         AuditLog::create([
             'user_id' => $request->user()->id,
@@ -184,7 +194,7 @@ class SystemUpdateController extends Controller
                 'details' => "MySQL upgrade apply failed: {$e->getMessage()}",
             ]);
 
-            return response()->json(['error' => $e->getMessage()], 500);
+            return back()->with('error', __('MySQL upgrade failed: :message', ['message' => $e->getMessage()]));
         }
 
         $update = SystemUpdate::where('type', UpdateType::MysqlUpgrade)
@@ -195,10 +205,10 @@ class SystemUpdateController extends Controller
             dispatch(new MonitorUpdateProgressJob($update, $taskId));
         }
 
-        return response()->json(['task_id' => $taskId]);
+        return back()->with('success', __('MySQL upgrade applied.'));
     }
 
-    public function rollbackMysqlUpgrade(Request $request, UpdateService $service): JsonResponse
+    public function rollbackMysqlUpgrade(Request $request, UpdateService $service): RedirectResponse
     {
         AuditLog::create([
             'user_id' => $request->user()->id,
@@ -217,7 +227,7 @@ class SystemUpdateController extends Controller
                 'details' => "MySQL upgrade rollback failed: {$e->getMessage()}",
             ]);
 
-            return response()->json(['error' => $e->getMessage()], 500);
+            return back()->with('error', __('MySQL rollback failed: :message', ['message' => $e->getMessage()]));
         }
 
         $update = SystemUpdate::where('type', UpdateType::MysqlUpgrade)
@@ -229,10 +239,10 @@ class SystemUpdateController extends Controller
             dispatch(new MonitorUpdateProgressJob($update, $taskId));
         }
 
-        return response()->json(['task_id' => $taskId]);
+        return back()->with('success', __('MySQL upgrade rolled back.'));
     }
 
-    public function cleanupMysqlBackup(Request $request, UpdateService $service): JsonResponse
+    public function cleanupMysqlBackup(Request $request, UpdateService $service): RedirectResponse
     {
         AuditLog::create([
             'user_id' => $request->user()->id,
@@ -243,9 +253,11 @@ class SystemUpdateController extends Controller
 
         $success = $service->cleanupMysqlBackup();
 
-        return response()->json([
-            'status' => $success ? 'ok' : 'error',
-        ], $success ? 200 : 500);
+        if (! $success) {
+            return back()->with('error', __('Failed to cleanup MySQL backup.'));
+        }
+
+        return back()->with('success', __('MySQL backup deleted.'));
     }
 
     public function taskStatus(string $taskId, UpdateService $service): JsonResponse

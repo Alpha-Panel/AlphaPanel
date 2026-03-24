@@ -9,13 +9,19 @@ use Symfony\Component\HttpFoundation\Response;
 
 class AddCspHeaders
 {
+    /** Routes excluded from CSP enforcement (e.g. third-party dashboards). */
+    private array $excludedPaths = [
+        'telescope*',
+        'horizon*',
+    ];
+
     public function handle(Request $request, Closure $next): Response
     {
         $nonce = Vite::useCspNonce();
 
         $response = $next($request);
 
-        if (! $this->isHtmlResponse($response)) {
+        if (! $this->isHtmlResponse($response) || $request->is(...$this->excludedPaths)) {
             return $response;
         }
 

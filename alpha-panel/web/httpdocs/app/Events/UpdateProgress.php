@@ -17,6 +17,8 @@ class UpdateProgress implements ShouldBroadcast
         public int $percent,
         public string $message,
         public string $status = 'in_progress',
+        public string $type = 'panel',
+        public ?string $stage = null,
     ) {}
 
     /** @return array<int, \Illuminate\Broadcasting\Channel> */
@@ -35,6 +37,8 @@ class UpdateProgress implements ShouldBroadcast
             'percent' => $this->percent,
             'message' => $this->message,
             'status' => $this->status,
+            'type' => $this->type,
+            'stage' => $this->stage,
         ];
     }
 }

@@ -247,6 +247,13 @@
                                 </button>
                             </template>
 
+                            <template v-else-if="mysqlStage === 'preparing'">
+                                <div class="w-full rounded-lg bg-brand-50 p-3 text-sm text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
+                                    <i class="bx bx-loader-alt bx-spin mr-1"></i>
+                                    {{ t('Preparing upgrade test environment... This may take several minutes.') }}
+                                </div>
+                            </template>
+
                             <template v-else-if="mysqlStage === 'prepared'">
                                 <div class="w-full rounded-lg bg-success-50 p-3 text-sm text-success-700 dark:bg-success-500/10 dark:text-success-300">
                                     <i class="bx bx-check-circle mr-1"></i>
@@ -550,6 +557,7 @@ const props = defineProps<{
     current_version: CurrentVersion;
     agent_healthy: boolean;
     cached_check: CheckResultData | null;
+    mysql_stage: string;
     recent_updates: UpdateItem[];
 }>();
 
@@ -566,7 +574,9 @@ const panelUpdateProcessing = ref(false);
 const panelUpdateProgress = ref({ active: false, percent: 0, message: '' });
 
 // MySQL upgrade state
-const mysqlStage = ref<'idle' | 'prepared' | 'applied'>('idle');
+const mysqlStage = ref<'idle' | 'preparing' | 'prepared' | 'applied'>(
+    (props.mysql_stage as 'idle' | 'preparing' | 'prepared' | 'applied') ?? 'idle',
+);
 const mysqlPrepareProcessing = ref(false);
 const mysqlApplyProcessing = ref(false);
 const mysqlRollbackProcessing = ref(false);
@@ -577,142 +587,85 @@ const showMysqlRollbackConfirm = ref(false);
 const showMysqlDeleteBackupConfirm = ref(false);
 const pmaUrl = ref<string | null>(null);
 
-// CSRF helper
-function getCsrfToken(): string {
-    return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || '';
-}
-
 // Check for updates
-async function checkForUpdates() {
+function checkForUpdates() {
     checkLoading.value = true;
-    checkError.value = null;
-    checkResult.value = null;
 
-    try {
-        const response = await fetch(route('system.updates.check'), {
-            method: 'POST',
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': getCsrfToken(),
-            },
-        });
-
-        if (!response.ok) {
-            throw new Error(t('Failed to check for updates. Please try again.'));
-        }
-
-        const data = await response.json();
-        checkResult.value = data;
-
-        if (data.pma_url) {
-            pmaUrl.value = data.pma_url;
-        }
-    } catch (err: unknown) {
-        checkError.value = err instanceof Error ? err.message : t('An unexpected error occurred.');
-    } finally {
-        checkLoading.value = false;
-    }
-}
-
-// JSON POST helper (avoids Inertia expecting an Inertia response from async endpoints)
-async function jsonPost(url: string, body: Record<string, unknown> = {}): Promise<any> {
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRF-TOKEN': getCsrfToken(),
+    router.post(route('system.updates.check'), {}, {
+        preserveScroll: true,
+        onSuccess: (page: any) => {
+            checkResult.value = page.props.cached_check ?? null;
         },
-        body: JSON.stringify(body),
+        onFinish: () => {
+            checkLoading.value = false;
+        },
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-        throw new Error(data.error || data.message || t('An unexpected error occurred.'));
-    }
-
-    return data;
 }
 
 // Panel update
-async function startPanelUpdate() {
+function startPanelUpdate() {
     panelUpdateProcessing.value = true;
     showPanelUpdateConfirm.value = false;
 
-    try {
-        await jsonPost(route('system.updates.panel'));
-        router.reload();
-    } catch (err: unknown) {
-        checkError.value = err instanceof Error ? err.message : t('An unexpected error occurred.');
-    } finally {
-        panelUpdateProcessing.value = false;
-    }
+    router.post(route('system.updates.panel'), {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            panelUpdateProcessing.value = false;
+        },
+    });
 }
 
 // MySQL upgrade actions
-async function prepareMysqlUpgrade() {
+function prepareMysqlUpgrade() {
     mysqlPrepareProcessing.value = true;
 
-    try {
-        await jsonPost(route('system.updates.mysql.prepare'), {
-            target_version: checkResult.value?.mysql_update?.target_version ?? '',
-        });
-        mysqlStage.value = 'prepared';
-        router.reload();
-    } catch (err: unknown) {
-        checkError.value = err instanceof Error ? err.message : t('An unexpected error occurred.');
-    } finally {
-        mysqlPrepareProcessing.value = false;
-    }
+    router.post(route('system.updates.mysql.prepare'), {
+        target_version: checkResult.value?.mysql_update?.target_version ?? '',
+    }, {
+        preserveScroll: true,
+        onFinish: () => {
+            mysqlPrepareProcessing.value = false;
+        },
+    });
 }
 
-async function applyMysqlUpgrade() {
+function applyMysqlUpgrade() {
     mysqlApplyProcessing.value = true;
     showMysqlApplyConfirm.value = false;
 
-    try {
-        await jsonPost(route('system.updates.mysql.apply'));
-        mysqlStage.value = 'applied';
-        router.reload();
-    } catch (err: unknown) {
-        checkError.value = err instanceof Error ? err.message : t('An unexpected error occurred.');
-    } finally {
-        mysqlApplyProcessing.value = false;
-    }
+    router.post(route('system.updates.mysql.apply'), {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            mysqlApplyProcessing.value = false;
+        },
+    });
 }
 
-async function rollbackMysqlUpgrade() {
+function rollbackMysqlUpgrade() {
     mysqlRollbackProcessing.value = true;
     showMysqlRollbackConfirm.value = false;
 
-    try {
-        await jsonPost(route('system.updates.mysql.rollback'));
-        mysqlStage.value = 'idle';
-        router.reload();
-    } catch (err: unknown) {
-        checkError.value = err instanceof Error ? err.message : t('An unexpected error occurred.');
-    } finally {
-        mysqlRollbackProcessing.value = false;
-    }
+    router.post(route('system.updates.mysql.rollback'), {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            mysqlRollbackProcessing.value = false;
+        },
+    });
 }
 
-async function deleteMysqlBackup() {
+function deleteMysqlBackup() {
     mysqlDeleteBackupProcessing.value = true;
     showMysqlDeleteBackupConfirm.value = false;
 
-    try {
-        await jsonPost(route('system.updates.mysql.cleanup'));
-        mysqlStage.value = 'idle';
-        router.reload();
-    } catch (err: unknown) {
-        checkError.value = err instanceof Error ? err.message : t('An unexpected error occurred.');
-    } finally {
-        mysqlDeleteBackupProcessing.value = false;
-    }
+    router.post(route('system.updates.mysql.cleanup'), {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            mysqlStage.value = 'idle';
+        },
+        onFinish: () => {
+            mysqlDeleteBackupProcessing.value = false;
+        },
+    });
 }
 
 function refreshPage() {
