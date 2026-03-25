@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Enums\DomainType;
+use App\Enums\NotificationType;
 use App\Events\DomainDeleted;
 use App\Models\AuditLog;
 use App\Models\Domain;
@@ -95,6 +96,7 @@ class DeleteDomainJob implements ShouldQueue
                     title: __('Domain Deleted'),
                     body: __('Domain :fqdn has been deleted successfully.', ['fqdn' => $fqdn]),
                     icon: 'bx bx-trash',
+                    notificationType: NotificationType::DomainDeleted,
                 ));
             }
 
@@ -115,6 +117,7 @@ class DeleteDomainJob implements ShouldQueue
                     ]),
                     domainId: $domain->exists ? $domain->id : null,
                     icon: 'bx bx-error-circle',
+                    notificationType: NotificationType::DomainDeleted,
                 ));
             }
 

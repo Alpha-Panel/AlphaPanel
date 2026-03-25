@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Enums\DomainStatus;
 use App\Enums\DomainType;
+use App\Enums\NotificationType;
 use App\Events\DomainProvisionProgress;
 use App\Models\AuditLog;
 use App\Models\Domain;
@@ -122,6 +123,7 @@ class RenameDomainJob implements ShouldQueue
                 domainId: $domain->id,
                 url: route('domains.show', $domain),
                 icon: 'bx bx-error-circle',
+                notificationType: NotificationType::DomainRenamed,
             ));
 
             throw $e;

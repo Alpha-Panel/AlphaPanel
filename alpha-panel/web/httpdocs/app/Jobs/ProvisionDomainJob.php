@@ -3,6 +3,8 @@
 namespace App\Jobs;
 
 use App\Enums\DomainStatus;
+use App\Enums\DomainType;
+use App\Enums\NotificationType;
 use App\Enums\SslMethod;
 use App\Events\DomainProvisioned;
 use App\Events\DomainProvisionFailed;
@@ -97,6 +99,7 @@ class ProvisionDomainJob implements ShouldQueue
                     body: __('Domain :fqdn provisioned successfully (HTTP-only).', ['fqdn' => $domain->fqdn]),
                     domainId: $domain->id,
                     url: route('domains.show', $domain),
+                    notificationType: NotificationType::DomainProvisioned,
                 ));
 
                 AuditLog::create([
@@ -139,7 +142,7 @@ class ProvisionDomainJob implements ShouldQueue
                 $this->progress($domain, 75, 'Reloading services...');
                 $reloadService->reloadCaddy();
 
-                if ($domain->type === \App\Enums\DomainType::ApacheReverseProxy) {
+                if ($domain->type === DomainType::ApacheReverseProxy) {
                     $reloadService->reloadApache();
                     if ($domain->phpVersion) {
                         $reloadService->reloadPhpFpm($domain->phpVersion);
@@ -168,6 +171,7 @@ class ProvisionDomainJob implements ShouldQueue
                     body: $notifBody,
                     domainId: $domain->id,
                     url: route('domains.show', $domain),
+                    notificationType: NotificationType::DomainProvisioned,
                 ));
 
                 AuditLog::create([
@@ -213,6 +217,7 @@ class ProvisionDomainJob implements ShouldQueue
             domainId: $domain->id,
             url: route('domains.show', $domain),
             icon: 'bx bx-error-circle',
+            notificationType: NotificationType::DomainProvisioned,
         ));
 
         AuditLog::create([

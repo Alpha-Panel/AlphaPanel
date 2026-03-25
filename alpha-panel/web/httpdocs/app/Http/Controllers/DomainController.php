@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\DomainType;
+use App\Enums\NotificationType;
 use App\Http\Requests\StoreDomainRequest;
 use App\Http\Requests\UpdateDomainRequest;
 use App\Jobs\DeleteDomainJob;
@@ -389,6 +390,7 @@ class DomainController extends Controller
             domainId: $domain->id,
             url: route('domains.show', $domain),
             icon: 'bx bx-user-check',
+            notificationType: NotificationType::FtpChanges,
         ));
 
         return redirect()

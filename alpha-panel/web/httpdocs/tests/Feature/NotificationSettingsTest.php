@@ -50,8 +50,8 @@ class NotificationSettingsTest extends TestCase
 
         $response = $this->actingAs($user)->putJson(route('user.notification-settings.update'), [
             'preferences' => [
-                ['type' => 'domain_notifications', 'database' => true, 'push' => false, 'mail' => true],
-                ['type' => 'backup_notifications', 'database' => true, 'push' => true, 'mail' => false],
+                ['type' => 'domain_provisioned', 'database' => true, 'push' => false, 'mail' => true],
+                ['type' => 'backup_status', 'database' => true, 'push' => true, 'mail' => false],
             ],
         ]);
 
@@ -60,7 +60,7 @@ class NotificationSettingsTest extends TestCase
 
         $this->assertDatabaseHas('notification_preferences', [
             'user_id' => $user->id,
-            'type' => 'domain_notifications',
+            'type' => 'domain_provisioned',
             'database' => true,
             'push' => false,
             'mail' => true,
@@ -68,7 +68,7 @@ class NotificationSettingsTest extends TestCase
 
         $this->assertDatabaseHas('notification_preferences', [
             'user_id' => $user->id,
-            'type' => 'backup_notifications',
+            'type' => 'backup_status',
             'database' => true,
             'push' => true,
             'mail' => false,
@@ -81,7 +81,7 @@ class NotificationSettingsTest extends TestCase
 
         $response = $this->actingAs($user)->putJson(route('user.notification-settings.update'), [
             'preferences' => [
-                ['type' => 'domain_notifications', 'database' => false, 'push' => true, 'mail' => true],
+                ['type' => 'domain_provisioned', 'database' => false, 'push' => true, 'mail' => true],
             ],
         ]);
 
@@ -89,7 +89,7 @@ class NotificationSettingsTest extends TestCase
 
         $this->assertDatabaseHas('notification_preferences', [
             'user_id' => $user->id,
-            'type' => 'domain_notifications',
+            'type' => 'domain_provisioned',
             'database' => false,
             'push' => false,
             'mail' => false,
@@ -154,7 +154,7 @@ class NotificationSettingsTest extends TestCase
 
         NotificationPreference::query()->create([
             'user_id' => $user->id,
-            'type' => NotificationType::DomainNotifications,
+            'type' => NotificationType::DomainProvisioned,
             'database' => false,
             'push' => false,
             'mail' => false,
@@ -172,7 +172,7 @@ class NotificationSettingsTest extends TestCase
 
         NotificationPreference::query()->create([
             'user_id' => $user->id,
-            'type' => NotificationType::DomainNotifications,
+            'type' => NotificationType::DomainProvisioned,
             'database' => true,
             'push' => false,
             'mail' => true,
@@ -216,7 +216,7 @@ class NotificationSettingsTest extends TestCase
         $user = User::factory()->create();
         $payload = [
             'preferences' => [
-                ['type' => 'domain_notifications', 'database' => true, 'push' => false, 'mail' => true],
+                ['type' => 'domain_provisioned', 'database' => true, 'push' => false, 'mail' => true],
             ],
         ];
 
@@ -232,7 +232,7 @@ class NotificationSettingsTest extends TestCase
 
         NotificationPreference::query()->create([
             'user_id' => $user->id,
-            'type' => NotificationType::BackupNotifications,
+            'type' => NotificationType::BackupStatus,
             'database' => false,
             'push' => false,
             'mail' => false,

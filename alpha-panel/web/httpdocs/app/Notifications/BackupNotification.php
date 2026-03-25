@@ -27,7 +27,7 @@ class BackupNotification extends Notification
 
     public function preferenceType(): NotificationType
     {
-        return NotificationType::BackupNotifications;
+        return NotificationType::BackupStatus;
     }
 
     /** @return array<string, mixed> */

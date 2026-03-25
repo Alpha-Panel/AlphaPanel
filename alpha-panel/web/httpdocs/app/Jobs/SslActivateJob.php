@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\NotificationType;
 use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Notifications\DomainNotification;
@@ -60,6 +61,7 @@ class SslActivateJob implements ShouldQueue
                     domainId: $domain->id,
                     url: route('domains.show', $domain),
                     icon: 'bx bx-error-circle',
+                    notificationType: NotificationType::SslCertificate,
                 ));
 
                 AuditLog::create([
@@ -90,6 +92,7 @@ class SslActivateJob implements ShouldQueue
                 domainId: $domain->id,
                 url: route('domains.show', $domain),
                 icon: 'bx bx-lock-alt',
+                notificationType: NotificationType::SslCertificate,
             ));
 
             AuditLog::create([
@@ -117,6 +120,7 @@ class SslActivateJob implements ShouldQueue
                 domainId: $domain->id,
                 url: route('domains.show', $domain),
                 icon: 'bx bx-error-circle',
+                notificationType: NotificationType::SslCertificate,
             ));
 
             AuditLog::create([

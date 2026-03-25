@@ -24,11 +24,12 @@ class DomainNotification extends Notification
         public ?int $domainId = null,
         public ?string $url = null,
         public string $icon = 'bx bx-globe',
+        public NotificationType $notificationType = NotificationType::DomainProvisioned,
     ) {}
 
     public function preferenceType(): NotificationType
     {
-        return NotificationType::DomainNotifications;
+        return $this->notificationType;
     }
 
     /** @return array<string, mixed> */
