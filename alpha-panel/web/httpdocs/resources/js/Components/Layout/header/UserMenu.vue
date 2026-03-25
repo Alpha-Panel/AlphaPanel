@@ -43,12 +43,12 @@
                 </li>
                 <li>
                     <Link
-                        :href="route('user.push-devices.index')"
+                        :href="route('user.notification-settings.index')"
                         class="flex items-center gap-3 px-3 py-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
                         @click="closeDropdown"
                     >
                         <i class="bx bx-bell w-6 h-6 text-2xl text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300"></i>
-                        {{ t('Push Devices') }}
+                        {{ t('Notification Settings') }}
                     </Link>
                 </li>
                 <li>

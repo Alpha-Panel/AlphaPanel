@@ -10,10 +10,10 @@ use App\Http\Controllers\DnsController;
 use App\Http\Controllers\DockerHubController;
 use App\Http\Controllers\DockerServiceController;
 use App\Http\Controllers\DockerServiceDomainBindingController;
-use App\Http\Controllers\DomainIpRuleController;
 use App\Http\Controllers\DomainCloudflareController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\DomainCronJobController;
+use App\Http\Controllers\DomainIpRuleController;
 use App\Http\Controllers\DomainLogController;
 use App\Http\Controllers\DomainModSecurityController;
 use App\Http\Controllers\DomainPackageManagerController;
@@ -25,9 +25,9 @@ use App\Http\Controllers\FirewallController;
 use App\Http\Controllers\FtpBanController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ManifestController;
+use App\Http\Controllers\NotificationSettingsController;
 use App\Http\Controllers\PhpSettingsController;
 use App\Http\Controllers\PmaSsoController;
-use App\Http\Controllers\PushDeviceController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SystemUpdateController;
@@ -279,11 +279,19 @@ Route::middleware('auth')->group(function (): void {
     Route::delete('user/push-subscription', [PushSubscriptionController::class, 'destroy'])
         ->name('user.push-subscription.destroy');
 
-    // Push Devices Management
-    Route::get('user/push-devices', [PushDeviceController::class, 'index'])
+    // Notification Settings
+    Route::get('user/notification-settings', [NotificationSettingsController::class, 'index'])
+        ->name('user.notification-settings.index');
+    Route::get('user/notification-settings/devices', [NotificationSettingsController::class, 'devices'])
+        ->name('user.notification-settings.devices');
+    Route::put('user/notification-settings', [NotificationSettingsController::class, 'update'])
+        ->name('user.notification-settings.update');
+    Route::delete('user/notification-settings/devices/{pushSubscription}', [NotificationSettingsController::class, 'destroyDevice'])
+        ->name('user.notification-settings.destroy-device');
+
+    // Legacy redirect
+    Route::get('user/push-devices', fn () => redirect()->route('user.notification-settings.devices'))
         ->name('user.push-devices.index');
-    Route::delete('user/push-devices/{pushSubscription}', [PushDeviceController::class, 'destroy'])
-        ->name('user.push-devices.destroy');
 
     // Lock Screen
     Route::post('/lock-screen', [TwoFactorAuthController::class, 'lock'])->name('lockscreen');

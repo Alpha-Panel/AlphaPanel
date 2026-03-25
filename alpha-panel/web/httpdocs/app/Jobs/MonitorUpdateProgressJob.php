@@ -19,7 +19,9 @@ class MonitorUpdateProgressJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 1;
+    public int $tries = 3;
+
+    public int $backoff = 10;
 
     public int $timeout = 1800;
 
@@ -56,19 +58,7 @@ class MonitorUpdateProgressJob implements ShouldQueue
                         'update_id' => $this->systemUpdate->id,
                     ]);
 
-                    $this->systemUpdate->update([
-                        'status' => UpdateStatus::Failed,
-                        'error_message' => __('Update agent became unreachable during monitoring.'),
-                        'finished_at' => now(),
-                    ]);
-
-                    UpdateProgress::dispatch(
-                        $this->systemUpdate->id,
-                        $this->systemUpdate->progress_percent,
-                        __('Update agent became unreachable.'),
-                        'failed',
-                        $broadcastType,
-                    );
+                    $this->markFailed(__('Update agent became unreachable during monitoring.'), $broadcastType);
 
                     return;
                 }
@@ -82,71 +72,83 @@ class MonitorUpdateProgressJob implements ShouldQueue
             $message = $status['message'] ?? '';
             $taskStatus = $status['status'] ?? 'in_progress';
 
-            if ($percent !== $lastPercent || in_array($taskStatus, ['completed', 'failed'])) {
-                $this->systemUpdate->update([
-                    'progress_percent' => $percent,
-                    'message' => $message,
-                ]);
+            try {
+                if ($percent !== $lastPercent || in_array($taskStatus, ['completed', 'failed'])) {
+                    $this->systemUpdate->update([
+                        'progress_percent' => $percent,
+                        'message' => $message,
+                    ]);
 
-                UpdateProgress::dispatch(
-                    $this->systemUpdate->id,
-                    $percent,
-                    $message,
-                    $taskStatus,
-                    $broadcastType,
-                );
+                    $this->broadcastSafely($this->systemUpdate->id, $percent, $message, $taskStatus, $broadcastType);
 
-                $lastPercent = $percent;
-            }
-
-            if ($taskStatus === 'completed') {
-                $stage = $this->resolveCompletionStage();
-
-                $this->systemUpdate->update([
-                    'status' => UpdateStatus::Completed,
-                    'progress_percent' => 100,
-                    'finished_at' => now(),
-                ]);
-
-                // Clear update badge after panel update or mysql apply
-                if ($this->systemUpdate->type === UpdateType::PanelUpdate
-                    || ($this->systemUpdate->type === UpdateType::MysqlUpgrade && $this->operation === 'apply')
-                ) {
-                    Cache::forget('system:update_available');
+                    $lastPercent = $percent;
                 }
 
-                UpdateProgress::dispatch(
-                    $this->systemUpdate->id,
-                    100,
-                    $message,
-                    'completed',
-                    $broadcastType,
-                    $stage,
-                );
+                if ($taskStatus === 'completed') {
+                    $stage = $this->resolveCompletionStage();
 
-                return;
-            }
+                    $this->systemUpdate->update([
+                        'status' => UpdateStatus::Completed,
+                        'progress_percent' => 100,
+                        'finished_at' => now(),
+                    ]);
 
-            if ($taskStatus === 'failed') {
-                $this->systemUpdate->update([
-                    'status' => UpdateStatus::Failed,
-                    'error_message' => $message,
-                    'finished_at' => now(),
+                    if ($this->systemUpdate->type === UpdateType::PanelUpdate
+                        || ($this->systemUpdate->type === UpdateType::MysqlUpgrade && $this->operation === 'apply')
+                    ) {
+                        Cache::forget('system:update_available');
+                    }
+
+                    $this->broadcastSafely($this->systemUpdate->id, 100, $message, 'completed', $broadcastType, $stage);
+
+                    return;
+                }
+
+                if ($taskStatus === 'failed') {
+                    $this->markFailed($message, $broadcastType);
+
+                    return;
+                }
+            } catch (\Throwable $e) {
+                Log::warning('MonitorUpdateProgressJob: error updating state/broadcasting', [
+                    'error' => $e->getMessage(),
+                    'update_id' => $this->systemUpdate->id,
                 ]);
-
-                UpdateProgress::dispatch(
-                    $this->systemUpdate->id,
-                    $percent,
-                    $message,
-                    'failed',
-                    $broadcastType,
-                );
-
-                return;
+                // Don't kill the loop — keep polling, DB/broadcast may recover
             }
 
             sleep(3);
         }
+    }
+
+    private function broadcastSafely(int $updateId, int $percent, string $message, string $status, string $type, ?string $stage = null): void
+    {
+        try {
+            UpdateProgress::dispatch($updateId, $percent, $message, $status, $type, $stage);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to broadcast UpdateProgress', ['error' => $e->getMessage()]);
+        }
+    }
+
+    private function markFailed(string $message, string $broadcastType): void
+    {
+        try {
+            $this->systemUpdate->update([
+                'status' => UpdateStatus::Failed,
+                'error_message' => $message,
+                'finished_at' => now(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Failed to update SystemUpdate status', ['error' => $e->getMessage()]);
+        }
+
+        $this->broadcastSafely(
+            $this->systemUpdate->id,
+            $this->systemUpdate->progress_percent,
+            $message,
+            'failed',
+            $broadcastType,
+        );
     }
 
     public function failed(?\Throwable $exception): void

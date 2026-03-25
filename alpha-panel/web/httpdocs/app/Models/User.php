@@ -90,4 +90,9 @@ class User extends Authenticatable implements WebAuthnAuthenticatable
     {
         return $this->belongsToMany(Domain::class)->withTimestamps();
     }
+
+    public function notificationPreferences(): HasMany
+    {
+        return $this->hasMany(NotificationPreference::class);
+    }
 }

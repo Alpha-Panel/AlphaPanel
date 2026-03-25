@@ -2,15 +2,17 @@
 
 namespace App\Notifications;
 
+use App\Enums\NotificationType;
+use App\Traits\RespectsNotificationPreferences;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\BroadcastMessage;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use NotificationChannels\WebPush\WebPushChannel;
 use NotificationChannels\WebPush\WebPushMessage;
 
 class SystemUpdateNotification extends Notification
 {
-    use Queueable;
+    use Queueable, RespectsNotificationPreferences;
 
     /**
      * @param  'success'|'error'|'info'|'warning'  $level
@@ -23,16 +25,9 @@ class SystemUpdateNotification extends Notification
         public string $icon = 'bx bx-revision',
     ) {}
 
-    /** @return array<int, string> */
-    public function via(object $notifiable): array
+    public function preferenceType(): NotificationType
     {
-        $channels = ['database', 'broadcast'];
-
-        if (method_exists($notifiable, 'pushSubscriptions') && $notifiable->pushSubscriptions()->exists()) {
-            $channels[] = WebPushChannel::class;
-        }
-
-        return $channels;
+        return NotificationType::SystemUpdates;
     }
 
     /** @return array<string, mixed> */
@@ -60,5 +55,18 @@ class SystemUpdateNotification extends Notification
             ->icon('/img/android-icon-192x192.png')
             ->data(['url' => $this->url])
             ->options(['TTL' => 86400]);
+    }
+
+    public function toMail(object $notifiable): MailMessage
+    {
+        $mail = (new MailMessage)
+            ->subject($this->title)
+            ->line($this->body);
+
+        if ($this->url) {
+            $mail->action(__('View Details'), $this->url);
+        }
+
+        return $mail;
     }
 }

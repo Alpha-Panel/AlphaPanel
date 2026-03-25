@@ -10,17 +10,13 @@ class PushDeviceTest extends TestCase
 {
     use DatabaseTransactions;
 
-    public function test_user_can_view_push_devices_page(): void
+    public function test_push_devices_route_redirects_to_notification_settings(): void
     {
         $user = User::factory()->create();
 
         $response = $this->actingAs($user)->get(route('user.push-devices.index'));
 
-        $response->assertOk();
-        $response->assertInertia(fn ($page) => $page
-            ->component('User/PushDevices')
-            ->has('subscriptions')
-        );
+        $response->assertRedirect(route('user.notification-settings.devices'));
     }
 
     public function test_user_sees_only_own_subscriptions(): void
@@ -31,11 +27,11 @@ class PushDeviceTest extends TestCase
         $user->updatePushSubscription('https://fcm.googleapis.com/fcm/send/user-endpoint', 'key1', 'auth1', 'aesgcm');
         $otherUser->updatePushSubscription('https://fcm.googleapis.com/fcm/send/other-endpoint', 'key2', 'auth2', 'aesgcm');
 
-        $response = $this->actingAs($user)->get(route('user.push-devices.index'));
+        $response = $this->actingAs($user)->get(route('user.notification-settings.devices'));
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
-            ->component('User/PushDevices')
+            ->component('User/NotificationSettings')
             ->has('subscriptions', 1)
             ->where('subscriptions.0.endpoint', 'https://fcm.googleapis.com/fcm/send/user-endpoint')
         );
@@ -46,7 +42,7 @@ class PushDeviceTest extends TestCase
         $user = User::factory()->create();
         $subscription = $user->updatePushSubscription('https://fcm.googleapis.com/fcm/send/test', 'key', 'auth', 'aesgcm');
 
-        $response = $this->actingAs($user)->deleteJson(route('user.push-devices.destroy', ['pushSubscription' => $subscription->id]));
+        $response = $this->actingAs($user)->deleteJson(route('user.notification-settings.destroy-device', ['pushSubscription' => $subscription->id]));
 
         $response->assertOk();
         $response->assertJsonPath('status', 'removed');
@@ -59,7 +55,7 @@ class PushDeviceTest extends TestCase
         $otherUser = User::factory()->create();
         $subscription = $otherUser->updatePushSubscription('https://fcm.googleapis.com/fcm/send/other', 'key', 'auth', 'aesgcm');
 
-        $response = $this->actingAs($user)->deleteJson(route('user.push-devices.destroy', ['pushSubscription' => $subscription->id]));
+        $response = $this->actingAs($user)->deleteJson(route('user.notification-settings.destroy-device', ['pushSubscription' => $subscription->id]));
 
         $response->assertForbidden();
         $this->assertDatabaseHas('push_subscriptions', ['id' => $subscription->id]);
@@ -75,7 +71,7 @@ class PushDeviceTest extends TestCase
         $user = User::factory()->create();
         $subscription = $user->updatePushSubscription('https://fcm.googleapis.com/fcm/send/test', 'key', 'auth', 'aesgcm');
 
-        $this->deleteJson(route('user.push-devices.destroy', ['pushSubscription' => $subscription->id]))->assertUnauthorized();
+        $this->deleteJson(route('user.notification-settings.destroy-device', ['pushSubscription' => $subscription->id]))->assertUnauthorized();
     }
 
     public function test_subscription_list_does_not_expose_keys(): void
@@ -83,11 +79,11 @@ class PushDeviceTest extends TestCase
         $user = User::factory()->create();
         $user->updatePushSubscription('https://fcm.googleapis.com/fcm/send/test', 'secret-p256dh-key', 'secret-auth-key', 'aesgcm');
 
-        $response = $this->actingAs($user)->get(route('user.push-devices.index'));
+        $response = $this->actingAs($user)->get(route('user.notification-settings.devices'));
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
-            ->component('User/PushDevices')
+            ->component('User/NotificationSettings')
             ->has('subscriptions', 1)
             ->missing('subscriptions.0.public_key')
             ->missing('subscriptions.0.auth_token')
