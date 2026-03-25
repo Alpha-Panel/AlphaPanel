@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import logging
+import os
 import re
 import shlex
 from pathlib import Path
@@ -8,40 +10,6 @@ from pathlib import Path
 from app.services.panel_ops import CommandResult, run_cmd
 
 logger = logging.getLogger(__name__)
-
-_MYSQLDUMP_BASE_PARAMS = [
-    "--single-transaction",
-    "--routines",
-    "--triggers",
-    "--events",
-    "--hex-blob",
-    "--default-character-set=utf8mb4",
-    "--skip-ssl",
-    "--all-databases",
-]
-
-
-async def _get_mysqldump_params() -> str:
-    """Build mysqldump params, detecting supported flags at runtime."""
-    params = list(_MYSQLDUMP_BASE_PARAMS)
-
-    # Test if --set-gtid-purged is supported
-    result = await run_cmd("mysqldump --help 2>&1 | grep -q 'set-gtid-purged'", timeout=5)
-    if result.ok:
-        params.insert(-1, "--set-gtid-purged=OFF")
-
-    # Test if --column-statistics is supported
-    result = await run_cmd("mysqldump --help 2>&1 | grep -q 'column-statistics'", timeout=5)
-    if result.ok:
-        params.insert(-1, "--column-statistics=0")
-
-    return " ".join(params)
-
-_IMPORT_PREAMBLE = (
-    "SET FOREIGN_KEY_CHECKS=0; "
-    "SET UNIQUE_CHECKS=0; "
-    "SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';"
-)
 
 
 def _mysql_cli(host: str, port: int, user: str, password: str) -> str:
@@ -53,14 +21,25 @@ def _mysql_cli(host: str, port: int, user: str, password: str) -> str:
     )
 
 
-async def _mysqldump_cli(host: str, port: int, user: str, password: str) -> str:
-    """Build the base mysqldump CLI invocation string."""
-    params = await _get_mysqldump_params()
+async def wait_for_mysql_ready(
+    host: str,
+    port: int,
+    user: str,
+    password: str,
+    timeout_secs: int = 120,
+) -> bool:
+    """Poll until MySQL accepts connections or timeout."""
     escaped_pw = shlex.quote(password)
-    return (
-        f"mysqldump -h {host} -P {port} -u {user} "
-        f"-p{escaped_pw} {params}"
-    )
+    for _ in range(timeout_secs // 3):
+        result = await run_cmd(
+            f"mysqladmin ping -h {host} -P {port} -u {user} -p{escaped_pw} --skip-ssl --connect-timeout=3",
+            timeout=10,
+        )
+        if result.ok and "alive" in result.stdout.lower():
+            return True
+        import asyncio
+        await asyncio.sleep(3)
+    return False
 
 
 async def get_snapshot(
@@ -90,7 +69,6 @@ async def get_snapshot(
     row_counts: dict[str, dict[str, int]] = {}
 
     for db in databases:
-        # Table count
         res = await run_cmd(
             f"{cli} -N -e \"SELECT COUNT(*) FROM information_schema.tables "
             f"WHERE table_schema='{db}' AND table_type='BASE TABLE'\"",
@@ -99,7 +77,6 @@ async def get_snapshot(
         if res.ok and res.stdout.strip().isdigit():
             table_counts[db] = int(res.stdout.strip())
 
-        # Row counts per table
         res = await run_cmd(
             f"{cli} -N -e \"SELECT table_name, table_rows "
             f"FROM information_schema.tables "
@@ -114,7 +91,6 @@ async def get_snapshot(
                     db_rows[parts[0].strip()] = int(parts[1].strip())
             row_counts[db] = db_rows
 
-    # Grants
     grants = await _collect_grants(host, port, user, password)
 
     return {
@@ -161,59 +137,6 @@ async def _collect_grants(
     return all_grants
 
 
-async def safe_mysqldump(
-    host: str,
-    port: int,
-    user: str,
-    password: str,
-    output_path: str,
-) -> CommandResult:
-    """Run mysqldump with safe parameters and write to output_path."""
-    cli = await _mysqldump_cli(host, port, user, password)
-    cmd = f"{cli} > {output_path}"
-    return await run_cmd(cmd, timeout=1800)
-
-
-async def export_grants(
-    host: str,
-    port: int,
-    user: str,
-    password: str,
-    output_path: str,
-) -> CommandResult:
-    """Export all user grants to a SQL file."""
-    grants = await _collect_grants(host, port, user, password)
-    if not grants:
-        # Write empty file
-        Path(output_path).write_text("-- No grants to export\n", encoding="utf-8")
-        return CommandResult(returncode=0, stdout="No grants to export", stderr="")
-
-    lines = ["-- Grants export", "SET sql_mode='NO_AUTO_VALUE_ON_ZERO';", ""]
-    for grant in grants:
-        if not grant.endswith(";"):
-            grant += ";"
-        lines.append(grant)
-
-    Path(output_path).write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return CommandResult(returncode=0, stdout=f"Exported {len(grants)} grant statements", stderr="")
-
-
-async def import_dump(
-    host: str,
-    port: int,
-    user: str,
-    password: str,
-    dump_path: str,
-) -> CommandResult:
-    """Import a SQL dump with FK checks disabled."""
-    cli = _mysql_cli(host, port, user, password)
-    # Prepend the import preamble then pipe the dump
-    cmd = (
-        f"echo \"{_IMPORT_PREAMBLE}\" | cat - {dump_path} | {cli}"
-    )
-    return await run_cmd(cmd, timeout=3600)
-
-
 def compare_snapshots(
     before: dict,
     after: dict,
@@ -221,7 +144,6 @@ def compare_snapshots(
     """Compare two snapshots and return a list of mismatch descriptions."""
     mismatches: list[str] = []
 
-    # Compare database lists
     before_dbs = set(before.get("databases", []))
     after_dbs = set(after.get("databases", []))
 
@@ -233,7 +155,6 @@ def compare_snapshots(
     if extra:
         mismatches.append(f"New unexpected databases after upgrade: {', '.join(sorted(extra))}")
 
-    # Compare table counts
     before_tc = before.get("table_counts", {})
     after_tc = after.get("table_counts", {})
 
@@ -245,7 +166,6 @@ def compare_snapshots(
                 f"Table count mismatch in '{db}': before={bt}, after={at}"
             )
 
-    # Compare row counts (with 10% tolerance for InnoDB estimates)
     before_rc = before.get("row_counts", {})
     after_rc = after.get("row_counts", {})
 
@@ -258,7 +178,6 @@ def compare_snapshots(
             ar = after_tables.get(table, 0)
             if br == 0 and ar == 0:
                 continue
-            # Allow 10% tolerance because InnoDB row estimates are approximate
             threshold = max(br, 1) * 0.1
             if abs(br - ar) > threshold:
                 mismatches.append(
@@ -297,9 +216,62 @@ def set_mysql_version_in_env(project_root: str, version: str) -> None:
     )
 
     if count == 0:
-        # Variable not found, append it
         if not new_content.endswith("\n"):
             new_content += "\n"
         new_content += f"MYSQL_VERSION={version}\n"
 
     env_path.write_text(new_content, encoding="utf-8")
+
+
+async def backup_mysql_data(project_root: str) -> CommandResult:
+    """Create a tar.gz backup of the MySQL data directory."""
+    staging_dir = os.path.join(project_root, "mysql", "upgrade-staging")
+    os.makedirs(staging_dir, exist_ok=True)
+    backup_path = os.path.join(staging_dir, "data-backup.tar.gz")
+
+    # Remove old backup if exists
+    if os.path.exists(backup_path):
+        os.remove(backup_path)
+
+    mysql_dir = os.path.join(project_root, "mysql")
+    return await run_cmd(
+        f"tar -czf {backup_path} -C {mysql_dir} data",
+        timeout=1800,  # 30 min for large databases
+    )
+
+
+async def restore_mysql_data(project_root: str) -> CommandResult:
+    """Restore MySQL data directory from tar.gz backup."""
+    staging_dir = os.path.join(project_root, "mysql", "upgrade-staging")
+    backup_path = os.path.join(staging_dir, "data-backup.tar.gz")
+    mysql_dir = os.path.join(project_root, "mysql")
+    data_dir = os.path.join(mysql_dir, "data")
+
+    if not os.path.exists(backup_path):
+        return CommandResult(
+            returncode=1, stdout="", stderr=f"Backup file not found: {backup_path}"
+        )
+
+    # Remove current data directory
+    if os.path.exists(data_dir):
+        result = await run_cmd(f"rm -rf {data_dir}", timeout=300)
+        if not result.ok:
+            return result
+
+    # Extract backup
+    return await run_cmd(
+        f"tar -xzf {backup_path} -C {mysql_dir}",
+        timeout=1800,
+    )
+
+
+def update_version_json(project_root: str, new_mysql_version: str) -> None:
+    """Update the mysql version in version.json."""
+    version_path = Path(project_root) / "version.json"
+    if not version_path.exists():
+        return
+
+    data = json.loads(version_path.read_text(encoding="utf-8"))
+    if "services" in data:
+        data["services"]["mysql"] = new_mysql_version
+    version_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")

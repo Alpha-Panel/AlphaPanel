@@ -224,8 +224,8 @@
                                     :disabled="!agent_healthy || mysqlPrepareProcessing"
                                     class="inline-flex items-center gap-2 rounded-lg bg-warning-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-warning-600 disabled:opacity-50"
                                 >
-                                    <i :class="mysqlPrepareProcessing ? 'bx bx-loader-alt bx-spin' : 'bx bx-wrench'" class="text-base"></i>
-                                    {{ t('Prepare Upgrade') }}
+                                    <i :class="mysqlPrepareProcessing ? 'bx bx-loader-alt bx-spin' : 'bx bx-shield-alt-2'" class="text-base"></i>
+                                    {{ t('Backup & Prepare') }}
                                 </button>
                             </template>
 
@@ -235,7 +235,7 @@
                                         <div class="flex items-center justify-between">
                                             <span>
                                                 <i class="bx bx-loader-alt bx-spin mr-1"></i>
-                                                {{ mysqlUpgradeProgress.message || t('Preparing upgrade test environment... This may take several minutes.') }}
+                                                {{ mysqlUpgradeProgress.message || t('Backing up MySQL data... This may take several minutes.') }}
                                             </span>
                                             <span v-if="mysqlUpgradeProgress.percent > 0" class="font-semibold">
                                                 {{ mysqlUpgradeProgress.percent }}%
@@ -254,18 +254,8 @@
                             <template v-else-if="mysqlStage === 'prepared'">
                                 <div class="w-full rounded-lg bg-success-50 p-3 text-sm text-success-700 dark:bg-success-500/10 dark:text-success-300">
                                     <i class="bx bx-check-circle mr-1"></i>
-                                    {{ t('Test environment ready. Verify your data via phpMyAdmin before applying.') }}
+                                    {{ t('Backup complete. Ready to upgrade.') }}
                                 </div>
-                                <a
-                                    v-if="pmaUrl"
-                                    :href="pmaUrl"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-                                >
-                                    <i class="lni lni-mysql"></i>
-                                    {{ t('Test via phpMyAdmin') }}
-                                </a>
                                 <button
                                     @click="showMysqlApplyConfirm = true"
                                     :disabled="!agent_healthy"
@@ -466,7 +456,7 @@
                                 {{ t('Apply MySQL Upgrade?') }}
                             </h3>
                             <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                                {{ t('This will upgrade MySQL from :from to :to. The database will be unavailable during this process. Make sure you have verified the test environment and have a current backup.', { from: checkResult?.mysql_update?.current_version || '', to: checkResult?.mysql_update?.target_version || '' }) }}
+                                {{ t('This will upgrade MySQL from :from to :to. The database will be briefly unavailable during this process. A backup has been taken and can be used for rollback if needed.', { from: checkResult?.mysql_update?.current_version || '', to: checkResult?.mysql_update?.target_version || '' }) }}
                             </p>
                             <div class="mt-4 flex justify-end gap-3">
                                 <button
@@ -631,7 +621,6 @@ const mysqlUpgradeProgress = ref({
 const showMysqlApplyConfirm = ref(false);
 const showMysqlRollbackConfirm = ref(false);
 const showMysqlDeleteBackupConfirm = ref(false);
-const pmaUrl = ref<string | null>(mysqlStage.value === 'prepared' ? '/upgrade-test-pma/' : null);
 
 // Check for updates
 function checkForUpdates() {
@@ -751,7 +740,6 @@ onMounted(() => {
 
                 if (e.stage) {
                     mysqlStage.value = e.stage as MysqlStage;
-                    pmaUrl.value = e.stage === 'prepared' ? '/upgrade-test-pma/' : null;
                 }
             }
 

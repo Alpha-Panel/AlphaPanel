@@ -507,6 +507,8 @@ services:
     environment:
       UPDATE_AGENT_SECRET: ${UPDATE_AGENT_SECRET}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${PANEL_DB_USER}
+      MYSQL_PASSWORD: ${PANEL_DB_PASS}
       MYSQL_HOST: mysql
       GITHUB_REPO: ${PANEL_GITHUB_REPO:-alphapanel/alphapanel-docker}
       PROJECT_ROOT: /project

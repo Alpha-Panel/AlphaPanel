@@ -22,7 +22,6 @@ class AddEarlyHints
         ['path' => '/themes/Cryptograph/assets/css/icons.css', 'as' => 'style'],
         ['path' => '/themes/Cryptograph/assets/plugins/simplebar/css/simplebar.css', 'as' => 'style'],
         ['path' => '/themes/Cryptograph/assets/plugins/metismenu/css/metisMenu.min.css', 'as' => 'style'],
-        ['path' => '/css/AlphaPanel.css', 'as' => 'style'],
         ['path' => '/themes/default/app-assets/vendors/css/extensions/toastr.min.css', 'as' => 'style'],
 
         // JS — core scripts loaded on every page
@@ -33,7 +32,6 @@ class AddEarlyHints
         ['path' => '/themes/Cryptograph/assets/plugins/metismenu/js/metisMenu.min.js', 'as' => 'script'],
         ['path' => '/themes/Cryptograph/assets/js/app.js', 'as' => 'script'],
         ['path' => '/themes/default/app-assets/vendors/js/extensions/toastr.min.js', 'as' => 'script'],
-        ['path' => '/js/AlphaPanel.js', 'as' => 'script'],
     ];
 
     /**

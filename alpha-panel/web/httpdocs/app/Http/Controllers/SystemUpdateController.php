@@ -157,7 +157,7 @@ class SystemUpdateController extends Controller
             'from_version' => $mysqlVersion,
             'to_version' => $request->input('target_version'),
             'progress_percent' => 0,
-            'message' => __('Preparing MySQL upgrade test environment...'),
+            'message' => __('Backing up MySQL data...'),
             'triggered_by' => $request->user()->id,
             'started_at' => now(),
         ]);

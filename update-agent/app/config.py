@@ -8,6 +8,8 @@ class Settings(BaseSettings):
 
     update_agent_secret: str
     mysql_root_password: str
+    mysql_user: str = "root"
+    mysql_password: str = ""
     mysql_host: str = "mysql"
     mysql_port: int = 3306
     github_repo: str = "alphapanel/alphapanel-docker"
