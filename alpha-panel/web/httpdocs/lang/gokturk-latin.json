@@ -1232,5 +1232,12 @@
     "No domains": "Alan adı yok",
     "View PHP versions": "PHP sürümlerini görüntüle",
     "Enable and disable PHP versions": "PHP sürümlerini etkinleştir ve devre dışı bırak",
-    "In Use": "Kullanımda"
+    "In Use": "Kullanımda",
+    "Authorized Users": "Yetkili Kullanıcılar",
+    "Manage which users can access this domain.": "Bu alan adına hangi kullanıcıların erişebileceğini yönetin.",
+    "Add User": "Kullanıcı Ekle",
+    "Select a user...": "Bir kullanıcı seçin...",
+    "No additional users have access to this domain.": "Bu alan adına erişimi olan ek kullanıcı yok.",
+    "Failed to add user.": "Kullanıcı eklenemedi.",
+    "Failed to remove user.": "Kullanıcı kaldırılamadı."
 }

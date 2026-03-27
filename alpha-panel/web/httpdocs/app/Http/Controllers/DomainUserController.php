@@ -2,27 +2,40 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class DomainUserController extends Controller
 {
-    public function index(Request $request, Domain $domain): JsonResponse
+    public function index(Request $request, Domain $domain): Response
     {
         $this->authorize('view', $domain);
 
+        $domain->loadMissing('owner:id,name,email');
+
         $authorizedUsers = $domain->authorizedUsers()
             ->select('users.id', 'users.name', 'users.email')
-            ->get()
-            ->map(fn (User $user): array => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-            ]);
+            ->get();
 
-        return response()->json(['data' => $authorizedUsers]);
+        $availableUsers = User::query()
+            ->whereNotIn('id', $authorizedUsers->pluck('id')->push($domain->owner_user_id))
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
+
+        return Inertia::render('Domains/Users', [
+            'domain' => [
+                'id' => $domain->id,
+                'fqdn' => $domain->fqdn,
+                'owner' => $domain->owner?->only('id', 'name', 'email'),
+            ],
+            'authorizedUsers' => $authorizedUsers,
+            'availableUsers' => $availableUsers,
+        ]);
     }
 
     public function store(Request $request, Domain $domain): JsonResponse
@@ -53,6 +66,15 @@ class DomainUserController extends Controller
 
         $user = User::select('id', 'name', 'email')->findOrFail($userId);
 
+        AuditLog::create([
+            'user_id' => $request->user()?->id,
+            'action' => 'domain_user_added',
+            'domain_id' => $domain->id,
+            'summary' => "{$user->name} ({$user->email}) added to {$domain->fqdn}",
+            'ip_address' => $request->ip(),
+            'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+        ]);
+
         return response()->json([
             'status' => 'success',
             'message' => __('User added to domain successfully.'),
@@ -69,6 +91,15 @@ class DomainUserController extends Controller
         $this->authorize('update', $domain);
 
         $domain->authorizedUsers()->detach($user->id);
+
+        AuditLog::create([
+            'user_id' => $request->user()?->id,
+            'action' => 'domain_user_removed',
+            'domain_id' => $domain->id,
+            'summary' => "{$user->name} ({$user->email}) removed from {$domain->fqdn}",
+            'ip_address' => $request->ip(),
+            'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+        ]);
 
         return response()->json([
             'status' => 'success',

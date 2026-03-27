@@ -1232,5 +1232,12 @@
     "No domains": "Domen yoxdur",
     "View PHP versions": "PHP versiyalarına bax",
     "Enable and disable PHP versions": "PHP versiyalarını aktivləşdir və deaktiv et",
-    "In Use": "İstifadədə"
+    "In Use": "İstifadədə",
+    "Authorized Users": "Səlahiyyətli istifadəçilər",
+    "Manage which users can access this domain.": "Bu domena hansı istifadəçilərin daxil ola biləcəyini idarə edin.",
+    "Add User": "İstifadəçi əlavə et",
+    "Select a user...": "İstifadəçi seçin...",
+    "No additional users have access to this domain.": "Bu domena əlavə istifadəçi girişi yoxdur.",
+    "Failed to add user.": "İstifadəçi əlavə edilə bilmədi.",
+    "Failed to remove user.": "İstifadəçi silinə bilmədi."
 }

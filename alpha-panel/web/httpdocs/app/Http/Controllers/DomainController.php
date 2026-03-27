@@ -527,7 +527,10 @@ class DomainController extends Controller
 
         $domains = Domain::query()
             ->select(['id', 'fqdn', 'type', 'status', 'parent_domain_id'])
-            ->when(! $user->isAdmin(), fn ($builder) => $builder->where('owner_user_id', $user->id))
+            ->when(! $user->isAdmin(), fn ($builder) => $builder->where(function ($q) use ($user) {
+                $q->where('owner_user_id', $user->id)
+                    ->orWhereHas('authorizedUsers', fn ($q) => $q->where('user_id', $user->id));
+            }))
             ->where('fqdn', 'like', "%{$query}%")
             ->orderByRaw(
                 'CASE WHEN fqdn = ? THEN 0 WHEN fqdn LIKE ? THEN 1 ELSE 2 END',

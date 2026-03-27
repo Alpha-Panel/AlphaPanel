@@ -1232,5 +1232,12 @@
     "No domains": "Aucun domaine",
     "View PHP versions": "Voir les versions PHP",
     "Enable and disable PHP versions": "Activer et désactiver les versions PHP",
-    "In Use": "En cours d'utilisation"
+    "In Use": "En cours d'utilisation",
+    "Authorized Users": "Utilisateurs autorisés",
+    "Manage which users can access this domain.": "Gérez les utilisateurs pouvant accéder à ce domaine.",
+    "Add User": "Ajouter un utilisateur",
+    "Select a user...": "Sélectionner un utilisateur...",
+    "No additional users have access to this domain.": "Aucun utilisateur supplémentaire n'a accès à ce domaine.",
+    "Failed to add user.": "Impossible d'ajouter l'utilisateur.",
+    "Failed to remove user.": "Impossible de supprimer l'utilisateur."
 }

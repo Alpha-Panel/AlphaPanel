@@ -195,6 +195,12 @@
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
+                            <Link v-if="can('domain.edit')" :href="route('domains.users.index', domain.id)" class="quick-link">
+                                <i class="fa-solid fa-user-group quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('Authorized Users') }}</span>
+                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                            </Link>
+
                             <Link v-if="can('panel.docker-services.manage')" :href="route('domains.docker-services.index', domain.id)" class="quick-link">
                                 <i class="fa-brands fa-docker quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('Docker Services') }}</span>

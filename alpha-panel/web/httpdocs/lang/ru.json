@@ -1232,5 +1232,12 @@
     "No domains": "Нет доменов",
     "View PHP versions": "Просмотр версий PHP",
     "Enable and disable PHP versions": "Включение и отключение версий PHP",
-    "In Use": "Используется"
+    "In Use": "Используется",
+    "Authorized Users": "Авторизованные пользователи",
+    "Manage which users can access this domain.": "Управляйте доступом пользователей к этому домену.",
+    "Add User": "Добавить пользователя",
+    "Select a user...": "Выберите пользователя...",
+    "No additional users have access to this domain.": "У этого домена нет дополнительных пользователей с доступом.",
+    "Failed to add user.": "Не удалось добавить пользователя.",
+    "Failed to remove user.": "Не удалось удалить пользователя."
 }
