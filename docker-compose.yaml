@@ -219,25 +219,40 @@ services:
       - ./vhosts:/var/www/vhosts
       - ./php-code-server/supervisor.d:/etc/supervisor/conf.d/
 
-      - ./php-code-server/8.5/fpm.d/:/etc/php/8.5/fpm/pool.d/
-      - ./php-code-server/8.4/fpm.d/:/etc/php/8.4/fpm/pool.d/
-      - ./php-code-server/8.3/fpm.d:/etc/php/8.3/fpm/pool.d/
-      - ./php-code-server/8.2/fpm.d:/etc/php/8.2/fpm/pool.d/
-      - ./php-code-server/8.1/fpm.d:/etc/php/8.1/fpm/pool.d/
+      - ./php-code-server/7.0/fpm.d/:/etc/php/7.0/fpm/pool.d/
+      - ./php-code-server/7.1/fpm.d/:/etc/php/7.1/fpm/pool.d/
+      - ./php-code-server/7.2/fpm.d/:/etc/php/7.2/fpm/pool.d/
+      - ./php-code-server/7.3/fpm.d/:/etc/php/7.3/fpm/pool.d/
+      - ./php-code-server/7.4/fpm.d/:/etc/php/7.4/fpm/pool.d/
       - ./php-code-server/8.0/fpm.d:/etc/php/8.0/fpm/pool.d/
+      - ./php-code-server/8.1/fpm.d:/etc/php/8.1/fpm/pool.d/
+      - ./php-code-server/8.2/fpm.d:/etc/php/8.2/fpm/pool.d/
+      - ./php-code-server/8.3/fpm.d:/etc/php/8.3/fpm/pool.d/
+      - ./php-code-server/8.4/fpm.d/:/etc/php/8.4/fpm/pool.d/
+      - ./php-code-server/8.5/fpm.d/:/etc/php/8.5/fpm/pool.d/
 
-      - ./php-code-server/php.ini:/etc/php/8.5/fpm/conf.d/99998-custom.ini
-      - ./php-code-server/php.ini:/etc/php/8.4/fpm/conf.d/99998-custom.ini
-      - ./php-code-server/php.ini:/etc/php/8.3/fpm/conf.d/99998-custom.ini
-      - ./php-code-server/php.ini:/etc/php/8.2/fpm/conf.d/99998-custom.ini
-      - ./php-code-server/php.ini:/etc/php/8.1/fpm/conf.d/99998-custom.ini
+      - ./php-code-server/php.ini:/etc/php/7.0/fpm/conf.d/99998-custom.ini
+      - ./php-code-server/php.ini:/etc/php/7.1/fpm/conf.d/99998-custom.ini
+      - ./php-code-server/php.ini:/etc/php/7.2/fpm/conf.d/99998-custom.ini
+      - ./php-code-server/php.ini:/etc/php/7.3/fpm/conf.d/99998-custom.ini
+      - ./php-code-server/php.ini:/etc/php/7.4/fpm/conf.d/99998-custom.ini
       - ./php-code-server/php.ini:/etc/php/8.0/fpm/conf.d/99998-custom.ini
-      - ./php-code-server/php.local.ini:/etc/php/8.5/fpm/conf.d/99999-local.ini
-      - ./php-code-server/php.local.ini:/etc/php/8.4/fpm/conf.d/99999-local.ini
-      - ./php-code-server/php.local.ini:/etc/php/8.3/fpm/conf.d/99999-local.ini
-      - ./php-code-server/php.local.ini:/etc/php/8.2/fpm/conf.d/99999-local.ini
-      - ./php-code-server/php.local.ini:/etc/php/8.1/fpm/conf.d/99999-local.ini
+      - ./php-code-server/php.ini:/etc/php/8.1/fpm/conf.d/99998-custom.ini
+      - ./php-code-server/php.ini:/etc/php/8.2/fpm/conf.d/99998-custom.ini
+      - ./php-code-server/php.ini:/etc/php/8.3/fpm/conf.d/99998-custom.ini
+      - ./php-code-server/php.ini:/etc/php/8.4/fpm/conf.d/99998-custom.ini
+      - ./php-code-server/php.ini:/etc/php/8.5/fpm/conf.d/99998-custom.ini
+      - ./php-code-server/php.local.ini:/etc/php/7.0/fpm/conf.d/99999-local.ini
+      - ./php-code-server/php.local.ini:/etc/php/7.1/fpm/conf.d/99999-local.ini
+      - ./php-code-server/php.local.ini:/etc/php/7.2/fpm/conf.d/99999-local.ini
+      - ./php-code-server/php.local.ini:/etc/php/7.3/fpm/conf.d/99999-local.ini
+      - ./php-code-server/php.local.ini:/etc/php/7.4/fpm/conf.d/99999-local.ini
       - ./php-code-server/php.local.ini:/etc/php/8.0/fpm/conf.d/99999-local.ini
+      - ./php-code-server/php.local.ini:/etc/php/8.1/fpm/conf.d/99999-local.ini
+      - ./php-code-server/php.local.ini:/etc/php/8.2/fpm/conf.d/99999-local.ini
+      - ./php-code-server/php.local.ini:/etc/php/8.3/fpm/conf.d/99999-local.ini
+      - ./php-code-server/php.local.ini:/etc/php/8.4/fpm/conf.d/99999-local.ini
+      - ./php-code-server/php.local.ini:/etc/php/8.5/fpm/conf.d/99999-local.ini
 
       - ./ftp-config/users.env:/etc/users.env:ro
       - ./code-server/data:/root
