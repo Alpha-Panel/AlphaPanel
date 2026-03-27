@@ -1221,5 +1221,16 @@
     "upload_max_filesize": "upload_max_filesize",
     "user": "пользователь",
     "users": "пользователи",
-    "value": "znachenie"
+    "value": "znachenie",
+    "PHP Versions": "Версии PHP",
+    "Manage which PHP-FPM versions are available on the server.": "Управление доступными версиями PHP-FPM на сервере.",
+    "PHP :version enabled successfully.": "PHP :version успешно включён.",
+    "PHP :version disabled successfully.": "PHP :version успешно отключён.",
+    "Cannot disable PHP :version because :count domain(s) are using it.": "Невозможно отключить PHP :version, так как :count домен(ов) его используют.",
+    "Failed to update PHP version: :error": "Не удалось обновить версию PHP: :error",
+    ":count domain(s)": ":count домен(ов)",
+    "No domains": "Нет доменов",
+    "View PHP versions": "Просмотр версий PHP",
+    "Enable and disable PHP versions": "Включение и отключение версий PHP",
+    "In Use": "Используется"
 }

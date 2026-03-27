@@ -56,6 +56,8 @@ return [
             'panel.system.updates' => 'View and manage system updates',
             'panel.docker-services.view' => 'View Docker services',
             'panel.docker-services.manage' => 'Create, edit and delete Docker services',
+            'panel.php-versions.view' => 'View PHP versions',
+            'panel.php-versions.manage' => 'Enable and disable PHP versions',
         ],
     ],
 

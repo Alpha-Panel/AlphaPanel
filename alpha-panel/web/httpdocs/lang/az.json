@@ -1221,5 +1221,16 @@
     "upload_max_filesize": "upload_max_filesize",
     "user": "istifadəçi",
     "users": "istifadəçi",
-    "value": "deyer"
+    "value": "deyer",
+    "PHP Versions": "PHP Versiyaları",
+    "Manage which PHP-FPM versions are available on the server.": "Serverdə hansı PHP-FPM versiyalarının mövcud olduğunu idarə edin.",
+    "PHP :version enabled successfully.": "PHP :version uğurla aktivləşdirildi.",
+    "PHP :version disabled successfully.": "PHP :version uğurla deaktiv edildi.",
+    "Cannot disable PHP :version because :count domain(s) are using it.": "PHP :version deaktiv edilə bilməz, çünki :count domen(lər) istifadə edir.",
+    "Failed to update PHP version: :error": "PHP versiyası yenilənə bilmədi: :error",
+    ":count domain(s)": ":count domen(lər)",
+    "No domains": "Domen yoxdur",
+    "View PHP versions": "PHP versiyalarına bax",
+    "Enable and disable PHP versions": "PHP versiyalarını aktivləşdir və deaktiv et",
+    "In Use": "İstifadədə"
 }

@@ -1221,5 +1221,16 @@
     "Yes, unbind": "Yes, unbind",
     "Yesterday": "Yesterday",
     "You have a new notification.": "You have a new notification.",
-    "Your rules have changed. Generate the UFW command set and run it manually on the server via SSH.": "Your rules have changed. Generate the UFW command set and run it manually on the server via SSH."
+    "Your rules have changed. Generate the UFW command set and run it manually on the server via SSH.": "Your rules have changed. Generate the UFW command set and run it manually on the server via SSH.",
+    "PHP Versions": "PHP Versions",
+    "Manage which PHP-FPM versions are available on the server.": "Manage which PHP-FPM versions are available on the server.",
+    "PHP :version enabled successfully.": "PHP :version enabled successfully.",
+    "PHP :version disabled successfully.": "PHP :version disabled successfully.",
+    "Cannot disable PHP :version because :count domain(s) are using it.": "Cannot disable PHP :version because :count domain(s) are using it.",
+    "Failed to update PHP version: :error": "Failed to update PHP version: :error",
+    ":count domain(s)": ":count domain(s)",
+    "No domains": "No domains",
+    "View PHP versions": "View PHP versions",
+    "Enable and disable PHP versions": "Enable and disable PHP versions",
+    "In Use": "In Use"
 }

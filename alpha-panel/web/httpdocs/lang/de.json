@@ -1216,5 +1216,16 @@
     "upload_max_filesize": "upload_max_filesize",
     "user": "Benutzer",
     "users": "Benutzer",
-    "value": "Wert"
+    "value": "Wert",
+    "PHP Versions": "PHP-Versionen",
+    "Manage which PHP-FPM versions are available on the server.": "Verwalten Sie, welche PHP-FPM-Versionen auf dem Server verfügbar sind.",
+    "PHP :version enabled successfully.": "PHP :version erfolgreich aktiviert.",
+    "PHP :version disabled successfully.": "PHP :version erfolgreich deaktiviert.",
+    "Cannot disable PHP :version because :count domain(s) are using it.": "PHP :version kann nicht deaktiviert werden, da :count Domain(s) es verwenden.",
+    "Failed to update PHP version: :error": "PHP-Version konnte nicht aktualisiert werden: :error",
+    ":count domain(s)": ":count Domain(s)",
+    "No domains": "Keine Domains",
+    "View PHP versions": "PHP-Versionen anzeigen",
+    "Enable and disable PHP versions": "PHP-Versionen aktivieren und deaktivieren",
+    "In Use": "In Verwendung"
 }

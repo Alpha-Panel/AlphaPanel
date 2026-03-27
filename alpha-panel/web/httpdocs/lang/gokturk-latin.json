@@ -1221,5 +1221,16 @@
     "upload_max_filesize": "upload_max_filesize",
     "user": "kişi",
     "users": "kişiler",
-    "value": "değer"
+    "value": "değer",
+    "PHP Versions": "PHP Sürümleri",
+    "Manage which PHP-FPM versions are available on the server.": "Sunucuda hangi PHP-FPM sürümlerinin kullanılabilir olduğunu yönetin.",
+    "PHP :version enabled successfully.": "PHP :version başarıyla etkinleştirildi.",
+    "PHP :version disabled successfully.": "PHP :version başarıyla devre dışı bırakıldı.",
+    "Cannot disable PHP :version because :count domain(s) are using it.": "PHP :version devre dışı bırakılamaz çünkü :count alan adı kullanıyor.",
+    "Failed to update PHP version: :error": "PHP sürümü güncellenemedi: :error",
+    ":count domain(s)": ":count alan adı",
+    "No domains": "Alan adı yok",
+    "View PHP versions": "PHP sürümlerini görüntüle",
+    "Enable and disable PHP versions": "PHP sürümlerini etkinleştir ve devre dışı bırak",
+    "In Use": "Kullanımda"
 }

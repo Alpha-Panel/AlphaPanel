@@ -27,6 +27,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ManifestController;
 use App\Http\Controllers\NotificationSettingsController;
 use App\Http\Controllers\PhpSettingsController;
+use App\Http\Controllers\PhpVersionController;
 use App\Http\Controllers\PmaSsoController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RoleController;
@@ -420,6 +421,14 @@ Route::middleware('auth')->group(function (): void {
             Route::post('/restart', [BackupController::class, 'restart'])->name('restart');
         });
     });
+
+    // PHP Versions
+    Route::get('php-versions', [PhpVersionController::class, 'index'])
+        ->middleware('permission:panel.php-versions.view')
+        ->name('php-versions.index');
+    Route::post('php-versions/{phpVersion}/toggle', [PhpVersionController::class, 'toggle'])
+        ->middleware('permission:panel.php-versions.manage')
+        ->name('php-versions.toggle');
 
     // Docker Services
     Route::middleware('permission:panel.docker-services.view')->group(function (): void {

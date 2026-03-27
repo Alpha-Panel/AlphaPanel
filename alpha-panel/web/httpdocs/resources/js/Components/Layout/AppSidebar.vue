@@ -423,6 +423,14 @@ const menuGroups = computed(() => {
                     }
                 }
 
+                if (can('panel.php-versions.view')) {
+                    items.push({
+                        iconClass: 'fa-brands fa-php',
+                        name: t('PHP Versions'),
+                        href: route('php-versions.index'),
+                    });
+                }
+
                 if (can('panel.system.updates')) {
                     items.push({
                         iconClass: 'fa-solid fa-arrow-up-from-bracket',

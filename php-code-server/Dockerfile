@@ -58,7 +58,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 3) Supervisor konfigürasyonu ve Composer
-COPY supervisor.d/php-fpm.conf /etc/supervisor/conf.d/php-fpm.conf
+COPY supervisor.d/ /etc/supervisor/conf.d/
 COPY --from=composer:2.8 /usr/bin/composer /usr/local/bin/composer
 
 # Provide 'python' alias for python3

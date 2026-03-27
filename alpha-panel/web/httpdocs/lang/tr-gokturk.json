@@ -1232,5 +1232,16 @@
     "Yes, unbind": "Evet, kaldır",
     "Yesterday": "Dün",
     "You have a new notification.": "𐰖𐰀𐰭𐰃 𐰉𐰃𐰞𐰑𐰇𐰺𐰍𐰇𐰭 𐰉𐰀𐰺.",
-    "Your rules have changed. Generate the UFW command set and run it manually on the server via SSH.": "Kurallarınız değişti. UFW komut setini oluşturun ve sunucuda SSH üzerinden manuel çalıştırın."
+    "Your rules have changed. Generate the UFW command set and run it manually on the server via SSH.": "Kurallarınız değişti. UFW komut setini oluşturun ve sunucuda SSH üzerinden manuel çalıştırın.",
+    "PHP Versions": "PHP Sürümleri",
+    "Manage which PHP-FPM versions are available on the server.": "Sunucuda hangi PHP-FPM sürümlerinin kullanılabilir olduğunu yönetin.",
+    "PHP :version enabled successfully.": "PHP :version başarıyla etkinleştirildi.",
+    "PHP :version disabled successfully.": "PHP :version başarıyla devre dışı bırakıldı.",
+    "Cannot disable PHP :version because :count domain(s) are using it.": "PHP :version devre dışı bırakılamaz çünkü :count alan adı kullanıyor.",
+    "Failed to update PHP version: :error": "PHP sürümü güncellenemedi: :error",
+    ":count domain(s)": ":count alan adı",
+    "No domains": "Alan adı yok",
+    "View PHP versions": "PHP sürümlerini görüntüle",
+    "Enable and disable PHP versions": "PHP sürümlerini etkinleştir ve devre dışı bırak",
+    "In Use": "Kullanımda"
 }
