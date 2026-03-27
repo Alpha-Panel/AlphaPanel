@@ -184,7 +184,6 @@ class MonitorUpdateProgressJob implements ShouldQueue
         }
 
         return match ($this->operation) {
-            'prepare' => 'prepared',
             'apply' => 'applied',
             'rollback' => 'idle',
             default => 'prepared',

@@ -347,7 +347,7 @@
                             </button>
                         </div>
 
-                        <div v-if="recent_updates.length === 0" class="py-8 text-center text-gray-500 dark:text-gray-400">
+                        <div v-if="updates.length === 0" class="py-8 text-center text-gray-500 dark:text-gray-400">
                             <i class="bx bx-package text-4xl"></i>
                             <p class="mt-2 text-sm">{{ t('No updates yet') }}</p>
                         </div>
@@ -367,7 +367,7 @@
                                 </thead>
                                 <tbody>
                                     <tr
-                                        v-for="update in recent_updates"
+                                        v-for="update in updates"
                                         :key="update.id"
                                         class="border-b border-gray-100 last:border-0 dark:border-gray-800"
                                     >
@@ -540,7 +540,7 @@
 
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from '@/Composables/useI18n';
 import AdminLayout from '@/Components/Layout/AdminLayout.vue';
 import PageBreadcrumb from '@/Components/Common/PageBreadcrumb.vue';
@@ -597,6 +597,9 @@ const props = defineProps<{
 
 const serviceEntries = computed(() => Object.entries(props.current_version.services || {}));
 
+// Reactive copy of recent_updates for real-time WebSocket updates
+const updates = ref<UpdateItem[]>([...props.recent_updates]);
+
 // Check for updates state
 const checkLoading = ref(false);
 const checkResult = ref<CheckResultData | null>(props.cached_check ?? null);
@@ -621,6 +624,16 @@ const mysqlUpgradeProgress = ref({
 const showMysqlApplyConfirm = ref(false);
 const showMysqlRollbackConfirm = ref(false);
 const showMysqlDeleteBackupConfirm = ref(false);
+
+// Sync refs with Inertia prop updates (after redirects / router.reload)
+watch(() => props.mysql_stage, (v) => { mysqlStage.value = (v as MysqlStage) ?? 'idle'; });
+watch(() => props.cached_check, (v) => { checkResult.value = v ?? null; });
+watch(() => props.recent_updates, (v) => { updates.value = [...v]; });
+watch(() => props.active_progress, (v) => {
+    if (v) {
+        mysqlUpgradeProgress.value = { active: true, percent: v.percent, message: v.message };
+    }
+});
 
 // Check for updates
 function checkForUpdates() {
@@ -713,12 +726,15 @@ let echoChannel: any = null;
 onMounted(() => {
     if (typeof window.Echo !== 'undefined') {
         echoChannel = window.Echo.private('admin').listen('.UpdateProgress', (e: any) => {
-            // Update matching record in recent_updates
-            const update = props.recent_updates.find((u) => u.id === e.update_id);
-            if (update) {
-                update.progress_percent = e.percent ?? update.progress_percent;
-                update.status = e.status ? { value: e.status, label: e.status_label } : update.status;
-                update.message = e.message ?? update.message;
+            // Update matching record in reactive updates list
+            const idx = updates.value.findIndex((u) => u.id === e.update_id);
+            if (idx !== -1) {
+                updates.value[idx] = {
+                    ...updates.value[idx],
+                    progress_percent: e.percent ?? updates.value[idx].progress_percent,
+                    status: e.status ? { value: e.status, label: e.status } : updates.value[idx].status,
+                    message: e.message ?? updates.value[idx].message,
+                };
             }
 
             // Update panel progress
@@ -743,11 +759,11 @@ onMounted(() => {
                 }
             }
 
-            // Reload when completed or failed
+            // Reload page data when completed or failed to get fresh server state
             if (e.status === 'completed' || e.status === 'failed' || e.status === 'rolled_back') {
                 panelUpdateProgress.value.active = false;
                 mysqlUpgradeProgress.value.active = false;
-                setTimeout(() => router.reload(), 1000);
+                setTimeout(() => router.reload(), 1500);
             }
         });
     }

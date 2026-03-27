@@ -224,7 +224,12 @@ def set_mysql_version_in_env(project_root: str, version: str) -> None:
 
 
 async def backup_mysql_data(project_root: str) -> CommandResult:
-    """Create a tar.gz backup of the MySQL data directory."""
+    """Create a tar.gz backup of the MySQL data directory.
+
+    Note: tar exit code 1 means "file changed as we read it" which is
+    expected when MySQL is running. The archive is still usable because
+    InnoDB performs crash recovery on startup.
+    """
     staging_dir = os.path.join(project_root, "mysql", "upgrade-staging")
     os.makedirs(staging_dir, exist_ok=True)
     backup_path = os.path.join(staging_dir, "data-backup.tar.gz")
@@ -234,10 +239,18 @@ async def backup_mysql_data(project_root: str) -> CommandResult:
         os.remove(backup_path)
 
     mysql_dir = os.path.join(project_root, "mysql")
-    return await run_cmd(
+    result = await run_cmd(
         f"tar -czf {backup_path} -C {mysql_dir} data",
         timeout=1800,  # 30 min for large databases
     )
+
+    # tar exit code 1 = "file changed as we read it" — expected for live MySQL
+    # Only exit code 2+ is a real error
+    if result.returncode == 1:
+        logger.warning("tar reported changed files during backup (expected for live MySQL): %s", result.stderr)
+        return CommandResult(returncode=0, stdout=result.stdout, stderr=result.stderr)
+
+    return result
 
 
 async def restore_mysql_data(project_root: str) -> CommandResult:

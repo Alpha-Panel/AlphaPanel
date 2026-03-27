@@ -4,11 +4,11 @@ namespace App\Events;
 
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class UpdateProgress implements ShouldBroadcast
+class UpdateProgress implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -20,6 +20,11 @@ class UpdateProgress implements ShouldBroadcast
         public string $type = 'panel',
         public ?string $stage = null,
     ) {}
+
+    public function broadcastAs(): string
+    {
+        return 'UpdateProgress';
+    }
 
     /** @return array<int, \Illuminate\Broadcasting\Channel> */
     public function broadcastOn(): array
