@@ -55,8 +55,8 @@ class HandleInertiaRequests extends Middleware
                         md5(strtolower(trim((string) $user->email))),
                     ),
                 ],
-                'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
-                'roles' => $user->getRoleNames()->toArray(),
+                'permissions' => rescue(fn () => $user->getAllPermissions()->pluck('name')->toArray(), [], false),
+                'roles' => rescue(fn () => $user->getRoleNames()->toArray(), [], false),
             ] : null,
             'flash' => fn () => [
                 'success' => $request->session()->get('success'),
@@ -79,9 +79,11 @@ class HandleInertiaRequests extends Middleware
             'rtl_locales' => $rtlLocales,
             'translations' => fn () => $this->loadLocaleTranslations($locale),
             'vapid_public_key' => config('webpush.vapid.public_key'),
-            'update_available' => fn () => $user?->hasRole('admin')
-                ? (bool) Cache::get('system:update_available', false)
-                : false,
+            'update_available' => fn () => rescue(
+                fn () => $user?->hasRole('admin') ? (bool) Cache::get('system:update_available', false) : false,
+                false,
+                false,
+            ),
         ];
     }
 
