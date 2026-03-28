@@ -82,7 +82,7 @@ php-code-server/*/fpm.d/*.conf
 # =============================================================================
 
 # Portainer (contains hashed admin password, endpoint config)
-portainer/
+/portainer/
 
 # Vaultwarden / Bitwarden (encrypted password vault)
 vaultwarden/data/
