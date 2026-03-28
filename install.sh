@@ -213,6 +213,7 @@ VAULTWARDEN_DB_PASSWORD=$(gen_secret 16)
 PANEL_DB_NAME=AlphaPanel
 PANEL_DB_USER=alphapanel
 PANEL_DB_PASS=$(gen_secret 16)
+FTP_MYSQL_PASSWORD=$(gen_secret 16)
 CROWDSEC_FIREWALL_BOUNCER_KEY=$(gen_secret)
 CROWDSEC_DASHBOARD_API_KEY=$(gen_secret)
 UPDATE_AGENT_SECRET=$(gen_secret)
@@ -362,6 +363,10 @@ ADMIN_EMAIL=${ADMIN_EMAIL}
 # ─── MySQL ────────────────────────────────────────────────────
 MYSQL_VERSION=9.3.0
 MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD}"
+MYSQL_DATABASE=${PANEL_DB_NAME}
+
+# ─── FTP (ProFTPD MySQL Auth) ────────────────────────────────
+FTP_MYSQL_PASSWORD="${FTP_MYSQL_PASSWORD}"
 
 # ─── Meilisearch ──────────────────────────────────────────────
 MEILISEARCH_MASTER_KEY="${MEILISEARCH_MASTER_KEY}"
@@ -413,6 +418,7 @@ PANEL_DB_NAME=${PANEL_DB_NAME}
 PANEL_DB_USER=${PANEL_DB_USER}
 PANEL_DB_PASS=${PANEL_DB_PASS}
 PMA_URL=https://${PMA_DOMAIN}:8443/index.php?server=2
+PANEL_APP_KEY=${APP_KEY}
 
 # ─── Update Agent ────────────────────────────────────────────
 UPDATE_AGENT_SECRET=${UPDATE_AGENT_SECRET}
