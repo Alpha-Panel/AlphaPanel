@@ -3,7 +3,7 @@
 # Supports: Ubuntu 20.04+, Debian 11+, CentOS/RHEL 8+, Rocky/AlmaLinux 8+
 set -euo pipefail
 
-REPO_URL="https://github.com/YOUR_USERNAME/alphapanel-docker.git"
+REPO_URL="git@github.com:Alpha-Panel/AlphaPanel.git"
 INSTALL_DIR="/opt/alphapanel-docker"
 
 # ─── Colors ───────────────────────────────────────────────────
