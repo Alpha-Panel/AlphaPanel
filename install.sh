@@ -244,7 +244,7 @@ mkdir -p \
     n8n/data n8n/files \
     jenkins/data \
     code-server/data \
-    includeservices
+    external-services
 ok "Directories created."
 
 if [ ! -f frankenphp/waf/generated/global.conf ]; then
@@ -539,11 +539,11 @@ if [ ! -f ftp-config/users.env ]; then
 fi
 
 # ─── external-services placeholder ──────────────────────────────
-if [ ! -f includeservices/local-services.yaml ]; then
-    if [ -f includeservices/empty.yaml ]; then
-        cp includeservices/empty.yaml includeservices/local-services.yaml
+if [ ! -f external-services/local-services.yaml ]; then
+    if [ -f external-services/local-services.example.yaml ]; then
+        cp external-services/local-services.example.yaml external-services/local-services.yaml
     else
-        echo "# No local services" > includeservices/local-services.yaml
+        echo "# No local services" > external-services/local-services.yaml
     fi
 fi
 
