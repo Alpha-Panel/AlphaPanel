@@ -21,7 +21,6 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SslCertificateController extends Controller
 {
@@ -172,7 +171,7 @@ class SslCertificateController extends Controller
             ->with('success', __('CSR generated successfully. You can now download it and submit to a Certificate Authority.'));
     }
 
-    public function downloadCsr(Domain $domain, SslCertificate $certificate): BinaryFileResponse|RedirectResponse
+    public function downloadCsr(Domain $domain, SslCertificate $certificate): \Illuminate\Http\Response|RedirectResponse
     {
         $this->authorize('manageSsl', $domain);
 
@@ -180,17 +179,16 @@ class SslCertificateController extends Controller
             abort(404);
         }
 
-        if (! $certificate->csr_path || ! file_exists($certificate->csr_path)) {
+        if (! $certificate->csr_pem) {
             return redirect()
                 ->route('domains.ssl.index', $domain)
                 ->with('error', __('CSR file not found.'));
         }
 
-        return response()->download(
-            $certificate->csr_path,
-            "{$domain->fqdn}-{$certificate->id}.csr",
-            ['Content-Type' => 'application/pkcs10'],
-        );
+        return response($certificate->csr_pem, 200, [
+            'Content-Type' => 'application/pkcs10',
+            'Content-Disposition' => "attachment; filename=\"{$domain->fqdn}-{$certificate->id}.csr\"",
+        ]);
     }
 
     public function uploadCertificate(UploadCertificateRequest $request, Domain $domain): RedirectResponse
@@ -243,7 +241,7 @@ class SslCertificateController extends Controller
             abort(404);
         }
 
-        if (! $certificate->cert_path || ! file_exists($certificate->cert_path)) {
+        if (! $certificate->certificate_pem) {
             return redirect()
                 ->route('domains.ssl.index', $domain)
                 ->with('error', __('Cannot activate a certificate without a certificate file. Please upload the signed certificate first.'));
@@ -279,8 +277,8 @@ class SslCertificateController extends Controller
                 ->with('error', __('Cannot delete the active certificate. Please activate a different certificate first.'));
         }
 
-        // Delete cert files from disk
-        $this->deleteCertFiles($certificate);
+        // Delete cert files from disk (if written during activation)
+        $this->deleteCertDiskFiles($domain, $certificate);
 
         $label = $certificate->label;
         $certificate->delete();
@@ -305,18 +303,13 @@ class SslCertificateController extends Controller
     private function findMatchingCsrRecord(Domain $domain, string $uploadedKeyPem): ?SslCertificate
     {
         $csrRecords = $domain->sslCertificates()
-            ->whereNotNull('csr_path')
-            ->whereNotNull('key_path')
-            ->whereNull('cert_path')
+            ->whereNotNull('csr_pem')
+            ->whereNotNull('private_key_pem')
+            ->whereNull('certificate_pem')
             ->get();
 
         foreach ($csrRecords as $csrRecord) {
-            if (! file_exists($csrRecord->key_path)) {
-                continue;
-            }
-
-            $existingKey = trim(File::get($csrRecord->key_path));
-            if ($existingKey === trim($uploadedKeyPem)) {
+            if (trim($csrRecord->private_key_pem) === trim($uploadedKeyPem)) {
                 return $csrRecord;
             }
         }
@@ -325,7 +318,7 @@ class SslCertificateController extends Controller
     }
 
     /**
-     * Complete a CSR record by adding the signed certificate files.
+     * Complete a CSR record by adding the signed certificate content.
      */
     private function completeCsrWithCert(SslCertificate $csrRecord, Domain $domain, array $validated): void
     {
@@ -333,27 +326,16 @@ class SslCertificateController extends Controller
             throw new \RuntimeException(__('The private key does not match the certificate.'));
         }
 
-        $certDir = dirname($csrRecord->key_path);
-        $certPath = "{$certDir}/fullchain.pem";
-
         $caBundlePem = $validated['ca_bundle'] ?? null;
         $fullchainPem = $caBundlePem !== null
             ? trim($validated['certificate'])."\n".trim($caBundlePem)."\n"
             : $validated['certificate'];
 
-        File::put($certPath, $fullchainPem);
-
-        $caBundlePath = null;
-        if ($caBundlePem !== null) {
-            $caBundlePath = "{$certDir}/ca-bundle.pem";
-            File::put($caBundlePath, $caBundlePem);
-        }
-
-        $meta = $this->sslCertificateService->parseCertificate($certPath);
+        $meta = $this->sslCertificateService->parseCertificatePem($fullchainPem);
 
         $csrRecord->update([
-            'cert_path' => $certPath,
-            'ca_bundle_path' => $caBundlePath,
+            'certificate_pem' => $fullchainPem,
+            'ca_bundle_pem' => $caBundlePem,
             'issuer' => $meta['issuer'],
             'not_before' => $meta['not_before'] ? Carbon::parse($meta['not_before']) : null,
             'not_after' => $meta['not_after'] ? Carbon::parse($meta['not_after']) : null,
@@ -365,31 +347,14 @@ class SslCertificateController extends Controller
     }
 
     /**
-     * Delete certificate-related files from disk.
+     * Delete certificate-related disk files (written during activation).
      */
-    private function deleteCertFiles(SslCertificate $certificate): void
+    private function deleteCertDiskFiles(Domain $domain, SslCertificate $certificate): void
     {
-        $paths = array_filter([
-            $certificate->cert_path,
-            $certificate->key_path,
-            $certificate->ca_bundle_path,
-            $certificate->csr_path,
-        ]);
+        $certDir = config('panel.letsencrypt_custom_base')."/{$domain->fqdn}/{$certificate->id}";
 
-        $directories = [];
-
-        foreach ($paths as $path) {
-            if ($path && file_exists($path)) {
-                $directories[dirname($path)] = true;
-                File::delete($path);
-            }
-        }
-
-        // Remove the parent directory if it's now empty
-        foreach (array_keys($directories) as $dir) {
-            if (File::isDirectory($dir) && count(File::files($dir)) === 0 && count(File::directories($dir)) === 0) {
-                File::deleteDirectory($dir);
-            }
+        if (File::isDirectory($certDir)) {
+            File::deleteDirectory($certDir);
         }
     }
 }

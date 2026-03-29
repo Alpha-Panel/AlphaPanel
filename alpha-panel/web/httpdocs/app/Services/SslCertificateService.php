@@ -13,16 +13,31 @@ use RuntimeException;
 
 class SslCertificateService
 {
-    private string $customBasePath;
-
-    private string $csrBasePath;
+    private string $activeCertBasePath;
 
     public function __construct(
         private DomainConfigService $domainConfigService,
         private ReloadService $reloadService,
     ) {
-        $this->customBasePath = config('panel.letsencrypt_custom_base');
-        $this->csrBasePath = config('panel.letsencrypt_csr_base');
+        $this->activeCertBasePath = config('panel.letsencrypt_custom_base');
+    }
+
+    /**
+     * Parse metadata from X.509 PEM certificate content.
+     *
+     * @return array{common_name: ?string, issuer: ?string, not_before: ?string, not_after: ?string, san_domains: string[], fingerprint_sha256: ?string, is_wildcard: bool}
+     */
+    public function parseCertificatePem(string $certPem): array
+    {
+        $tmpFile = tempnam(sys_get_temp_dir(), 'cert_parse_');
+
+        try {
+            File::put($tmpFile, $certPem);
+
+            return $this->parseCertificateFile($tmpFile);
+        } finally {
+            File::delete($tmpFile);
+        }
     }
 
     /**
@@ -30,7 +45,7 @@ class SslCertificateService
      *
      * @return array{common_name: ?string, issuer: ?string, not_before: ?string, not_after: ?string, san_domains: string[], fingerprint_sha256: ?string, is_wildcard: bool}
      */
-    public function parseCertificate(string $certPath): array
+    public function parseCertificateFile(string $certPath): array
     {
         $result = Process::timeout(15)->run(implode(' ', [
             'openssl x509',
@@ -41,7 +56,7 @@ class SslCertificateService
         ]));
 
         if (! $result->successful()) {
-            throw new RuntimeException("Failed to parse certificate at {$certPath}: {$result->errorOutput()}");
+            throw new RuntimeException("Failed to parse certificate: {$result->errorOutput()}");
         }
 
         $output = $result->output();
@@ -70,8 +85,7 @@ class SslCertificateService
 
         $sanDomains = [];
         if (preg_match('/Subject Alternative Name:\s*\n\s*(.+)/i', $output, $m)) {
-            $sanLine = trim($m[1]);
-            preg_match_all('/DNS:([^\s,]+)/', $sanLine, $sanMatches);
+            preg_match_all('/DNS:([^\s,]+)/', trim($m[1]), $sanMatches);
             $sanDomains = $sanMatches[1] ?? [];
         }
 
@@ -80,10 +94,7 @@ class SslCertificateService
             $fingerprint = trim($m[1]);
         }
 
-        $isWildcard = false;
-        if ($commonName !== null && str_starts_with($commonName, '*.')) {
-            $isWildcard = true;
-        }
+        $isWildcard = ($commonName !== null && str_starts_with($commonName, '*.'));
         if (! $isWildcard) {
             foreach ($sanDomains as $san) {
                 if (str_starts_with($san, '*.')) {
@@ -129,7 +140,6 @@ class SslCertificateService
                 $keyModulus = Process::timeout(10)->run(
                     'openssl ec -noout -text -in '.escapeshellarg($keyTmp).' 2>/dev/null | openssl md5'
                 );
-
                 $certModulus = Process::timeout(10)->run(
                     'openssl x509 -noout -text -in '.escapeshellarg($certTmp).' 2>/dev/null | openssl md5'
                 );
@@ -147,7 +157,8 @@ class SslCertificateService
     }
 
     /**
-     * Create an SslCertificate record from an existing cert/key pair on disk.
+     * Create an SslCertificate record from cert/key files on disk.
+     * Reads the PEM content and stores it encrypted in the DB.
      */
     public function createFromDiskCert(
         Domain $domain,
@@ -157,21 +168,20 @@ class SslCertificateService
         ?string $validationMethod = null,
         ?string $label = null,
     ): SslCertificate {
-        $meta = $this->parseCertificate($certPath);
+        $meta = $this->parseCertificateFile($certPath);
 
-        if ($label === null) {
-            $label = $type->label().' - '.($meta['common_name'] ?? $domain->fqdn);
-        }
+        $certPem = File::get($certPath);
+        $keyPem = File::get($keyPath);
 
         return SslCertificate::create([
             'domain_id' => $domain->id,
             'type' => $type,
-            'label' => $label,
+            'label' => $label ?? $type->label().' - '.($meta['common_name'] ?? $domain->fqdn),
             'common_name' => $meta['common_name'],
             'issuer' => $meta['issuer'],
             'san_domains' => $meta['san_domains'],
-            'cert_path' => $certPath,
-            'key_path' => $keyPath,
+            'private_key_pem' => $keyPem,
+            'certificate_pem' => $certPem,
             'validation_method' => $validationMethod,
             'not_before' => $meta['not_before'] ? Carbon::parse($meta['not_before']) : null,
             'not_after' => $meta['not_after'] ? Carbon::parse($meta['not_after']) : null,
@@ -182,7 +192,7 @@ class SslCertificateService
     }
 
     /**
-     * Store an uploaded certificate, validate it, and create an SslCertificate record.
+     * Store an uploaded certificate with validation and encrypted storage.
      */
     public function storeUploadedCert(
         Domain $domain,
@@ -192,75 +202,37 @@ class SslCertificateService
         ?string $label = null,
     ): SslCertificate {
         if (! $this->validateKeyMatchesCert($certPem, $keyPem)) {
-            throw new RuntimeException('The private key does not match the certificate.');
+            throw new RuntimeException(__('The private key does not match the certificate.'));
         }
 
-        // Create the record first to get an ID for the storage directory
-        $certificate = SslCertificate::create([
+        // Build fullchain: cert + CA bundle
+        $fullchainPem = $caBundlePem !== null
+            ? trim($certPem)."\n".trim($caBundlePem)."\n"
+            : $certPem;
+
+        $meta = $this->parseCertificatePem($fullchainPem);
+
+        return SslCertificate::create([
             'domain_id' => $domain->id,
             'type' => SslCertificateType::Custom,
-            'label' => $label ?? 'Custom Certificate - '.$domain->fqdn,
+            'label' => $label ?? 'Custom Certificate - '.($meta['common_name'] ?? $domain->fqdn),
+            'common_name' => $meta['common_name'],
+            'issuer' => $meta['issuer'],
+            'san_domains' => $meta['san_domains'],
+            'private_key_pem' => $keyPem,
+            'certificate_pem' => $fullchainPem,
+            'ca_bundle_pem' => $caBundlePem,
+            'validation_method' => null,
+            'not_before' => $meta['not_before'] ? Carbon::parse($meta['not_before']) : null,
+            'not_after' => $meta['not_after'] ? Carbon::parse($meta['not_after']) : null,
+            'fingerprint_sha256' => $meta['fingerprint_sha256'],
+            'is_wildcard' => $meta['is_wildcard'],
             'auto_renew' => false,
         ]);
-
-        $certDir = "{$this->customBasePath}/{$domain->fqdn}/{$certificate->id}";
-
-        try {
-            if (! File::isDirectory($certDir)) {
-                File::makeDirectory($certDir, 0755, true);
-            }
-
-            $certPath = "{$certDir}/fullchain.pem";
-            $keyPath = "{$certDir}/privkey.pem";
-
-            // Build fullchain: cert + CA bundle
-            $fullchainPem = $caBundlePem !== null
-                ? trim($certPem)."\n".trim($caBundlePem)."\n"
-                : $certPem;
-
-            File::put($certPath, $fullchainPem);
-            File::put($keyPath, $keyPem);
-            File::chmod($keyPath, 0600);
-
-            $caBundlePath = null;
-            if ($caBundlePem !== null) {
-                $caBundlePath = "{$certDir}/ca-bundle.pem";
-                File::put($caBundlePath, $caBundlePem);
-            }
-
-            // Parse metadata from the stored cert
-            $meta = $this->parseCertificate($certPath);
-
-            $certificate->update([
-                'common_name' => $meta['common_name'],
-                'issuer' => $meta['issuer'],
-                'san_domains' => $meta['san_domains'],
-                'cert_path' => $certPath,
-                'key_path' => $keyPath,
-                'ca_bundle_path' => $caBundlePath,
-                'not_before' => $meta['not_before'] ? Carbon::parse($meta['not_before']) : null,
-                'not_after' => $meta['not_after'] ? Carbon::parse($meta['not_after']) : null,
-                'fingerprint_sha256' => $meta['fingerprint_sha256'],
-                'is_wildcard' => $meta['is_wildcard'],
-                'label' => $label ?? $this->generateLabel(SslCertificateType::Custom, $meta['common_name'], $domain->fqdn),
-            ]);
-
-            Log::info("Stored uploaded certificate for {$domain->fqdn} (ID: {$certificate->id}).");
-
-            return $certificate->refresh();
-        } catch (\Exception $e) {
-            // Clean up on failure
-            if (File::isDirectory($certDir)) {
-                File::deleteDirectory($certDir);
-            }
-            $certificate->delete();
-
-            throw $e;
-        }
     }
 
     /**
-     * Generate a CSR and private key for a domain.
+     * Generate a CSR and private key, store encrypted in DB.
      */
     public function generateCsr(
         Domain $domain,
@@ -269,27 +241,14 @@ class SslCertificateService
         array $csrFields,
         array $sanDomains = [],
     ): SslCertificate {
-        // Create the record first to get an ID
-        $certificate = SslCertificate::create([
-            'domain_id' => $domain->id,
-            'type' => SslCertificateType::Custom,
-            'label' => 'CSR - '.$commonName,
-            'common_name' => $commonName,
-            'is_wildcard' => str_starts_with($commonName, '*.'),
-            'auto_renew' => false,
-        ]);
-
-        $csrDir = "{$this->csrBasePath}/{$domain->fqdn}/{$certificate->id}";
+        $tmpDir = sys_get_temp_dir().'/csr_'.uniqid();
+        File::makeDirectory($tmpDir, 0700, true);
 
         try {
-            if (! File::isDirectory($csrDir)) {
-                File::makeDirectory($csrDir, 0755, true);
-            }
+            $csrPath = "{$tmpDir}/request.csr";
+            $keyPath = "{$tmpDir}/privkey.pem";
 
-            $csrPath = "{$csrDir}/request.csr";
-            $keyPath = "{$csrDir}/privkey.pem";
-
-            // Build the subject string from CSR fields
+            // Build subject
             $subjectParts = [];
             if (! empty($csrFields['country'])) {
                 $subjectParts[] = '/C='.$csrFields['country'];
@@ -309,10 +268,8 @@ class SslCertificateService
             $subjectParts[] = '/CN='.$commonName;
             $subject = implode('', $subjectParts);
 
-            // Resolve openssl key arguments
             $keyArgs = $this->resolveKeyArgs($keyType);
 
-            // Build the openssl command
             $command = ['openssl req -new -nodes'];
             $command[] = '-keyout '.escapeshellarg($keyPath);
             $command[] = '-out '.escapeshellarg($csrPath);
@@ -322,10 +279,9 @@ class SslCertificateService
                 $command[] = $arg;
             }
 
-            // Handle SAN domains
-            $configPath = null;
+            // SAN support via config file
             if (! empty($sanDomains)) {
-                $configPath = "{$csrDir}/openssl.cnf";
+                $configPath = "{$tmpDir}/openssl.cnf";
                 $this->writeOpenSslConfig($configPath, $sanDomains);
                 $command[] = '-config '.escapeshellarg($configPath);
                 $command[] = '-reqexts v3_req';
@@ -337,35 +293,42 @@ class SslCertificateService
                 throw new RuntimeException("CSR generation failed: {$result->errorOutput()}");
             }
 
-            File::chmod($keyPath, 0600);
+            $keyPem = File::get($keyPath);
+            $csrPem = File::get($csrPath);
 
-            // Update the record with generated paths
-            $certificate->update([
-                'csr_path' => $csrPath,
-                'key_path' => $keyPath,
-                'san_domains' => $sanDomains,
+            $certificate = SslCertificate::create([
+                'domain_id' => $domain->id,
+                'type' => SslCertificateType::Custom,
+                'label' => 'CSR - '.$commonName,
+                'common_name' => $commonName,
+                'private_key_pem' => $keyPem,
+                'csr_pem' => $csrPem,
+                'san_domains' => ! empty($sanDomains) ? $sanDomains : null,
+                'is_wildcard' => str_starts_with($commonName, '*.'),
+                'auto_renew' => false,
             ]);
 
             Log::info("Generated CSR for {$commonName} (domain: {$domain->fqdn}, ID: {$certificate->id}).");
 
-            return $certificate->refresh();
-        } catch (\Exception $e) {
-            // Clean up on failure
-            if (File::isDirectory($csrDir)) {
-                File::deleteDirectory($csrDir);
-            }
-            $certificate->delete();
-
-            throw $e;
+            return $certificate;
+        } finally {
+            File::deleteDirectory($tmpDir);
         }
     }
 
     /**
      * Activate an SSL certificate for a domain.
-     * Updates the domain's active certificate and regenerates the Caddyfile with TLS.
+     * Writes PEM content to disk for Caddy, updates domain FK, regenerates Caddyfile.
      */
     public function activate(Domain $domain, SslCertificate $certificate): void
     {
+        if (! $certificate->certificate_pem || ! $certificate->private_key_pem) {
+            throw new RuntimeException('Certificate or private key is missing.');
+        }
+
+        // Write cert files to disk for Caddy to read
+        $this->writeCertToDisk($domain, $certificate);
+
         $domain->update(['active_ssl_certificate_id' => $certificate->id]);
 
         $this->domainConfigService->renderWithTls($domain);
@@ -375,16 +338,47 @@ class SslCertificateService
     }
 
     /**
-     * Generate a human-readable label for a certificate.
+     * Write a certificate's PEM content to disk files for Caddy.
+     * Returns the directory path where files were written.
      */
-    private function generateLabel(SslCertificateType $type, ?string $commonName, string $fqdn): string
+    public function writeCertToDisk(Domain $domain, SslCertificate $certificate): string
     {
-        return $type->label().' - '.($commonName ?? $fqdn);
+        $certDir = "{$this->activeCertBasePath}/{$domain->fqdn}/{$certificate->id}";
+
+        if (! File::isDirectory($certDir)) {
+            File::makeDirectory($certDir, 0755, true);
+        }
+
+        File::put("{$certDir}/fullchain.pem", $certificate->certificate_pem);
+        File::put("{$certDir}/privkey.pem", $certificate->private_key_pem);
+        File::chmod("{$certDir}/privkey.pem", 0600);
+
+        if ($certificate->ca_bundle_pem) {
+            File::put("{$certDir}/ca-bundle.pem", $certificate->ca_bundle_pem);
+        }
+
+        return $certDir;
     }
 
     /**
-     * Resolve openssl key generation arguments from a key type string.
+     * Get the disk path where an active cert's files should be.
      *
+     * @return array{cert: string, key: string}|null
+     */
+    public function getActiveCertDiskPaths(Domain $domain, SslCertificate $certificate): ?array
+    {
+        $certDir = "{$this->activeCertBasePath}/{$domain->fqdn}/{$certificate->id}";
+        $certPath = "{$certDir}/fullchain.pem";
+        $keyPath = "{$certDir}/privkey.pem";
+
+        if (File::exists($certPath) && File::exists($keyPath)) {
+            return ['cert' => $certPath, 'key' => $keyPath];
+        }
+
+        return null;
+    }
+
+    /**
      * @return string[]
      */
     private function resolveKeyArgs(string $keyType): array
@@ -399,8 +393,6 @@ class SslCertificateService
     }
 
     /**
-     * Write an OpenSSL configuration file with SAN support for CSR generation.
-     *
      * @param  string[]  $sanDomains
      */
     private function writeOpenSslConfig(string $configPath, array $sanDomains): void

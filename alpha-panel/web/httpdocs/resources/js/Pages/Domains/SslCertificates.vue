@@ -200,7 +200,7 @@
                                         <td class="py-3 text-right">
                                             <div class="flex items-center justify-end gap-2">
                                                 <a
-                                                    v-if="cert.csr_path"
+                                                    v-if="cert.csr_pem"
                                                     :href="route('domains.ssl.download-csr', [domain.id, cert.id])"
                                                     class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
                                                 >
@@ -565,8 +565,8 @@ interface Certificate {
     common_name: string;
     issuer: string | null;
     san_domains: string[] | null;
-    cert_path: string | null;
-    csr_path: string | null;
+    certificate_pem: string | null;
+    csr_pem: string | null;
     not_before: string | null;
     not_after: string | null;
     is_wildcard: boolean;

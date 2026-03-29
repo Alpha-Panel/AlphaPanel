@@ -15,10 +15,10 @@ class SslCertificate extends Model
         'common_name',
         'issuer',
         'san_domains',
-        'cert_path',
-        'key_path',
-        'ca_bundle_path',
-        'csr_path',
+        'private_key_pem',
+        'certificate_pem',
+        'ca_bundle_pem',
+        'csr_pem',
         'validation_method',
         'not_before',
         'not_after',
@@ -33,6 +33,9 @@ class SslCertificate extends Model
         return [
             'type' => SslCertificateType::class,
             'san_domains' => 'array',
+            'private_key_pem' => 'encrypted',
+            'certificate_pem' => 'encrypted',
+            'ca_bundle_pem' => 'encrypted',
             'not_before' => 'datetime',
             'not_after' => 'datetime',
             'is_wildcard' => 'boolean',
@@ -75,8 +78,7 @@ class SslCertificate extends Model
 
     public function getHasCertificateAttribute(): bool
     {
-        return $this->cert_path !== null
-            && $this->cert_path !== ''
-            && file_exists($this->cert_path);
+        return $this->certificate_pem !== null
+            && $this->certificate_pem !== '';
     }
 }

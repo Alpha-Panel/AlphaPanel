@@ -79,13 +79,25 @@ class DomainConfigService
      */
     public function resolveCertPaths(Domain $domain): ?array
     {
-        // Priority 1: DB-tracked active certificate
+        // Priority 1: DB-tracked active certificate — write PEM from DB to disk
         $domain->loadMissing('activeSslCertificate');
 
         if ($domain->activeSslCertificate) {
             $cert = $domain->activeSslCertificate;
-            if ($cert->cert_path && $cert->key_path && File::exists($cert->cert_path) && File::exists($cert->key_path)) {
-                return ['cert' => $cert->cert_path, 'key' => $cert->key_path];
+
+            if ($cert->certificate_pem && $cert->private_key_pem) {
+                $sslService = app(SslCertificateService::class);
+                $diskPaths = $sslService->getActiveCertDiskPaths($domain, $cert);
+
+                if (! $diskPaths) {
+                    // Files not on disk yet — write them
+                    $sslService->writeCertToDisk($domain, $cert);
+                    $diskPaths = $sslService->getActiveCertDiskPaths($domain, $cert);
+                }
+
+                if ($diskPaths) {
+                    return $diskPaths;
+                }
             }
         }
 
@@ -94,8 +106,19 @@ class DomainConfigService
             $parentDomain = Domain::where('fqdn', $domain->getApexDomain())->first();
             if ($parentDomain?->activeSslCertificate) {
                 $cert = $parentDomain->activeSslCertificate;
-                if ($cert->cert_path && $cert->key_path && File::exists($cert->cert_path) && File::exists($cert->key_path)) {
-                    return ['cert' => $cert->cert_path, 'key' => $cert->key_path];
+
+                if ($cert->certificate_pem && $cert->private_key_pem) {
+                    $sslService = app(SslCertificateService::class);
+                    $diskPaths = $sslService->getActiveCertDiskPaths($parentDomain, $cert);
+
+                    if (! $diskPaths) {
+                        $sslService->writeCertToDisk($parentDomain, $cert);
+                        $diskPaths = $sslService->getActiveCertDiskPaths($parentDomain, $cert);
+                    }
+
+                    if ($diskPaths) {
+                        return $diskPaths;
+                    }
                 }
             }
         }

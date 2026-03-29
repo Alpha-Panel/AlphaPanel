@@ -11,7 +11,9 @@ use Illuminate\Support\Facades\Log;
 
 class MigrateSslRecords extends Command
 {
-    protected $signature = 'panel:migrate-ssl-records {--dry-run : Show what would be migrated without making changes}';
+    protected $signature = 'panel:migrate-ssl-records
+        {--dry-run : Show what would be migrated without making changes}
+        {--force : Re-import even if domain already has an active certificate}';
 
     protected $description = 'Migrate existing SSL certificates from disk to database records';
 
@@ -21,10 +23,13 @@ class MigrateSslRecords extends Command
         $selfSignedBase = config('panel.letsencrypt_selfsigned_base');
         $isDryRun = $this->option('dry-run');
 
-        $domains = Domain::query()
-            ->where('ssl_method', '!=', SslMethod::None)
-            ->whereNull('active_ssl_certificate_id')
-            ->get();
+        $query = Domain::query()->where('ssl_method', '!=', SslMethod::None);
+
+        if (! $this->option('force')) {
+            $query->whereNull('active_ssl_certificate_id');
+        }
+
+        $domains = $query->get();
 
         if ($domains->isEmpty()) {
             $this->info('No domains found that need SSL certificate migration.');
