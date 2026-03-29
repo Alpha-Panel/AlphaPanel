@@ -50,7 +50,7 @@ class CertbotService
             $certbotArgs[] = '--staging';
         }
 
-        $certbotCommand = $this->buildCommandWithCleanup($fqdn, implode(' ', $certbotArgs));
+        $certbotCommand = $this->buildCertbotCommand(implode(' ', $certbotArgs));
 
         Log::info("Requesting SSL certificate for {$fqdn} via Portainer.");
 
@@ -83,6 +83,7 @@ class CertbotService
             }
 
             Log::info("Certbot succeeded for {$fqdn}: {$result->output}");
+            $this->normalizeCertPath($fqdn);
 
             return true;
         } catch (\Exception $e) {
@@ -154,6 +155,7 @@ class CertbotService
             }
 
             Log::info("Certbot webroot succeeded for {$fqdn}: {$result->output}");
+            $this->normalizeCertPath($fqdn);
 
             return true;
         } catch (\Exception $e) {
@@ -213,6 +215,7 @@ class CertbotService
             }
 
             Log::info("Certbot renew succeeded for {$fqdn}: {$result->output}");
+            $this->normalizeCertPath($fqdn);
 
             return true;
         } catch (\Exception $e) {
@@ -288,6 +291,7 @@ class CertbotService
             }
 
             Log::info("Certbot webroot renew succeeded for {$fqdn}: {$result->output}");
+            $this->normalizeCertPath($fqdn);
 
             return true;
         } catch (\Exception $e) {
@@ -389,38 +393,79 @@ class CertbotService
     }
 
     /**
-     * Build a certbot command with post-processing to normalize cert paths.
-     *
-     * Certbot may create suffixed directories (domain-0001, domain-0002) when
-     * the live directory already exists. After certbot runs, this copies the
-     * actual cert files (following symlinks) to the expected path so the
-     * Caddyfile always finds them at /etc/letsencrypt/live/{domain}/.
+     * Build the certbot shell command with logs directory setup.
      */
-    private function buildCommandWithCleanup(string $fqdn, string $certbotCommand): string
+    private function buildCertbotCommand(string $certbotCommand): string
     {
-        $live = '/etc/letsencrypt/live';
+        return "mkdir -p /etc/letsencrypt/logs; {$certbotCommand}";
+    }
 
-        // 1. Create logs dir
-        // 2. Remove self-signed certs (they live in selfsigned/ now, but clean old ones from live/ too)
-        // 3. Run certbot
-        // 4. Post-process: if cert landed at a suffixed path, copy real files to expected path
-        return implode('; ', [
-            'mkdir -p /etc/letsencrypt/logs',
-            "rm -rf /etc/letsencrypt/selfsigned/{$fqdn} 2>/dev/null || true",
-            $certbotCommand,
-            "EXPECTED=\"{$live}/{$fqdn}\"",
-            'if [ ! -f "$EXPECTED/fullchain.pem" ]; then '
-                ."SRC=\$(find {$live} -maxdepth 1 -type d -name '{$fqdn}-*' 2>/dev/null | sort -V | tail -1); "
-                .'if [ -n "$SRC" ] && [ -f "$SRC/fullchain.pem" ]; then '
-                    .'rm -rf "$EXPECTED"; '
-                    .'mkdir -p "$EXPECTED"; '
-                    .'cp -Lf "$SRC/fullchain.pem" "$EXPECTED/fullchain.pem"; '
-                    .'cp -Lf "$SRC/privkey.pem" "$EXPECTED/privkey.pem"; '
-                    .'cp -Lf "$SRC/chain.pem" "$EXPECTED/chain.pem" 2>/dev/null || true; '
-                    .'cp -Lf "$SRC/cert.pem" "$EXPECTED/cert.pem" 2>/dev/null || true; '
-                    .'echo "Normalized cert from $SRC to $EXPECTED"; '
-                .'fi; '
-            .'fi',
-        ]);
+    /**
+     * After certbot runs, normalize cert files to the expected path.
+     *
+     * Certbot creates suffixed directories (domain-0001, domain-0002) when
+     * /etc/letsencrypt/live/{domain}/ already exists (e.g. from self-signed certs).
+     * This finds the latest suffixed directory and copies the real cert files
+     * (following symlinks) to the expected path.
+     *
+     * Runs in PHP on the panel container which shares the letsencrypt volume.
+     */
+    private function normalizeCertPath(string $fqdn): void
+    {
+        $expectedDir = "{$this->letsEncryptBasePath}/{$fqdn}";
+
+        // Find all suffixed directories (domain-0001, domain-0002, etc.)
+        $candidates = glob("{$this->letsEncryptBasePath}/{$fqdn}-*");
+
+        if (empty($candidates)) {
+            return;
+        }
+
+        sort($candidates, SORT_NATURAL);
+        $actualDir = end($candidates);
+
+        if (! file_exists("{$actualDir}/fullchain.pem")) {
+            Log::warning("Suffixed cert dir {$actualDir} exists but has no fullchain.pem.");
+
+            return;
+        }
+
+        Log::info("Normalizing cert path: {$actualDir} → {$expectedDir}");
+
+        // Remove old directory (self-signed leftovers or previous cert)
+        if (is_dir($expectedDir)) {
+            File::deleteDirectory($expectedDir);
+        }
+
+        File::makeDirectory($expectedDir, 0755, true);
+
+        // Copy real cert files — copy() follows symlinks automatically
+        foreach (['fullchain.pem', 'privkey.pem', 'chain.pem', 'cert.pem'] as $file) {
+            $src = "{$actualDir}/{$file}";
+            $dst = "{$expectedDir}/{$file}";
+            if (file_exists($src)) {
+                copy($src, $dst);
+            }
+        }
+
+        // Clean up ALL suffixed directories to prevent accumulation
+        foreach ($candidates as $dir) {
+            if (is_dir($dir)) {
+                File::deleteDirectory($dir);
+            }
+        }
+
+        // Clean up suffixed renewal configs and archive dirs
+        $letsencryptRoot = dirname($this->letsEncryptBasePath);
+        foreach (glob("{$letsencryptRoot}/renewal/{$fqdn}-*.conf") as $conf) {
+            File::delete($conf);
+        }
+        foreach (glob("{$letsencryptRoot}/archive/{$fqdn}-*") as $dir) {
+            if (is_dir($dir)) {
+                File::deleteDirectory($dir);
+            }
+        }
+
+        Log::info("Cert normalized and suffixed directories cleaned up for {$fqdn}.");
     }
 }
