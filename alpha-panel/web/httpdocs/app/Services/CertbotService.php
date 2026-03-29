@@ -34,7 +34,7 @@ class CertbotService
         $image = config('panel.portainer_certbot_image', 'certbot/dns-cloudflare:v5.4.0');
         $hostRoot = config('panel.compose_project_root_host');
 
-        $certbotCommand = implode(' ', [
+        $certbotArgs = [
             'certbot certonly',
             '--non-interactive',
             '--agree-tos',
@@ -44,9 +44,16 @@ class CertbotService
             '--dns-cloudflare-propagation-seconds 90',
             '--key-type ecdsa',
             '--elliptic-curve secp384r1',
+            '--logs-dir /etc/letsencrypt/logs',
             '-d', escapeshellarg($fqdn),
             '-d', escapeshellarg("*.{$fqdn}"),
-        ]);
+        ];
+
+        if (config('panel.certbot_staging')) {
+            $certbotArgs[] = '--staging';
+        }
+
+        $certbotCommand = $this->buildCommandWithCleanup($fqdn, implode(' ', $certbotArgs));
 
         Log::info("Requesting SSL certificate for {$fqdn} via Portainer.");
 
@@ -104,7 +111,7 @@ class CertbotService
             $domains[] = escapeshellarg("www.{$fqdn}");
         }
 
-        $certbotCommand = implode(' ', [
+        $certbotArgs = [
             'certbot certonly',
             '--non-interactive',
             '--agree-tos',
@@ -113,8 +120,15 @@ class CertbotService
             '-w /var/www/acme-challenge',
             '--key-type ecdsa',
             '--elliptic-curve secp384r1',
+            '--logs-dir /etc/letsencrypt/logs',
             ...array_map(fn ($d) => "-d {$d}", $domains),
-        ]);
+        ];
+
+        if (config('panel.certbot_staging')) {
+            $certbotArgs[] = '--staging';
+        }
+
+        $certbotCommand = $this->buildCommandWithCleanup($fqdn, implode(' ', $certbotArgs));
 
         Log::info("Requesting SSL certificate for {$fqdn} via webroot HTTP-01.");
 
@@ -160,14 +174,21 @@ class CertbotService
         $image = config('panel.portainer_certbot_image', 'certbot/dns-cloudflare:v5.4.0');
         $hostRoot = config('panel.compose_project_root_host');
 
-        $certbotCommand = implode(' ', [
+        $certbotArgs = [
             'certbot renew',
             '--non-interactive',
             '--cert-name', escapeshellarg($fqdn),
             '--dns-cloudflare',
             '--dns-cloudflare-credentials /secrets/cloudflare.ini',
             '--dns-cloudflare-propagation-seconds 90',
-        ]);
+            '--logs-dir /etc/letsencrypt/logs',
+        ];
+
+        if (config('panel.certbot_staging')) {
+            $certbotArgs[] = '--staging';
+        }
+
+        $certbotCommand = implode(' ', $certbotArgs);
 
         Log::info("Renewing SSL certificate for {$fqdn} via Portainer.");
 
@@ -222,7 +243,7 @@ class CertbotService
             $domains[] = escapeshellarg("www.{$fqdn}");
         }
 
-        $certbotCommand = implode(' ', [
+        $certbotArgs = [
             'certbot certonly',
             '--non-interactive',
             '--agree-tos',
@@ -232,8 +253,15 @@ class CertbotService
             '--key-type ecdsa',
             '--elliptic-curve secp384r1',
             '--force-renewal',
+            '--logs-dir /etc/letsencrypt/logs',
             ...array_map(fn ($d) => "-d {$d}", $domains),
-        ]);
+        ];
+
+        if (config('panel.certbot_staging')) {
+            $certbotArgs[] = '--staging';
+        }
+
+        $certbotCommand = implode(' ', $certbotArgs);
 
         Log::info("Renewing SSL certificate for {$fqdn} via webroot HTTP-01.");
 
@@ -340,5 +368,27 @@ class CertbotService
         $renewalPath = dirname($this->letsEncryptBasePath)."/renewal/{$fqdn}.conf";
 
         return file_exists($renewalPath);
+    }
+
+    /**
+     * Build a certbot command that first cleans up any non-certbot-managed cert files.
+     *
+     * Self-signed certs placed in /etc/letsencrypt/live/{domain}/ cause certbot
+     * to fail with "live directory exists" because certbot did not create those files.
+     * This removes leftover live/archive/renewal data before running certbot.
+     */
+    private function buildCommandWithCleanup(string $fqdn, string $certbotCommand): string
+    {
+        $escapedFqdn = escapeshellarg($fqdn);
+
+        $cleanup = implode(' ', [
+            "rm -rf /etc/letsencrypt/live/{$escapedFqdn}",
+            "/etc/letsencrypt/archive/{$escapedFqdn}",
+            "/etc/letsencrypt/renewal/{$escapedFqdn}.conf",
+            '2>/dev/null;',
+            'mkdir -p /etc/letsencrypt/logs;',
+        ]);
+
+        return "{$cleanup} {$certbotCommand}";
     }
 }

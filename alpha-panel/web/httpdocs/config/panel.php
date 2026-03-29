@@ -79,6 +79,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'certbot_email' => env('PANEL_CERTBOT_EMAIL', 'admin@example.com'),
+    'certbot_staging' => (bool) env('PANEL_CERTBOT_STAGING', false),
 
     /*
     |--------------------------------------------------------------------------
