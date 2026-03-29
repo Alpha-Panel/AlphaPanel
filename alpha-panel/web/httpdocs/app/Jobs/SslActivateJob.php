@@ -52,11 +52,13 @@ class SslActivateJob implements ShouldQueue
                 return;
             }
 
-            // For webroot HTTP-01: regenerate Caddyfile and reload Caddy to ensure
-            // the ACME challenge handler is active before certbot validation.
+            // For webroot HTTP-01: switch to HTTP-only Caddyfile before certbot runs.
+            // renderWithoutTls writes only a :80 block with ACME challenge handler —
+            // no :443 block that would break when cleanCertDirectories removes self-signed files.
+            // After certbot succeeds, renderWithTls is called below with the real cert.
             if ($sslMethod === SslMethod::WebrootHttp) {
-                Log::info("Regenerating Caddyfile for {$fqdn} before webroot validation.");
-                $configService->renderWithTls($domain);
+                Log::info("Switching to HTTP-only Caddyfile for {$fqdn} before webroot validation.");
+                $configService->renderWithoutTls($domain);
                 $reloadService->reloadCaddy();
             }
 
