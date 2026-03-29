@@ -72,23 +72,43 @@ class DomainConfigService
 
     /**
      * Resolve the cert/key file paths for a domain.
-     * Checks certbot live path first, then self-signed fallback.
-     * For subdomains, checks the apex domain's wildcard certificate.
+     * DB-first lookup with disk-based fallback for pre-migration certs.
+     * For subdomains, checks the parent domain's active certificate.
      *
      * @return array{cert: string, key: string}|null
      */
     public function resolveCertPaths(Domain $domain): ?array
     {
+        // Priority 1: DB-tracked active certificate
+        $domain->loadMissing('activeSslCertificate');
+
+        if ($domain->activeSslCertificate) {
+            $cert = $domain->activeSslCertificate;
+            if ($cert->cert_path && $cert->key_path && File::exists($cert->cert_path) && File::exists($cert->key_path)) {
+                return ['cert' => $cert->cert_path, 'key' => $cert->key_path];
+            }
+        }
+
+        // Priority 2: For subdomains, check parent domain's active cert
+        if ($domain->isSubdomain()) {
+            $parentDomain = Domain::where('fqdn', $domain->getApexDomain())->first();
+            if ($parentDomain?->activeSslCertificate) {
+                $cert = $parentDomain->activeSslCertificate;
+                if ($cert->cert_path && $cert->key_path && File::exists($cert->cert_path) && File::exists($cert->key_path)) {
+                    return ['cert' => $cert->cert_path, 'key' => $cert->key_path];
+                }
+            }
+        }
+
+        // Priority 3: Legacy disk-based fallback (for pre-migration certs)
         $certDomain = $domain->isSubdomain() ? $domain->getApexDomain() : $domain->fqdn;
 
-        // Prefer certbot-managed certs (live/)
         $liveCert = "{$this->letsEncryptBasePath}/{$certDomain}/fullchain.pem";
         $liveKey = "{$this->letsEncryptBasePath}/{$certDomain}/privkey.pem";
         if (File::exists($liveCert) && File::exists($liveKey)) {
             return ['cert' => $liveCert, 'key' => $liveKey];
         }
 
-        // Fallback to self-signed certs (selfsigned/)
         $ssCert = "{$this->selfSignedBasePath}/{$certDomain}/fullchain.pem";
         $ssKey = "{$this->selfSignedBasePath}/{$certDomain}/privkey.pem";
         if (File::exists($ssCert) && File::exists($ssKey)) {

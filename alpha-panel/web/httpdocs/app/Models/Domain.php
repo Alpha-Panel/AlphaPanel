@@ -44,6 +44,7 @@ class Domain extends Model
         'cors_enabled',
         'cors_allowed_origins',
         'ip_access_mode',
+        'active_ssl_certificate_id',
     ];
 
     /** @return array<string, string> */
@@ -141,6 +142,16 @@ class Domain extends Model
     public function ipRules(): HasMany
     {
         return $this->hasMany(DomainIpRule::class);
+    }
+
+    public function activeSslCertificate(): BelongsTo
+    {
+        return $this->belongsTo(SslCertificate::class, 'active_ssl_certificate_id');
+    }
+
+    public function sslCertificates(): HasMany
+    {
+        return $this->hasMany(SslCertificate::class);
     }
 
     /**

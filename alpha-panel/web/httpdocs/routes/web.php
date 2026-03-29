@@ -31,6 +31,7 @@ use App\Http\Controllers\PhpVersionController;
 use App\Http\Controllers\PmaSsoController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SslCertificateController;
 use App\Http\Controllers\SystemUpdateController;
 use App\Http\Controllers\TerminalController;
 use App\Http\Controllers\TerminalLogController;
@@ -145,9 +146,21 @@ Route::middleware('auth')->group(function (): void {
     Route::post('domains/{domain}/provision', [DomainProvisionController::class, 'provision'])
         ->name('domains.provision');
 
-    // SSL Activation / Renewal
-    Route::post('domains/{domain}/ssl', [DomainController::class, 'sslActivate'])
+    // SSL Activation / Renewal (legacy — kept for backward compatibility)
+    Route::post('domains/{domain}/ssl-legacy', [DomainController::class, 'sslActivate'])
         ->name('domains.ssl.activate');
+
+    // SSL Certificate Management
+    Route::prefix('domains/{domain}/ssl')->name('domains.ssl.')->group(function (): void {
+        Route::get('/', [SslCertificateController::class, 'index'])->name('index');
+        Route::post('/letsencrypt', [SslCertificateController::class, 'storeLetsEncrypt'])->name('letsencrypt');
+        Route::post('/self-signed', [SslCertificateController::class, 'storeSelfSigned'])->name('self-signed');
+        Route::post('/csr', [SslCertificateController::class, 'generateCsr'])->name('csr');
+        Route::get('/{certificate}/csr/download', [SslCertificateController::class, 'downloadCsr'])->name('csr.download');
+        Route::post('/upload', [SslCertificateController::class, 'uploadCertificate'])->name('upload');
+        Route::post('/{certificate}/activate', [SslCertificateController::class, 'activate'])->name('activate');
+        Route::delete('/{certificate}', [SslCertificateController::class, 'destroy'])->name('destroy');
+    });
 
     // ModSecurity Management (per domain)
     Route::get('domains/{domain}/modsecurity', [DomainModSecurityController::class, 'index'])

@@ -485,6 +485,8 @@ class DomainController extends Controller
 
     /**
      * Activate or renew SSL certificate for a domain.
+     *
+     * @deprecated Use SslCertificateController::storeLetsEncrypt() instead.
      */
     public function sslActivate(Request $request, Domain $domain): RedirectResponse
     {

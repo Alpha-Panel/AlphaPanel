@@ -130,11 +130,11 @@
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
-                            <button v-if="can('domain.ssl.manage')" type="button" @click="activateSsl(domain.id)" :disabled="sslLoading" class="quick-link disabled:opacity-60">
+                            <Link v-if="can('domain.ssl.manage')" :href="route('domains.ssl.index', domain.id)" class="quick-link">
                                 <i class="fa-brands fa-expeditedssl quick-link-icon"></i>
-                                <span class="quick-link-label">{{ t('SSL Certificate') }}</span>
+                                <span class="quick-link-label">{{ t('SSL Certificates') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
-                            </button>
+                            </Link>
 
                             <button v-if="can('domain.ftp.manage')" type="button" @click="showFtpModal = true" class="quick-link">
                                 <i class="fa-solid fa-user-pen quick-link-icon"></i>

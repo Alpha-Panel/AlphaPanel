@@ -12,6 +12,8 @@ return [
     'apache_sites_base' => env('PANEL_APACHE_SITES_BASE', '/etc/apache2/sites-enabled'),
     'letsencrypt_base' => env('PANEL_LETSENCRYPT_BASE', '/etc/letsencrypt/live'),
     'letsencrypt_selfsigned_base' => env('PANEL_LETSENCRYPT_SELFSIGNED_BASE', '/etc/letsencrypt/selfsigned'),
+    'letsencrypt_custom_base' => env('PANEL_LETSENCRYPT_CUSTOM_BASE', '/etc/letsencrypt/custom'),
+    'letsencrypt_csr_base' => env('PANEL_LETSENCRYPT_CSR_BASE', '/etc/letsencrypt/csr'),
 
     /*
     |--------------------------------------------------------------------------

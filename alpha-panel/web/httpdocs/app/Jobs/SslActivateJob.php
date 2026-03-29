@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Enums\NotificationType;
+use App\Enums\SslCertificateType;
 use App\Enums\SslMethod;
 use App\Models\AuditLog;
 use App\Models\Domain;
@@ -10,6 +11,7 @@ use App\Notifications\DomainNotification;
 use App\Services\CertbotService;
 use App\Services\DomainConfigService;
 use App\Services\ReloadService;
+use App\Services\SslCertificateService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -80,6 +82,18 @@ class SslActivateJob implements ShouldQueue
             }
 
             if (! $success) {
+                // Webroot flow deleted self-signed cert and switched to HTTP-only.
+                // Restore HTTPS with a fresh self-signed cert so the site isn't left without TLS.
+                if ($sslMethod === SslMethod::WebrootHttp) {
+                    Log::info("Webroot failed for {$fqdn}, restoring self-signed certificate.");
+                    $certbotService->generateSelfSigned($domain);
+
+                    if ($configService->certExists($domain)) {
+                        $configService->renderWithTls($domain);
+                        $reloadService->reloadCaddy();
+                    }
+                }
+
                 $domain->owner->notify(new DomainNotification(
                     level: 'error',
                     title: $isRenewal ? __('SSL Renewal Failed') : __('SSL Activation Failed'),
@@ -107,6 +121,34 @@ class SslActivateJob implements ShouldQueue
             }
 
             if ($configService->certExists($domain)) {
+                $certPaths = $configService->resolveCertPaths($domain);
+
+                if ($certPaths) {
+                    $sslCertService = app(SslCertificateService::class);
+                    $type = match ($sslMethod) {
+                        SslMethod::SelfSigned => SslCertificateType::SelfSigned,
+                        default => SslCertificateType::LetsEncrypt,
+                    };
+                    $validationMethod = match ($sslMethod) {
+                        SslMethod::CloudflareDns => 'dns-01',
+                        SslMethod::WebrootHttp => 'http-01',
+                        default => null,
+                    };
+
+                    try {
+                        $cert = $sslCertService->createFromDiskCert(
+                            $domain,
+                            $type,
+                            $certPaths['cert'],
+                            $certPaths['key'],
+                            $validationMethod,
+                        );
+                        $domain->update(['active_ssl_certificate_id' => $cert->id]);
+                    } catch (\Exception $e) {
+                        Log::warning("Failed to create SslCertificate record for {$fqdn}: {$e->getMessage()}");
+                    }
+                }
+
                 $configService->renderWithTls($domain);
                 $reloadService->reloadCaddy();
             }
