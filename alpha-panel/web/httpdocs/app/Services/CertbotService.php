@@ -131,7 +131,7 @@ class CertbotService
             $certbotArgs[] = '--staging';
         }
 
-        $certbotCommand = $this->buildCommandWithCleanup($fqdn, implode(' ', $certbotArgs));
+        $certbotCommand = $this->buildCertbotCommand(implode(' ', $certbotArgs));
 
         Log::info("Requesting SSL certificate for {$fqdn} via webroot HTTP-01.");
 
