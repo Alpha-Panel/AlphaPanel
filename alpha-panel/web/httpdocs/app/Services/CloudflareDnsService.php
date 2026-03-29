@@ -169,7 +169,6 @@ class CloudflareDnsService
             'content' => $input['content'],
             'ttl' => (int) ($input['ttl'] ?? 1),
             'proxied' => false,
-            'priority' => '',
         ];
 
         if (in_array($type, ['A', 'AAAA', 'CNAME'])) {
