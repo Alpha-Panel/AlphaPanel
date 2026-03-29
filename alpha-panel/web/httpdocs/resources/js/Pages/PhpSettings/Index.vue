@@ -21,6 +21,15 @@
                             </select>
                         </div>
 
+                        <div>
+                            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">{{ t('Display Errors') }}</label>
+                            <select v-model="form.display_errors" class="form-input">
+                                <option value="On">{{ t('On') }}</option>
+                                <option value="Off">{{ t('Off') }}</option>
+                            </select>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-500">{{ t('Show PHP errors on the page. Should be Off in production.') }}</p>
+                        </div>
+
                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div>
                                 <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">{{ t('memory_limit') }}</label>
@@ -94,6 +103,7 @@ const phpSetting = props.domain.php_setting || {};
 
 const form = ref({
     php_version_id: props.domain.php_version_id,
+    display_errors: phpSetting.display_errors ?? 'Off',
     memory_limit: phpSetting.memory_limit ?? '256M',
     upload_max_filesize: phpSetting.upload_max_filesize ?? '64M',
     post_max_size: phpSetting.post_max_size ?? '64M',
