@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Enums\NotificationType;
+use App\Enums\SslMethod;
 use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Notifications\DomainNotification;
@@ -43,12 +44,29 @@ class SslActivateJob implements ShouldQueue
         $isRenewal = $certbotService->certFilesExist($domain);
 
         try {
-            if ($isRenewal) {
-                Log::info("Renewing SSL certificate for {$fqdn}.");
-                $success = $certbotService->renewCertificate($domain);
+            $sslMethod = $domain->ssl_method ?? SslMethod::CloudflareDns;
+
+            if ($sslMethod === SslMethod::None) {
+                Log::info("SSL method is 'none' for {$fqdn}, skipping.");
+
+                return;
+            }
+
+            if ($sslMethod === SslMethod::SelfSigned) {
+                Log::info("Generating self-signed certificate for {$fqdn}.");
+                $success = $certbotService->generateSelfSigned($domain);
+            } elseif ($isRenewal) {
+                Log::info("Renewing SSL certificate for {$fqdn} using {$sslMethod->value}.");
+                $success = match ($sslMethod) {
+                    SslMethod::WebrootHttp => $certbotService->renewCertificateWebroot($domain),
+                    default => $certbotService->renewCertificate($domain),
+                };
             } else {
-                Log::info("Requesting new SSL certificate for {$fqdn}.");
-                $success = $certbotService->requestCertificate($domain);
+                Log::info("Requesting new SSL certificate for {$fqdn} using {$sslMethod->value}.");
+                $success = match ($sslMethod) {
+                    SslMethod::WebrootHttp => $certbotService->requestCertificateWebroot($domain),
+                    default => $certbotService->requestCertificate($domain),
+                };
             }
 
             if (! $success) {
@@ -56,8 +74,8 @@ class SslActivateJob implements ShouldQueue
                     level: 'error',
                     title: $isRenewal ? __('SSL Renewal Failed') : __('SSL Activation Failed'),
                     body: $isRenewal
-                        ? __('SSL certificate renewal failed for :fqdn. Ensure the domain is pointed to Cloudflare.', ['fqdn' => $fqdn])
-                        : __('SSL certificate activation failed for :fqdn. Ensure the domain is pointed to Cloudflare.', ['fqdn' => $fqdn]),
+                        ? __('SSL certificate renewal failed for :fqdn. Check the logs for details.', ['fqdn' => $fqdn])
+                        : __('SSL certificate activation failed for :fqdn. Check the logs for details.', ['fqdn' => $fqdn]),
                     domainId: $domain->id,
                     url: route('domains.show', $domain),
                     icon: 'bx bx-error-circle',

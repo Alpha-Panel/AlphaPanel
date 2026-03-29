@@ -204,6 +204,57 @@ class CertbotService
     }
 
     /**
+     * Renew an existing certificate using webroot HTTP-01 challenge via Portainer.
+     */
+    public function renewCertificateWebroot(Domain $domain): bool
+    {
+        $fqdn = $domain->fqdn;
+        $image = config('panel.portainer_certbot_image', 'certbot/dns-cloudflare:v5.4.0');
+        $hostRoot = config('panel.compose_project_root_host');
+
+        $certbotCommand = implode(' ', [
+            'certbot renew',
+            '--non-interactive',
+            '--cert-name', escapeshellarg($fqdn),
+            '--webroot',
+            '-w /var/www/acme-challenge',
+        ]);
+
+        Log::info("Renewing SSL certificate for {$fqdn} via webroot HTTP-01.");
+
+        try {
+            $result = $this->portainer->createAndRunContainer([
+                'Image' => $image,
+                'Entrypoint' => ['/bin/sh'],
+                'Cmd' => ['-lc', $certbotCommand],
+                'Env' => [
+                    'TZ=Europe/Istanbul',
+                ],
+                'HostConfig' => [
+                    'Binds' => [
+                        "{$hostRoot}/letsencrypt:/etc/letsencrypt",
+                        "{$hostRoot}/acme-challenge:/var/www/acme-challenge",
+                    ],
+                ],
+            ], timeout: 120);
+
+            if (! $result->isSuccessful()) {
+                Log::error("Certbot webroot renew failed for {$fqdn} (exit code {$result->exitCode}): {$result->output}");
+
+                return false;
+            }
+
+            Log::info("Certbot webroot renew succeeded for {$fqdn}: {$result->output}");
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error("Certbot webroot renew exception for {$fqdn}: {$e->getMessage()}");
+
+            return false;
+        }
+    }
+
+    /**
      * Generate a self-signed certificate as fallback when certbot is unavailable.
      * Files are placed in the same letsencrypt path so existing config logic works seamlessly.
      */
