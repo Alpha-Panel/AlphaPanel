@@ -198,22 +198,31 @@ class SslCertificateController extends Controller
         $validated = $request->validated();
 
         try {
+            Log::info("SSL upload attempt for {$domain->fqdn}: key length=".strlen($validated['private_key']).', cert length='.strlen($validated['certificate']));
+
             // Check if the uploaded key matches an existing CSR record's key
             $existingCsr = $this->findMatchingCsrRecord($domain, $validated['private_key']);
 
             if ($existingCsr) {
-                // Link the uploaded cert to the existing CSR record
+                Log::info("Found matching CSR record ID {$existingCsr->id} for {$domain->fqdn}.");
                 $this->completeCsrWithCert($existingCsr, $domain, $validated);
+                $certificate = $existingCsr->fresh();
             } else {
-                $this->sslCertificateService->storeUploadedCert(
+                $certificate = $this->sslCertificateService->storeUploadedCert(
                     $domain,
                     $validated['certificate'],
                     $validated['private_key'],
                     $validated['ca_bundle'] ?? null,
                     $validated['label'] ?? null,
                 );
+                Log::info("SSL certificate uploaded for {$domain->fqdn}, record ID: {$certificate->id}.");
             }
         } catch (\Exception $e) {
+            Log::error("SSL upload failed for {$domain->fqdn}: {$e->getMessage()}", [
+                'exception' => $e::class,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return redirect()
                 ->route('domains.ssl.index', $domain)
                 ->with('error', __('Certificate upload failed: :error', ['error' => $e->getMessage()]));

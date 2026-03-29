@@ -275,21 +275,21 @@
                                 <div class="space-y-3">
                                     <button
                                         type="button"
-                                        @click="leForm.challenge_type = 'dns-01'"
+                                        @click="leForm.validation_method = 'dns-01'"
                                         class="w-full rounded-xl border-2 p-4 text-left transition-colors"
-                                        :class="leForm.challenge_type === 'dns-01'
+                                        :class="leForm.validation_method === 'dns-01'
                                             ? 'border-brand-500 bg-brand-500/10'
                                             : 'border-white/15 bg-white/5 hover:border-white/25'"
                                     >
                                         <div class="flex items-center gap-2">
                                             <div
                                                 class="flex h-4 w-4 items-center justify-center rounded-full border-2"
-                                                :class="leForm.challenge_type === 'dns-01'
+                                                :class="leForm.validation_method === 'dns-01'
                                                     ? 'border-brand-500'
                                                     : 'border-white/30'"
                                             >
                                                 <div
-                                                    v-if="leForm.challenge_type === 'dns-01'"
+                                                    v-if="leForm.validation_method === 'dns-01'"
                                                     class="h-2 w-2 rounded-full bg-brand-500"
                                                 ></div>
                                             </div>
@@ -302,21 +302,21 @@
 
                                     <button
                                         type="button"
-                                        @click="leForm.challenge_type = 'http-01'"
+                                        @click="leForm.validation_method = 'http-01'"
                                         class="w-full rounded-xl border-2 p-4 text-left transition-colors"
-                                        :class="leForm.challenge_type === 'http-01'
+                                        :class="leForm.validation_method === 'http-01'
                                             ? 'border-brand-500 bg-brand-500/10'
                                             : 'border-white/15 bg-white/5 hover:border-white/25'"
                                     >
                                         <div class="flex items-center gap-2">
                                             <div
                                                 class="flex h-4 w-4 items-center justify-center rounded-full border-2"
-                                                :class="leForm.challenge_type === 'http-01'
+                                                :class="leForm.validation_method === 'http-01'
                                                     ? 'border-brand-500'
                                                     : 'border-white/30'"
                                             >
                                                 <div
-                                                    v-if="leForm.challenge_type === 'http-01'"
+                                                    v-if="leForm.validation_method === 'http-01'"
                                                     class="h-2 w-2 rounded-full bg-brand-500"
                                                 ></div>
                                             </div>
@@ -614,7 +614,7 @@ const activeCert = computed(() => {
 // -- Let's Encrypt Form --
 
 const leForm = useForm({
-    challenge_type: 'dns-01' as 'dns-01' | 'http-01',
+    validation_method: 'dns-01' as 'dns-01' | 'http-01',
 });
 
 const submitLe = (): void => {
@@ -623,10 +623,6 @@ const submitLe = (): void => {
         onSuccess: () => {
             showLeModal.value = false;
             leForm.reset();
-            addToast('success', t("Let's Encrypt certificate requested successfully."));
-        },
-        onError: () => {
-            addToast('error', t('Failed to request certificate.'));
         },
     });
 };
@@ -660,10 +656,6 @@ const submitCsr = (): void => {
             showCsrModal.value = false;
             csrForm.reset();
             csrForm.common_name = props.domain.fqdn;
-            addToast('success', t('CSR generated successfully.'));
-        },
-        onError: () => {
-            addToast('error', t('Failed to generate CSR.'));
         },
     });
 };
@@ -683,10 +675,6 @@ const submitUpload = (): void => {
         onSuccess: () => {
             showUploadModal.value = false;
             uploadForm.reset();
-            addToast('success', t('Certificate uploaded and installed successfully.'));
-        },
-        onError: () => {
-            addToast('error', t('Failed to upload certificate.'));
         },
     });
 };
@@ -697,12 +685,6 @@ const activateCert = (cert: Certificate): void => {
     activating.value = cert.id;
     router.post(route('domains.ssl.activate', [props.domain.id, cert.id]), {}, {
         preserveScroll: true,
-        onSuccess: () => {
-            addToast('success', t('Certificate activated successfully.'));
-        },
-        onError: () => {
-            addToast('error', t('Failed to activate certificate.'));
-        },
         onFinish: () => {
             activating.value = null;
         },

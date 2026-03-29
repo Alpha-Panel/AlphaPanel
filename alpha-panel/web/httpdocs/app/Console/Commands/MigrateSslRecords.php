@@ -23,21 +23,25 @@ class MigrateSslRecords extends Command
         $selfSignedBase = config('panel.letsencrypt_selfsigned_base');
         $isDryRun = $this->option('dry-run');
 
-        $query = Domain::query()->where('ssl_method', '!=', SslMethod::None);
+        $query = Domain::query();
 
-        if (! $this->option('force')) {
-            $query->whereNull('active_ssl_certificate_id');
+        if ($this->option('force')) {
+            // --force: scan ALL domains, ignore ssl_method and active cert
+            $this->info('Force mode: scanning all domains for certificate files on disk.');
+        } else {
+            $query->where('ssl_method', '!=', SslMethod::None)
+                ->whereNull('active_ssl_certificate_id');
         }
 
         $domains = $query->get();
 
         if ($domains->isEmpty()) {
-            $this->info('No domains found that need SSL certificate migration.');
+            $this->info('No domains found.');
 
             return self::SUCCESS;
         }
 
-        $this->info("Found {$domains->count()} domain(s) with SSL enabled but no active certificate record.");
+        $this->info("Found {$domains->count()} domain(s) to scan for certificates.");
         $this->newLine();
 
         $processed = 0;
