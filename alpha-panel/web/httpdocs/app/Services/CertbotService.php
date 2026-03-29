@@ -205,19 +205,34 @@ class CertbotService
 
     /**
      * Renew an existing certificate using webroot HTTP-01 challenge via Portainer.
+     *
+     * Uses `certbot certonly --force-renewal` instead of `certbot renew --cert-name`
+     * because the latter requires a renewal config at /etc/letsencrypt/renewal/{domain}.conf
+     * which doesn't exist for self-signed or manually created certificates.
      */
     public function renewCertificateWebroot(Domain $domain): bool
     {
         $fqdn = $domain->fqdn;
+        $adminEmail = config('panel.certbot_email');
         $image = config('panel.portainer_certbot_image', 'certbot/dns-cloudflare:v5.4.0');
         $hostRoot = config('panel.compose_project_root_host');
 
+        $domains = [escapeshellarg($fqdn)];
+        if ($domain->enable_www_redirect && ! str_starts_with($fqdn, 'www.')) {
+            $domains[] = escapeshellarg("www.{$fqdn}");
+        }
+
         $certbotCommand = implode(' ', [
-            'certbot renew',
+            'certbot certonly',
             '--non-interactive',
-            '--cert-name', escapeshellarg($fqdn),
+            '--agree-tos',
+            '--email', escapeshellarg($adminEmail),
             '--webroot',
             '-w /var/www/acme-challenge',
+            '--key-type ecdsa',
+            '--elliptic-curve secp384r1',
+            '--force-renewal',
+            ...array_map(fn ($d) => "-d {$d}", $domains),
         ]);
 
         Log::info("Renewing SSL certificate for {$fqdn} via webroot HTTP-01.");
@@ -229,6 +244,7 @@ class CertbotService
                 'Cmd' => ['-lc', $certbotCommand],
                 'Env' => [
                     'TZ=Europe/Istanbul',
+                    "ADMIN_EMAIL={$adminEmail}",
                 ],
                 'HostConfig' => [
                     'Binds' => [

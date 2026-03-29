@@ -150,21 +150,17 @@ class DomainConfigService
         $lines[] = '}';
         $lines[] = '';
 
-        // HTTP → HTTPS redirect
-        $lines[] = "{$fqdn}:80 {";
-        $this->appendCommonHeaderImports($lines, '        ', $domain);
-        $lines = array_merge($lines, $this->renderAcmeChallengePath('        '));
-        $lines[] = "        redir https://{$fqdn}{uri}";
-        $lines[] = '}';
+        // HTTP → HTTPS redirect (handle blocks ensure ACME challenge is served before redirect)
+        $lines = array_merge($lines, $this->renderHttpRedirectWithAcme(
+            $fqdn, "https://{$fqdn}{uri}", '    ', $domain,
+        ));
         $lines[] = '';
 
         // WWW redirects
         if ($domain->enable_www_redirect && ! str_starts_with($fqdn, 'www.')) {
-            $lines[] = "www.{$fqdn}:80 {";
-            $this->appendCommonHeaderImports($lines, '    ', $domain);
-            $lines = array_merge($lines, $this->renderAcmeChallengePath('    '));
-            $lines[] = "    redir https://{$fqdn}{uri}";
-            $lines[] = '}';
+            $lines = array_merge($lines, $this->renderHttpRedirectWithAcme(
+                "www.{$fqdn}", "https://{$fqdn}{uri}", '    ', $domain,
+            ));
             $lines[] = '';
 
             $lines[] = "www.{$fqdn}:443 {";
@@ -177,11 +173,9 @@ class DomainConfigService
         // Additional hostname redirects
         $additionalHostnames = $domain->additional_hostnames ?? [];
         foreach ($additionalHostnames as $hostname) {
-            $lines[] = "{$hostname}:80 {";
-            $this->appendCommonHeaderImports($lines, '    ', $domain);
-            $lines = array_merge($lines, $this->renderAcmeChallengePath('    '));
-            $lines[] = "    redir https://{$fqdn}{uri}";
-            $lines[] = '}';
+            $lines = array_merge($lines, $this->renderHttpRedirectWithAcme(
+                $hostname, "https://{$fqdn}{uri}", '    ', $domain,
+            ));
             $lines[] = '';
 
             $lines[] = "{$hostname}:443 {";
@@ -357,6 +351,33 @@ class DomainConfigService
             "{$indent}    file_server",
             "{$indent}}",
         ];
+    }
+
+    /**
+     * Render an HTTP server block that serves ACME challenges and redirects everything else.
+     *
+     * Uses Caddy `handle` blocks to ensure ACME challenge path takes priority
+     * over the HTTPS redirect. Without this, Caddy's directive ordering causes
+     * `redir` to run before `handle_path`, breaking certbot webroot validation.
+     *
+     * @return array<int, string>
+     */
+    private function renderHttpRedirectWithAcme(string $serverName, string $redirectUrl, string $indent, Domain $domain): array
+    {
+        $lines = [];
+        $lines[] = "{$serverName}:80 {";
+        $this->appendCommonHeaderImports($lines, $indent, $domain);
+        $lines[] = "{$indent}@acme path /.well-known/acme-challenge/*";
+        $lines[] = "{$indent}handle @acme {";
+        $lines[] = "{$indent}    root * /var/www/acme-challenge";
+        $lines[] = "{$indent}    file_server";
+        $lines[] = "{$indent}}";
+        $lines[] = "{$indent}handle {";
+        $lines[] = "{$indent}    redir {$redirectUrl}";
+        $lines[] = "{$indent}}";
+        $lines[] = '}';
+
+        return $lines;
     }
 
     /**

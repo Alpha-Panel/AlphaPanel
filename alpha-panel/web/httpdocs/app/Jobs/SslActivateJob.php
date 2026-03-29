@@ -52,6 +52,14 @@ class SslActivateJob implements ShouldQueue
                 return;
             }
 
+            // For webroot HTTP-01: regenerate Caddyfile and reload Caddy to ensure
+            // the ACME challenge handler is active before certbot validation.
+            if ($sslMethod === SslMethod::WebrootHttp) {
+                Log::info("Regenerating Caddyfile for {$fqdn} before webroot validation.");
+                $configService->renderWithTls($domain);
+                $reloadService->reloadCaddy();
+            }
+
             if ($sslMethod === SslMethod::SelfSigned) {
                 Log::info("Generating self-signed certificate for {$fqdn}.");
                 $success = $certbotService->generateSelfSigned($domain);
