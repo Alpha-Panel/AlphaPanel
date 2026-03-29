@@ -389,25 +389,38 @@ class CertbotService
     }
 
     /**
-     * Build a certbot command that first cleans up any conflicting cert files.
+     * Build a certbot command with post-processing to normalize cert paths.
      *
-     * Removes self-signed certs, any leftover certbot live/archive/renewal data,
-     * and numbered variants (-0001, -0002) to ensure certbot creates the cert
-     * at the exact expected path.
+     * Certbot may create suffixed directories (domain-0001, domain-0002) when
+     * the live directory already exists. After certbot runs, this copies the
+     * actual cert files (following symlinks) to the expected path so the
+     * Caddyfile always finds them at /etc/letsencrypt/live/{domain}/.
      */
     private function buildCommandWithCleanup(string $fqdn, string $certbotCommand): string
     {
-        // Single-line command with semicolons — most robust across Docker/shell variants.
-        // Explicitly list -0001 through -0003 instead of globs for maximum shell compatibility.
-        $paths = collect(['', '-0001', '-0002', '-0003'])
-            ->flatMap(fn ($suffix) => [
-                "/etc/letsencrypt/live/{$fqdn}{$suffix}",
-                "/etc/letsencrypt/archive/{$fqdn}{$suffix}",
-                "/etc/letsencrypt/renewal/{$fqdn}{$suffix}.conf",
-            ])
-            ->push("/etc/letsencrypt/selfsigned/{$fqdn}")
-            ->implode(' ');
+        $live = '/etc/letsencrypt/live';
 
-        return "mkdir -p /etc/letsencrypt/logs; rm -rf {$paths} 2>/dev/null || true; {$certbotCommand}";
+        // 1. Create logs dir
+        // 2. Remove self-signed certs (they live in selfsigned/ now, but clean old ones from live/ too)
+        // 3. Run certbot
+        // 4. Post-process: if cert landed at a suffixed path, copy real files to expected path
+        return implode('; ', [
+            'mkdir -p /etc/letsencrypt/logs',
+            "rm -rf /etc/letsencrypt/selfsigned/{$fqdn} 2>/dev/null || true",
+            $certbotCommand,
+            "EXPECTED=\"{$live}/{$fqdn}\"",
+            'if [ ! -f "$EXPECTED/fullchain.pem" ]; then '
+                ."SRC=\$(find {$live} -maxdepth 1 -type d -name '{$fqdn}-*' 2>/dev/null | sort -V | tail -1); "
+                .'if [ -n "$SRC" ] && [ -f "$SRC/fullchain.pem" ]; then '
+                    .'rm -rf "$EXPECTED"; '
+                    .'mkdir -p "$EXPECTED"; '
+                    .'cp -Lf "$SRC/fullchain.pem" "$EXPECTED/fullchain.pem"; '
+                    .'cp -Lf "$SRC/privkey.pem" "$EXPECTED/privkey.pem"; '
+                    .'cp -Lf "$SRC/chain.pem" "$EXPECTED/chain.pem" 2>/dev/null || true; '
+                    .'cp -Lf "$SRC/cert.pem" "$EXPECTED/cert.pem" 2>/dev/null || true; '
+                    .'echo "Normalized cert from $SRC to $EXPECTED"; '
+                .'fi; '
+            .'fi',
+        ]);
     }
 }
