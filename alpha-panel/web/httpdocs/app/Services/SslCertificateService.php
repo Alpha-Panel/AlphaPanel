@@ -116,7 +116,8 @@ class SslCertificateService
     }
 
     /**
-     * Validate that a private key matches a certificate by comparing their modulus.
+     * Validate that a private key matches a certificate by comparing public keys.
+     * Works for all key types: RSA, EC (ECDSA), Ed25519, etc.
      */
     public function validateKeyMatchesCert(string $certPem, string $keyPem): bool
     {
@@ -127,29 +128,26 @@ class SslCertificateService
             File::put($certTmp, $certPem);
             File::put($keyTmp, $keyPem);
 
-            $certModulus = Process::timeout(10)->run(
-                'openssl x509 -noout -modulus -in '.escapeshellarg($certTmp).' | openssl md5'
+            // Extract public key from certificate
+            $certPubkey = Process::timeout(10)->run(
+                'openssl x509 -noout -pubkey -in '.escapeshellarg($certTmp)
             );
 
-            $keyModulus = Process::timeout(10)->run(
-                'openssl rsa -noout -modulus -in '.escapeshellarg($keyTmp).' 2>/dev/null | openssl md5'
+            // Extract public key from private key (works for RSA, EC, Ed25519)
+            $keyPubkey = Process::timeout(10)->run(
+                'openssl pkey -pubout -in '.escapeshellarg($keyTmp).' 2>/dev/null'
             );
 
-            if (! $certModulus->successful() || ! $keyModulus->successful()) {
-                // Try EC key if RSA modulus failed
-                $keyModulus = Process::timeout(10)->run(
-                    'openssl ec -noout -text -in '.escapeshellarg($keyTmp).' 2>/dev/null | openssl md5'
-                );
-                $certModulus = Process::timeout(10)->run(
-                    'openssl x509 -noout -text -in '.escapeshellarg($certTmp).' 2>/dev/null | openssl md5'
-                );
+            if (! $certPubkey->successful() || ! $keyPubkey->successful()) {
+                Log::warning('SSL key validation: openssl command failed', [
+                    'cert_error' => $certPubkey->errorOutput(),
+                    'key_error' => $keyPubkey->errorOutput(),
+                ]);
 
-                if (! $certModulus->successful() || ! $keyModulus->successful()) {
-                    return false;
-                }
+                return false;
             }
 
-            return trim($certModulus->output()) === trim($keyModulus->output());
+            return trim($certPubkey->output()) === trim($keyPubkey->output());
         } finally {
             File::delete($certTmp);
             File::delete($keyTmp);
