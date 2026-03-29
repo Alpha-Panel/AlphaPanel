@@ -41,7 +41,7 @@ class SslActivateJob implements ShouldQueue
         $this->applyLocale();
         $domain = $this->domain;
         $fqdn = $domain->fqdn;
-        $isRenewal = $certbotService->certFilesExist($domain);
+        $isRenewal = $certbotService->certbotRenewalExists($domain);
 
         try {
             $sslMethod = $domain->ssl_method ?? SslMethod::CloudflareDns;

@@ -310,4 +310,19 @@ class CertbotService
 
         return file_exists($certPath) && file_exists($keyPath);
     }
+
+    /**
+     * Check if a certbot renewal configuration exists for a domain.
+     * This file is only created by certbot after a successful `certbot certonly`.
+     * Self-signed certs do NOT have this file, so this distinguishes
+     * certbot-managed certs from self-signed or manually created ones.
+     */
+    public function certbotRenewalExists(Domain $domain): bool
+    {
+        $fqdn = $domain->fqdn;
+        // letsEncryptBasePath is /etc/letsencrypt/live, renewal config is at /etc/letsencrypt/renewal/
+        $renewalPath = dirname($this->letsEncryptBasePath)."/renewal/{$fqdn}.conf";
+
+        return file_exists($renewalPath);
+    }
 }
