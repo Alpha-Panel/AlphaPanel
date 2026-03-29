@@ -11,21 +11,17 @@ class CertbotService
 {
     private string $letsEncryptBasePath;
 
+    private string $selfSignedBasePath;
+
     public function __construct(
         private PortainerService $portainer,
     ) {
         $this->letsEncryptBasePath = config('panel.letsencrypt_base');
+        $this->selfSignedBasePath = config('panel.letsencrypt_selfsigned_base');
     }
 
     /**
      * Request a wildcard certificate for a domain using certbot via Portainer.
-     *
-     * Replicates the compose command:
-     * docker compose run --rm --entrypoint /bin/sh certbot-init -lc \
-     *   'certbot certonly --non-interactive --agree-tos --email "$ADMIN_EMAIL" \
-     *    --dns-cloudflare --dns-cloudflare-credentials /secrets/cloudflare.ini \
-     *    --dns-cloudflare-propagation-seconds 90 --key-type ecdsa --elliptic-curve secp384r1 \
-     *    -d example.com -d "*.example.com"'
      */
     public function requestCertificate(Domain $domain): bool
     {
@@ -303,12 +299,14 @@ class CertbotService
 
     /**
      * Generate a self-signed certificate as fallback when certbot is unavailable.
-     * Files are placed in the same letsencrypt path so existing config logic works seamlessly.
+     *
+     * Stored in a separate /etc/letsencrypt/selfsigned/{domain}/ directory
+     * so they never conflict with certbot's /etc/letsencrypt/live/{domain}/.
      */
     public function generateSelfSigned(Domain $domain): bool
     {
         $fqdn = $domain->fqdn;
-        $certDir = "{$this->letsEncryptBasePath}/{$fqdn}";
+        $certDir = "{$this->selfSignedBasePath}/{$fqdn}";
 
         Log::info("Generating self-signed certificate for {$fqdn}.");
 
@@ -348,49 +346,68 @@ class CertbotService
 
     /**
      * Check if certificate files exist for a domain.
+     * Checks certbot live path first, then self-signed fallback.
      */
     public function certFilesExist(Domain $domain): bool
     {
-        $fqdn = $domain->fqdn;
-        $certPath = "{$this->letsEncryptBasePath}/{$fqdn}/fullchain.pem";
-        $keyPath = "{$this->letsEncryptBasePath}/{$fqdn}/privkey.pem";
+        return $this->resolveCertDir($domain) !== null;
+    }
 
-        return file_exists($certPath) && file_exists($keyPath);
+    /**
+     * Resolve the directory containing the active certificate files for a domain.
+     * Returns certbot live path if available, otherwise self-signed path.
+     * Returns null if no certificate files exist.
+     */
+    public function resolveCertDir(Domain $domain): ?string
+    {
+        $fqdn = $domain->fqdn;
+
+        // Prefer certbot-managed certs (live/)
+        $liveDir = "{$this->letsEncryptBasePath}/{$fqdn}";
+        if (file_exists("{$liveDir}/fullchain.pem") && file_exists("{$liveDir}/privkey.pem")) {
+            return $liveDir;
+        }
+
+        // Fallback to self-signed certs (selfsigned/)
+        $selfSignedDir = "{$this->selfSignedBasePath}/{$fqdn}";
+        if (file_exists("{$selfSignedDir}/fullchain.pem") && file_exists("{$selfSignedDir}/privkey.pem")) {
+            return $selfSignedDir;
+        }
+
+        return null;
     }
 
     /**
      * Check if a certbot renewal configuration exists for a domain.
-     * This file is only created by certbot after a successful `certbot certonly`.
-     * Self-signed certs do NOT have this file, so this distinguishes
-     * certbot-managed certs from self-signed or manually created ones.
      */
     public function certbotRenewalExists(Domain $domain): bool
     {
         $fqdn = $domain->fqdn;
-        // letsEncryptBasePath is /etc/letsencrypt/live, renewal config is at /etc/letsencrypt/renewal/
         $renewalPath = dirname($this->letsEncryptBasePath)."/renewal/{$fqdn}.conf";
 
         return file_exists($renewalPath);
     }
 
     /**
-     * Build a certbot command that first cleans up any non-certbot-managed cert files.
+     * Build a certbot command that first cleans up any conflicting cert files.
      *
-     * Self-signed certs placed in /etc/letsencrypt/live/{domain}/ cause certbot
-     * to either fail with "live directory exists" or create a suffixed directory
-     * like {domain}-0001/. This removes all leftover data including numbered
-     * variants before running certbot.
+     * Removes self-signed certs, any leftover certbot live/archive/renewal data,
+     * and numbered variants (-0001, -0002) to ensure certbot creates the cert
+     * at the exact expected path.
      */
     private function buildCommandWithCleanup(string $fqdn, string $certbotCommand): string
     {
-        // Remove base directory, numbered variants (-0001, -0002, etc.), and renewal configs
-        $cleanup = implode("\n", [
-            'mkdir -p /etc/letsencrypt/logs',
-            "rm -rf /etc/letsencrypt/live/{$fqdn} /etc/letsencrypt/live/{$fqdn}-[0-9]*",
-            "rm -rf /etc/letsencrypt/archive/{$fqdn} /etc/letsencrypt/archive/{$fqdn}-[0-9]*",
-            "rm -f /etc/letsencrypt/renewal/{$fqdn}.conf /etc/letsencrypt/renewal/{$fqdn}-[0-9]*.conf",
-        ]);
+        // Single-line command with semicolons — most robust across Docker/shell variants.
+        // Explicitly list -0001 through -0003 instead of globs for maximum shell compatibility.
+        $paths = collect(['', '-0001', '-0002', '-0003'])
+            ->flatMap(fn ($suffix) => [
+                "/etc/letsencrypt/live/{$fqdn}{$suffix}",
+                "/etc/letsencrypt/archive/{$fqdn}{$suffix}",
+                "/etc/letsencrypt/renewal/{$fqdn}{$suffix}.conf",
+            ])
+            ->push("/etc/letsencrypt/selfsigned/{$fqdn}")
+            ->implode(' ');
 
-        return "{$cleanup}\n{$certbotCommand}";
+        return "mkdir -p /etc/letsencrypt/logs; rm -rf {$paths} 2>/dev/null || true; {$certbotCommand}";
     }
 }

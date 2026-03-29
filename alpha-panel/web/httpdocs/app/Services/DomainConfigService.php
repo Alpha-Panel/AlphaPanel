@@ -19,11 +19,15 @@ class DomainConfigService
 
     private string $letsEncryptBasePath;
 
-    public function __construct()
-    {
+    private string $selfSignedBasePath;
+
+    public function __construct(
+        private CertbotService $certbotService,
+    ) {
         $this->caddySitesBasePath = config('panel.caddy_sites_base');
         $this->apacheSitesBasePath = config('panel.apache_sites_base');
         $this->letsEncryptBasePath = config('panel.letsencrypt_base');
+        $this->selfSignedBasePath = config('panel.letsencrypt_selfsigned_base');
     }
 
     /**
@@ -59,14 +63,39 @@ class DomainConfigService
     /**
      * Check if TLS certificate files exist for a domain.
      * For subdomains, checks the apex domain's wildcard certificate.
+     * Checks both certbot live/ and self-signed selfsigned/ directories.
      */
     public function certExists(Domain $domain): bool
     {
-        $certDomain = $domain->isSubdomain() ? $domain->getApexDomain() : $domain->fqdn;
-        $certPath = "{$this->letsEncryptBasePath}/{$certDomain}/fullchain.pem";
-        $keyPath = "{$this->letsEncryptBasePath}/{$certDomain}/privkey.pem";
+        return $this->resolveCertPaths($domain) !== null;
+    }
 
-        return File::exists($certPath) && File::exists($keyPath);
+    /**
+     * Resolve the cert/key file paths for a domain.
+     * Checks certbot live path first, then self-signed fallback.
+     * For subdomains, checks the apex domain's wildcard certificate.
+     *
+     * @return array{cert: string, key: string}|null
+     */
+    public function resolveCertPaths(Domain $domain): ?array
+    {
+        $certDomain = $domain->isSubdomain() ? $domain->getApexDomain() : $domain->fqdn;
+
+        // Prefer certbot-managed certs (live/)
+        $liveCert = "{$this->letsEncryptBasePath}/{$certDomain}/fullchain.pem";
+        $liveKey = "{$this->letsEncryptBasePath}/{$certDomain}/privkey.pem";
+        if (File::exists($liveCert) && File::exists($liveKey)) {
+            return ['cert' => $liveCert, 'key' => $liveKey];
+        }
+
+        // Fallback to self-signed certs (selfsigned/)
+        $ssCert = "{$this->selfSignedBasePath}/{$certDomain}/fullchain.pem";
+        $ssKey = "{$this->selfSignedBasePath}/{$certDomain}/privkey.pem";
+        if (File::exists($ssCert) && File::exists($ssKey)) {
+            return ['cert' => $ssCert, 'key' => $ssKey];
+        }
+
+        return null;
     }
 
     /**
@@ -87,21 +116,17 @@ class DomainConfigService
         $rootPath = $domain->getWebRootPath();
         $slug = str_replace('.', '-', $fqdn);
 
-        $certDomain = $domain->isSubdomain() ? $domain->getApexDomain() : $fqdn;
-        $certPath = "{$this->letsEncryptBasePath}/{$certDomain}/fullchain.pem";
-        $keyPath = "{$this->letsEncryptBasePath}/{$certDomain}/privkey.pem";
+        $certPaths = $withTls ? $this->resolveCertPaths($domain) : null;
 
-        $hasCert = $withTls && File::exists($certPath) && File::exists($keyPath);
-
-        if ($withTls && ! $hasCert) {
+        if ($withTls && $certPaths === null) {
             Log::warning("TLS certs not found for {$fqdn}. Skipping TLS block.");
         }
 
         $lines = [];
 
-        if ($hasCert) {
+        if ($certPaths !== null) {
             $lines = array_merge($lines, $this->renderTlsCaddyConfig(
-                $domain, $fqdn, $rootPath, $slug, $certPath, $keyPath,
+                $domain, $fqdn, $rootPath, $slug, $certPaths['cert'], $certPaths['key'],
             ));
         } else {
             $lines = array_merge($lines, $this->renderHttpOnlyCaddyConfig(

@@ -11,6 +11,7 @@ return [
     'caddy_sites_base' => env('PANEL_CADDY_SITES_BASE', '/etc/frankenphp-container/sites-enabled'),
     'apache_sites_base' => env('PANEL_APACHE_SITES_BASE', '/etc/apache2/sites-enabled'),
     'letsencrypt_base' => env('PANEL_LETSENCRYPT_BASE', '/etc/letsencrypt/live'),
+    'letsencrypt_selfsigned_base' => env('PANEL_LETSENCRYPT_SELFSIGNED_BASE', '/etc/letsencrypt/selfsigned'),
 
     /*
     |--------------------------------------------------------------------------
