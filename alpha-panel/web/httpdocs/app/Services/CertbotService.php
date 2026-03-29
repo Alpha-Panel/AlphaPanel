@@ -25,6 +25,8 @@ class CertbotService
      */
     public function requestCertificate(Domain $domain): bool
     {
+        $this->cleanCertDirectories($domain);
+
         $fqdn = $domain->fqdn;
         $adminEmail = config('panel.certbot_email');
         $image = config('panel.portainer_certbot_image', 'certbot/dns-cloudflare:v5.4.0');
@@ -99,6 +101,8 @@ class CertbotService
      */
     public function requestCertificateWebroot(Domain $domain): bool
     {
+        $this->cleanCertDirectories($domain);
+
         $fqdn = $domain->fqdn;
         $adminEmail = config('panel.certbot_email');
         $image = config('panel.portainer_certbot_image', 'certbot/dns-cloudflare:v5.4.0');
@@ -390,6 +394,55 @@ class CertbotService
         $renewalPath = dirname($this->letsEncryptBasePath)."/renewal/{$fqdn}.conf";
 
         return file_exists($renewalPath);
+    }
+
+    /**
+     * Remove ALL existing cert directories for a domain before certbot runs.
+     *
+     * This runs in PHP on the panel container (which shares the letsencrypt volume)
+     * BEFORE the certbot container is created. Removes:
+     * - Self-signed certs in selfsigned/{domain}/
+     * - Non-certbot-managed live/{domain}/ (no renewal config)
+     * - ALL suffixed directories (live/{domain}-0001/, archive/{domain}-0001/, etc.)
+     */
+    private function cleanCertDirectories(Domain $domain): void
+    {
+        $fqdn = $domain->fqdn;
+        $letsencryptRoot = dirname($this->letsEncryptBasePath);
+
+        // Remove self-signed cert directory
+        $selfSignedDir = "{$this->selfSignedBasePath}/{$fqdn}";
+        if (File::isDirectory($selfSignedDir)) {
+            File::deleteDirectory($selfSignedDir);
+            Log::info("Cleaned self-signed cert dir: {$selfSignedDir}");
+        }
+
+        // Remove live/{domain}/ if NOT certbot-managed (no renewal config = self-signed or manual)
+        $liveDir = "{$this->letsEncryptBasePath}/{$fqdn}";
+        if (File::isDirectory($liveDir) && ! $this->certbotRenewalExists($domain)) {
+            File::deleteDirectory($liveDir);
+            Log::info("Cleaned non-certbot live dir: {$liveDir}");
+        }
+
+        // Remove ALL suffixed live directories (domain-0001, domain-0002, ...)
+        foreach (glob("{$this->letsEncryptBasePath}/{$fqdn}-*") as $dir) {
+            if (File::isDirectory($dir)) {
+                File::deleteDirectory($dir);
+                Log::info("Cleaned suffixed live dir: {$dir}");
+            }
+        }
+
+        // Remove ALL suffixed archive directories
+        foreach (glob("{$letsencryptRoot}/archive/{$fqdn}-*") as $dir) {
+            if (File::isDirectory($dir)) {
+                File::deleteDirectory($dir);
+            }
+        }
+
+        // Remove ALL suffixed renewal configs
+        foreach (glob("{$letsencryptRoot}/renewal/{$fqdn}-*.conf") as $conf) {
+            File::delete($conf);
+        }
     }
 
     /**
