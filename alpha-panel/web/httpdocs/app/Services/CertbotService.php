@@ -39,6 +39,7 @@ class CertbotService
             '--non-interactive',
             '--agree-tos',
             '--email', escapeshellarg($adminEmail),
+            '--cert-name', escapeshellarg($fqdn),
             '--dns-cloudflare',
             '--dns-cloudflare-credentials /secrets/cloudflare.ini',
             '--dns-cloudflare-propagation-seconds 90',
@@ -116,6 +117,7 @@ class CertbotService
             '--non-interactive',
             '--agree-tos',
             '--email', escapeshellarg($adminEmail),
+            '--cert-name', escapeshellarg($fqdn),
             '--webroot',
             '-w /var/www/acme-challenge',
             '--key-type ecdsa',
@@ -248,6 +250,7 @@ class CertbotService
             '--non-interactive',
             '--agree-tos',
             '--email', escapeshellarg($adminEmail),
+            '--cert-name', escapeshellarg($fqdn),
             '--webroot',
             '-w /var/www/acme-challenge',
             '--key-type ecdsa',
@@ -374,21 +377,20 @@ class CertbotService
      * Build a certbot command that first cleans up any non-certbot-managed cert files.
      *
      * Self-signed certs placed in /etc/letsencrypt/live/{domain}/ cause certbot
-     * to fail with "live directory exists" because certbot did not create those files.
-     * This removes leftover live/archive/renewal data before running certbot.
+     * to either fail with "live directory exists" or create a suffixed directory
+     * like {domain}-0001/. This removes all leftover data including numbered
+     * variants before running certbot.
      */
     private function buildCommandWithCleanup(string $fqdn, string $certbotCommand): string
     {
-        $escapedFqdn = escapeshellarg($fqdn);
-
-        $cleanup = implode(' ', [
-            "rm -rf /etc/letsencrypt/live/{$escapedFqdn}",
-            "/etc/letsencrypt/archive/{$escapedFqdn}",
-            "/etc/letsencrypt/renewal/{$escapedFqdn}.conf",
-            '2>/dev/null;',
-            'mkdir -p /etc/letsencrypt/logs;',
+        // Remove base directory, numbered variants (-0001, -0002, etc.), and renewal configs
+        $cleanup = implode("\n", [
+            'mkdir -p /etc/letsencrypt/logs',
+            "rm -rf /etc/letsencrypt/live/{$fqdn} /etc/letsencrypt/live/{$fqdn}-[0-9]*",
+            "rm -rf /etc/letsencrypt/archive/{$fqdn} /etc/letsencrypt/archive/{$fqdn}-[0-9]*",
+            "rm -f /etc/letsencrypt/renewal/{$fqdn}.conf /etc/letsencrypt/renewal/{$fqdn}-[0-9]*.conf",
         ]);
 
-        return "{$cleanup} {$certbotCommand}";
+        return "{$cleanup}\n{$certbotCommand}";
     }
 }
