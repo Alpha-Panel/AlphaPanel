@@ -70,7 +70,7 @@
                     </div>
 
                     <!-- Action Buttons -->
-                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                         <button
                             type="button"
                             @click="showLeModal = true"
@@ -112,6 +112,19 @@
                                 <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('Install a custom certificate') }}</p>
                             </div>
                         </button>
+
+                        <label
+                            class="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-gray-200 bg-white p-4 text-left transition-colors hover:border-brand-300 hover:bg-brand-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:border-brand-800 dark:hover:bg-brand-500/10"
+                        >
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-500/10">
+                                <i class="bx bx-import text-lg text-amber-600 dark:text-amber-400"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-800 dark:text-white/90">{{ t('Import PEM') }}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('Import from a PEM file') }}</p>
+                            </div>
+                            <input ref="importFileInput" type="file" accept=".pem,.txt" class="hidden" @change="handleImportFile" />
+                        </label>
                     </div>
 
                     <!-- Certificates Table -->
@@ -156,11 +169,12 @@
                                     <tr
                                         v-for="(cert, index) in certificates"
                                         :key="cert.id"
-                                        class="border-b border-gray-100 dark:border-gray-800"
+                                        class="cursor-pointer border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.03]"
                                         :class="[
                                             index % 2 === 1 ? 'bg-gray-50/50 dark:bg-white/[0.01]' : '',
                                             cert.is_active ? 'border-l-4 border-l-success-500' : '',
                                         ]"
+                                        @click="openCertDetail(cert)"
                                     >
                                         <td class="py-3 pr-4 text-gray-700 dark:text-gray-300">
                                             {{ cert.label || t('Untitled') }}
@@ -197,27 +211,32 @@
                                                 {{ t('Inactive') }}
                                             </span>
                                         </td>
-                                        <td class="py-3 text-right">
+                                        <td class="py-3 text-right" @click.stop>
                                             <div class="flex items-center justify-end gap-2">
                                                 <a
-                                                    v-if="cert.csr_pem"
-                                                    :href="route('domains.ssl.download-csr', [domain.id, cert.id])"
+                                                    v-if="cert.has_certificate"
+                                                    :href="route('domains.ssl.export', [domain.id, cert.id])"
                                                     class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+                                                    :title="t('Export PEM')"
                                                 >
-                                                    <i class="bx bx-download text-sm"></i>
-                                                    {{ t('CSR') }}
+                                                    <i class="bx bx-export text-sm"></i>
+                                                    {{ t('Export') }}
                                                 </a>
                                                 <button
                                                     v-if="!cert.is_active && cert.has_certificate"
                                                     type="button"
                                                     :disabled="activating === cert.id"
                                                     @click="activateCert(cert)"
-                                                    class="inline-flex items-center gap-1.5 rounded-lg border border-brand-500/40 px-3 py-1.5 text-xs font-medium text-brand-600 hover:bg-brand-500/10 disabled:opacity-50 dark:text-brand-400"
+                                                    class="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600 disabled:opacity-50"
                                                 >
                                                     <i v-if="activating === cert.id" class="bx bx-loader-alt animate-spin text-sm"></i>
                                                     <i v-else class="bx bx-check-circle text-sm"></i>
                                                     {{ t('Activate') }}
                                                 </button>
+                                                <span v-else-if="cert.is_active" class="inline-flex items-center gap-1.5 rounded-lg bg-success-500/15 px-3 py-1.5 text-xs font-semibold text-success-700 dark:text-success-300">
+                                                    <i class="bx bx-check-circle text-sm"></i>
+                                                    {{ t('Active') }}
+                                                </span>
                                                 <button
                                                     type="button"
                                                     :disabled="cert.is_active || deleting === cert.id"
@@ -226,7 +245,6 @@
                                                 >
                                                     <i v-if="deleting === cert.id" class="bx bx-loader-alt animate-spin text-sm"></i>
                                                     <i v-else class="bx bx-trash text-sm"></i>
-                                                    {{ t('Delete') }}
                                                 </button>
                                             </div>
                                         </td>
@@ -517,6 +535,20 @@
                                         :placeholder="t('Intermediate certificates (optional)')"
                                     ></textarea>
                                 </FormField>
+
+                                <!-- Key match status -->
+                                <div v-if="uploadKeyStatus === 'checking'" class="flex items-center gap-2 rounded-lg bg-blue-500/10 px-3 py-2 text-sm text-blue-400">
+                                    <i class="bx bx-loader-alt animate-spin"></i>
+                                    {{ t('Validating key pair...') }}
+                                </div>
+                                <div v-else-if="uploadKeyStatus === 'valid'" class="flex items-center gap-2 rounded-lg bg-green-500/10 px-3 py-2 text-sm text-green-400">
+                                    <i class="bx bx-check-circle"></i>
+                                    {{ t('Private key matches the certificate.') }}
+                                </div>
+                                <div v-else-if="uploadKeyStatus === 'invalid'" class="flex items-center gap-2 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                                    <i class="bx bx-error-circle"></i>
+                                    {{ uploadKeyError }}
+                                </div>
                             </div>
 
                             <div class="mt-6 flex items-center justify-end gap-2 border-t border-white/10 pt-4">
@@ -530,7 +562,7 @@
                                 </button>
                                 <button
                                     type="submit"
-                                    :disabled="uploadForm.processing"
+                                    :disabled="!canSubmitUpload"
                                     class="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-60"
                                 >
                                     {{ uploadForm.processing ? t('Uploading...') : t('Upload & Install') }}
@@ -539,14 +571,142 @@
                         </form>
                     </div>
                 </div>
+
+                <!-- Certificate Detail Modal -->
+                <div
+                    v-if="showDetailModal && detailCert"
+                    class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+                    @click.self="showDetailModal = false"
+                >
+                    <div class="flex max-h-[92vh] w-full max-w-3xl flex-col rounded-xl border border-gray-700 bg-[#171717] text-white/90 shadow-2xl">
+                        <div class="flex items-center justify-between border-b border-white/10 px-5 py-4">
+                            <h5 class="text-base text-white">
+                                <i class="bx bx-lock-alt mr-1.5 text-brand-400"></i>
+                                {{ detailCert.label || detailCert.common_name }}
+                            </h5>
+                            <div class="flex items-center gap-2">
+                                <a
+                                    v-if="detailCert.has_certificate"
+                                    :href="route('domains.ssl.export', [domain.id, detailCert.id])"
+                                    class="inline-flex items-center gap-1.5 rounded-lg border border-white/20 px-3 py-1.5 text-xs font-medium text-white/80 hover:bg-white/10"
+                                >
+                                    <i class="bx bx-export text-sm"></i>
+                                    {{ t('Export PEM') }}
+                                </a>
+                                <button
+                                    type="button"
+                                    class="text-2xl leading-none text-white/50 hover:text-white"
+                                    @click="showDetailModal = false"
+                                >
+                                    &times;
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="min-h-0 flex-1 overflow-y-auto p-5">
+                            <div v-if="detailLoading" class="flex items-center justify-center py-12">
+                                <i class="bx bx-loader-alt animate-spin text-3xl text-brand-400"></i>
+                            </div>
+
+                            <template v-else-if="detailData">
+                                <!-- Certificate Info Grid -->
+                                <div class="mb-5 grid grid-cols-2 gap-3">
+                                    <div class="rounded-lg bg-white/5 px-3 py-2">
+                                        <p class="text-[10px] uppercase tracking-wider text-white/40">{{ t('Common Name') }}</p>
+                                        <p class="font-mono text-sm">{{ detailData.common_name }}</p>
+                                    </div>
+                                    <div class="rounded-lg bg-white/5 px-3 py-2">
+                                        <p class="text-[10px] uppercase tracking-wider text-white/40">{{ t('Issuer') }}</p>
+                                        <p class="text-sm">{{ detailData.issuer || '-' }}</p>
+                                    </div>
+                                    <div class="rounded-lg bg-white/5 px-3 py-2">
+                                        <p class="text-[10px] uppercase tracking-wider text-white/40">{{ t('Valid From') }}</p>
+                                        <p class="text-sm">{{ detailData.not_before ? formatDateTime(detailData.not_before) : '-' }}</p>
+                                    </div>
+                                    <div class="rounded-lg bg-white/5 px-3 py-2">
+                                        <p class="text-[10px] uppercase tracking-wider text-white/40">{{ t('Valid Until') }}</p>
+                                        <p class="text-sm">{{ detailData.not_after ? formatDateTime(detailData.not_after) : '-' }}</p>
+                                    </div>
+                                    <div v-if="detailData.san_domains && detailData.san_domains.length > 0" class="col-span-2 rounded-lg bg-white/5 px-3 py-2">
+                                        <p class="text-[10px] uppercase tracking-wider text-white/40">{{ t('SAN Domains') }}</p>
+                                        <div class="mt-1 flex flex-wrap gap-1">
+                                            <code v-for="san in detailData.san_domains" :key="san" class="rounded bg-brand-500/15 px-1.5 py-0.5 text-xs text-brand-300">{{ san }}</code>
+                                        </div>
+                                    </div>
+                                    <div v-if="detailData.fingerprint_sha256" class="col-span-2 rounded-lg bg-white/5 px-3 py-2">
+                                        <p class="text-[10px] uppercase tracking-wider text-white/40">{{ t('Fingerprint (SHA-256)') }}</p>
+                                        <p class="break-all font-mono text-xs">{{ detailData.fingerprint_sha256 }}</p>
+                                    </div>
+                                </div>
+
+                                <!-- PEM Content Tabs -->
+                                <div class="mb-3 flex gap-1 border-b border-white/10">
+                                    <button
+                                        v-for="tab in pemTabs"
+                                        :key="tab.key"
+                                        type="button"
+                                        @click="activeDetailTab = tab.key"
+                                        class="border-b-2 px-3 py-2 text-xs font-medium transition-colors"
+                                        :class="activeDetailTab === tab.key
+                                            ? 'border-brand-500 text-brand-400'
+                                            : 'border-transparent text-white/50 hover:text-white/70'"
+                                    >
+                                        {{ tab.label }}
+                                    </button>
+                                </div>
+
+                                <div class="relative">
+                                    <textarea
+                                        :value="currentPemContent"
+                                        readonly
+                                        rows="12"
+                                        class="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 font-mono text-xs text-green-400 focus:outline-none"
+                                        :placeholder="t('No content available')"
+                                    ></textarea>
+                                    <button
+                                        v-if="currentPemContent"
+                                        type="button"
+                                        @click="copyToClipboard(currentPemContent)"
+                                        class="absolute right-2 top-2 rounded bg-white/10 px-2 py-1 text-xs text-white/60 hover:bg-white/20 hover:text-white"
+                                    >
+                                        <i class="bx bx-copy mr-1"></i>{{ t('Copy') }}
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+
+                        <div class="flex items-center justify-between border-t border-white/10 px-5 py-3">
+                            <div class="flex gap-2">
+                                <button
+                                    v-if="detailCert && !detailCert.is_active && detailCert.has_certificate"
+                                    type="button"
+                                    :disabled="activating === detailCert.id"
+                                    @click="activateCert(detailCert); showDetailModal = false"
+                                    class="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
+                                >
+                                    <i class="bx bx-check-circle"></i>
+                                    {{ t('Activate') }}
+                                </button>
+                            </div>
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-2 rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-white/80 hover:bg-white/10"
+                                @click="showDetailModal = false"
+                            >
+                                {{ t('Close') }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </AdminLayout>
         </SidebarProvider>
     </ThemeProvider>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import axios from 'axios';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
 import SidebarProvider from '@/Components/Layout/SidebarProvider.vue';
 import AdminLayout from '@/Components/Layout/AdminLayout.vue';
@@ -598,8 +758,106 @@ const { addToast } = useToast();
 const showLeModal = ref(false);
 const showCsrModal = ref(false);
 const showUploadModal = ref(false);
+const showDetailModal = ref(false);
 const activating = ref<number | null>(null);
 const deleting = ref<number | null>(null);
+const importFileInput = ref<HTMLInputElement | null>(null);
+
+// -- Detail Modal State --
+interface CertDetail {
+    id: number;
+    label: string | null;
+    type: string;
+    common_name: string;
+    issuer: string | null;
+    san_domains: string[] | null;
+    not_before: string | null;
+    not_after: string | null;
+    fingerprint_sha256: string | null;
+    is_wildcard: boolean;
+    is_active: boolean;
+    certificate_pem: string | null;
+    private_key_pem: string | null;
+    ca_bundle_pem: string | null;
+    csr_pem: string | null;
+}
+
+const detailCert = ref<Certificate | null>(null);
+const detailData = ref<CertDetail | null>(null);
+const detailLoading = ref(false);
+const activeDetailTab = ref<'cert' | 'key' | 'ca' | 'csr'>('cert');
+
+const pemTabs = computed(() => {
+    const tabs: Array<{ key: 'cert' | 'key' | 'ca' | 'csr'; label: string }> = [
+        { key: 'cert', label: t('Certificate') },
+        { key: 'key', label: t('Private Key') },
+    ];
+    if (detailData.value?.ca_bundle_pem) {
+        tabs.push({ key: 'ca', label: t('CA Bundle') });
+    }
+    if (detailData.value?.csr_pem) {
+        tabs.push({ key: 'csr', label: t('CSR') });
+    }
+    return tabs;
+});
+
+const currentPemContent = computed(() => {
+    if (!detailData.value) return '';
+    switch (activeDetailTab.value) {
+        case 'cert': return detailData.value.certificate_pem ?? '';
+        case 'key': return detailData.value.private_key_pem ?? '';
+        case 'ca': return detailData.value.ca_bundle_pem ?? '';
+        case 'csr': return detailData.value.csr_pem ?? '';
+        default: return '';
+    }
+});
+
+const openCertDetail = async (cert: Certificate): Promise<void> => {
+    detailCert.value = cert;
+    detailData.value = null;
+    detailLoading.value = true;
+    activeDetailTab.value = 'cert';
+    showDetailModal.value = true;
+
+    try {
+        const response = await axios.get(route('domains.ssl.show', [props.domain.id, cert.id]));
+        detailData.value = response.data;
+    } catch {
+        addToast('error', t('Failed to load certificate details.'));
+        showDetailModal.value = false;
+    } finally {
+        detailLoading.value = false;
+    }
+};
+
+const copyToClipboard = async (text: string): Promise<void> => {
+    try {
+        await navigator.clipboard.writeText(text);
+        addToast('success', t('Copied to clipboard.'));
+    } catch {
+        addToast('error', t('Failed to copy.'));
+    }
+};
+
+// -- Import PEM File --
+const handleImportFile = (event: Event): void => {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('pem_file', file);
+
+    router.post(route('domains.ssl.import', props.domain.id), formData as any, {
+        forceFormData: true,
+        preserveScroll: true,
+        onFinish: () => {
+            if (importFileInput.value) {
+                importFileInput.value.value = '';
+            }
+        },
+    });
+};
 
 const breadcrumbs = computed(() => [
     { label: t('Domains'), href: route('domains.index') },
@@ -669,12 +927,86 @@ const uploadForm = useForm({
     ca_bundle: '',
 });
 
+const uploadKeyStatus = ref<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
+const uploadKeyError = ref('');
+let keyCheckTimeout: ReturnType<typeof setTimeout> | null = null;
+
+const isPemFormat = (pem: string, type: 'key' | 'cert'): boolean => {
+    if (type === 'key') {
+        return /-----BEGIN (RSA |EC |ENCRYPTED )?PRIVATE KEY-----/.test(pem)
+            && /-----END (RSA |EC |ENCRYPTED )?PRIVATE KEY-----/.test(pem);
+    }
+    return pem.includes('-----BEGIN CERTIFICATE-----')
+        && pem.includes('-----END CERTIFICATE-----');
+};
+
+const checkKeyMatch = (): void => {
+    const key = uploadForm.private_key.trim();
+    const cert = uploadForm.certificate.trim();
+
+    // Both empty — nothing to validate yet
+    if (!key && !cert) {
+        uploadKeyStatus.value = 'idle';
+        uploadKeyError.value = '';
+        return;
+    }
+
+    // Check PEM format before sending to server
+    if (key && !isPemFormat(key, 'key')) {
+        uploadKeyStatus.value = 'invalid';
+        uploadKeyError.value = t('Invalid private key format. Must be PEM format (-----BEGIN PRIVATE KEY-----).');
+        return;
+    }
+
+    if (cert && !isPemFormat(cert, 'cert')) {
+        uploadKeyStatus.value = 'invalid';
+        uploadKeyError.value = t('Invalid certificate format. Must be PEM format (-----BEGIN CERTIFICATE-----).');
+        return;
+    }
+
+    // Need both to validate match
+    if (!key || !cert) {
+        uploadKeyStatus.value = 'idle';
+        uploadKeyError.value = '';
+        return;
+    }
+
+    uploadKeyStatus.value = 'checking';
+    uploadKeyError.value = '';
+
+    if (keyCheckTimeout) clearTimeout(keyCheckTimeout);
+    keyCheckTimeout = setTimeout(async () => {
+        try {
+            const response = await axios.post(route('domains.ssl.validate-key', props.domain.id), {
+                private_key: key,
+                certificate: cert,
+                ca_bundle: uploadForm.ca_bundle.trim() || null,
+            });
+            uploadKeyStatus.value = response.data.valid ? 'valid' : 'invalid';
+            uploadKeyError.value = response.data.valid ? '' : (response.data.message ?? t('Private key does not match the certificate.'));
+        } catch {
+            uploadKeyStatus.value = 'invalid';
+            uploadKeyError.value = t('Could not validate key pair.');
+        }
+    }, 500);
+};
+
+watch(() => uploadForm.private_key, checkKeyMatch);
+watch(() => uploadForm.certificate, checkKeyMatch);
+watch(() => uploadForm.ca_bundle, checkKeyMatch);
+
+const canSubmitUpload = computed(() => {
+    return uploadKeyStatus.value === 'valid' && !uploadForm.processing;
+});
+
 const submitUpload = (): void => {
     uploadForm.post(route('domains.ssl.upload', props.domain.id), {
         preserveScroll: true,
         onSuccess: () => {
             showUploadModal.value = false;
             uploadForm.reset();
+            uploadKeyStatus.value = 'idle';
+            uploadKeyError.value = '';
         },
     });
 };
@@ -683,7 +1015,7 @@ const submitUpload = (): void => {
 
 const activateCert = (cert: Certificate): void => {
     activating.value = cert.id;
-    router.post(route('domains.ssl.activate', [props.domain.id, cert.id]), {}, {
+    router.post(route('domains.ssl.cert.activate', [props.domain.id, cert.id]), {}, {
         preserveScroll: true,
         onFinish: () => {
             activating.value = null;

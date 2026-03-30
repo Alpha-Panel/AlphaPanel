@@ -148,7 +148,7 @@ Route::middleware('auth')->group(function (): void {
 
     // SSL Activation / Renewal (legacy — kept for backward compatibility)
     Route::post('domains/{domain}/ssl-legacy', [DomainController::class, 'sslActivate'])
-        ->name('domains.ssl.activate');
+        ->name('domains.ssl-legacy');
 
     // SSL Certificate Management
     Route::prefix('domains/{domain}/ssl')->name('domains.ssl.')->group(function (): void {
@@ -157,8 +157,12 @@ Route::middleware('auth')->group(function (): void {
         Route::post('/self-signed', [SslCertificateController::class, 'storeSelfSigned'])->name('self-signed');
         Route::post('/csr', [SslCertificateController::class, 'generateCsr'])->name('csr');
         Route::get('/{certificate}/csr/download', [SslCertificateController::class, 'downloadCsr'])->name('csr.download');
+        Route::post('/validate-key', [SslCertificateController::class, 'validateKey'])->name('validate-key');
         Route::post('/upload', [SslCertificateController::class, 'uploadCertificate'])->name('upload');
-        Route::post('/{certificate}/activate', [SslCertificateController::class, 'activate'])->name('activate');
+        Route::post('/{certificate}/activate', [SslCertificateController::class, 'activate'])->name('cert.activate');
+        Route::get('/{certificate}/show', [SslCertificateController::class, 'show'])->name('show');
+        Route::get('/{certificate}/export', [SslCertificateController::class, 'export'])->name('export');
+        Route::post('/import', [SslCertificateController::class, 'importPem'])->name('import');
         Route::delete('/{certificate}', [SslCertificateController::class, 'destroy'])->name('destroy');
     });
 

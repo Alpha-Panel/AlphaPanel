@@ -15,6 +15,7 @@ use App\Services\DomainConfigService;
 use App\Services\ReloadService;
 use App\Services\SslCertificateService;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
@@ -270,6 +271,165 @@ class SslCertificateController extends Controller
         return redirect()
             ->route('domains.ssl.index', $domain)
             ->with('success', __('SSL certificate activated successfully.'));
+    }
+
+    /**
+     * Validate that a private key matches a certificate (and optionally CA bundle).
+     * Called via AJAX from the upload modal for real-time feedback.
+     */
+    public function validateKey(Request $request, Domain $domain): JsonResponse
+    {
+        $this->authorize('manageSsl', $domain);
+
+        $validated = $request->validate([
+            'private_key' => ['required', 'string'],
+            'certificate' => ['required', 'string'],
+            'ca_bundle' => ['nullable', 'string'],
+        ]);
+
+        $keyMatch = $this->sslCertificateService->validateKeyMatchesCert(
+            $validated['certificate'],
+            $validated['private_key'],
+        );
+
+        if (! $keyMatch) {
+            return response()->json([
+                'valid' => false,
+                'message' => __('Private key does not match the certificate.'),
+            ]);
+        }
+
+        // Validate CA bundle chains to the certificate if provided
+        if (! empty($validated['ca_bundle'])) {
+            $caValid = $this->sslCertificateService->validateCaBundle(
+                $validated['certificate'],
+                $validated['ca_bundle'],
+            );
+
+            if (! $caValid) {
+                return response()->json([
+                    'valid' => false,
+                    'message' => __('CA bundle does not match the certificate chain.'),
+                ]);
+            }
+        }
+
+        return response()->json(['valid' => true]);
+    }
+
+    public function show(Request $request, Domain $domain, SslCertificate $certificate): JsonResponse
+    {
+        $this->authorize('manageSsl', $domain);
+
+        if ($certificate->domain_id !== $domain->id) {
+            abort(404);
+        }
+
+        return response()->json([
+            'id' => $certificate->id,
+            'label' => $certificate->label,
+            'type' => $certificate->type->value,
+            'common_name' => $certificate->common_name,
+            'issuer' => $certificate->issuer,
+            'san_domains' => $certificate->san_domains,
+            'not_before' => $certificate->not_before?->toIso8601String(),
+            'not_after' => $certificate->not_after?->toIso8601String(),
+            'fingerprint_sha256' => $certificate->fingerprint_sha256,
+            'is_wildcard' => $certificate->is_wildcard,
+            'auto_renew' => $certificate->auto_renew,
+            'is_active' => $certificate->is_active,
+            'certificate_pem' => $certificate->certificate_pem,
+            'private_key_pem' => $certificate->private_key_pem,
+            'ca_bundle_pem' => $certificate->ca_bundle_pem,
+            'csr_pem' => $certificate->csr_pem,
+            'created_at' => $certificate->created_at->toIso8601String(),
+        ]);
+    }
+
+    public function export(Request $request, Domain $domain, SslCertificate $certificate): \Illuminate\Http\Response
+    {
+        $this->authorize('manageSsl', $domain);
+
+        if ($certificate->domain_id !== $domain->id) {
+            abort(404);
+        }
+
+        $pem = '';
+        if ($certificate->private_key_pem) {
+            $pem .= trim($certificate->private_key_pem)."\n";
+        }
+        if ($certificate->certificate_pem) {
+            $pem .= trim($certificate->certificate_pem)."\n";
+        }
+        if ($certificate->ca_bundle_pem) {
+            $pem .= trim($certificate->ca_bundle_pem)."\n";
+        }
+
+        $filename = "{$domain->fqdn}-{$certificate->id}.pem";
+
+        return response($pem)
+            ->header('Content-Type', 'application/x-pem-file')
+            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+    }
+
+    public function importPem(Request $request, Domain $domain): RedirectResponse
+    {
+        $this->authorize('manageSsl', $domain);
+
+        $request->validate([
+            'pem_file' => ['required', 'file', 'mimes:pem,txt', 'max:102400'],
+        ]);
+
+        $content = file_get_contents($request->file('pem_file')->path());
+
+        // Extract private key
+        preg_match('/-----BEGIN (RSA |EC |ENCRYPTED )?PRIVATE KEY-----.*?-----END (RSA |EC |ENCRYPTED )?PRIVATE KEY-----/s', $content, $keyMatch);
+        $privateKey = $keyMatch[0] ?? null;
+
+        // Extract all certificates
+        preg_match_all('/-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----/s', $content, $certMatches);
+        $certs = $certMatches[0] ?? [];
+
+        $serverCert = $certs[0] ?? null;
+        $caBundle = count($certs) > 1 ? implode("\n", array_slice($certs, 1)) : null;
+
+        if (! $privateKey || ! $serverCert) {
+            return redirect()->route('domains.ssl.index', $domain)
+                ->with('error', __('PEM file must contain at least a private key and a certificate.'));
+        }
+
+        if (! $this->sslCertificateService->validateKeyMatchesCert($serverCert, $privateKey)) {
+            return redirect()->route('domains.ssl.index', $domain)
+                ->with('error', __('The private key does not match the certificate.'));
+        }
+
+        try {
+            $certificate = $this->sslCertificateService->storeUploadedCert(
+                $domain,
+                $serverCert,
+                $privateKey,
+                $caBundle,
+            );
+
+            Log::info("PEM file imported for {$domain->fqdn}, certificate ID: {$certificate->id}.");
+        } catch (\Exception $e) {
+            Log::error("PEM import failed for {$domain->fqdn}: {$e->getMessage()}");
+
+            return redirect()->route('domains.ssl.index', $domain)
+                ->with('error', __('PEM import failed: :error', ['error' => $e->getMessage()]));
+        }
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'ssl_pem_imported',
+            'domain_id' => $domain->id,
+            'summary' => "PEM file imported for {$domain->fqdn}.",
+            'ip_address' => $request->ip(),
+            'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+        ]);
+
+        return redirect()->route('domains.ssl.index', $domain)
+            ->with('success', __('PEM file imported successfully.'));
     }
 
     public function destroy(Request $request, Domain $domain, SslCertificate $certificate): RedirectResponse

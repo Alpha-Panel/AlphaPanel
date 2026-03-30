@@ -8,6 +8,23 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SslCertificate extends Model
 {
+    /** @var list<string> */
+    protected $appends = [
+        'is_active',
+        'is_expired',
+        'is_expiring_soon',
+        'days_until_expiry',
+        'has_certificate',
+    ];
+
+    /** @var list<string> */
+    protected $hidden = [
+        'private_key_pem',
+        'certificate_pem',
+        'ca_bundle_pem',
+        'csr_pem',
+    ];
+
     protected $fillable = [
         'domain_id',
         'type',

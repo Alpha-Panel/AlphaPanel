@@ -23,6 +23,43 @@ class SslCertificateService
     }
 
     /**
+     * Split a fullchain PEM into server certificate and CA bundle.
+     * The first certificate block is the server cert, the rest is the CA bundle.
+     *
+     * @return array{cert: string, ca_bundle: string|null}
+     */
+    public function splitFullchain(string $fullchainPem): array
+    {
+        // Match all PEM certificate blocks
+        preg_match_all('/-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----/s', $fullchainPem, $matches);
+
+        $certs = $matches[0] ?? [];
+
+        if (count($certs) === 0) {
+            return ['cert' => $fullchainPem, 'ca_bundle' => null];
+        }
+
+        $serverCert = $certs[0];
+        $caBundle = count($certs) > 1
+            ? implode("\n", array_slice($certs, 1))."\n"
+            : null;
+
+        return ['cert' => $serverCert, 'ca_bundle' => $caBundle];
+    }
+
+    /**
+     * Build a fullchain PEM from server certificate and CA bundle.
+     */
+    public function buildFullchain(string $certPem, ?string $caBundlePem = null): string
+    {
+        if ($caBundlePem === null || trim($caBundlePem) === '') {
+            return $certPem;
+        }
+
+        return trim($certPem)."\n".trim($caBundlePem)."\n";
+    }
+
+    /**
      * Parse metadata from X.509 PEM certificate content.
      *
      * @return array{common_name: ?string, issuer: ?string, not_before: ?string, not_after: ?string, san_domains: string[], fingerprint_sha256: ?string, is_wildcard: bool}
@@ -155,6 +192,35 @@ class SslCertificateService
     }
 
     /**
+     * Validate that a CA bundle chains to the certificate.
+     * Uses openssl verify to check the trust chain.
+     */
+    public function validateCaBundle(string $certPem, string $caBundlePem): bool
+    {
+        $certTmp = tempnam(sys_get_temp_dir(), 'cert_');
+        $caTmp = tempnam(sys_get_temp_dir(), 'ca_');
+
+        try {
+            File::put($certTmp, $certPem);
+            File::put($caTmp, $caBundlePem);
+
+            $result = Process::timeout(10)->run(
+                'openssl verify -CAfile '.escapeshellarg($caTmp).' '.escapeshellarg($certTmp)
+            );
+
+            // openssl verify returns 0 and outputs "{certfile}: OK" on success
+            return $result->successful() && str_contains($result->output(), ': OK');
+        } catch (\Exception $e) {
+            Log::warning("CA bundle validation error: {$e->getMessage()}");
+
+            return false;
+        } finally {
+            File::delete($certTmp);
+            File::delete($caTmp);
+        }
+    }
+
+    /**
      * Create an SslCertificate record from cert/key files on disk.
      * Reads the PEM content and stores it encrypted in the DB.
      */
@@ -166,10 +232,12 @@ class SslCertificateService
         ?string $validationMethod = null,
         ?string $label = null,
     ): SslCertificate {
-        $meta = $this->parseCertificateFile($certPath);
-
-        $certPem = File::get($certPath);
+        $fullchainPem = File::get($certPath);
         $keyPem = File::get($keyPath);
+
+        // Split fullchain into server cert + CA bundle
+        $parts = $this->splitFullchain($fullchainPem);
+        $meta = $this->parseCertificatePem($parts['cert']);
 
         return SslCertificate::create([
             'domain_id' => $domain->id,
@@ -179,7 +247,8 @@ class SslCertificateService
             'issuer' => $meta['issuer'],
             'san_domains' => $meta['san_domains'],
             'private_key_pem' => $keyPem,
-            'certificate_pem' => $certPem,
+            'certificate_pem' => $parts['cert'],
+            'ca_bundle_pem' => $parts['ca_bundle'],
             'validation_method' => $validationMethod,
             'not_before' => $meta['not_before'] ? Carbon::parse($meta['not_before']) : null,
             'not_after' => $meta['not_after'] ? Carbon::parse($meta['not_after']) : null,
@@ -203,12 +272,8 @@ class SslCertificateService
             throw new RuntimeException(__('The private key does not match the certificate.'));
         }
 
-        // Build fullchain: cert + CA bundle
-        $fullchainPem = $caBundlePem !== null
-            ? trim($certPem)."\n".trim($caBundlePem)."\n"
-            : $certPem;
-
-        $meta = $this->parseCertificatePem($fullchainPem);
+        // Parse metadata from the server certificate only (not CA bundle)
+        $meta = $this->parseCertificatePem($certPem);
 
         return SslCertificate::create([
             'domain_id' => $domain->id,
@@ -218,7 +283,7 @@ class SslCertificateService
             'issuer' => $meta['issuer'],
             'san_domains' => $meta['san_domains'],
             'private_key_pem' => $keyPem,
-            'certificate_pem' => $fullchainPem,
+            'certificate_pem' => $certPem,
             'ca_bundle_pem' => $caBundlePem,
             'validation_method' => null,
             'not_before' => $meta['not_before'] ? Carbon::parse($meta['not_before']) : null,
@@ -347,13 +412,11 @@ class SslCertificateService
             File::makeDirectory($certDir, 0755, true);
         }
 
-        File::put("{$certDir}/fullchain.pem", $certificate->certificate_pem);
+        // Build fullchain: server cert + CA bundle (Caddy needs the full chain)
+        $fullchain = $this->buildFullchain($certificate->certificate_pem, $certificate->ca_bundle_pem);
+        File::put("{$certDir}/fullchain.pem", $fullchain);
         File::put("{$certDir}/privkey.pem", $certificate->private_key_pem);
         File::chmod("{$certDir}/privkey.pem", 0600);
-
-        if ($certificate->ca_bundle_pem) {
-            File::put("{$certDir}/ca-bundle.pem", $certificate->ca_bundle_pem);
-        }
 
         return $certDir;
     }
