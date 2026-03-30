@@ -441,7 +441,7 @@
                                     <FormField :label="t('Country (2-letter)')" :error="csrForm.errors.country">
                                         <input v-model="csrForm.country" type="text" class="form-input" maxlength="2" placeholder="US" />
                                     </FormField>
-                                    <FormField :label="t('State')" :error="csrForm.errors.state">
+                                    <FormField :label="t('State/Province')" :error="csrForm.errors.state">
                                         <input v-model="csrForm.state" type="text" class="form-input" :placeholder="t('California')" />
                                     </FormField>
                                     <FormField :label="t('Locality')" :error="csrForm.errors.locality">
