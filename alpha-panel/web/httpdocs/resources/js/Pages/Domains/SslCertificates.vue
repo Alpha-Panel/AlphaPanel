@@ -672,6 +672,56 @@
                                         <i class="bx bx-copy mr-1"></i>{{ t('Copy') }}
                                     </button>
                                 </div>
+
+                                <!-- CSR Awaiting Certificate: Install Form -->
+                                <div v-if="detailData.csr_pem && !detailData.certificate_pem" class="mt-5 rounded-lg border border-warning-500/30 bg-warning-500/5 p-4">
+                                    <h6 class="mb-3 flex items-center gap-2 text-sm font-semibold text-warning-400">
+                                        <i class="bx bx-upload"></i>
+                                        {{ t('Install Signed Certificate') }}
+                                    </h6>
+                                    <p class="mb-4 text-xs text-white/50">{{ t('Paste the signed certificate you received from your Certificate Authority.') }}</p>
+
+                                    <form @submit.prevent="submitCompleteCsr">
+                                        <div class="space-y-3">
+                                            <div>
+                                                <label class="mb-1 block text-xs font-medium text-white/70">{{ t('Certificate') }} <span class="text-error-400">*</span></label>
+                                                <textarea
+                                                    v-model="completeCsrForm.certificate"
+                                                    rows="6"
+                                                    class="form-input font-mono text-xs"
+                                                    placeholder="-----BEGIN CERTIFICATE-----"
+                                                    required
+                                                ></textarea>
+                                            </div>
+                                            <div>
+                                                <label class="mb-1 block text-xs font-medium text-white/70">{{ t('CA Bundle') }}</label>
+                                                <textarea
+                                                    v-model="completeCsrForm.ca_bundle"
+                                                    rows="4"
+                                                    class="form-input font-mono text-xs"
+                                                    :placeholder="t('Intermediate certificates (optional)')"
+                                                ></textarea>
+                                            </div>
+                                            <div>
+                                                <label class="mb-1 block text-xs font-medium text-white/70">{{ t('Label') }}</label>
+                                                <input
+                                                    v-model="completeCsrForm.label"
+                                                    type="text"
+                                                    class="form-input"
+                                                    :placeholder="t('My Certificate (optional)')"
+                                                />
+                                            </div>
+                                            <button
+                                                type="submit"
+                                                :disabled="completeCsrForm.processing || !completeCsrForm.certificate"
+                                                class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
+                                            >
+                                                <i class="bx bx-check-circle"></i>
+                                                {{ completeCsrForm.processing ? t('Installing...') : t('Install Certificate') }}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
                             </template>
                         </div>
 
@@ -926,6 +976,24 @@ const uploadForm = useForm({
     certificate: '',
     ca_bundle: '',
 });
+
+// -- Complete CSR Form --
+const completeCsrForm = useForm({
+    certificate: '',
+    ca_bundle: '',
+    label: '',
+});
+
+const submitCompleteCsr = (): void => {
+    if (!detailCert.value) return;
+    completeCsrForm.post(route('domains.ssl.complete-csr', [props.domain.id, detailCert.value.id]), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showDetailModal.value = false;
+            completeCsrForm.reset();
+        },
+    });
+};
 
 const uploadKeyStatus = ref<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
 const uploadKeyError = ref('');

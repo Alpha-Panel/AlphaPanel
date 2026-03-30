@@ -160,6 +160,7 @@ Route::middleware('auth')->group(function (): void {
         Route::post('/validate-key', [SslCertificateController::class, 'validateKey'])->name('validate-key');
         Route::post('/upload', [SslCertificateController::class, 'uploadCertificate'])->name('upload');
         Route::post('/{certificate}/activate', [SslCertificateController::class, 'activate'])->name('cert.activate');
+        Route::post('/{certificate}/complete-csr', [SslCertificateController::class, 'completeCsr'])->name('complete-csr');
         Route::get('/{certificate}/show', [SslCertificateController::class, 'show'])->name('show');
         Route::get('/{certificate}/export', [SslCertificateController::class, 'export'])->name('export');
         Route::post('/import', [SslCertificateController::class, 'importPem'])->name('import');

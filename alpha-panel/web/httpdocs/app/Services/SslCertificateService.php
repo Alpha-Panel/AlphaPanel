@@ -394,6 +394,9 @@ class SslCertificateService
 
         $domain->update(['active_ssl_certificate_id' => $certificate->id]);
 
+        // Force relationship reload — loadMissing won't refresh a stale cached relation
+        $domain->setRelation('activeSslCertificate', $certificate);
+
         $this->domainConfigService->renderWithTls($domain);
         $this->reloadService->reloadCaddy();
 

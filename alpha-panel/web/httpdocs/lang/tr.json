@@ -1385,5 +1385,12 @@
     "Failed to load certificate details.": "Sertifika detayları yüklenemedi.",
     "PEM file must contain at least a private key and a certificate.": "PEM dosyası en az bir özel anahtar ve bir sertifika içermelidir.",
     "Certificate imported successfully.": "Sertifika başarıyla içe aktarıldı.",
-    "Issuer": "Veren Kurum"
+    "Issuer": "Veren Kurum",
+    "Install Signed Certificate": "İmzalanmış Sertifika Kur",
+    "Paste the signed certificate you received from your Certificate Authority.": "Sertifika Yetkilinizden aldığınız imzalanmış sertifikayı yapıştırın.",
+    "Install Certificate": "Sertifika Kur",
+    "Installing...": "Kuruluyor...",
+    "Certificate installed successfully.": "Sertifika başarıyla kuruldu.",
+    "Certificate installation failed: :error": "Sertifika kurulumu başarısız: :error",
+    "This certificate does not have a pending CSR.": "Bu sertifikanın bekleyen bir CSR'ı yok."
 }

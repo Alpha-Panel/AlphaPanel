@@ -1376,5 +1376,12 @@
     "Failed to load certificate details.": "Failed to load certificate details.",
     "PEM file must contain at least a private key and a certificate.": "PEM file must contain at least a private key and a certificate.",
     "Certificate imported successfully.": "Certificate imported successfully.",
-    "Issuer": "Issuer"
+    "Issuer": "Issuer",
+    "Install Signed Certificate": "Install Signed Certificate",
+    "Paste the signed certificate you received from your Certificate Authority.": "Paste the signed certificate you received from your Certificate Authority.",
+    "Install Certificate": "Install Certificate",
+    "Installing...": "Installing...",
+    "Certificate installed successfully.": "Certificate installed successfully.",
+    "Certificate installation failed: :error": "Certificate installation failed: :error",
+    "This certificate does not have a pending CSR.": "This certificate does not have a pending CSR."
 }

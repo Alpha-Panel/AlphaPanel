@@ -346,6 +346,55 @@ class SslCertificateController extends Controller
         ]);
     }
 
+    /**
+     * Complete a CSR record by uploading the signed certificate.
+     */
+    public function completeCsr(Request $request, Domain $domain, SslCertificate $certificate): RedirectResponse
+    {
+        $this->authorize('manageSsl', $domain);
+
+        if ($certificate->domain_id !== $domain->id) {
+            abort(404);
+        }
+
+        if (! $certificate->csr_pem || $certificate->has_certificate) {
+            return redirect()
+                ->route('domains.ssl.index', $domain)
+                ->with('error', __('This certificate does not have a pending CSR.'));
+        }
+
+        $validated = $request->validate([
+            'certificate' => ['required', 'string'],
+            'ca_bundle' => ['nullable', 'string'],
+            'label' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        try {
+            $this->completeCsrWithCert($certificate, $domain, array_merge($validated, [
+                'private_key' => $certificate->private_key_pem,
+            ]));
+        } catch (\Exception $e) {
+            Log::error("CSR completion failed for {$domain->fqdn}: {$e->getMessage()}");
+
+            return redirect()
+                ->route('domains.ssl.index', $domain)
+                ->with('error', __('Certificate installation failed: :error', ['error' => $e->getMessage()]));
+        }
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'ssl_csr_completed',
+            'domain_id' => $domain->id,
+            'summary' => "CSR completed with signed certificate for {$domain->fqdn}.",
+            'ip_address' => $request->ip(),
+            'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+        ]);
+
+        return redirect()
+            ->route('domains.ssl.index', $domain)
+            ->with('success', __('Certificate installed successfully.'));
+    }
+
     public function export(Request $request, Domain $domain, SslCertificate $certificate): \Illuminate\Http\Response
     {
         $this->authorize('manageSsl', $domain);

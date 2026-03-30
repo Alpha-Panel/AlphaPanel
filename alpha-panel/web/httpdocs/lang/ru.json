@@ -1376,5 +1376,12 @@
     "Failed to load certificate details.": "Не удалось загрузить данные сертификата.",
     "PEM file must contain at least a private key and a certificate.": "PEM file must contain at least a private key and a certificate.",
     "Certificate imported successfully.": "Сертификат успешно импортирован.",
-    "Issuer": "Издатель"
+    "Issuer": "Издатель",
+    "Install Signed Certificate": "Установить подписанный сертификат",
+    "Paste the signed certificate you received from your Certificate Authority.": "Вставьте подписанный сертификат, полученный от центра сертификации.",
+    "Install Certificate": "Установить сертификат",
+    "Installing...": "Установка...",
+    "Certificate installed successfully.": "Сертификат успешно установлен.",
+    "Certificate installation failed: :error": "Ошибка установки сертификата: :error",
+    "This certificate does not have a pending CSR.": "У этого сертификата нет ожидающего CSR."
 }

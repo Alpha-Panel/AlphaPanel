@@ -144,6 +144,7 @@ class SslActivateJob implements ShouldQueue
                             $validationMethod,
                         );
                         $domain->update(['active_ssl_certificate_id' => $cert->id]);
+                        $domain->setRelation('activeSslCertificate', $cert);
                     } catch (\Exception $e) {
                         Log::warning("Failed to create SslCertificate record for {$fqdn}: {$e->getMessage()}");
                     }
