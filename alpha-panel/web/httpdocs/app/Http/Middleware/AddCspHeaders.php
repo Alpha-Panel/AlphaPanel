@@ -27,7 +27,7 @@ class AddCspHeaders
 
         $csp = implode('; ', [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-eval' 'nonce-{$nonce}'",
+            "script-src 'self' 'unsafe-eval' 'nonce-{$nonce}' 'strict-dynamic'",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' data: https://fonts.gstatic.com",
             "img-src 'self' data: blob: https://www.gravatar.com",

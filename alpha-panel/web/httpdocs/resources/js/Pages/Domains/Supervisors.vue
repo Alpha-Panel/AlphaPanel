@@ -174,7 +174,7 @@
                     </div>
 
                     <!-- Artisan Command Runner -->
-                    <div class="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-white/2">
+                    <div class="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-white/2" :class="{ 'opacity-50': !props.is_laravel }">
                         <h4 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-white/90">
                             <i class="bx bx-terminal text-base text-brand-500"></i>
                             {{ t('Run Artisan Command') }}
@@ -188,13 +188,13 @@
                                 type="text"
                                 class="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
                                 placeholder="php artisan ..."
-                                :disabled="artisanLoading"
+                                :disabled="!props.is_laravel || artisanLoading"
                                 @keydown.enter="runArtisanCommand"
                             />
                             <button
                                 type="button"
                                 @click="runArtisanCommand"
-                                :disabled="artisanLoading || !artisanCommand.trim()"
+                                :disabled="!props.is_laravel || artisanLoading || !artisanCommand.trim()"
                                 class="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-500 px-4 text-sm font-medium text-white shadow-theme-xs hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 <i v-if="artisanLoading" class="bx bx-loader-alt animate-spin text-base"></i>
