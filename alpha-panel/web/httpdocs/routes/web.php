@@ -191,6 +191,7 @@ Route::middleware('auth')->group(function (): void {
     Route::post('domains/{domain}/dns', [DnsController::class, 'store'])->name('domains.dns.store');
     Route::delete('domains/{domain}/dns', [DnsController::class, 'destroy'])->name('domains.dns.destroy');
     Route::post('domains/{domain}/dns/switch-provider', [DnsController::class, 'switchProvider'])->name('domains.dns.switch-provider');
+    Route::post('domains/{domain}/dns/bulk-destroy', [DnsController::class, 'bulkDestroy'])->name('domains.dns.bulk-destroy');
 
     // Cloudflare Management (per domain)
     Route::prefix('domains/{domain}/cloudflare')->name('domains.cloudflare.')->group(function (): void {

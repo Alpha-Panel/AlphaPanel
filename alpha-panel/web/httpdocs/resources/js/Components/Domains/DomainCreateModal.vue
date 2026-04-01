@@ -141,23 +141,6 @@
                         </div>
                     </div>
 
-                    <div v-if="form.type === 'caddy_web_server'" class="space-y-3 border-t border-white/10 pt-4">
-                        <h6 class="text-sm font-medium text-white">{{ t('Worker Settings') }}</h6>
-                        <div class="flex flex-wrap items-center gap-4">
-                            <label class="flex items-center gap-2 text-sm text-white/80">
-                                <input v-model="form.enable_worker" type="checkbox" class="form-checkbox" />
-                                {{ t('Enable Worker') }}
-                            </label>
-                            <label v-if="form.enable_worker" class="flex items-center gap-2 text-sm text-white/80">
-                                <input v-model="form.worker_watch" type="checkbox" class="form-checkbox" />
-                                {{ t('Watch mode') }}
-                            </label>
-                        </div>
-
-                        <FormField v-if="form.enable_worker" :label="t('Worker Count')" :error="form.errors.worker_num">
-                            <input v-model.number="form.worker_num" type="number" min="1" max="100" class="form-input w-28" />
-                        </FormField>
-                    </div>
                 </div>
 
                 <div class="mt-6 flex items-center justify-end gap-2 border-t border-white/10 pt-4">
@@ -238,9 +221,6 @@ const form = useForm({
     root_path: '',
     inherit_parent_root_path: false,
     enable_www_redirect: true,
-    enable_worker: false,
-    worker_num: 2,
-    worker_watch: false,
     cloudflare_mode: 'skip' as 'add' | 'skip' | 'existing',
     create_dns_record: false,
     dns_target_ip: '',
@@ -269,10 +249,6 @@ const hasUnsavedInput = computed(() => {
     }
 
     if (form.enable_www_redirect !== true) {
-        return true;
-    }
-
-    if (form.enable_worker !== false || form.worker_num !== 2 || form.worker_watch !== false) {
         return true;
     }
 
@@ -313,9 +289,6 @@ const resetFormState = (): void => {
         root_path: '',
         inherit_parent_root_path: false,
         enable_www_redirect: true,
-        enable_worker: false,
-        worker_num: 2,
-        worker_watch: false,
         cloudflare_mode: 'skip',
         create_dns_record: false,
         dns_target_ip: '',

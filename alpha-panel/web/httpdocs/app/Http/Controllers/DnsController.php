@@ -163,6 +163,9 @@ class DnsController extends Controller
                 $message = __('DNS record created successfully.');
             }
 
+            // Best-effort sync to Cloudflare if zone exists there
+            $this->syncRecordToCloudflare($domain, $recordData, $isUpdate);
+
             $this->createDnsAuditLog($request, $domain, $action, [], ['submitted' => $recordData]);
 
             return response()->json(['status' => 'success', 'message' => $message]);
@@ -217,6 +220,9 @@ class DnsController extends Controller
             } else {
                 $this->cloudflare->addRecord($zoneId, $data);
                 $createdRecord = $this->findMatchingRecord($zoneId, $data);
+
+                // Best-effort sync to local zone if it exists
+                $this->syncRecordToLocal($domain, $data);
 
                 $this->createDnsAuditLog(
                     $request,
@@ -405,6 +411,133 @@ class DnsController extends Controller
                 'status' => 'error',
                 'message' => __('Failed to switch DNS provider: :error', ['error' => $e->getMessage()]),
             ], 422);
+        }
+    }
+
+    /**
+     * Bulk delete DNS records (local DNS only).
+     */
+    public function bulkDestroy(Request $request, Domain $domain): JsonResponse
+    {
+        $this->authorize('manageDns', $domain);
+
+        if (! $domain->usesLocalDns()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => __('Bulk delete is only available for Local DNS.'),
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['required', 'integer'],
+        ]);
+
+        $zone = $domain->dnsZone;
+        if (! $zone) {
+            return response()->json(['status' => 'error', 'message' => __('DNS zone not found.')], 404);
+        }
+
+        $records = DnsRecord::query()
+            ->where('dns_zone_id', $zone->id)
+            ->whereIn('id', $validated['ids'])
+            ->get();
+
+        if ($records->isEmpty()) {
+            return response()->json(['status' => 'error', 'message' => __('No matching records found.')], 404);
+        }
+
+        try {
+            foreach ($records as $record) {
+                $this->localDns->deleteRecord($record);
+            }
+
+            $this->createDnsAuditLog(
+                $request,
+                $domain,
+                'dns_bulk_deleted',
+                ['count' => $records->count()],
+                ['deleted_ids' => $records->pluck('id')->all()],
+            );
+
+            return response()->json([
+                'status' => 'success',
+                'message' => __(':count DNS records deleted.', ['count' => $records->count()]),
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Best-effort sync a record to Cloudflare when adding via local DNS.
+     *
+     * @param  array<string, mixed>  $recordData
+     */
+    private function syncRecordToCloudflare(Domain $domain, array $recordData, bool $isUpdate = false): void
+    {
+        if ($isUpdate) {
+            return; // Update sync is complex (need CF record ID), skip for now
+        }
+
+        try {
+            $apexDomain = $domain->getApexDomain();
+            $zoneId = $this->cloudflare->getZoneId($apexDomain);
+
+            $this->cloudflare->addRecord($zoneId, [
+                'type' => $recordData['type'],
+                'name' => $recordData['name'],
+                'content' => $recordData['content'],
+                'ttl' => $recordData['ttl'] ?? 1,
+                'priority' => $recordData['priority'] ?? null,
+            ]);
+        } catch (\Throwable) {
+            // Best-effort: CF zone may not exist or API may be down
+        }
+    }
+
+    /**
+     * Best-effort sync a record to local zone when adding via Cloudflare.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function syncRecordToLocal(Domain $domain, array $data): void
+    {
+        $zone = $domain->dnsZone;
+        if (! $zone) {
+            return;
+        }
+
+        $type = strtoupper((string) ($data['type'] ?? ''));
+        $name = (string) ($data['name'] ?? '');
+        $content = (string) ($data['content'] ?? '');
+
+        if (in_array($type, ['SOA', 'NS'], true)) {
+            return;
+        }
+
+        // Skip if already exists
+        $exists = DnsRecord::query()
+            ->where('dns_zone_id', $zone->id)
+            ->where('name', $name)
+            ->where('type', $type)
+            ->where('content', $content)
+            ->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        try {
+            $this->localDns->addRecord($zone, [
+                'name' => $name,
+                'type' => $type,
+                'content' => $content,
+                'ttl' => (int) ($data['ttl'] ?? 3600),
+                'priority' => isset($data['priority']) ? (int) $data['priority'] : null,
+            ]);
+        } catch (\Throwable) {
+            // Best-effort: local zone may not exist
         }
     }
 

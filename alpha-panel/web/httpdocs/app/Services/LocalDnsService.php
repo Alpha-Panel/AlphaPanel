@@ -484,6 +484,13 @@ class LocalDnsService
      *
      * @param  array<int, object>  $cloudflareRecords  Records from CloudflareDnsService::listRecords()
      */
+    /**
+     * Sync DNS records from Cloudflare into a local zone.
+     * Creates the zone if it doesn't exist. Skips records that already
+     * exist locally (matched by name+type+content) to avoid duplicates.
+     *
+     * @param  array<int, object>  $cloudflareRecords  Records from CloudflareDnsService::listRecords()
+     */
     public function importFromCloudflare(Domain $domain, array $cloudflareRecords): DnsZone
     {
         $zone = $domain->dnsZone;
@@ -496,6 +503,8 @@ class LocalDnsService
 
         return DB::transaction(function () use ($zone, $cloudflareRecords, $skipTypes): DnsZone {
             $pdnsDomainId = $this->getPdnsDomainId($zone);
+            $imported = 0;
+            $skipped = 0;
 
             foreach ($cloudflareRecords as $cfRecord) {
                 $type = strtoupper((string) ($cfRecord->type ?? ''));
@@ -511,6 +520,20 @@ class LocalDnsService
 
                 if ($ttl === 1) {
                     $ttl = 3600;
+                }
+
+                // Skip if identical record already exists
+                $exists = DnsRecord::query()
+                    ->where('dns_zone_id', $zone->id)
+                    ->where('name', $name)
+                    ->where('type', $type)
+                    ->where('content', $content)
+                    ->exists();
+
+                if ($exists) {
+                    $skipped++;
+
+                    continue;
                 }
 
                 $record = DnsRecord::create([
@@ -532,13 +555,18 @@ class LocalDnsService
                         'priority' => $record->priority,
                     ]);
                 }
+
+                $imported++;
             }
 
-            $zone->incrementSerial();
-            $this->updatePdnsSoaSerial($zone);
+            if ($imported > 0) {
+                $zone->incrementSerial();
+                $this->updatePdnsSoaSerial($zone);
+            }
 
-            Log::info("Imported Cloudflare records to local zone: {$zone->zone_name}", [
-                'imported_count' => count($cloudflareRecords) - count(array_filter($cloudflareRecords, fn ($r) => in_array(strtoupper($r->type ?? ''), $skipTypes, true))),
+            Log::info("Cloudflare sync to local zone: {$zone->zone_name}", [
+                'imported' => $imported,
+                'skipped_duplicates' => $skipped,
             ]);
 
             return $zone;

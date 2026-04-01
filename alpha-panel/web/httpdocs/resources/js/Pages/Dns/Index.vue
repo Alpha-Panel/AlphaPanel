@@ -86,20 +86,42 @@
                 <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
                     <div class="flex flex-col gap-4 border-b border-gray-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-gray-800 md:px-6">
                         <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">{{ t('DNS Records') }}</h3>
-                        <button
-                            type="button"
-                            @click="openAddModal"
-                            class="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white shadow-theme-xs hover:bg-brand-600"
-                        >
-                            <i class="fa-solid fa-square-plus text-xs"></i>
-                            {{ t('Add Record') }}
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button
+                                v-if="selectedIds.length > 0 && currentProvider === 'local'"
+                                type="button"
+                                :disabled="bulkDeleting"
+                                @click="bulkDelete"
+                                class="inline-flex items-center gap-2 rounded-lg border border-error-500/40 bg-error-500/10 px-3 py-2.5 text-sm font-medium text-error-600 hover:bg-error-500/20 disabled:opacity-60 dark:text-error-400"
+                            >
+                                <i v-if="bulkDeleting" class="bx bx-loader-alt animate-spin text-base"></i>
+                                <i v-else class="fa-solid fa-trash-can text-xs"></i>
+                                {{ t('Delete Selected') }} ({{ selectedIds.length }})
+                            </button>
+                            <button
+                                type="button"
+                                @click="openAddModal"
+                                class="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white shadow-theme-xs hover:bg-brand-600"
+                            >
+                                <i class="fa-solid fa-square-plus text-xs"></i>
+                                {{ t('Add Record') }}
+                            </button>
+                        </div>
                     </div>
 
                     <div class="overflow-x-auto">
                         <table class="w-full">
                             <thead>
                                 <tr class="border-b border-gray-200 dark:border-gray-800">
+                                    <th v-if="currentProvider === 'local'" class="w-10 px-3 py-3">
+                                        <input
+                                            type="checkbox"
+                                            class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                                            :checked="allSelected"
+                                            :indeterminate="someSelected && !allSelected"
+                                            @change="toggleSelectAll"
+                                        />
+                                    </th>
                                     <th class="px-5 py-3 text-left text-xs font-medium uppercase text-gray-500">{{ t('Type') }}</th>
                                     <th class="px-5 py-3 text-left text-xs font-medium uppercase text-gray-500">{{ t('Name') }}</th>
                                     <th class="px-5 py-3 text-left text-xs font-medium uppercase text-gray-500">{{ t('Value') }}</th>
@@ -112,12 +134,12 @@
                             </thead>
                             <tbody>
                                 <tr v-if="loading" class="border-t border-gray-200 dark:border-gray-800">
-                                    <td colspan="6" class="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                                    <td :colspan="currentProvider === 'local' ? 7 : 6" class="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
                                         {{ t('Loading records...') }}
                                     </td>
                                 </tr>
                                 <tr v-else-if="records.length === 0" class="border-t border-gray-200 dark:border-gray-800">
-                                    <td colspan="6" class="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                                    <td :colspan="currentProvider === 'local' ? 7 : 6" class="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
                                         {{ t('No DNS records found.') }}
                                     </td>
                                 </tr>
@@ -126,6 +148,14 @@
                                     :key="record.id"
                                     class="border-t border-gray-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.02]"
                                 >
+                                    <td v-if="currentProvider === 'local'" class="w-10 px-3 py-3">
+                                        <input
+                                            type="checkbox"
+                                            class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                                            :checked="selectedIds.includes(record.id)"
+                                            @change="toggleSelect(record.id)"
+                                        />
+                                    </td>
                                     <td class="px-5 py-3">
                                         <span class="inline-flex rounded bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-300">
                                             {{ record.type }}
@@ -435,6 +465,46 @@ const currentProvider = ref(props.dns_provider ?? props.domain.dns_provider ?? '
 const switchLoading = ref(false);
 const showSwitchModal = ref(false);
 const importRecordsOnSwitch = ref(true);
+
+const selectedIds = ref<(string | number)[]>([]);
+const bulkDeleting = ref(false);
+
+const allSelected = computed(() => records.value.length > 0 && selectedIds.value.length === records.value.length);
+const someSelected = computed(() => selectedIds.value.length > 0);
+
+const toggleSelectAll = () => {
+    if (allSelected.value) {
+        selectedIds.value = [];
+    } else {
+        selectedIds.value = records.value.map((r) => r.id);
+    }
+};
+
+const toggleSelect = (id: string | number) => {
+    const idx = selectedIds.value.indexOf(id);
+    if (idx === -1) {
+        selectedIds.value.push(id);
+    } else {
+        selectedIds.value.splice(idx, 1);
+    }
+};
+
+const bulkDelete = async () => {
+    if (selectedIds.value.length === 0) return;
+    bulkDeleting.value = true;
+    try {
+        const response = await axios.post(route('domains.dns.bulk-destroy', props.domain.id), {
+            ids: selectedIds.value,
+        });
+        addToast('success', response.data.message);
+        selectedIds.value = [];
+        void fetchRecords();
+    } catch (e: any) {
+        addToast('error', e.response?.data?.message ?? t('Failed to delete records.'));
+    } finally {
+        bulkDeleting.value = false;
+    }
+};
 
 const records = ref<DnsRecord[]>([]);
 const loading = ref(false);

@@ -1480,5 +1480,10 @@
     "Failed to switch DNS provider.": "Не удалось переключить DNS-провайдера.",
     "DNS provider switched to :provider successfully.": "DNS-провайдер успешно переключён на :provider.",
     "DNS provider is already set to :provider.": "DNS-провайдер уже установлен на :provider.",
-    "Failed to switch DNS provider: :error": "Не удалось переключить DNS-провайдера: :error"
+    "Failed to switch DNS provider: :error": "Не удалось переключить DNS-провайдера: :error",
+    "Delete Selected": "Удалить выбранные",
+    ":count DNS records deleted.": ":count DNS-записей удалено.",
+    "No matching records found.": "Совпадающие записи не найдены.",
+    "Bulk delete is only available for Local DNS.": "Массовое удаление доступно только для локального DNS.",
+    "Failed to delete records.": "Не удалось удалить записи."
 }

@@ -1475,5 +1475,10 @@
     "Failed to switch DNS provider.": "DNS-Anbieter konnte nicht gewechselt werden.",
     "DNS provider switched to :provider successfully.": "DNS-Anbieter erfolgreich auf :provider gewechselt.",
     "DNS provider is already set to :provider.": "DNS-Anbieter ist bereits auf :provider eingestellt.",
-    "Failed to switch DNS provider: :error": "DNS-Anbieter konnte nicht gewechselt werden: :error"
+    "Failed to switch DNS provider: :error": "DNS-Anbieter konnte nicht gewechselt werden: :error",
+    "Delete Selected": "Ausgewählte löschen",
+    ":count DNS records deleted.": ":count DNS-Einträge gelöscht.",
+    "No matching records found.": "Keine übereinstimmenden Einträge gefunden.",
+    "Bulk delete is only available for Local DNS.": "Massenlöschung ist nur für lokales DNS verfügbar.",
+    "Failed to delete records.": "Einträge konnten nicht gelöscht werden."
 }

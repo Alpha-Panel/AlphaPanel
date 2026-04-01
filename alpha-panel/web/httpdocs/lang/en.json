@@ -1463,5 +1463,10 @@
     "Failed to switch DNS provider.": "Failed to switch DNS provider.",
     "DNS provider switched to :provider successfully.": "DNS provider switched to :provider successfully.",
     "DNS provider is already set to :provider.": "DNS provider is already set to :provider.",
-    "Failed to switch DNS provider: :error": "Failed to switch DNS provider: :error"
+    "Failed to switch DNS provider: :error": "Failed to switch DNS provider: :error",
+    "Delete Selected": "Delete Selected",
+    ":count DNS records deleted.": ":count DNS records deleted.",
+    "No matching records found.": "No matching records found.",
+    "Bulk delete is only available for Local DNS.": "Bulk delete is only available for Local DNS.",
+    "Failed to delete records.": "Failed to delete records."
 }

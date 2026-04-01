@@ -1491,5 +1491,10 @@
     "Failed to switch DNS provider.": "DNS sağlayıcısı değiştirilemedi.",
     "DNS provider switched to :provider successfully.": "DNS sağlayıcısı başarıyla :provider olarak değiştirildi.",
     "DNS provider is already set to :provider.": "DNS sağlayıcısı zaten :provider olarak ayarlanmış.",
-    "Failed to switch DNS provider: :error": "DNS sağlayıcısı değiştirilemedi: :error"
+    "Failed to switch DNS provider: :error": "DNS sağlayıcısı değiştirilemedi: :error",
+    "Delete Selected": "Seçilenleri Sil",
+    ":count DNS records deleted.": ":count DNS kaydı silindi.",
+    "No matching records found.": "Eşleşen kayıt bulunamadı.",
+    "Bulk delete is only available for Local DNS.": "Toplu silme yalnızca Yerel DNS için kullanılabilir.",
+    "Failed to delete records.": "Kayıtlar silinemedi."
 }
