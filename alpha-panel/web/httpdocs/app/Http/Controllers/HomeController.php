@@ -211,7 +211,7 @@ class HomeController extends Controller
                 'php_version' => $domain->phpVersion?->slug,
                 'created_ago' => $domain->created_at?->diffForHumans(short: true),
                 'show_url' => route('domains.show', $domain),
-                'cloudflare_enabled' => (bool) $domain->cloudflare_enabled,
+                'cloudflare_enabled' => $domain->usesCloudflare(),
                 'under_attack' => $underAttackMap[$domain->id] ?? null,
             ])
             ->values()
@@ -227,7 +227,7 @@ class HomeController extends Controller
         $map = [];
 
         foreach ($domains as $domain) {
-            if (! $domain->cloudflare_enabled) {
+            if (! $domain->usesCloudflare()) {
                 $map[$domain->id] = null;
 
                 continue;

@@ -313,6 +313,21 @@ services:
     networks:
       - vhost_network
 
+  powerdns:
+    image: powerdns/pdns-auth-49:4.9.13
+    container_name: powerdns
+    hostname: powerdns
+    restart: always
+    ports:
+      - "${PUBLIC_NETWORK_IP}:53:53/tcp"
+      - "${PUBLIC_NETWORK_IP}:53:53/udp"
+    volumes:
+      - ./powerdns/pdns.conf:/etc/powerdns/pdns.conf:ro
+    depends_on:
+      - mysql
+    networks:
+      - vhost_network
+
   redis:
     image: redis:7.4.8-alpine
     container_name: redis

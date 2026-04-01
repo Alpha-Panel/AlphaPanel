@@ -201,7 +201,7 @@ class DomainPolicy
      */
     private function domainHasCloudflare(Domain $domain): bool
     {
-        if ($domain->cloudflare_enabled === false) {
+        if (! $domain->usesCloudflare()) {
             return false;
         }
 
@@ -209,8 +209,8 @@ class DomainPolicy
             return true;
         }
 
-        $domain->loadMissing('parentDomain:id,cloudflare_enabled');
+        $domain->loadMissing('parentDomain:id,dns_provider');
 
-        return $domain->parentDomain?->cloudflare_enabled !== false;
+        return $domain->parentDomain?->usesCloudflare() ?? false;
     }
 }

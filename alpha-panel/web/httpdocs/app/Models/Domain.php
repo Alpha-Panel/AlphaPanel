@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DnsProvider;
 use App\Enums\DomainStatus;
 use App\Enums\DomainType;
 use App\Enums\IpAccessMode;
@@ -31,7 +32,7 @@ class Domain extends Model
         'worker_num',
         'worker_watch',
         'php_version_id',
-        'cloudflare_enabled',
+        'dns_provider',
         'ssl_method',
         'bypass_reverse_proxy',
         'custom_caddy_directives',
@@ -57,7 +58,7 @@ class Domain extends Model
             'additional_hostnames' => 'array',
             'enable_worker' => 'boolean',
             'worker_watch' => 'boolean',
-            'cloudflare_enabled' => 'boolean',
+            'dns_provider' => DnsProvider::class,
             'ssl_method' => SslMethod::class,
             'ip_access_mode' => IpAccessMode::class,
             'bypass_reverse_proxy' => 'boolean',
@@ -152,6 +153,21 @@ class Domain extends Model
     public function sslCertificates(): HasMany
     {
         return $this->hasMany(SslCertificate::class);
+    }
+
+    public function dnsZone(): HasOne
+    {
+        return $this->hasOne(DnsZone::class);
+    }
+
+    public function usesLocalDns(): bool
+    {
+        return $this->dns_provider === DnsProvider::Local;
+    }
+
+    public function usesCloudflare(): bool
+    {
+        return $this->dns_provider === DnsProvider::Cloudflare;
     }
 
     /**

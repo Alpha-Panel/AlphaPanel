@@ -18,6 +18,8 @@ use App\Notifications\DomainNotification;
 use App\Services\CloudflareDnsService;
 use App\Services\DomainConfigService;
 use App\Services\FtpUserService;
+use App\Services\LaravelPackageDetector;
+use App\Services\LocalDnsService;
 use App\Services\PortainerService;
 use App\Services\ServerNetworkInfoService;
 use Illuminate\Database\Eloquent\Collection;
@@ -75,11 +77,13 @@ class DomainController extends Controller
         StoreDomainRequest $request,
         FtpUserService $ftpUserService,
         CloudflareDnsService $cloudflareDnsService,
+        LocalDnsService $localDnsService,
         ServerNetworkInfoService $serverNetworkInfoService,
     ): RedirectResponse|JsonResponse {
         $data = $request->validated();
         $parentDomainId = (int) ($data['parent_domain_id'] ?? 0);
         $inheritParentRootPath = (bool) ($data['inherit_parent_root_path'] ?? false);
+        $dnsProvider = (string) ($data['dns_provider'] ?? 'local');
         $cloudflareMode = (string) ($data['cloudflare_mode'] ?? 'skip');
         $requestedSubdomainDnsRecord = (bool) ($data['create_dns_record'] ?? false);
         $dnsTargetIp = isset($data['dns_target_ip']) ? trim((string) $data['dns_target_ip']) : '';
@@ -93,7 +97,7 @@ class DomainController extends Controller
 
         if ($parentDomainId > 0) {
             $parentDomain = Domain::query()
-                ->select(['id', 'fqdn', 'owner_user_id', 'cloudflare_enabled', 'root_path', 'type'])
+                ->select(['id', 'fqdn', 'owner_user_id', 'dns_provider', 'root_path', 'type'])
                 ->findOrFail($parentDomainId);
             $this->authorize('view', $parentDomain);
             $data['owner_user_id'] = $parentDomain->owner_user_id;
@@ -107,14 +111,12 @@ class DomainController extends Controller
                 $data['root_path'] = $requestedRootPath;
             }
 
-            $parentCloudflareManaged = $parentDomain->cloudflare_enabled;
-            if ($parentCloudflareManaged === null) {
-                $zoneSummary = $cloudflareDnsService->getZoneSummary($parentDomain->fqdn);
-                $parentCloudflareManaged = (bool) ($zoneSummary['exists'] ?? false);
-            }
+            $data['dns_provider'] = $parentDomain->dns_provider?->value ?? 'local';
+            $parentUsesCloudflare = $parentDomain->usesCloudflare();
 
-            $data['cloudflare_enabled'] = $parentCloudflareManaged;
-            $createDnsRecord = $parentCloudflareManaged && $requestedSubdomainDnsRecord;
+            if ($parentUsesCloudflare) {
+                $createDnsRecord = $requestedSubdomainDnsRecord;
+            }
 
             if ($createDnsRecord && ($dnsTargetIp === null || $dnsTargetScope === null)) {
                 return $this->storeValidationErrorResponse(
@@ -136,7 +138,8 @@ class DomainController extends Controller
             $data['root_path'] = $requestedRootPath === '' ? null : $requestedRootPath;
         }
 
-        $shouldCreateApexDnsRecords = $parentDomainId === 0 && $cloudflareMode === 'add';
+        $isCloudflare = $dnsProvider === 'cloudflare';
+        $shouldCreateApexDnsRecords = $parentDomainId === 0 && $isCloudflare && $cloudflareMode === 'add';
 
         if ($shouldCreateApexDnsRecords && ($dnsTargetIp === null || $dnsTargetScope === null)) {
             return $this->storeValidationErrorResponse(
@@ -146,7 +149,7 @@ class DomainController extends Controller
             );
         }
 
-        if ($parentDomainId === 0 && $cloudflareMode === 'add') {
+        if ($parentDomainId === 0 && $isCloudflare && $cloudflareMode === 'add') {
             try {
                 $cloudflareDnsService->ensureZoneExists((string) $data['fqdn']);
             } catch (\Throwable $exception) {
@@ -175,7 +178,7 @@ class DomainController extends Controller
         }
 
         if ($parentDomainId === 0) {
-            $data['cloudflare_enabled'] = in_array($cloudflareMode, ['add', 'existing'], true);
+            $data['dns_provider'] = $dnsProvider;
         }
 
         $data['modsecurity_enabled'] = true;
@@ -186,6 +189,15 @@ class DomainController extends Controller
         unset($data['ftp_username'], $data['ftp_password'], $data['create_dns_record'], $data['cloudflare_mode'], $data['dns_target_ip'], $data['inherit_parent_root_path']);
 
         $domain = Domain::create($data);
+
+        // Create local DNS zone with default template if using local DNS
+        if ($parentDomainId === 0 && $domain->usesLocalDns()) {
+            try {
+                $localDnsService->createZone($domain);
+            } catch (\Throwable $e) {
+                Log::error("Local DNS zone creation failed for {$domain->fqdn}: {$e->getMessage()}");
+            }
+        }
 
         if ($ftpUsername && $ftpPassword) {
             $ftpUserService->addUser($domain, $ftpUsername, $ftpPassword);
@@ -244,7 +256,9 @@ class DomainController extends Controller
         ]);
 
         $phpVersions = PhpVersion::where('is_enabled', true)->orderBy('sort_order')->get();
-        $cloudflareZone = $cloudflareDnsService->getZoneSummary($domain->getApexDomain());
+        $cloudflareZone = $domain->usesCloudflare()
+            ? $cloudflareDnsService->getZoneSummary($domain->getApexDomain())
+            : null;
         $serverNetworkIps = $serverNetworkInfoService->getServerIpAddresses();
 
         return Inertia::render('Domains/Show', [
@@ -255,7 +269,7 @@ class DomainController extends Controller
         ]);
     }
 
-    public function edit(Request $request, Domain $domain): Response
+    public function edit(Request $request, Domain $domain, LaravelPackageDetector $packageDetector): Response
     {
         $this->authorize('update', $domain);
 
@@ -268,6 +282,7 @@ class DomainController extends Controller
             'domain' => $domain,
             'phpVersions' => $phpVersions,
             'users' => $users,
+            'octane_configured' => $packageDetector->isOctaneConfigured($domain),
         ]);
     }
 
@@ -586,7 +601,7 @@ class DomainController extends Controller
         }
 
         $domains = Domain::query()
-            ->select(['id', 'fqdn', 'cloudflare_enabled'])
+            ->select(['id', 'fqdn', 'dns_provider'])
             ->whereNull('parent_domain_id')
             ->whereIn('id', $domainIds)
             ->when(! $user->isAdmin(), fn ($query) => $query->where('owner_user_id', $user->id))
@@ -727,7 +742,7 @@ class DomainController extends Controller
                 : '-',
             'created_at' => $domain->created_at?->format(config('app.display_datetime_format', 'd.m.Y H:i:s')) ?? '-',
             'owner_name' => $domain->owner->name ?? '-',
-            'cloudflare_enabled' => (bool) $domain->cloudflare_enabled,
+            'cloudflare_enabled' => $domain->usesCloudflare(),
             'under_attack' => null,
             'show_url' => route('domains.show', $domain),
             'edit_url' => route('domains.edit', $domain),
@@ -751,7 +766,7 @@ class DomainController extends Controller
         $map = [];
 
         foreach ($domains as $domain) {
-            if (! $domain->cloudflare_enabled) {
+            if (! $domain->usesCloudflare()) {
                 $map[$domain->id] = null;
 
                 continue;

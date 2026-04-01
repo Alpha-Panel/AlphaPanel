@@ -439,6 +439,23 @@ const menuGroups = computed(() => {
                     });
                 }
 
+                if (canAny('panel.dns-settings.view', 'panel.dns-settings.manage')) {
+                    const dnsSubItems: Array<{ name: string; href: string; iconClass?: string }> = [];
+                    if (can('panel.dns-settings.manage')) {
+                        dnsSubItems.push({ name: t('DNS Settings'), href: route('settings.dns.index'), iconClass: 'fa-solid fa-gear' });
+                    }
+                    if (can('panel.dns-templates.manage')) {
+                        dnsSubItems.push({ name: t('DNS Templates'), href: route('settings.dns-templates.index'), iconClass: 'fa-solid fa-file-lines' });
+                    }
+                    if (dnsSubItems.length > 0) {
+                        items.push({
+                            iconClass: 'fa-solid fa-server',
+                            name: t('DNS'),
+                            subItems: dnsSubItems,
+                        });
+                    }
+                }
+
                 return items;
             })(),
         },

@@ -698,11 +698,11 @@ const isCloudflareManagedForDns = computed(() => {
         return cloudflareEnabledOverride.value;
     }
 
-    if (domain.value.cloudflare_enabled === true) {
+    if (domain.value.dns_provider === 'cloudflare') {
         return true;
     }
 
-    if (domain.value.cloudflare_enabled === false) {
+    if (domain.value.dns_provider === 'local') {
         return false;
     }
 

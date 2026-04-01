@@ -403,7 +403,7 @@ class DomainTest extends TestCase
             'fqdn' => 'example.com',
             'owner_user_id' => $owner->id,
             'type' => DomainType::CaddyWebServer,
-            'cloudflare_enabled' => false,
+            'dns_provider' => 'local',
         ]);
 
         $response = $this->actingAs($owner)->postJson(route('domains.store'), [
@@ -557,7 +557,7 @@ class DomainTest extends TestCase
         $domain = Domain::factory()->create([
             'fqdn' => 'owned-status-check.com',
             'owner_user_id' => $owner->id,
-            'cloudflare_enabled' => true,
+            'dns_provider' => 'cloudflare',
         ]);
 
         $this->mock(CloudflareDnsService::class, function (MockInterface $mock) use ($domain): void {
@@ -594,13 +594,13 @@ class DomainTest extends TestCase
         $ownedDomain = Domain::factory()->create([
             'fqdn' => 'owner-visible-status.com',
             'owner_user_id' => $owner->id,
-            'cloudflare_enabled' => true,
+            'dns_provider' => 'cloudflare',
         ]);
 
         $otherDomain = Domain::factory()->create([
             'fqdn' => 'other-hidden-status.com',
             'owner_user_id' => $other->id,
-            'cloudflare_enabled' => true,
+            'dns_provider' => 'cloudflare',
         ]);
 
         $this->mock(CloudflareDnsService::class, function (MockInterface $mock) use ($ownedDomain): void {

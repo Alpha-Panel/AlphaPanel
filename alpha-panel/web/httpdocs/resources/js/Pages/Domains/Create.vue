@@ -77,6 +77,18 @@
 
                         <FormField
                             v-if="!isSubdomainCreate"
+                            :label="t('DNS Provider')"
+                            :error="form.errors.dns_provider"
+                            required
+                        >
+                            <select v-model="form.dns_provider" class="form-input">
+                                <option value="local">{{ t('Local DNS') }}</option>
+                                <option value="cloudflare">{{ t('Cloudflare DNS') }}</option>
+                            </select>
+                        </FormField>
+
+                        <FormField
+                            v-if="!isSubdomainCreate && form.dns_provider === 'cloudflare'"
                             :label="t('Cloudflare Status')"
                             :error="form.errors.cloudflare_mode"
                             required
@@ -130,19 +142,23 @@
                         <!-- Worker Section -->
                         <div v-if="form.type === 'caddy_web_server'" class="pt-5 border-t border-gray-200 dark:border-gray-800">
                             <h4 class="mb-3 text-sm font-medium text-gray-800 dark:text-white/90">{{ t('Worker Settings') }}</h4>
-                            <div class="flex items-center gap-4 mb-4">
+
+                            <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-white/5">
+                                <p class="text-xs text-gray-500 dark:text-gray-400">
+                                    {{ t('FrankenPHP worker requires laravel/octane. Install it with:') }}
+                                    <code class="ml-1 rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs dark:bg-gray-800">composer require laravel/octane && php artisan octane:install</code>
+                                </p>
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    {{ t('Worker can be enabled after the domain is created and the application is deployed.') }}
+                                </p>
+                            </div>
+
+                            <div class="flex items-center gap-4 mb-4 opacity-50 cursor-not-allowed">
                                 <label class="flex items-center gap-2">
-                                    <input v-model="form.enable_worker" type="checkbox" class="form-checkbox" />
+                                    <input type="checkbox" class="form-checkbox" disabled />
                                     <span class="text-sm text-gray-700 dark:text-gray-400">{{ t('Enable Worker') }}</span>
                                 </label>
-                                <label v-if="form.enable_worker" class="flex items-center gap-2">
-                                    <input v-model="form.worker_watch" type="checkbox" class="form-checkbox" />
-                                    <span class="text-sm text-gray-700 dark:text-gray-400">{{ t('Watch mode') }}</span>
-                                </label>
                             </div>
-                            <FormField v-if="form.enable_worker" :label="t('Worker Count')" :error="form.errors.worker_num">
-                                <input v-model.number="form.worker_num" type="number" min="1" max="100" class="form-input w-24" />
-                            </FormField>
                         </div>
 
                         <div class="flex items-center gap-3 pt-5">
@@ -197,6 +213,7 @@ const form = useForm({
     root_path: '',
     inherit_parent_root_path: false,
     enable_www_redirect: true,
+    dns_provider: 'local' as 'local' | 'cloudflare',
     enable_worker: false,
     worker_num: 2,
     worker_watch: false,
@@ -240,7 +257,7 @@ const shouldShowSubdomainDnsOption = computed(() => {
         return false;
     }
 
-    return parentDomain.cloudflare_enabled !== false;
+    return parentDomain.dns_provider === 'cloudflare';
 });
 const publicIps = computed(() => Array.isArray(props.server_network_ips?.public) ? props.server_network_ips.public : []);
 const privateIps = computed(() => Array.isArray(props.server_network_ips?.private) ? props.server_network_ips.private : []);
@@ -249,12 +266,17 @@ const shouldShowDnsTargetIpSelect = computed(() => {
         return shouldShowSubdomainDnsOption.value && form.create_dns_record;
     }
 
-    return form.cloudflare_mode === 'add';
+    if (form.dns_provider === 'cloudflare') {
+        return form.cloudflare_mode === 'add';
+    }
+
+    return form.dns_provider === 'local';
 });
 
 const submit = () => {
     if (isSubdomainCreate.value) {
         form.cloudflare_mode = 'skip';
+        form.dns_provider = 'local';
     } else {
         form.create_dns_record = false;
         form.root_path = '';
@@ -295,8 +317,14 @@ watch(shouldShowSubdomainDnsOption, (canCreateDnsRecord) => {
     }
 });
 
+watch(() => form.dns_provider, (dnsProvider) => {
+    if (dnsProvider === 'local') {
+        form.cloudflare_mode = 'skip';
+    }
+});
+
 watch(() => form.cloudflare_mode, (cloudflareMode) => {
-    if (cloudflareMode !== 'add' && !isSubdomainCreate.value) {
+    if (cloudflareMode !== 'add' && !isSubdomainCreate.value && form.dns_provider === 'cloudflare') {
         form.dns_target_ip = '';
     }
 });

@@ -8,6 +8,7 @@ use App\Http\Requests\RunArtisanCommandRequest;
 use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Models\DomainSupervisor;
+use App\Services\LaravelPackageDetector;
 use App\Services\PortainerService;
 use App\Services\SupervisorConfigService;
 use Illuminate\Http\JsonResponse;
@@ -24,18 +25,26 @@ class DomainSupervisorController extends Controller
 
     private const MAX_OUTPUT_LENGTH = 50000;
 
-    public function index(Domain $domain): Response
+    public function index(Domain $domain, LaravelPackageDetector $packageDetector): Response
     {
         $this->authorize('viewSupervisor', $domain);
+
+        $isLaravel = $packageDetector->isLaravel($domain);
 
         $supervisors = $domain->supervisors()
             ->get()
             ->keyBy(fn (DomainSupervisor $s): string => $s->type->value);
 
+        $requirements = $packageDetector->checkSupervisorRequirements($domain);
         $processes = [];
 
         foreach (SupervisorType::cases() as $type) {
             $existing = $supervisors->get($type->value);
+            $req = $requirements[$type->value] ?? ['available' => true, 'package' => null];
+
+            // If not a Laravel app, nothing is available
+            $available = $isLaravel && $req['available'];
+            $missingPackage = ! $isLaravel ? 'laravel/framework' : ($req['available'] ? null : $req['package']);
 
             $processes[] = [
                 'type' => $type->value,
@@ -43,6 +52,8 @@ class DomainSupervisorController extends Controller
                 'enabled' => $existing?->enabled ?? false,
                 'num_procs' => $existing?->num_procs ?? ($type === SupervisorType::Queue ? 3 : 1),
                 'supports_num_procs' => $type->supportsNumProcs(),
+                'is_available' => $available,
+                'missing_package' => $missingPackage,
             ];
         }
 
@@ -52,10 +63,11 @@ class DomainSupervisorController extends Controller
                 'fqdn' => $domain->fqdn,
             ],
             'processes' => $processes,
+            'is_laravel' => $isLaravel,
         ]);
     }
 
-    public function update(Request $request, Domain $domain, SupervisorConfigService $configService): JsonResponse
+    public function update(Request $request, Domain $domain, SupervisorConfigService $configService, LaravelPackageDetector $packageDetector): JsonResponse
     {
         $this->authorize('manageSupervisor', $domain);
 
@@ -66,6 +78,30 @@ class DomainSupervisorController extends Controller
         ]);
 
         $type = SupervisorType::from($validated['type']);
+
+        // Verify Laravel and required packages are installed before enabling
+        if ($validated['enabled']) {
+            if (! $packageDetector->isLaravel($domain)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => __('This process requires the :package package. Please install it first.', [
+                        'package' => 'laravel/framework',
+                    ]),
+                ], 422);
+            }
+
+            $requirements = $packageDetector->checkSupervisorRequirements($domain);
+            $req = $requirements[$type->value] ?? ['available' => true, 'package' => null];
+
+            if (! $req['available']) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => __('This process requires the :package package. Please install it first.', [
+                        'package' => $req['package'],
+                    ]),
+                ], 422);
+            }
+        }
 
         $supervisor = DomainSupervisor::updateOrCreate(
             ['domain_id' => $domain->id, 'type' => $type],

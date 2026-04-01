@@ -129,9 +129,22 @@
                         <!-- Worker Section -->
                         <div v-if="form.type === 'caddy_web_server'" class="pt-5 border-t border-gray-200 dark:border-gray-800">
                             <h4 class="mb-3 text-sm font-medium text-gray-800 dark:text-white/90">{{ t('Worker Settings') }}</h4>
+
+                            <div v-if="!octane_configured" class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
+                                <p class="text-xs text-amber-700 dark:text-amber-400">
+                                    {{ t('FrankenPHP worker requires laravel/octane. Install it with:') }}
+                                    <code class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 font-mono text-xs dark:bg-amber-900/40">composer require laravel/octane && php artisan octane:install</code>
+                                </p>
+                            </div>
+
                             <div class="flex items-center gap-4 mb-4">
-                                <label class="flex items-center gap-2">
-                                    <input v-model="form.enable_worker" type="checkbox" class="form-checkbox" />
+                                <label class="flex items-center gap-2" :class="{ 'opacity-50 cursor-not-allowed': !octane_configured }">
+                                    <input
+                                        v-model="form.enable_worker"
+                                        type="checkbox"
+                                        class="form-checkbox"
+                                        :disabled="!octane_configured"
+                                    />
                                     <span class="text-sm text-gray-700 dark:text-gray-400">{{ t('Enable Worker') }}</span>
                                 </label>
                                 <label v-if="form.enable_worker" class="flex items-center gap-2">
@@ -180,6 +193,7 @@ const props = defineProps<{
     domain: Record<string, any>;
     phpVersions: Array<Record<string, any>>;
     users: Array<Record<string, any>>;
+    octane_configured?: boolean;
 }>();
 const { t } = useI18n();
 
@@ -190,6 +204,7 @@ const breadcrumbs = computed(() => [
 ]);
 const isSubdomain = computed(() => Boolean(props.domain.parent_domain_id));
 const showOwnerField = computed(() => props.users.length > 0 && !isSubdomain.value);
+const octane_configured = computed(() => props.octane_configured ?? false);
 
 const form = useForm({
     _method: 'PUT',
@@ -225,6 +240,10 @@ watch(() => form.type, (type) => {
 const submit = () => {
     if (form.type !== 'apache_reverse_proxy') {
         form.php_version_id = null;
+    }
+
+    if (!octane_configured.value) {
+        form.enable_worker = false;
     }
 
     form.post(route('domains.update', props.domain.id));

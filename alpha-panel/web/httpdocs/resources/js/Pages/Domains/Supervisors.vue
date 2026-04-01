@@ -19,6 +19,20 @@
                         <span class="ml-3 text-sm text-gray-500 dark:text-gray-400">{{ domain.fqdn }}</span>
                     </div>
 
+                    <div v-if="!props.is_laravel" class="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
+                        <div class="flex items-start gap-3">
+                            <i class="bx bx-info-circle mt-0.5 text-lg text-amber-600 dark:text-amber-400"></i>
+                            <div>
+                                <p class="text-sm font-medium text-amber-800 dark:text-amber-300">
+                                    {{ t('Laravel framework is not detected in this domain.') }}
+                                </p>
+                                <p class="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                                    {{ t('These processes require a Laravel application. Deploy your Laravel project first, then manage processes here.') }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <p class="text-sm text-gray-500 dark:text-gray-400">
                             {{ t('Manage background processes for your Laravel application. Changes are applied immediately to the server.') }}
@@ -27,7 +41,7 @@
                             <button
                                 type="button"
                                 @click="runOptimize"
-                                :disabled="optimizeLoading || workersRestartLoading || actionLoading !== null || processRestartLoading !== null"
+                                :disabled="!props.is_laravel || optimizeLoading || workersRestartLoading || actionLoading !== null || processRestartLoading !== null"
                                 class="inline-flex h-9 items-center gap-2 rounded-lg border border-success-500/40 bg-success-500/10 px-3 text-sm font-medium text-success-700 shadow-theme-xs transition-colors hover:bg-success-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:text-success-300"
                             >
                                 <i v-if="optimizeLoading" class="bx bx-loader-alt animate-spin text-base"></i>
@@ -39,7 +53,7 @@
                             <button
                                 type="button"
                                 @click="restartFrankenphpWorkers"
-                                :disabled="workersRestartLoading || optimizeLoading || actionLoading !== null || processRestartLoading !== null"
+                                :disabled="!props.is_laravel || workersRestartLoading || optimizeLoading || actionLoading !== null || processRestartLoading !== null"
                                 class="inline-flex h-9 items-center gap-2 rounded-lg border border-blue-light-500/40 bg-blue-light-500/10 px-3 text-sm font-medium text-blue-light-700 shadow-theme-xs transition-colors hover:bg-blue-light-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:text-blue-light-300"
                             >
                                 <i v-if="workersRestartLoading" class="bx bx-loader-alt animate-spin text-base"></i>
@@ -56,16 +70,20 @@
                             v-for="process in localProcesses"
                             :key="process.type"
                             class="rounded-xl border p-4 transition-colors"
-                            :class="process.enabled
-                                ? 'border-success-500/30 bg-success-500/5 dark:border-success-500/20 dark:bg-success-500/5'
-                                : 'border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-white/2'"
+                            :class="!process.is_available
+                                ? 'border-warning-500/30 bg-warning-500/5 dark:border-warning-500/20 dark:bg-warning-500/5'
+                                : process.enabled
+                                    ? 'border-success-500/30 bg-success-500/5 dark:border-success-500/20 dark:bg-success-500/5'
+                                    : 'border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-white/2'"
                         >
                             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                                 <div class="flex min-w-0 items-center gap-3 sm:flex-1 sm:gap-4">
                                     <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
-                                        :class="process.enabled
-                                            ? 'bg-success-500/15 text-success-600 dark:text-success-400'
-                                            : 'bg-gray-200 text-gray-500 dark:bg-gray-800 dark:text-gray-400'"
+                                        :class="!process.is_available
+                                            ? 'bg-warning-500/15 text-warning-600 dark:text-warning-400'
+                                            : process.enabled
+                                                ? 'bg-success-500/15 text-success-600 dark:text-success-400'
+                                                : 'bg-gray-200 text-gray-500 dark:bg-gray-800 dark:text-gray-400'"
                                     >
                                         <i :class="processIcon(process.type)" class="text-lg"></i>
                                     </div>
@@ -75,14 +93,27 @@
                                             <h4 class="font-semibold text-gray-800 dark:text-white/90">{{ process.label }}</h4>
                                             <span
                                                 class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                                                :class="process.enabled
-                                                    ? 'bg-success-500/20 text-success-600 dark:text-success-300'
-                                                    : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'"
+                                                :class="!process.is_available
+                                                    ? 'bg-warning-500/20 text-warning-600 dark:text-warning-300'
+                                                    : process.enabled
+                                                        ? 'bg-success-500/20 text-success-600 dark:text-success-300'
+                                                        : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'"
                                             >
-                                                {{ process.enabled ? t('Active') : t('Inactive') }}
+                                                {{ !process.is_available ? t('Unavailable') : process.enabled ? t('Active') : t('Inactive') }}
                                             </span>
                                         </div>
                                         <p class="text-xs text-gray-500 dark:text-gray-400">{{ processDescription(process.type) }}</p>
+                                        <div
+                                            v-if="!process.is_available && process.missing_package"
+                                            class="mt-2 rounded-lg border border-warning-300 bg-warning-50 px-3 py-2 dark:border-warning-800 dark:bg-warning-900/20"
+                                        >
+                                            <p class="text-xs text-warning-700 dark:text-warning-400">
+                                                {{ t('This process requires the `:package` package. Install it with:', { package: process.missing_package }) }}
+                                            </p>
+                                            <code class="mt-1 block rounded bg-warning-100 px-2 py-1 font-mono text-xs text-warning-800 dark:bg-warning-900/40 dark:text-warning-300">
+                                                composer require {{ process.missing_package }}
+                                            </code>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -125,7 +156,7 @@
 
                                     <button
                                         @click="toggleProcess(process)"
-                                        :disabled="actionLoading === process.type || processRestartLoading !== null || workersRestartLoading || optimizeLoading"
+                                        :disabled="!process.is_available || actionLoading === process.type || processRestartLoading !== null || workersRestartLoading || optimizeLoading"
                                         class="inline-flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium shadow-theme-xs transition-colors disabled:opacity-50"
                                         :class="process.enabled
                                             ? 'border border-error-500/40 text-error-600 hover:bg-error-500/10 dark:text-error-400'
@@ -230,11 +261,14 @@ interface Process {
     enabled: boolean;
     num_procs: number;
     supports_num_procs: boolean;
+    is_available: boolean;
+    missing_package: string | null;
 }
 
 const props = defineProps<{
     domain: { id: number; fqdn: string };
     processes: Process[];
+    is_laravel?: boolean;
 }>();
 
 const { t } = useI18n();

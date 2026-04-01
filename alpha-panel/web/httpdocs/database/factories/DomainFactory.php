@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\DnsProvider;
 use App\Enums\DomainStatus;
 use App\Enums\DomainType;
 use App\Models\Domain;
@@ -34,6 +35,7 @@ class DomainFactory extends Factory
             'worker_num' => null,
             'worker_watch' => false,
             'php_version_id' => null,
+            'dns_provider' => DnsProvider::Local,
             'modsecurity_enabled' => false,
             'modsecurity_mode' => null,
             'modsecurity_ip_allowlist' => [],

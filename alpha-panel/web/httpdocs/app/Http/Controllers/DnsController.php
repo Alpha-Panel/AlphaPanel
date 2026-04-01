@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Exceptions\CloudflareException;
 use App\Http\Requests\StoreDnsRecordRequest;
 use App\Models\AuditLog;
+use App\Models\DnsRecord;
 use App\Models\Domain;
 use App\Services\CloudflareDnsService;
+use App\Services\LocalDnsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -16,19 +18,68 @@ class DnsController extends Controller
 {
     public function __construct(
         private CloudflareDnsService $cloudflare,
+        private LocalDnsService $localDns,
     ) {}
 
     public function index(Request $request, Domain $domain): Response
     {
         $this->authorize('viewDns', $domain);
 
-        return Inertia::render('Dns/Index', compact('domain'));
+        return Inertia::render('Dns/Index', [
+            'domain' => $domain,
+            'dns_provider' => $domain->dns_provider?->value ?? 'local',
+        ]);
     }
 
     public function listRecords(Request $request, Domain $domain): JsonResponse
     {
         $this->authorize('viewDns', $domain);
 
+        if ($domain->usesLocalDns()) {
+            return $this->listLocalRecords($request, $domain);
+        }
+
+        return $this->listCloudflareRecords($request, $domain);
+    }
+
+    private function listLocalRecords(Request $request, Domain $domain): JsonResponse
+    {
+        $zone = $domain->dnsZone;
+
+        if (! $zone) {
+            return response()->json([
+                'recordsTotal' => 0,
+                'recordsFiltered' => 0,
+                'data' => [],
+            ]);
+        }
+
+        $search = $request->input('search.value') ?? '';
+        $records = $this->localDns->listRecords($zone, $search !== '' ? $search : null);
+
+        $data = $records->map(fn (DnsRecord $record) => [
+            'id' => $record->id,
+            'type' => $record->type,
+            'name' => $record->name,
+            'content' => $record->type === 'MX'
+                ? "{$record->priority} {$record->content}"
+                : $record->content,
+            'ttl' => $record->ttl,
+            'proxied' => false,
+            'status' => '',
+            'is_managed' => $record->is_managed,
+            'all_data' => $record,
+        ])->values()->all();
+
+        return response()->json([
+            'recordsTotal' => count($data),
+            'recordsFiltered' => count($data),
+            'data' => $data,
+        ]);
+    }
+
+    private function listCloudflareRecords(Request $request, Domain $domain): JsonResponse
+    {
         try {
             $apexDomain = $domain->getApexDomain();
             $zoneId = $this->cloudflare->getZoneId($apexDomain);
@@ -55,8 +106,6 @@ class DnsController extends Controller
                     'proxied' => $record->proxied,
                     'status' => $proxiedIcon,
                     'all_data' => $record,
-                    'action' => '<a href="javascript:void(0)" class="btn btn-sm btn-primary edit"><i class="fa-solid fa-pen"></i></a> '
-                        .'<a href="javascript:void(0)" class="btn btn-sm btn-danger delete"><i class="fa-solid fa-trash"></i></a>',
                 ];
             }
 
@@ -73,6 +122,57 @@ class DnsController extends Controller
     public function store(StoreDnsRecordRequest $request, Domain $domain): JsonResponse
     {
         $this->authorize('manageDns', $domain);
+
+        if ($domain->usesLocalDns()) {
+            return $this->storeLocalRecord($request, $domain);
+        }
+
+        return $this->storeCloudflareRecord($request, $domain);
+    }
+
+    private function storeLocalRecord(StoreDnsRecordRequest $request, Domain $domain): JsonResponse
+    {
+        $validated = $request->validated();
+        $zone = $domain->dnsZone;
+
+        if (! $zone) {
+            $zone = $this->localDns->createZone($domain);
+        }
+
+        $dnsIdInput = $request->input('dns_id');
+        $dnsId = is_numeric($dnsIdInput) ? (int) $dnsIdInput : null;
+        $isUpdate = $dnsId !== null && $dnsId > 0;
+
+        try {
+            $recordData = [
+                'name' => $validated['name'] ?? '',
+                'type' => strtoupper($validated['type'] ?? 'A'),
+                'content' => $validated['content'] ?? '',
+                'ttl' => (int) ($validated['ttl'] ?? 3600),
+                'priority' => isset($validated['priority']) ? (int) $validated['priority'] : null,
+            ];
+
+            if ($isUpdate) {
+                $record = DnsRecord::where('dns_zone_id', $zone->id)->findOrFail($dnsId);
+                $this->localDns->updateRecord($record, $recordData);
+                $action = 'dns_updated';
+                $message = __('DNS record updated successfully.');
+            } else {
+                $this->localDns->addRecord($zone, $recordData);
+                $action = 'dns_created';
+                $message = __('DNS record created successfully.');
+            }
+
+            $this->createDnsAuditLog($request, $domain, $action, [], ['submitted' => $recordData]);
+
+            return response()->json(['status' => 'success', 'message' => $message]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 422);
+        }
+    }
+
+    private function storeCloudflareRecord(StoreDnsRecordRequest $request, Domain $domain): JsonResponse
+    {
         $validated = $request->validated();
         $apexDomain = $domain->getApexDomain();
         $dnsIdInput = $request->input('dns_id');
@@ -112,7 +212,7 @@ class DnsController extends Controller
 
                 return response()->json([
                     'status' => 'success',
-                    'message' => 'DNS record updated successfully.',
+                    'message' => __('DNS record updated successfully.'),
                 ]);
             } else {
                 $this->cloudflare->addRecord($zoneId, $data);
@@ -131,7 +231,7 @@ class DnsController extends Controller
 
                 return response()->json([
                     'status' => 'success',
-                    'message' => 'DNS record created successfully.',
+                    'message' => __('DNS record created successfully.'),
                 ]);
             }
         } catch (CloudflareException $exception) {
@@ -158,6 +258,39 @@ class DnsController extends Controller
     public function destroy(Request $request, Domain $domain): JsonResponse
     {
         $this->authorize('manageDns', $domain);
+
+        if ($domain->usesLocalDns()) {
+            return $this->destroyLocalRecord($request, $domain);
+        }
+
+        return $this->destroyCloudflareRecord($request, $domain);
+    }
+
+    private function destroyLocalRecord(Request $request, Domain $domain): JsonResponse
+    {
+        $validated = $request->validate([
+            'dns_id' => ['required', 'integer'],
+        ]);
+
+        $zone = $domain->dnsZone;
+        if (! $zone) {
+            return response()->json(['status' => 'error', 'message' => __('DNS zone not found.')], 404);
+        }
+
+        $record = DnsRecord::where('dns_zone_id', $zone->id)->findOrFail((int) $validated['dns_id']);
+
+        try {
+            $this->localDns->deleteRecord($record);
+            $this->createDnsAuditLog($request, $domain, 'dns_deleted', ['record' => $record->toArray()], []);
+
+            return response()->json(['status' => 'success', 'message' => __('DNS record deleted.')]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 422);
+        }
+    }
+
+    private function destroyCloudflareRecord(Request $request, Domain $domain): JsonResponse
+    {
         $validated = $request->validate([
             'dns_id' => ['required', 'string'],
         ]);
@@ -191,7 +324,7 @@ class DnsController extends Controller
                 ],
             );
 
-            return response()->json(['status' => 'success', 'message' => 'DNS record deleted.']);
+            return response()->json(['status' => 'success', 'message' => __('DNS record deleted.')]);
         } catch (CloudflareException $exception) {
             $this->createDnsAuditLog(
                 $request,

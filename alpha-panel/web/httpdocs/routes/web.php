@@ -7,6 +7,8 @@ use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CrowdSecController;
 use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\DnsController;
+use App\Http\Controllers\DnsSettingController;
+use App\Http\Controllers\DnsTemplateController;
 use App\Http\Controllers\DockerHubController;
 use App\Http\Controllers\DockerServiceController;
 use App\Http\Controllers\DockerServiceDomainBindingController;
@@ -510,4 +512,20 @@ Route::middleware('auth')->group(function (): void {
     // Genel (admin) SSO
     Route::get('/pma/admin/sso', [PmaSsoController::class, 'admin'])
         ->name('pma.admin.sso');
+
+    // DNS Server Settings (admin)
+    Route::middleware('permission:panel.dns-settings.manage')->prefix('settings/dns')->name('settings.dns.')->group(function (): void {
+        Route::get('/', [DnsSettingController::class, 'index'])->name('index');
+        Route::put('/', [DnsSettingController::class, 'update'])->name('update');
+    });
+
+    // DNS Templates (admin)
+    Route::middleware('permission:panel.dns-templates.manage')->prefix('settings/dns-templates')->name('settings.dns-templates.')->group(function (): void {
+        Route::get('/', [DnsTemplateController::class, 'index'])->name('index');
+        Route::post('/', [DnsTemplateController::class, 'store'])->name('store');
+        Route::get('/{dnsTemplate}', [DnsTemplateController::class, 'show'])->name('show');
+        Route::put('/{dnsTemplate}', [DnsTemplateController::class, 'update'])->name('update');
+        Route::delete('/{dnsTemplate}', [DnsTemplateController::class, 'destroy'])->name('destroy');
+        Route::post('/{dnsTemplate}/default', [DnsTemplateController::class, 'setDefault'])->name('set-default');
+    });
 });

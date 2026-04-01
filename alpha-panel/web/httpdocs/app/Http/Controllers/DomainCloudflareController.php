@@ -43,7 +43,7 @@ class DomainCloudflareController extends Controller
             'domain' => [
                 'id' => $targetDomain->id,
                 'fqdn' => $targetDomain->fqdn,
-                'cloudflare_enabled' => $targetDomain->cloudflare_enabled,
+                'cloudflare_enabled' => $targetDomain->usesCloudflare(),
             ],
             'cloudflare_zone' => $zoneSummary,
         ]);
@@ -148,7 +148,7 @@ class DomainCloudflareController extends Controller
         $targetDomain = $this->resolveTargetDomain($domain);
         $zoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
         $beforeState = [
-            'cloudflare_enabled' => $targetDomain->cloudflare_enabled,
+            'cloudflare_enabled' => $targetDomain->usesCloudflare(),
             'zone_exists' => (bool) ($zoneSummary['exists'] ?? false),
             'zone_id' => $zoneSummary['zone_id'] ?? null,
         ];
@@ -182,7 +182,7 @@ class DomainCloudflareController extends Controller
         }
 
         $targetDomain->update([
-            'cloudflare_enabled' => $exists,
+            'dns_provider' => $exists ? 'cloudflare' : 'local',
         ]);
 
         $this->logCloudflareAudit(
@@ -191,7 +191,7 @@ class DomainCloudflareController extends Controller
             'cloudflare_sync',
             $beforeState,
             [
-                'cloudflare_enabled' => $targetDomain->cloudflare_enabled,
+                'cloudflare_enabled' => $targetDomain->usesCloudflare(),
                 'zone_exists' => $exists,
                 'zone_id' => $zoneSummary['zone_id'] ?? null,
                 'zone_created_by_sync' => $zoneCreatedBySync,
@@ -210,7 +210,7 @@ class DomainCloudflareController extends Controller
             'status' => 'success',
             'message' => $message,
             'created_by_sync' => $zoneCreatedBySync,
-            'cloudflare_enabled' => $targetDomain->cloudflare_enabled,
+            'cloudflare_enabled' => $targetDomain->usesCloudflare(),
             'zone' => $zoneSummary,
         ]);
     }
@@ -221,7 +221,7 @@ class DomainCloudflareController extends Controller
         $targetDomain = $this->resolveTargetDomain($domain);
         $beforeZoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
         $beforeState = [
-            'cloudflare_enabled' => $targetDomain->cloudflare_enabled,
+            'cloudflare_enabled' => $targetDomain->usesCloudflare(),
             'zone_exists' => (bool) ($beforeZoneSummary['exists'] ?? false),
             'zone_id' => $beforeZoneSummary['zone_id'] ?? null,
         ];
@@ -248,7 +248,7 @@ class DomainCloudflareController extends Controller
 
         $zoneSummary = $cloudflare->getZoneSummary($targetDomain->fqdn);
         $targetDomain->update([
-            'cloudflare_enabled' => true,
+            'dns_provider' => 'cloudflare',
         ]);
 
         $this->logCloudflareAudit(
@@ -757,15 +757,15 @@ class DomainCloudflareController extends Controller
      */
     private function buildBasePayload(Domain $targetDomain, array $zoneSummary): array
     {
-        $effectiveCloudflareEnabled = $targetDomain->cloudflare_enabled;
-        if ($effectiveCloudflareEnabled === null) {
+        $effectiveCloudflareEnabled = $targetDomain->usesCloudflare();
+        if (! $effectiveCloudflareEnabled && $targetDomain->dns_provider === null) {
             $effectiveCloudflareEnabled = (bool) ($zoneSummary['exists'] ?? false);
         }
 
         return [
             'domain_id' => $targetDomain->id,
             'domain_fqdn' => $targetDomain->fqdn,
-            'cloudflare_enabled' => $targetDomain->cloudflare_enabled,
+            'cloudflare_enabled' => $targetDomain->usesCloudflare(),
             'cloudflare_effective_enabled' => $effectiveCloudflareEnabled,
             'zone' => $zoneSummary,
         ];
