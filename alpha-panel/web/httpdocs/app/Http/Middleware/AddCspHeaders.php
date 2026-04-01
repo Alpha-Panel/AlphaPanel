@@ -13,6 +13,7 @@ class AddCspHeaders
     private array $excludedPaths = [
         'telescope*',
         'horizon*',
+        '_debugbar*',
     ];
 
     public function handle(Request $request, Closure $next): Response
@@ -25,9 +26,13 @@ class AddCspHeaders
             return $response;
         }
 
+        $debugbarActive = class_exists(\Barryvdh\Debugbar\Facades\Debugbar::class)
+            && app()->bound('debugbar')
+            && app('debugbar')->isEnabled();
+
         $csp = implode('; ', [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-eval' 'nonce-{$nonce}' 'strict-dynamic'",
+            "script-src 'self' 'unsafe-eval' 'nonce-{$nonce}'",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' data: https://fonts.gstatic.com",
             "img-src 'self' data: blob: https://www.gravatar.com",
@@ -38,7 +43,12 @@ class AddCspHeaders
             "frame-ancestors 'self'",
         ]);
 
-        $response->headers->set('Content-Security-Policy', $csp);
+        // Debugbar injects inline scripts without nonce — use Report-Only to avoid blocking
+        $headerName = $debugbarActive
+            ? 'Content-Security-Policy-Report-Only'
+            : 'Content-Security-Policy';
+
+        $response->headers->set($headerName, $csp);
 
         return $response;
     }

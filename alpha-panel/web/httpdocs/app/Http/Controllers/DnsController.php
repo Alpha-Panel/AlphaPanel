@@ -346,6 +346,69 @@ class DnsController extends Controller
     }
 
     /**
+     * Switch DNS provider for a domain.
+     * When switching from Cloudflare to Local: imports CF records into local zone.
+     * When switching from Local to Cloudflare: keeps local zone but changes provider.
+     */
+    public function switchProvider(Request $request, Domain $domain): JsonResponse
+    {
+        $this->authorize('manageDns', $domain);
+
+        $validated = $request->validate([
+            'dns_provider' => ['required', 'string', 'in:cloudflare,local'],
+            'import_records' => ['boolean'],
+        ]);
+
+        $newProvider = $validated['dns_provider'];
+        $importRecords = (bool) ($validated['import_records'] ?? false);
+        $currentProvider = $domain->dns_provider?->value ?? 'local';
+
+        if ($currentProvider === $newProvider) {
+            return response()->json([
+                'status' => 'info',
+                'message' => __('DNS provider is already set to :provider.', ['provider' => $newProvider]),
+            ]);
+        }
+
+        try {
+            // Cloudflare → Local: optionally import CF records
+            if ($currentProvider === 'cloudflare' && $newProvider === 'local') {
+                if ($importRecords) {
+                    $apexDomain = $domain->getApexDomain();
+                    $zoneId = $this->cloudflare->getZoneId($apexDomain);
+                    $cfRecords = $this->cloudflare->listRecords($zoneId);
+                    $this->localDns->importFromCloudflare($domain, $cfRecords);
+                } else {
+                    // Create empty zone with default template
+                    if (! $domain->dnsZone) {
+                        $this->localDns->createZone($domain);
+                    }
+                }
+            }
+
+            $domain->update(['dns_provider' => $newProvider]);
+
+            $this->createDnsAuditLog(
+                $request,
+                $domain,
+                'dns_provider_switched',
+                ['provider' => $currentProvider],
+                ['provider' => $newProvider, 'imported' => $importRecords],
+            );
+
+            return response()->json([
+                'status' => 'success',
+                'message' => __('DNS provider switched to :provider successfully.', ['provider' => $newProvider === 'local' ? __('Local DNS') : __('Cloudflare DNS')]),
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => __('Failed to switch DNS provider: :error', ['error' => $e->getMessage()]),
+            ], 422);
+        }
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     private function normalizeRecordForAudit(?object $record): ?array

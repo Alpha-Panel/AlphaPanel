@@ -477,6 +477,74 @@ class LocalDnsService
      *
      * @return array<string, string>
      */
+    /**
+     * Import DNS records from Cloudflare into a local zone.
+     * Creates the zone if it doesn't exist, then copies all CF records.
+     * SOA and NS records are created from local settings, not imported from CF.
+     *
+     * @param  array<int, object>  $cloudflareRecords  Records from CloudflareDnsService::listRecords()
+     */
+    public function importFromCloudflare(Domain $domain, array $cloudflareRecords): DnsZone
+    {
+        $zone = $domain->dnsZone;
+
+        if (! $zone) {
+            $zone = $this->createZone($domain);
+        }
+
+        $skipTypes = ['SOA', 'NS'];
+
+        return DB::transaction(function () use ($zone, $cloudflareRecords, $skipTypes): DnsZone {
+            $pdnsDomainId = $this->getPdnsDomainId($zone);
+
+            foreach ($cloudflareRecords as $cfRecord) {
+                $type = strtoupper((string) ($cfRecord->type ?? ''));
+
+                if (in_array($type, $skipTypes, true)) {
+                    continue;
+                }
+
+                $name = (string) ($cfRecord->name ?? '');
+                $content = (string) ($cfRecord->content ?? '');
+                $ttl = (int) ($cfRecord->ttl ?? 3600);
+                $priority = isset($cfRecord->priority) ? (int) $cfRecord->priority : null;
+
+                if ($ttl === 1) {
+                    $ttl = 3600;
+                }
+
+                $record = DnsRecord::create([
+                    'dns_zone_id' => $zone->id,
+                    'name' => $name,
+                    'type' => $type,
+                    'content' => $content,
+                    'ttl' => $ttl,
+                    'priority' => $priority,
+                    'is_managed' => false,
+                ]);
+
+                if ($pdnsDomainId !== null) {
+                    $this->createPdnsRecord($pdnsDomainId, [
+                        'name' => $record->name,
+                        'type' => $record->type,
+                        'content' => $record->content,
+                        'ttl' => $record->ttl,
+                        'priority' => $record->priority,
+                    ]);
+                }
+            }
+
+            $zone->incrementSerial();
+            $this->updatePdnsSoaSerial($zone);
+
+            Log::info("Imported Cloudflare records to local zone: {$zone->zone_name}", [
+                'imported_count' => count($cloudflareRecords) - count(array_filter($cloudflareRecords, fn ($r) => in_array(strtoupper($r->type ?? ''), $skipTypes, true))),
+            ]);
+
+            return $zone;
+        });
+    }
+
     private function buildTemplateVars(DnsZone $zone, DnsSetting $settings): array
     {
         return [

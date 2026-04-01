@@ -1470,5 +1470,15 @@
     "This process requires the `:package` package. Install it with:": "Este proceso requiere el paquete `:package`. Instálelo con:",
     "Laravel framework is not detected in this domain.": "No se detectó el framework Laravel en este dominio.",
     "These processes require a Laravel application. Deploy your Laravel project first, then manage processes here.": "Estos procesos requieren una aplicación Laravel. Despliegue primero su proyecto Laravel y luego gestione los procesos aquí.",
-    "Worker can be enabled after the domain is created and the application is deployed.": "El worker se puede habilitar después de crear el dominio y desplegar la aplicación."
+    "Worker can be enabled after the domain is created and the application is deployed.": "El worker se puede habilitar después de crear el dominio y desplegar la aplicación.",
+    "Switch to Local DNS": "Cambiar a DNS local",
+    "Switch to Cloudflare": "Cambiar a Cloudflare",
+    "Do you want to import your existing Cloudflare DNS records to the local DNS server?": "¿Desea importar sus registros DNS de Cloudflare existentes al servidor DNS local?",
+    "Import Cloudflare records": "Importar registros de Cloudflare",
+    "Switching...": "Cambiando...",
+    "Switch": "Cambiar",
+    "Failed to switch DNS provider.": "No se pudo cambiar el proveedor DNS.",
+    "DNS provider switched to :provider successfully.": "Proveedor DNS cambiado exitosamente a :provider.",
+    "DNS provider is already set to :provider.": "El proveedor DNS ya está configurado como :provider.",
+    "Failed to switch DNS provider: :error": "No se pudo cambiar el proveedor DNS: :error"
 }

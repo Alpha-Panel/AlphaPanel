@@ -139,28 +139,6 @@
                             </div>
                         </div>
 
-                        <!-- Worker Section -->
-                        <div v-if="form.type === 'caddy_web_server'" class="pt-5 border-t border-gray-200 dark:border-gray-800">
-                            <h4 class="mb-3 text-sm font-medium text-gray-800 dark:text-white/90">{{ t('Worker Settings') }}</h4>
-
-                            <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-white/5">
-                                <p class="text-xs text-gray-500 dark:text-gray-400">
-                                    {{ t('FrankenPHP worker requires laravel/octane. Install it with:') }}
-                                    <code class="ml-1 rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs dark:bg-gray-800">composer require laravel/octane && php artisan octane:install</code>
-                                </p>
-                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    {{ t('Worker can be enabled after the domain is created and the application is deployed.') }}
-                                </p>
-                            </div>
-
-                            <div class="flex items-center gap-4 mb-4 opacity-50 cursor-not-allowed">
-                                <label class="flex items-center gap-2">
-                                    <input type="checkbox" class="form-checkbox" disabled />
-                                    <span class="text-sm text-gray-700 dark:text-gray-400">{{ t('Enable Worker') }}</span>
-                                </label>
-                            </div>
-                        </div>
-
                         <div class="flex items-center gap-3 pt-5">
                             <button
                                 type="submit"
@@ -214,9 +192,6 @@ const form = useForm({
     inherit_parent_root_path: false,
     enable_www_redirect: true,
     dns_provider: 'local' as 'local' | 'cloudflare',
-    enable_worker: false,
-    worker_num: 2,
-    worker_watch: false,
     cloudflare_mode: 'skip' as 'add' | 'skip' | 'existing',
     create_dns_record: false,
     dns_target_ip: '',

@@ -142,28 +142,22 @@
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </button>
 
-                            <template v-if="can('domain.dns.view')">
-                                <Link
-                                    v-if="!isSubdomain && isCloudflareManagedForDns"
-                                    :href="route('domains.dns.index', domain.id)"
-                                    class="quick-link"
+                            <Link
+                                v-if="can('domain.dns.view') && !isSubdomain"
+                                :href="route('domains.dns.index', domain.id)"
+                                class="quick-link"
+                            >
+                                <i class="fa-solid fa-globe quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('DNS') }}</span>
+                                <span class="ml-auto mr-2 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                    :class="isCloudflareManagedForDns
+                                        ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                                        : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'"
                                 >
-                                    <i class="fa-solid fa-globe quick-link-icon"></i>
-                                    <span class="quick-link-label">{{ t('DNS') }}</span>
-                                    <i class="fa-solid fa-angle-right quick-link-arrow"></i>
-                                </Link>
-                                <button
-                                    v-else-if="!isSubdomain"
-                                    type="button"
-                                    disabled
-                                    class="quick-link quick-link-disabled"
-                                    v-tooltip="t('DNS management is locked because this domain is not managed on Cloudflare.')"
-                                >
-                                    <i class="fa-solid fa-globe quick-link-icon"></i>
-                                    <span class="quick-link-label">{{ t('DNS') }}</span>
-                                    <i class="fa-solid fa-angle-right quick-link-arrow"></i>
-                                </button>
-                            </template>
+                                    {{ isCloudflareManagedForDns ? 'Cloudflare' : 'Local' }}
+                                </span>
+                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                            </Link>
 
                             <Link v-if="can('domain.edit')" :href="route('domains.edit', domain.id)" class="quick-link">
                                 <i class="fa-solid fa-gears quick-link-icon"></i>
@@ -689,9 +683,9 @@ const previewUrl = computed(() => `https://${domain.value.fqdn}`);
 const isSubdomain = computed(() => Boolean(domain.value.parent_domain_id));
 const cloudflareEnabledOverride = ref<boolean | null>(null);
 const cloudflareZoneSummary = ref({
-    exists: Boolean(props.cloudflare_zone.exists),
-    zone_name: props.cloudflare_zone.zone_name as string | null,
-    name_servers: Array.isArray(props.cloudflare_zone.name_servers) ? props.cloudflare_zone.name_servers : [],
+    exists: Boolean(props.cloudflare_zone?.exists),
+    zone_name: (props.cloudflare_zone?.zone_name as string | null) ?? null,
+    name_servers: Array.isArray(props.cloudflare_zone?.name_servers) ? props.cloudflare_zone.name_servers : [],
 });
 const isCloudflareManagedForDns = computed(() => {
     if (cloudflareEnabledOverride.value !== null) {

@@ -1453,5 +1453,15 @@
     "Zone not found": "Zone not found",
     "Laravel framework is not detected in this domain.": "Laravel framework is not detected in this domain.",
     "These processes require a Laravel application. Deploy your Laravel project first, then manage processes here.": "These processes require a Laravel application. Deploy your Laravel project first, then manage processes here.",
-    "Worker can be enabled after the domain is created and the application is deployed.": "Worker can be enabled after the domain is created and the application is deployed."
+    "Worker can be enabled after the domain is created and the application is deployed.": "Worker can be enabled after the domain is created and the application is deployed.",
+    "Switch to Local DNS": "Switch to Local DNS",
+    "Switch to Cloudflare": "Switch to Cloudflare",
+    "Do you want to import your existing Cloudflare DNS records to the local DNS server?": "Do you want to import your existing Cloudflare DNS records to the local DNS server?",
+    "Import Cloudflare records": "Import Cloudflare records",
+    "Switching...": "Switching...",
+    "Switch": "Switch",
+    "Failed to switch DNS provider.": "Failed to switch DNS provider.",
+    "DNS provider switched to :provider successfully.": "DNS provider switched to :provider successfully.",
+    "DNS provider is already set to :provider.": "DNS provider is already set to :provider.",
+    "Failed to switch DNS provider: :error": "Failed to switch DNS provider: :error"
 }

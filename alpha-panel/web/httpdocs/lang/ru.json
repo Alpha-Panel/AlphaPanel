@@ -1470,5 +1470,15 @@
     "This process requires the `:package` package. Install it with:": "Этот процесс требует пакет `:package`. Установите его командой:",
     "Laravel framework is not detected in this domain.": "Фреймворк Laravel не обнаружен в этом домене.",
     "These processes require a Laravel application. Deploy your Laravel project first, then manage processes here.": "Эти процессы требуют приложение Laravel. Сначала разверните ваш проект Laravel, затем управляйте процессами здесь.",
-    "Worker can be enabled after the domain is created and the application is deployed.": "Worker можно включить после создания домена и развёртывания приложения."
+    "Worker can be enabled after the domain is created and the application is deployed.": "Worker можно включить после создания домена и развёртывания приложения.",
+    "Switch to Local DNS": "Переключить на локальный DNS",
+    "Switch to Cloudflare": "Переключить на Cloudflare",
+    "Do you want to import your existing Cloudflare DNS records to the local DNS server?": "Хотите импортировать существующие DNS-записи Cloudflare на локальный DNS-сервер?",
+    "Import Cloudflare records": "Импортировать записи Cloudflare",
+    "Switching...": "Переключение...",
+    "Switch": "Переключить",
+    "Failed to switch DNS provider.": "Не удалось переключить DNS-провайдера.",
+    "DNS provider switched to :provider successfully.": "DNS-провайдер успешно переключён на :provider.",
+    "DNS provider is already set to :provider.": "DNS-провайдер уже установлен на :provider.",
+    "Failed to switch DNS provider: :error": "Не удалось переключить DNS-провайдера: :error"
 }

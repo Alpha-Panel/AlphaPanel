@@ -1470,5 +1470,15 @@
     "This process requires the `:package` package. Install it with:": "Bu proses `:package` paketini tələb edir. Bu əmrlə quraşdırın:",
     "Laravel framework is not detected in this domain.": "Bu domendə Laravel framework aşkar edilmədi.",
     "These processes require a Laravel application. Deploy your Laravel project first, then manage processes here.": "Bu proseslər Laravel tətbiqi tələb edir. Əvvəlcə Laravel layihənizi deploy edin, sonra prosesləri buradan idarə edin.",
-    "Worker can be enabled after the domain is created and the application is deployed.": "Worker, domen yaradıldıqdan və tətbiq deploy edildikdən sonra aktivləşdirilə bilər."
+    "Worker can be enabled after the domain is created and the application is deployed.": "Worker, domen yaradıldıqdan və tətbiq deploy edildikdən sonra aktivləşdirilə bilər.",
+    "Switch to Local DNS": "Yerli DNS-ə keç",
+    "Switch to Cloudflare": "Cloudflare-ə keç",
+    "Do you want to import your existing Cloudflare DNS records to the local DNS server?": "Mövcud Cloudflare DNS qeydlərinizi yerli DNS serverinə import etmək istəyirsiniz?",
+    "Import Cloudflare records": "Cloudflare qeydlərini import et",
+    "Switching...": "Keçilir...",
+    "Switch": "Keç",
+    "Failed to switch DNS provider.": "DNS provayderi dəyişdirilə bilmədi.",
+    "DNS provider switched to :provider successfully.": "DNS provayderi uğurla :provider olaraq dəyişdirildi.",
+    "DNS provider is already set to :provider.": "DNS provayderi artıq :provider olaraq təyin edilib.",
+    "Failed to switch DNS provider: :error": "DNS provayderi dəyişdirilə bilmədi: :error"
 }

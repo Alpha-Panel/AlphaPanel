@@ -372,7 +372,7 @@ const openEditModal = async (tpl: Template): Promise<void> => {
     actionLoading.value = true;
 
     try {
-        const response = await axios.get(route('settings.dns-templates.show', tpl.id));
+        const response = await axios.get(route('settings.dns-templates.show', { dnsTemplate: tpl.id }));
         const data = response.data;
         templateName.value = data.name;
         templateRecords.value = (data.records ?? []).map((r: any) => ({
@@ -417,7 +417,7 @@ const saveTemplate = async (): Promise<void> => {
     try {
         if (editingTemplateId.value) {
             const response = await axios.put(
-                route('settings.dns-templates.update', editingTemplateId.value),
+                route('settings.dns-templates.update', { dnsTemplate: editingTemplateId.value }),
                 payload,
             );
             const index = localTemplates.findIndex((t) => t.id === editingTemplateId.value);
@@ -457,7 +457,7 @@ const deleteTemplate = async (): Promise<void> => {
     deleting.value = true;
 
     try {
-        await axios.delete(route('settings.dns-templates.destroy', deletingTemplate.value.id));
+        await axios.delete(route('settings.dns-templates.destroy', { dnsTemplate: deletingTemplate.value.id }));
         const index = localTemplates.findIndex((t) => t.id === deletingTemplate.value!.id);
         if (index !== -1) {
             localTemplates.splice(index, 1);
@@ -475,7 +475,7 @@ const setDefault = async (tpl: Template): Promise<void> => {
     actionLoading.value = true;
 
     try {
-        await axios.post(route('settings.dns-templates.set-default', tpl.id));
+        await axios.post(route('settings.dns-templates.set-default', { dnsTemplate: tpl.id }));
         localTemplates.forEach((t) => {
             t.is_default = t.id === tpl.id;
         });

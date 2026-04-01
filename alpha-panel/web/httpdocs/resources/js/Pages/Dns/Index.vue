@@ -10,6 +10,79 @@
                 />
                 <Toast />
 
+                <!-- Provider Switch Bar -->
+                <div class="mb-4 flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between dark:border-gray-800 dark:bg-white/[0.03] md:p-5">
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('DNS Provider') }}:</span>
+                        <span
+                            class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+                            :class="currentProvider === 'cloudflare'
+                                ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                                : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'"
+                        >
+                            <i :class="currentProvider === 'cloudflare' ? 'fa-brands fa-cloudflare' : 'fa-solid fa-server'" class="text-[10px]"></i>
+                            {{ currentProvider === 'cloudflare' ? 'Cloudflare' : t('Local DNS') }}
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button
+                            v-if="currentProvider === 'cloudflare'"
+                            type="button"
+                            :disabled="switchLoading"
+                            @click="showSwitchModal = true"
+                            class="inline-flex items-center gap-2 rounded-lg border border-blue-500/40 bg-blue-500/10 px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-500/20 disabled:opacity-60 dark:text-blue-300"
+                        >
+                            <i class="fa-solid fa-arrow-right-arrow-left text-xs"></i>
+                            {{ t('Switch to Local DNS') }}
+                        </button>
+                        <button
+                            v-else
+                            type="button"
+                            :disabled="switchLoading"
+                            @click="switchToCloudflare"
+                            class="inline-flex items-center gap-2 rounded-lg border border-orange-500/40 bg-orange-500/10 px-3 py-2 text-sm font-medium text-orange-700 transition-colors hover:bg-orange-500/20 disabled:opacity-60 dark:text-orange-300"
+                        >
+                            <i class="fa-solid fa-arrow-right-arrow-left text-xs"></i>
+                            {{ t('Switch to Cloudflare') }}
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Switch to Local DNS Modal (with import option) -->
+                <div
+                    v-if="showSwitchModal"
+                    class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+                >
+                    <div class="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xl dark:border-gray-800 dark:bg-gray-900">
+                        <h4 class="mb-4 text-base font-semibold text-gray-800 dark:text-white/90">{{ t('Switch to Local DNS') }}</h4>
+                        <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                            {{ t('Do you want to import your existing Cloudflare DNS records to the local DNS server?') }}
+                        </p>
+                        <label class="mb-5 flex items-center gap-2">
+                            <input v-model="importRecordsOnSwitch" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500" />
+                            <span class="text-sm text-gray-700 dark:text-gray-400">{{ t('Import Cloudflare records') }}</span>
+                        </label>
+                        <div class="flex items-center justify-end gap-3">
+                            <button
+                                type="button"
+                                @click="showSwitchModal = false"
+                                class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400"
+                            >
+                                {{ t('Cancel') }}
+                            </button>
+                            <button
+                                type="button"
+                                :disabled="switchLoading"
+                                @click="switchToLocal"
+                                class="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-60"
+                            >
+                                <i v-if="switchLoading" class="bx bx-loader-alt animate-spin text-base"></i>
+                                {{ switchLoading ? t('Switching...') : t('Switch') }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
                     <div class="flex flex-col gap-4 border-b border-gray-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-gray-800 md:px-6">
                         <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">{{ t('DNS Records') }}</h3>
@@ -344,6 +417,7 @@ interface DnsRecordForm {
 
 const props = defineProps<{
     domain: Record<string, any>;
+    dns_provider?: string;
 }>();
 const { t } = useI18n();
 
@@ -357,6 +431,11 @@ const dnsTypes = ['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'SRV', 'HTTPS', 'CAA'];
 const proxyTypes = ['A', 'AAAA', 'CNAME'];
 
 const { addToast } = useToast();
+const currentProvider = ref(props.dns_provider ?? props.domain.dns_provider ?? 'local');
+const switchLoading = ref(false);
+const showSwitchModal = ref(false);
+const importRecordsOnSwitch = ref(true);
+
 const records = ref<DnsRecord[]>([]);
 const loading = ref(false);
 const saving = ref(false);
@@ -611,6 +690,41 @@ const deleteRecord = async (): Promise<void> => {
     }
 };
 
+const switchToLocal = async () => {
+    switchLoading.value = true;
+    try {
+        const response = await axios.post(route('domains.dns.switch-provider', props.domain.id), {
+            dns_provider: 'local',
+            import_records: importRecordsOnSwitch.value,
+        });
+        addToast({ type: 'success', message: response.data.message });
+        currentProvider.value = 'local';
+        showSwitchModal.value = false;
+        void fetchRecords();
+    } catch (e: any) {
+        addToast({ type: 'error', message: e.response?.data?.message ?? t('Failed to switch DNS provider.') });
+    } finally {
+        switchLoading.value = false;
+    }
+};
+
+const switchToCloudflare = async () => {
+    switchLoading.value = true;
+    try {
+        const response = await axios.post(route('domains.dns.switch-provider', props.domain.id), {
+            dns_provider: 'cloudflare',
+            import_records: false,
+        });
+        addToast({ type: 'success', message: response.data.message });
+        currentProvider.value = 'cloudflare';
+        void fetchRecords();
+    } catch (e: any) {
+        addToast({ type: 'error', message: e.response?.data?.message ?? t('Failed to switch DNS provider.') });
+    } finally {
+        switchLoading.value = false;
+    }
+};
+
 onMounted(() => {
     void fetchRecords();
 });
@@ -635,6 +749,6 @@ onMounted(() => {
 :deep(.cloud) {
     border: 1px solid transparent;
     display: block;
-    height: 35px;
+    height: 24px;
 }
 </style>
