@@ -179,23 +179,25 @@ class PortainerService
      *
      * @param  array<int, string>  $command
      */
-    public function execInContainer(string $containerIdOrName, array $command, int $timeout = 30, ?string $user = null, int $retries = 1): ExecResult
+    public function execInContainer(string $containerIdOrName, array $command, int $timeout = 60, ?string $user = null, int $retries = 1): ExecResult
     {
         $lastException = null;
 
         for ($attempt = 1; $attempt <= $retries; $attempt++) {
             try {
                 return $this->doExecInContainer($containerIdOrName, $command, $timeout, $user);
-            } catch (PortainerException $e) {
+            } catch (\Throwable $e) {
                 $lastException = $e;
                 if ($attempt < $retries) {
-                    Log::warning("Portainer exec attempt {$attempt}/{$retries} failed for {$containerIdOrName}, retrying in 2s: {$e->getMessage()}");
-                    sleep(2);
+                    Log::warning("Portainer exec attempt {$attempt}/{$retries} failed for {$containerIdOrName}, retrying in 3s: {$e->getMessage()}");
+                    sleep(3);
                 }
             }
         }
 
-        throw $lastException;
+        throw $lastException instanceof PortainerException
+            ? $lastException
+            : new PortainerException($lastException->getMessage(), 0, $lastException);
     }
 
     /**
