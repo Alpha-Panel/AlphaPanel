@@ -362,13 +362,13 @@ class DomainController extends Controller
             is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
         );
 
-        if ($request->ajax() || $request->wantsJson()) {
-            return response()->json(['message' => "Domain {$fqdn} deletion in progress."]);
+        if (! $request->header('X-Inertia') && ($request->ajax() || $request->wantsJson())) {
+            return response()->json(['message' => __('Domain :fqdn deletion in progress.', ['fqdn' => $fqdn])]);
         }
 
         return redirect()
             ->route('domains.index')
-            ->with('success', "Domain {$fqdn} deletion in progress.");
+            ->with('success', __('Domain :fqdn deletion in progress.', ['fqdn' => $fqdn]));
     }
 
     /**
