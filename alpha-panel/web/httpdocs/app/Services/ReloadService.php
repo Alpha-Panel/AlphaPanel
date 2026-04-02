@@ -25,7 +25,7 @@ class ReloadService
 
         return $this->execInContainer($container, [
             'frankenphp', 'reload', '--config', $configPath,
-        ]);
+        ], timeout: 120);
     }
 
     /**
@@ -36,6 +36,7 @@ class ReloadService
         return $this->execInContainer(
             config('panel.php_code_server_container', 'php-code-server'),
             ['apachectl', 'graceful'],
+            timeout: 90,
         );
     }
 
@@ -47,6 +48,7 @@ class ReloadService
         return $this->execInContainer(
             config('panel.php_code_server_container', 'php-code-server'),
             ['service', $phpVersion->fpm_service_name, 'reload'],
+            timeout: 90,
         );
     }
 
@@ -55,10 +57,10 @@ class ReloadService
      *
      * @param  array<int, string>  $command
      */
-    private function execInContainer(string $container, array $command): bool
+    private function execInContainer(string $container, array $command, int $timeout = 60): bool
     {
         try {
-            $result = $this->portainer->execInContainer($container, $command, retries: 2);
+            $result = $this->portainer->execInContainer($container, $command, $timeout);
 
             if ($result->isSuccessful()) {
                 Log::info('Portainer exec succeeded: '.implode(' ', $command));
