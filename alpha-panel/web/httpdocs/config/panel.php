@@ -31,6 +31,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'portainer_url' => env('PORTAINER_URL'),
+    'docker_socket_proxy_url' => env('DOCKER_SOCKET_PROXY_URL', 'http://docker-socket-proxy:2375'),
     'portainer_api_key' => env('PORTAINER_API_KEY'),
     'portainer_endpoint_id' => env('PORTAINER_ENDPOINT_ID', 1),
     'compose_project_root' => env('COMPOSE_PROJECT_ROOT', '/docker_compose_project_root'),

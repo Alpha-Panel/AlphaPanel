@@ -17,11 +17,14 @@ class PortainerService
 
     private int $endpointId;
 
+    private string $dockerSocketProxyUrl;
+
     public function __construct()
     {
         $this->baseUrl = rtrim((string) config('panel.portainer_url'), '/');
         $this->apiKey = (string) config('panel.portainer_api_key');
         $this->endpointId = (int) config('panel.portainer_endpoint_id', 1);
+        $this->dockerSocketProxyUrl = rtrim((string) config('panel.docker_socket_proxy_url', 'http://docker-socket-proxy:2375'), '/');
     }
 
     /**
@@ -30,6 +33,14 @@ class PortainerService
     private function dockerApiUrl(string $path): string
     {
         return "{$this->baseUrl}/api/endpoints/{$this->endpointId}/docker{$path}";
+    }
+
+    /**
+     * Build a direct Docker API URL via docker-socket-proxy (no Portainer layer).
+     */
+    private function directDockerApiUrl(string $path): string
+    {
+        return "{$this->dockerSocketProxyUrl}{$path}";
     }
 
     /**
@@ -88,7 +99,7 @@ class PortainerService
     }
 
     /**
-     * Resolve a container name to its ID.
+     * Resolve a container name to its ID using docker-socket-proxy directly.
      */
     private function resolveContainerId(string $containerIdOrName): string
     {
@@ -96,6 +107,20 @@ class PortainerService
             return $containerIdOrName;
         }
 
+        // Use docker-socket-proxy directly for faster, more reliable resolution
+        $response = Http::connectTimeout(5)->timeout(10)
+            ->get($this->directDockerApiUrl('/containers/json'), [
+                'filters' => json_encode(['name' => [$containerIdOrName]]),
+            ]);
+
+        if ($response->successful()) {
+            $containers = $response->json();
+            if (! empty($containers)) {
+                return $containers[0]['Id'];
+            }
+        }
+
+        // Fallback to Portainer
         $container = $this->findContainerByName($containerIdOrName);
 
         return $container['Id'];
@@ -209,7 +234,7 @@ class PortainerService
     {
         $containerId = $this->resolveContainerId($containerIdOrName);
 
-        Log::info("Portainer exec in {$containerIdOrName}: ".implode(' ', $command).($user ? " (user: {$user})" : ''));
+        Log::info("Docker exec in {$containerIdOrName}: ".implode(' ', $command).($user ? " (user: {$user})" : ''));
 
         $payload = [
             'AttachStdout' => true,
@@ -222,16 +247,14 @@ class PortainerService
             $payload['User'] = $user;
         }
 
-        // Use a single Guzzle client for the entire exec flow to reuse the TCP connection
+        // Use docker-socket-proxy directly — bypasses Portainer's streaming proxy
+        // which causes intermittent timeout issues on exec/start.
         $client = new \GuzzleHttp\Client([
-            'base_uri' => rtrim($this->baseUrl, '/'),
-            'headers' => ['X-API-Key' => $this->apiKey],
-            'verify' => false,
             'connect_timeout' => 10,
             'timeout' => $timeout,
         ]);
 
-        $createResponse = $client->post($this->dockerApiUrl("/containers/{$containerId}/exec"), [
+        $createResponse = $client->post($this->directDockerApiUrl("/containers/{$containerId}/exec"), [
             'json' => $payload,
         ]);
 
@@ -246,7 +269,7 @@ class PortainerService
             throw new PortainerException('Failed to get exec ID from create response');
         }
 
-        $startResponse = $client->post($this->dockerApiUrl("/exec/{$execId}/start"), [
+        $startResponse = $client->post($this->directDockerApiUrl("/exec/{$execId}/start"), [
             'json' => [
                 'Detach' => false,
                 'Tty' => false,
@@ -261,7 +284,7 @@ class PortainerService
         $rawOutput = $startResponse->getBody()->getContents();
         $output = $this->demuxDockerStream($rawOutput);
 
-        $inspectResponse = $client->get($this->dockerApiUrl("/exec/{$execId}/json"), [
+        $inspectResponse = $client->get($this->directDockerApiUrl("/exec/{$execId}/json"), [
             'timeout' => 10,
         ]);
 
