@@ -58,7 +58,7 @@ class ReloadService
     private function execInContainer(string $container, array $command): bool
     {
         try {
-            $result = $this->portainer->execInContainer($container, $command);
+            $result = $this->portainer->execInContainer($container, $command, retries: 2);
 
             if ($result->isSuccessful()) {
                 Log::info('Portainer exec succeeded: '.implode(' ', $command));

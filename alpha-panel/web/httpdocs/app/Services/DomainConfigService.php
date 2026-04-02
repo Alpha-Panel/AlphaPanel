@@ -852,15 +852,15 @@ class DomainConfigService
 
         $portainer = app(PortainerService::class);
 
-        // Create httpdocs and logs directories
+        // Create httpdocs and logs directories (retry on transient failures)
         $portainer->execInContainer('php-code-server', [
             'mkdir', '-p', $webRoot, $logsPath,
-        ]);
+        ], retries: 2);
 
         // Set ownership to the pool/FTP user
         $portainer->execInContainer('php-code-server', [
             'chown', '-R', "{$poolUser}:{$poolUser}", $basePath,
-        ]);
+        ], retries: 2);
 
         Log::info("Ensured directories for {$domain->fqdn}: {$webRoot}, {$logsPath} (owner: {$poolUser})");
 

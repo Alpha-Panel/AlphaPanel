@@ -41,7 +41,7 @@ class PortainerService
             'X-API-Key' => $this->apiKey,
         ])->withOptions([
             'verify' => false,
-        ])->timeout($timeout);
+        ])->connectTimeout(5)->timeout($timeout);
     }
 
     /**
@@ -179,7 +179,31 @@ class PortainerService
      *
      * @param  array<int, string>  $command
      */
-    public function execInContainer(string $containerIdOrName, array $command, int $timeout = 30, ?string $user = null): ExecResult
+    public function execInContainer(string $containerIdOrName, array $command, int $timeout = 30, ?string $user = null, int $retries = 1): ExecResult
+    {
+        $lastException = null;
+
+        for ($attempt = 1; $attempt <= $retries; $attempt++) {
+            try {
+                return $this->doExecInContainer($containerIdOrName, $command, $timeout, $user);
+            } catch (PortainerException $e) {
+                $lastException = $e;
+                if ($attempt < $retries) {
+                    Log::warning("Portainer exec attempt {$attempt}/{$retries} failed for {$containerIdOrName}, retrying in 2s: {$e->getMessage()}");
+                    sleep(2);
+                }
+            }
+        }
+
+        throw $lastException;
+    }
+
+    /**
+     * Internal exec implementation.
+     *
+     * @param  array<int, string>  $command
+     */
+    private function doExecInContainer(string $containerIdOrName, array $command, int $timeout, ?string $user): ExecResult
     {
         $containerId = $this->resolveContainerId($containerIdOrName);
 
