@@ -222,34 +222,54 @@ class PortainerService
             $payload['User'] = $user;
         }
 
-        $createResponse = $this->request($timeout)
-            ->post($this->dockerApiUrl("/containers/{$containerId}/exec"), $payload);
+        // Use a single Guzzle client for the entire exec flow to reuse the TCP connection
+        $client = new \GuzzleHttp\Client([
+            'base_uri' => rtrim($this->baseUrl, '/'),
+            'headers' => ['X-API-Key' => $this->apiKey],
+            'verify' => false,
+            'connect_timeout' => 10,
+            'timeout' => $timeout,
+        ]);
 
-        if (! $createResponse->successful()) {
-            throw new PortainerException("Failed to create exec instance: {$createResponse->status()} {$createResponse->body()}");
+        $createResponse = $client->post($this->dockerApiUrl("/containers/{$containerId}/exec"), [
+            'json' => $payload,
+        ]);
+
+        if ($createResponse->getStatusCode() >= 400) {
+            throw new PortainerException("Failed to create exec instance: {$createResponse->getStatusCode()} {$createResponse->getBody()->getContents()}");
         }
 
-        $execId = $createResponse->json('Id');
+        $execData = json_decode($createResponse->getBody()->getContents(), true);
+        $execId = $execData['Id'] ?? null;
 
-        $startResponse = $this->request($timeout)
-            ->post($this->dockerApiUrl("/exec/{$execId}/start"), [
+        if (! $execId) {
+            throw new PortainerException('Failed to get exec ID from create response');
+        }
+
+        $startResponse = $client->post($this->dockerApiUrl("/exec/{$execId}/start"), [
+            'json' => [
                 'Detach' => false,
                 'Tty' => false,
-            ]);
+            ],
+            'timeout' => $timeout,
+        ]);
 
-        if (! $startResponse->successful()) {
-            throw new PortainerException("Failed to start exec instance: {$startResponse->status()} {$startResponse->body()}");
+        if ($startResponse->getStatusCode() >= 400) {
+            throw new PortainerException("Failed to start exec instance: {$startResponse->getStatusCode()}");
         }
 
-        $rawOutput = $startResponse->body();
+        $rawOutput = $startResponse->getBody()->getContents();
         $output = $this->demuxDockerStream($rawOutput);
 
-        $inspectResponse = $this->request($timeout)
-            ->get($this->dockerApiUrl("/exec/{$execId}/json"));
+        $inspectResponse = $client->get($this->dockerApiUrl("/exec/{$execId}/json"), [
+            'timeout' => 10,
+        ]);
 
-        $exitCode = $inspectResponse->successful()
-            ? (int) $inspectResponse->json('ExitCode', -1)
-            : -1;
+        $exitCode = -1;
+        if ($inspectResponse->getStatusCode() < 400) {
+            $inspectData = json_decode($inspectResponse->getBody()->getContents(), true);
+            $exitCode = (int) ($inspectData['ExitCode'] ?? -1);
+        }
 
         return new ExecResult(
             exitCode: $exitCode,
