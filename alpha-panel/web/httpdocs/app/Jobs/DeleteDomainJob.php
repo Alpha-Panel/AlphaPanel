@@ -28,7 +28,7 @@ class DeleteDomainJob implements ShouldQueue
 
     public int $tries = 1;
 
-    public int $timeout = 120;
+    public int $timeout = 900;
 
     private string $fqdn;
 

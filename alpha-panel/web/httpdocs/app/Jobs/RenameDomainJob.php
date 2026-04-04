@@ -26,7 +26,7 @@ class RenameDomainJob implements ShouldQueue
 
     public int $tries = 1;
 
-    public int $timeout = 300;
+    public int $timeout = 900;
 
     public function __construct(
         public Domain $domain,

@@ -27,7 +27,7 @@ class SslActivateJob implements ShouldQueue
 
     public int $backoff = 10;
 
-    public int $timeout = 300;
+    public int $timeout = 900;
 
     public function __construct(
         public Domain $domain,
