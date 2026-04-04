@@ -1,15 +1,13 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 /**
  * PowerDNS native MySQL schema (gmysql backend).
  *
- * These tables are read directly by PowerDNS Authoritative Server.
- * The application writes to them in parallel with the dns_zones/dns_records
- * tables via dual-write transactions in LocalDnsService.
+ * Tables are created in a dedicated 'powerdns' database so PowerDNS
+ * uses its default table names (domains, records, supermasters, domainmetadata).
  *
  * @see https://doc.powerdns.com/authoritative/backends/generic-mysql.html
  */
@@ -17,67 +15,68 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('pdns_domains', function (Blueprint $table): void {
-            $table->id();
-            $table->string('name')->unique();
-            $table->string('master')->nullable();
-            $table->unsignedBigInteger('last_check')->nullable();
-            $table->string('type', 20)->default('NATIVE');
-            $table->unsignedInteger('notified_serial')->nullable();
-            $table->string('account')->nullable();
-        });
+        DB::statement('CREATE DATABASE IF NOT EXISTS `powerdns`');
 
-        Schema::create('pdns_records', function (Blueprint $table): void {
-            $table->id();
-            $table->unsignedBigInteger('domain_id')->nullable();
-            $table->string('name')->nullable();
-            $table->string('type', 10)->nullable();
-            $table->text('content')->nullable();
-            $table->unsignedInteger('ttl')->nullable();
-            $table->unsignedSmallInteger('prio')->nullable();
-            $table->boolean('disabled')->default(false);
-            $table->string('ordername')->nullable();
-            $table->boolean('auth')->default(true);
+        DB::statement('
+            CREATE TABLE IF NOT EXISTS `powerdns`.`domains` (
+                `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                `name` VARCHAR(255) NOT NULL UNIQUE,
+                `master` VARCHAR(128) DEFAULT NULL,
+                `last_check` INT UNSIGNED DEFAULT NULL,
+                `type` VARCHAR(8) NOT NULL DEFAULT \'NATIVE\',
+                `notified_serial` INT UNSIGNED DEFAULT NULL,
+                `account` VARCHAR(40) DEFAULT NULL,
+                `catalog` VARCHAR(255) DEFAULT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ');
 
-            $table->index('domain_id', 'pdns_records_domain_id_index');
-            $table->index('name', 'pdns_records_name_index');
-            $table->index(['name', 'type'], 'pdns_records_name_type_index');
-            $table->index('ordername', 'pdns_records_ordername_index');
+        DB::statement('
+            CREATE TABLE IF NOT EXISTS `powerdns`.`records` (
+                `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                `domain_id` BIGINT UNSIGNED DEFAULT NULL,
+                `name` VARCHAR(255) DEFAULT NULL,
+                `type` VARCHAR(10) DEFAULT NULL,
+                `content` TEXT DEFAULT NULL,
+                `ttl` INT UNSIGNED DEFAULT NULL,
+                `prio` SMALLINT UNSIGNED DEFAULT NULL,
+                `disabled` TINYINT(1) DEFAULT 0,
+                `ordername` VARCHAR(255) DEFAULT NULL,
+                `auth` TINYINT(1) DEFAULT 1,
+                INDEX `domain_id_idx` (`domain_id`),
+                INDEX `name_idx` (`name`),
+                INDEX `name_type_idx` (`name`, `type`),
+                INDEX `ordername_idx` (`ordername`),
+                FOREIGN KEY (`domain_id`) REFERENCES `powerdns`.`domains`(`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ');
 
-            $table->foreign('domain_id')
-                ->references('id')
-                ->on('pdns_domains')
-                ->cascadeOnDelete();
-        });
+        DB::statement('
+            CREATE TABLE IF NOT EXISTS `powerdns`.`supermasters` (
+                `ip` VARCHAR(64) NOT NULL,
+                `nameserver` VARCHAR(255) NOT NULL,
+                `account` VARCHAR(40) NOT NULL,
+                PRIMARY KEY (`ip`, `nameserver`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ');
 
-        Schema::create('pdns_supermasters', function (Blueprint $table): void {
-            $table->string('ip', 64);
-            $table->string('nameserver');
-            $table->string('account');
-
-            $table->primary(['ip', 'nameserver']);
-        });
-
-        Schema::create('pdns_domainmetadata', function (Blueprint $table): void {
-            $table->id();
-            $table->unsignedBigInteger('domain_id');
-            $table->string('kind')->nullable();
-            $table->text('content')->nullable();
-
-            $table->index('domain_id', 'pdns_domainmetadata_domain_id_index');
-
-            $table->foreign('domain_id')
-                ->references('id')
-                ->on('pdns_domains')
-                ->cascadeOnDelete();
-        });
+        DB::statement('
+            CREATE TABLE IF NOT EXISTS `powerdns`.`domainmetadata` (
+                `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                `domain_id` BIGINT UNSIGNED NOT NULL,
+                `kind` VARCHAR(32) DEFAULT NULL,
+                `content` TEXT DEFAULT NULL,
+                INDEX `domain_id_idx` (`domain_id`),
+                FOREIGN KEY (`domain_id`) REFERENCES `powerdns`.`domains`(`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ');
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('pdns_domainmetadata');
-        Schema::dropIfExists('pdns_supermasters');
-        Schema::dropIfExists('pdns_records');
-        Schema::dropIfExists('pdns_domains');
+        DB::statement('DROP TABLE IF EXISTS `powerdns`.`domainmetadata`');
+        DB::statement('DROP TABLE IF EXISTS `powerdns`.`supermasters`');
+        DB::statement('DROP TABLE IF EXISTS `powerdns`.`records`');
+        DB::statement('DROP TABLE IF EXISTS `powerdns`.`domains`');
+        DB::statement('DROP DATABASE IF EXISTS `powerdns`');
     }
 };

@@ -318,11 +318,14 @@ services:
     container_name: powerdns
     hostname: powerdns
     restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
     ports:
       - "${PUBLIC_NETWORK_IP}:53:53/tcp"
       - "${PUBLIC_NETWORK_IP}:53:53/udp"
     volumes:
-      - ./powerdns/pdns.conf:/etc/powerdns/pdns.conf:ro
+      - ./powerdns/pdns.conf:/etc/powerdns/pdns.conf
+    command: ["--gmysql-password=${MYSQL_ROOT_PASSWORD}"]
     depends_on:
       - mysql
     networks:

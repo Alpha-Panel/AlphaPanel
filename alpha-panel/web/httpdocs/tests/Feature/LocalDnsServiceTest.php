@@ -44,7 +44,7 @@ class LocalDnsServiceTest extends TestCase
         $this->assertInstanceOf(DnsZone::class, $zone);
         $this->assertEquals('example.com', $zone->zone_name);
         $this->assertDatabaseHas('dns_zones', ['zone_name' => 'example.com']);
-        $this->assertDatabaseHas('pdns_domains', ['name' => 'example.com', 'type' => 'NATIVE']);
+        $this->assertDatabaseHas('powerdns.domains', ['name' => 'example.com', 'type' => 'NATIVE']);
 
         $this->assertDatabaseHas('dns_records', [
             'dns_zone_id' => $zone->id,
@@ -65,12 +65,12 @@ class LocalDnsServiceTest extends TestCase
         ]);
 
         $this->service->createZone($domain);
-        $this->assertDatabaseHas('pdns_domains', ['name' => 'delete-me.com']);
+        $this->assertDatabaseHas('powerdns.domains', ['name' => 'delete-me.com']);
 
         $this->service->deleteZone($domain);
 
         $this->assertDatabaseMissing('dns_zones', ['zone_name' => 'delete-me.com']);
-        $this->assertDatabaseMissing('pdns_domains', ['name' => 'delete-me.com']);
+        $this->assertDatabaseMissing('powerdns.domains', ['name' => 'delete-me.com']);
     }
 
     public function test_record_add_creates_in_both_tables(): void
@@ -97,8 +97,8 @@ class LocalDnsServiceTest extends TestCase
             'content' => '10.0.0.2',
         ]);
 
-        $pdnsDomainId = DB::table('pdns_domains')->where('name', 'record-test.com')->value('id');
-        $this->assertDatabaseHas('pdns_records', [
+        $pdnsDomainId = DB::table('powerdns.domains')->where('name', 'record-test.com')->value('id');
+        $this->assertDatabaseHas('powerdns.records', [
             'domain_id' => $pdnsDomainId,
             'name' => 'www.record-test.com',
             'type' => 'A',

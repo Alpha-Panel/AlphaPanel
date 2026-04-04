@@ -30,7 +30,7 @@ class LocalDnsService
                 'status' => 'active',
             ]);
 
-            $pdnsDomainId = DB::table('pdns_domains')->insertGetId([
+            $pdnsDomainId = DB::table('powerdns.domains')->insertGetId([
                 'name' => $zone->zone_name,
                 'type' => 'NATIVE',
                 'master' => null,
@@ -39,7 +39,7 @@ class LocalDnsService
                 'account' => '',
             ]);
 
-            DB::table('pdns_domainmetadata')->insert([
+            DB::table('powerdns.domainmetadata')->insert([
                 'domain_id' => $pdnsDomainId,
                 'kind' => 'SOA-EDIT-API',
                 'content' => 'INCEPTION-INCREMENT',
@@ -79,9 +79,9 @@ class LocalDnsService
             $pdnsDomainId = $this->getPdnsDomainId($zone);
 
             if ($pdnsDomainId !== null) {
-                DB::table('pdns_records')->where('domain_id', $pdnsDomainId)->delete();
-                DB::table('pdns_domainmetadata')->where('domain_id', $pdnsDomainId)->delete();
-                DB::table('pdns_domains')->where('id', $pdnsDomainId)->delete();
+                DB::table('powerdns.records')->where('domain_id', $pdnsDomainId)->delete();
+                DB::table('powerdns.domainmetadata')->where('domain_id', $pdnsDomainId)->delete();
+                DB::table('powerdns.domains')->where('id', $pdnsDomainId)->delete();
             }
 
             $zone->records()->delete();
@@ -163,7 +163,7 @@ class LocalDnsService
             $pdnsDomainId = $this->getPdnsDomainId($zone);
 
             if ($pdnsDomainId !== null) {
-                DB::table('pdns_records')
+                DB::table('powerdns.records')
                     ->where('domain_id', $pdnsDomainId)
                     ->where('name', $oldName)
                     ->where('type', $oldType)
@@ -194,7 +194,7 @@ class LocalDnsService
             $pdnsDomainId = $this->getPdnsDomainId($zone);
 
             if ($pdnsDomainId !== null) {
-                DB::table('pdns_records')
+                DB::table('powerdns.records')
                     ->where('domain_id', $pdnsDomainId)
                     ->where('name', $record->name)
                     ->where('type', $record->type)
@@ -219,13 +219,13 @@ class LocalDnsService
         $pdnsDomainId = $this->getPdnsDomainId($zone);
 
         if ($pdnsDomainId === null) {
-            Log::error("Cannot sync zone {$zone->zone_name}: no matching pdns_domains entry");
+            Log::error("Cannot sync zone {$zone->zone_name}: no matching powerdns.domains entry");
 
             return;
         }
 
         DB::transaction(function () use ($zone, $pdnsDomainId): void {
-            DB::table('pdns_records')->where('domain_id', $pdnsDomainId)->delete();
+            DB::table('powerdns.records')->where('domain_id', $pdnsDomainId)->delete();
 
             $settings = DnsSetting::instance();
 
@@ -343,7 +343,7 @@ class LocalDnsService
      */
     private function getPdnsDomainId(DnsZone $zone): ?int
     {
-        $id = DB::table('pdns_domains')->where('name', $zone->zone_name)->value('id');
+        $id = DB::table('powerdns.domains')->where('name', $zone->zone_name)->value('id');
 
         return $id !== null ? (int) $id : null;
     }
@@ -362,13 +362,13 @@ class LocalDnsService
     }
 
     /**
-     * Insert a record into the pdns_records table.
+     * Insert a record into the powerdns.records table.
      *
      * @param  array<string, mixed>  $data
      */
     private function createPdnsRecord(int $pdnsDomainId, array $data): void
     {
-        DB::table('pdns_records')->insert([
+        DB::table('powerdns.records')->insert([
             'domain_id' => $pdnsDomainId,
             'name' => $data['name'],
             'type' => $data['type'],
@@ -466,7 +466,7 @@ class LocalDnsService
 
         $settings = DnsSetting::instance();
 
-        DB::table('pdns_records')
+        DB::table('powerdns.records')
             ->where('domain_id', $pdnsDomainId)
             ->where('type', 'SOA')
             ->update(['content' => $this->buildSoaContent($settings, $zone)]);
