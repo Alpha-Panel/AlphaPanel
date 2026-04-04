@@ -123,18 +123,12 @@ class ProvisionDomainJob implements ShouldQueue
                 $this->progress($domain, 40, 'SSL certificate already exists, skipping...');
                 $certObtained = true;
             } else {
-                $this->progress($domain, 40, 'Requesting SSL certificate...');
-                $certObtained = match ($sslMethod) {
-                    SslMethod::WebrootHttp => $certbotService->requestCertificateWebroot($domain),
-                    SslMethod::SelfSigned => $certbotService->generateSelfSigned($domain),
-                    default => $certbotService->requestCertificate($domain),
-                };
-
-                if (! $certObtained && $sslMethod !== SslMethod::SelfSigned) {
-                    $this->progress($domain, 50, 'Certbot failed, generating self-signed certificate...');
-                    $certObtained = $certbotService->generateSelfSigned($domain);
-                    $selfSigned = $certObtained;
-                }
+                // Always provision with self-signed on initial creation.
+                // The domain may not be pointed at this server yet, so real ACME/DNS
+                // challenges would fail. The user triggers real SSL explicitly later.
+                $this->progress($domain, 40, 'Generating self-signed certificate...');
+                $certObtained = $certbotService->generateSelfSigned($domain);
+                $selfSigned = $certObtained;
             }
 
             if ($certObtained && $configService->certExists($domain)) {

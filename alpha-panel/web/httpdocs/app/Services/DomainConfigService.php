@@ -46,6 +46,15 @@ class DomainConfigService
     }
 
     /**
+     * Regenerate only the Caddyfile for a domain, using the current cert state.
+     * No exec calls — pure disk I/O. Safe to call on all domains at once.
+     */
+    public function regenerateCaddyConfig(Domain $domain): void
+    {
+        $this->writeCaddyConfig($domain, $this->certExists($domain));
+    }
+
+    /**
      * Render configs with TLS (Phase 2 - after cert provisioned).
      */
     public function renderWithTls(Domain $domain): void

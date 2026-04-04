@@ -21,10 +21,43 @@ class CertbotService
     }
 
     /**
+     * Kill any certbot containers still running from a previous attempt.
+     *
+     * Certbot uses fcntl file locking on /etc/letsencrypt/.certbot.lock.
+     * If a previous container is still alive (e.g. waiting on DNS propagation),
+     * a new container will fail immediately with "Another instance of Certbot is
+     * already running." Forcibly removing stale containers releases the lock.
+     */
+    private function killStaleCertbotContainers(): void
+    {
+        $image = config('panel.portainer_certbot_image', 'certbot/dns-cloudflare:v5.4.0');
+        $imageName = explode(':', $image)[0];
+
+        try {
+            $containers = $this->portainer->listContainers(
+                filters: ['ancestor' => [$imageName]],
+                all: false,
+            );
+
+            foreach ($containers as $container) {
+                $id = $container['Id'] ?? '';
+                if ($id === '') {
+                    continue;
+                }
+                Log::warning("Killing stale certbot container {$id}.");
+                $this->portainer->removeContainer($id, force: true);
+            }
+        } catch (\Exception $e) {
+            Log::warning("Could not check for stale certbot containers: {$e->getMessage()}");
+        }
+    }
+
+    /**
      * Request a wildcard certificate for a domain using certbot via Portainer.
      */
     public function requestCertificate(Domain $domain): bool
     {
+        $this->killStaleCertbotContainers();
         $this->cleanCertDirectories($domain);
 
         $fqdn = $domain->fqdn;
@@ -101,6 +134,7 @@ class CertbotService
      */
     public function requestCertificateWebroot(Domain $domain): bool
     {
+        $this->killStaleCertbotContainers();
         $this->cleanCertDirectories($domain);
 
         $fqdn = $domain->fqdn;
@@ -174,6 +208,7 @@ class CertbotService
      */
     public function renewCertificate(Domain $domain): bool
     {
+        $this->killStaleCertbotContainers();
         $fqdn = $domain->fqdn;
         $image = config('panel.portainer_certbot_image', 'certbot/dns-cloudflare:v5.4.0');
         $hostRoot = config('panel.compose_project_root_host');
@@ -192,7 +227,7 @@ class CertbotService
             $certbotArgs[] = '--staging';
         }
 
-        $certbotCommand = implode(' ', $certbotArgs);
+        $certbotCommand = "rm -f /etc/letsencrypt/.certbot.lock; ".implode(' ', $certbotArgs);
 
         Log::info("Renewing SSL certificate for {$fqdn} via Portainer.");
 
@@ -238,6 +273,7 @@ class CertbotService
      */
     public function renewCertificateWebroot(Domain $domain): bool
     {
+        $this->killStaleCertbotContainers();
         $fqdn = $domain->fqdn;
         $adminEmail = config('panel.certbot_email');
         $image = config('panel.portainer_certbot_image', 'certbot/dns-cloudflare:v5.4.0');
@@ -267,7 +303,7 @@ class CertbotService
             $certbotArgs[] = '--staging';
         }
 
-        $certbotCommand = implode(' ', $certbotArgs);
+        $certbotCommand = "rm -f /etc/letsencrypt/.certbot.lock; ".implode(' ', $certbotArgs);
 
         Log::info("Renewing SSL certificate for {$fqdn} via webroot HTTP-01.");
 
@@ -349,6 +385,33 @@ class CertbotService
             Log::error("Self-signed cert exception for {$fqdn}: {$e->getMessage()}");
 
             return false;
+        }
+    }
+
+    /**
+     * Delete any stale Caddy ACME lock files for a domain inside the frankenphp container.
+     *
+     * Lock files accumulate when Caddy crashes mid-cert-operation and block every subsequent
+     * reload indefinitely. Call this before any SSL operation so a fresh cert attempt is clean.
+     */
+    public function clearCaddyAcmeLocks(Domain $domain): void
+    {
+        $fqdn = $domain->fqdn;
+        $container = (string) config('panel.frankenphp_container', 'frankenphp');
+
+        try {
+            $result = $this->portainer->execInContainer($container, [
+                '/bin/sh', '-c',
+                "find /data/caddy/locks -name '*{$fqdn}*' -type f -delete 2>/dev/null; true",
+            ], 15);
+
+            if ($result->isSuccessful()) {
+                Log::info("Cleared Caddy ACME lock files for {$fqdn}.");
+            } else {
+                Log::warning("Could not clear Caddy ACME lock files for {$fqdn}: {$result->errorOutput}");
+            }
+        } catch (\Exception $e) {
+            Log::warning("Could not clear Caddy ACME lock files for {$fqdn}: {$e->getMessage()}");
         }
     }
 
@@ -450,7 +513,7 @@ class CertbotService
      */
     private function buildCertbotCommand(string $certbotCommand): string
     {
-        return "mkdir -p /etc/letsencrypt/logs; {$certbotCommand}";
+        return "mkdir -p /etc/letsencrypt/logs; rm -f /etc/letsencrypt/.certbot.lock; {$certbotCommand}";
     }
 
     /**

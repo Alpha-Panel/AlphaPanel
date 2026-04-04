@@ -56,6 +56,10 @@ class SslActivateJob implements ShouldQueue
                 return;
             }
 
+            // Clear stale Caddy ACME lock files before any cert operation.
+            // Lock files from crashed/killed Caddy processes block every subsequent reload.
+            $certbotService->clearCaddyAcmeLocks($domain);
+
             // For webroot HTTP-01: switch to HTTP-only Caddyfile before certbot runs.
             // renderWithoutTls writes only a :80 block with ACME challenge handler —
             // no :443 block that would break when cleanCertDirectories removes self-signed files.
