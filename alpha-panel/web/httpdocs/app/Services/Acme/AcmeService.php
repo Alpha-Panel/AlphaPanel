@@ -13,10 +13,15 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
 use Rogierw\RwAcme\Api;
+use Rogierw\RwAcme\DTO\AccountData;
+use Rogierw\RwAcme\DTO\OrderData;
+use Rogierw\RwAcme\Enums\AuthorizationChallengeEnum;
 
 class AcmeService
 {
     private ?Api $client = null;
+
+    private ?DatabaseAcmeAccount $accountAdapter = null;
 
     public function __construct(
         private CloudflareDnsService $cloudflareDns,
@@ -38,15 +43,43 @@ class AcmeService
             ? $settings['staging_server_url']
             : $settings['server_url'];
 
-        $account = new DatabaseAcmeAccount($serverUrl);
+        // The rw-acme-client library appends '/directory' automatically,
+        // so baseUrl must be the host without the trailing /directory path.
+        $baseUrl = rtrim($serverUrl, '/');
+        if (str_ends_with($baseUrl, '/directory')) {
+            $baseUrl = substr($baseUrl, 0, -strlen('/directory'));
+        }
+
+        $this->accountAdapter = new DatabaseAcmeAccount($serverUrl);
 
         $this->client = new Api(
-            account: $account,
-            baseUrl: $serverUrl,
-            email: $settings['email'],
+            staging: $settings['staging'],
+            localAccount: $this->accountAdapter,
+            baseUrl: $baseUrl,
         );
 
         return $this->client;
+    }
+
+    /**
+     * Ensure ACME account exists, create if needed.
+     */
+    private function ensureAccount(): AccountData
+    {
+        $client = $this->getClient();
+        $settings = $this->getSettings();
+
+        if ($client->account()->exists()) {
+            return $client->account()->get();
+        }
+
+        Log::info('Creating new ACME account for '.($settings['staging'] ? 'staging' : 'production').'.');
+        $accountData = $client->account()->create();
+
+        // Store the account URL
+        $this->accountAdapter?->storeAccountUrl($accountData->url, $settings['email']);
+
+        return $accountData;
     }
 
     /**
@@ -74,7 +107,6 @@ class AcmeService
                 return ['zone_id' => $zoneId, 'name' => $recordName, 'value' => $recordValue];
             },
             deleteTxtRecord: function (array $context) {
-                // Find and delete the TXT record
                 $records = $this->cloudflareDns->listRecords($context['zone_id'], $context['name']);
                 foreach ($records as $record) {
                     if (($record['type'] ?? '') === 'TXT' && ($record['content'] ?? '') === $context['value']) {
@@ -145,63 +177,52 @@ class AcmeService
 
         try {
             $client = $this->getClient();
+            $accountData = $this->ensureAccount();
+
             if ($onProgress) { $onProgress(20, __('Creating certificate order...')); }
 
-            // Create ACME order
-            $order = $client->order()->new($client->account()->url(), $domains);
+            $order = $client->order()->new($accountData, $domains);
 
-            // Process HTTP-01 challenges
             if ($onProgress) { $onProgress(30, __('Setting up HTTP challenge files...')); }
             $challengeFiles = [];
 
-            $authorizations = $client->domainValidation()->status($order);
+            $validations = $client->domainValidation()->status($order);
+            $httpAuths = $client->domainValidation()->getValidationData($validations, AuthorizationChallengeEnum::HTTP);
 
-            foreach ($authorizations as $authorization) {
-                $challenge = null;
-                foreach ($authorization['challenges'] as $ch) {
-                    if ($ch['type'] === 'http-01') {
-                        $challenge = $ch;
-                        break;
-                    }
-                }
-
-                if (! $challenge) {
-                    return AcmeResult::failure("No HTTP-01 challenge available for authorization.");
-                }
-
-                // Write challenge file
-                $token = $challenge['token'];
-                $keyAuthorization = $client->domainValidation()->getKeyAuthorization($challenge);
-
+            foreach ($httpAuths as $auth) {
                 $challengePath = "{$webrootPath}/.well-known/acme-challenge";
                 if (! File::isDirectory($challengePath)) {
                     File::makeDirectory($challengePath, 0755, true);
                 }
 
-                $filePath = "{$challengePath}/{$token}";
-                File::put($filePath, $keyAuthorization);
+                $filePath = "{$challengePath}/{$auth['filename']}";
+                File::put($filePath, $auth['content']);
                 $challengeFiles[] = $filePath;
-
-                // Start validation
-                if ($onProgress) { $onProgress(40, __('Validating domain ownership via HTTP...')); }
-                $client->domainValidation()->start($order, $challenge);
             }
 
-            // Poll for completion
-            if ($onProgress) { $onProgress(55, __('Waiting for validation...')); }
-            $order = $this->pollOrderStatus($order, $settings['poll_timeout']);
+            // Start validation for each domain
+            if ($onProgress) { $onProgress(40, __('Validating domain ownership via HTTP...')); }
+            foreach ($validations as $validation) {
+                if (! empty($validation->file)) {
+                    $client->domainValidation()->start($accountData, $validation, AuthorizationChallengeEnum::HTTP, false);
+                }
+            }
 
-            if ($order['status'] !== 'ready') {
+            // Poll for all challenges to pass
+            if ($onProgress) { $onProgress(55, __('Waiting for validation...')); }
+            if (! $client->domainValidation()->allChallengesPassed($order)) {
                 $this->cleanupFiles($challengeFiles);
 
-                return AcmeResult::failure("ACME order not ready. Status: {$order['status']}");
+                return AcmeResult::failure('HTTP-01 domain validation failed. Ensure the domain is publicly accessible.');
             }
 
-            // Generate key and CSR, finalize
+            // Refresh order status
+            $order = $client->order()->get($order->id);
+
+            // Finalize
             if ($onProgress) { $onProgress(70, __('Finalizing certificate...')); }
             $result = $this->finalizeOrder($order, $domains);
 
-            // Cleanup challenge files
             $this->cleanupFiles($challengeFiles);
 
             Log::info("HTTP-01 certificate obtained for {$fqdn}.");
@@ -216,7 +237,6 @@ class AcmeService
 
     /**
      * Generate a self-signed certificate.
-     * Moved from CertbotService — uses openssl directly.
      */
     public function generateSelfSigned(Domain $domain): AcmeResult
     {
@@ -269,7 +289,6 @@ class AcmeService
 
     /**
      * Delete stale Caddy ACME lock files for a domain.
-     * Moved from CertbotService.
      */
     public function clearCaddyAcmeLocks(Domain $domain): void
     {
@@ -294,9 +313,6 @@ class AcmeService
 
     /**
      * Perform a DNS-01 ACME challenge.
-     *
-     * @param  callable(string $recordName, string $recordValue): array  $createTxtRecord
-     * @param  callable(array $context): void  $deleteTxtRecord
      */
     private function performDns01Challenge(
         Domain $domain,
@@ -311,33 +327,21 @@ class AcmeService
 
         try {
             $client = $this->getClient();
+            $accountData = $this->ensureAccount();
+
             if ($onProgress) { $onProgress(20, __('Creating certificate order...')); }
 
-            // Create ACME order
-            $order = $client->order()->new($client->account()->url(), $domains);
+            $order = $client->order()->new($accountData, $domains);
 
-            // Get authorizations and DNS-01 challenges
             if ($onProgress) { $onProgress(30, __('Setting DNS challenge records...')); }
-            $authorizations = $client->domainValidation()->status($order);
 
-            foreach ($authorizations as $authorization) {
-                $challenge = null;
-                foreach ($authorization['challenges'] as $ch) {
-                    if ($ch['type'] === 'dns-01') {
-                        $challenge = $ch;
-                        break;
-                    }
-                }
+            $validations = $client->domainValidation()->status($order);
+            $dnsAuths = $client->domainValidation()->getValidationData($validations, AuthorizationChallengeEnum::DNS);
 
-                if (! $challenge) {
-                    return AcmeResult::failure("No DNS-01 challenge available for {$authorization['identifier']['value']}.");
-                }
+            foreach ($dnsAuths as $auth) {
+                $recordName = $auth['name'].'.'.$auth['identifier'];
+                $recordValue = $auth['value'];
 
-                // Get the DNS TXT record value
-                $recordName = '_acme-challenge.'.$authorization['identifier']['value'];
-                $recordValue = $client->domainValidation()->getKeyAuthorization($challenge);
-
-                // Create TXT record via the provided callback
                 $context = $createTxtRecord($recordName, $recordValue);
                 $createdRecords[] = ['context' => $context, 'callback' => $deleteTxtRecord];
             }
@@ -346,31 +350,28 @@ class AcmeService
             if ($onProgress) { $onProgress(40, __('Waiting for DNS propagation (:seconds seconds)...', ['seconds' => $propagationWait])); }
             sleep($propagationWait);
 
-            // Start validation for all challenges
+            // Start validation for each domain
             if ($onProgress) { $onProgress(55, __('Validating domain ownership...')); }
-            foreach ($authorizations as $authorization) {
-                foreach ($authorization['challenges'] as $ch) {
-                    if ($ch['type'] === 'dns-01') {
-                        $client->domainValidation()->start($order, $ch);
-                    }
+            foreach ($validations as $validation) {
+                if (! empty($validation->dns)) {
+                    $client->domainValidation()->start($accountData, $validation, AuthorizationChallengeEnum::DNS, false);
                 }
             }
 
-            // Poll for order completion
-            $settings = $this->getSettings();
-            $order = $this->pollOrderStatus($order, $settings['poll_timeout']);
-
-            if ($order['status'] !== 'ready') {
+            // Poll for all challenges to pass
+            if (! $client->domainValidation()->allChallengesPassed($order)) {
                 $this->cleanupDnsRecords($createdRecords);
 
-                return AcmeResult::failure("ACME order not ready after polling. Status: {$order['status']}");
+                return AcmeResult::failure('DNS-01 domain validation failed. Check DNS records and propagation.');
             }
 
-            // Generate key, CSR, finalize
+            // Refresh order status
+            $order = $client->order()->get($order->id);
+
+            // Finalize
             if ($onProgress) { $onProgress(70, __('Finalizing certificate...')); }
             $result = $this->finalizeOrder($order, $domains);
 
-            // Cleanup DNS records
             $this->cleanupDnsRecords($createdRecords);
 
             Log::info("DNS-01 certificate obtained for {$fqdn}.");
@@ -385,66 +386,54 @@ class AcmeService
     }
 
     /**
-     * Poll ACME order status until ready or timeout.
+     * Finalize the ACME order: generate key + CSR, submit, download certificate.
      */
-    private function pollOrderStatus(mixed $order, int $timeoutSeconds): mixed
-    {
-        $client = $this->getClient();
-        $start = time();
-        $interval = 3;
-
-        while (time() - $start < $timeoutSeconds) {
-            $order = $client->order()->get($order['url'] ?? $order['orderUrl'] ?? '');
-
-            $status = $order['status'] ?? 'unknown';
-
-            if (in_array($status, ['ready', 'valid', 'invalid'])) {
-                return $order;
-            }
-
-            sleep($interval);
-            // Gradual backoff
-            $interval = min($interval + 2, 15);
-        }
-
-        return $order;
-    }
-
-    /**
-     * Generate private key + CSR and finalize the ACME order.
-     */
-    private function finalizeOrder(mixed $order, array $domains): AcmeResult
+    private function finalizeOrder(OrderData $order, array $domains): AcmeResult
     {
         $client = $this->getClient();
         $settings = $this->getSettings();
 
-        // Generate private key
+        // Generate private key for the certificate
         $keyPem = $this->generatePrivateKey($settings['key_type'], $settings['key_length']);
 
         // Generate CSR
         $csrPem = $this->generateCsr($keyPem, $domains);
 
-        // Finalize order
-        $client->order()->finalize($order, $csrPem);
+        // Finalize order with CSR
+        $finalized = $client->order()->finalize($order, $csrPem);
 
-        // Poll until certificate is available
-        $finalOrder = $this->pollOrderStatus($order, 60);
-
-        if (($finalOrder['status'] ?? '') !== 'valid') {
-            return AcmeResult::failure("Order finalization failed. Status: {$finalOrder['status']}");
+        if (! $finalized) {
+            return AcmeResult::failure("Order finalization failed. Order status: {$order->status}");
         }
 
-        // Download certificate
-        $certificatePem = $client->certificate()->get($finalOrder);
+        // Re-fetch order to get certificate URL
+        $order = $client->order()->get($order->id);
 
-        if (! $certificatePem) {
+        if (! $order->isFinalized()) {
+            // Poll until valid
+            $attempts = 0;
+            while (! $order->isFinalized() && $attempts < 20) {
+                sleep(3);
+                $order = $client->order()->get($order->id);
+                $attempts++;
+            }
+
+            if (! $order->isFinalized()) {
+                return AcmeResult::failure("Order not finalized after polling. Status: {$order->status}");
+            }
+        }
+
+        // Download certificate bundle
+        $bundle = $client->certificate()->getBundle($order);
+
+        if (! $bundle->fullchain) {
             return AcmeResult::failure('Failed to download certificate from ACME server.');
         }
 
         $isStaging = $settings['staging'];
         Log::info('Certificate obtained'.($isStaging ? ' (STAGING)' : ''));
 
-        return AcmeResult::success($certificatePem, $keyPem);
+        return AcmeResult::success($bundle->fullchain, $keyPem);
     }
 
     /**
@@ -495,7 +484,6 @@ class AcmeService
 
             File::put($keyFile, $privateKeyPem);
 
-            // Build OpenSSL config with SAN
             $sanEntries = [];
             foreach ($domains as $i => $domain) {
                 $sanEntries[] = 'DNS.'.($i + 1).' = '.$domain;
@@ -534,10 +522,7 @@ class AcmeService
                 throw new \RuntimeException("CSR generation failed: {$result->errorOutput()}");
             }
 
-            // Return DER-encoded CSR (most ACME servers expect this)
-            $csrPem = File::get($csrFile);
-
-            return $csrPem;
+            return File::get($csrFile);
         } finally {
             File::deleteDirectory($tmpDir);
         }
@@ -567,7 +552,6 @@ class AcmeService
                 'auto_renew_days' => $settings->auto_renew_days ?: 30,
             ];
         } catch (\Throwable) {
-            // Fallback to config if table doesn't exist yet
             return [
                 'email' => config('panel.certbot_email', ''),
                 'staging' => config('panel.certbot_staging', false),
@@ -601,9 +585,6 @@ class AcmeService
         };
     }
 
-    /**
-     * Cleanup created DNS TXT records.
-     */
     private function cleanupDnsRecords(array $records): void
     {
         foreach ($records as $record) {
@@ -615,9 +596,6 @@ class AcmeService
         }
     }
 
-    /**
-     * Cleanup challenge files.
-     */
     private function cleanupFiles(array $files): void
     {
         foreach ($files as $file) {

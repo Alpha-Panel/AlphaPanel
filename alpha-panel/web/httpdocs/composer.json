@@ -26,7 +26,8 @@
         "rogierw/rw-acme-client": "^6.0",
         "spatie/laravel-honeypot": "^4.6",
         "spatie/laravel-permission": "^7.0",
-        "tightenco/ziggy": "^2.6"
+        "tightenco/ziggy": "^2.6",
+        "ext-openssl": "*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

@@ -27,7 +27,7 @@
                                 {{ t('Cancel') }}
                             </button>
                         </div>
-                        <div :class="['mb-3 rounded-lg border px-3 py-2 text-sm', sslMessageClass]">
+                        <div :class="['mt-2 mb-3 rounded-lg border px-3 py-2 text-sm', sslMessageClass]">
                             {{ sslMessage }}
                         </div>
                         <div class="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">

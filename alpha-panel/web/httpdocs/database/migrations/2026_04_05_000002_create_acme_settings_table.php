@@ -12,8 +12,8 @@ return new class extends Migration
             $table->id();
             $table->string('email')->default('');
             $table->boolean('staging')->default(false);
-            $table->string('server_url')->default('https://acme-v02.api.letsencrypt.org/directory');
-            $table->string('staging_server_url')->default('https://acme-staging-v02.api.letsencrypt.org/directory');
+            $table->string('server_url')->default('https://acme-v02.api.letsencrypt.org');
+            $table->string('staging_server_url')->default('https://acme-staging-v02.api.letsencrypt.org');
             $table->string('key_type', 10)->default('EC');
             $table->string('key_length', 10)->default('P-384');
             $table->unsignedInteger('dns_propagation_wait')->default(60);
