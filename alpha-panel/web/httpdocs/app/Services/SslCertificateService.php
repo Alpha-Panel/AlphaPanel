@@ -423,8 +423,12 @@ class SslCertificateService
             throw new RuntimeException('Certificate or private key is missing.');
         }
 
-        // Write cert files to disk for Caddy to read
-        $this->writeCertToDisk($domain, $certificate);
+        // For cross-domain activation (subdomain inheriting an apex wildcard),
+        // the PEM files already live under the owning domain's directory —
+        // DomainConfigService::resolveCertPaths() will point Caddy at them.
+        if ($certificate->domain_id === $domain->id) {
+            $this->writeCertToDisk($domain, $certificate);
+        }
 
         $domain->update(['active_ssl_certificate_id' => $certificate->id]);
 

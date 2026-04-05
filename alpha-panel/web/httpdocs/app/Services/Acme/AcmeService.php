@@ -88,15 +88,18 @@ class AcmeService
     public function requestCertificateDnsCloudflare(Domain $domain, ?callable $onProgress = null): AcmeResult
     {
         $fqdn = $domain->fqdn;
-        $domains = [$fqdn, "*.{$fqdn}"];
+        // Wildcards only make sense for apex domains — for subdomains we
+        // request a single-host cert and write the ACME TXT into the apex zone.
+        $domains = $domain->isSubdomain() ? [$fqdn] : [$fqdn, "*.{$fqdn}"];
+        $apex = $domain->getApexDomain();
 
-        Log::info("Requesting DNS-01 (Cloudflare) certificate for {$fqdn}.");
+        Log::info("Requesting DNS-01 (Cloudflare) certificate for {$fqdn} via apex zone {$apex}.");
 
         return $this->performDns01Challenge(
             domain: $domain,
             domains: $domains,
-            createTxtRecord: function (string $recordName, string $recordValue) use ($domain) {
-                $zoneId = $this->cloudflareDns->getZoneId($domain->fqdn);
+            createTxtRecord: function (string $recordName, string $recordValue) use ($apex) {
+                $zoneId = $this->cloudflareDns->getZoneId($apex);
                 $this->cloudflareDns->addRecord($zoneId, [
                     'type' => 'TXT',
                     'name' => $recordName,
@@ -125,13 +128,19 @@ class AcmeService
     public function requestCertificateDnsLocal(Domain $domain, ?callable $onProgress = null): AcmeResult
     {
         $fqdn = $domain->fqdn;
-        $domains = [$fqdn, "*.{$fqdn}"];
+        // Wildcards only make sense for apex domains — for subdomains we
+        // request a single-host cert and write the ACME TXT into the apex zone.
+        $domains = $domain->isSubdomain() ? [$fqdn] : [$fqdn, "*.{$fqdn}"];
 
-        Log::info("Requesting DNS-01 (Local PowerDNS) certificate for {$fqdn}.");
+        $zoneOwner = $domain->isSubdomain()
+            ? Domain::where('fqdn', $domain->getApexDomain())->first()
+            : $domain;
+        $zone = $zoneOwner?->dnsZone;
 
-        $zone = $domain->dnsZone;
+        Log::info("Requesting DNS-01 (Local PowerDNS) certificate for {$fqdn} via zone {$zoneOwner?->fqdn}.");
+
         if (! $zone) {
-            return AcmeResult::failure("No local DNS zone found for {$fqdn}. Create a DNS zone first.");
+            return AcmeResult::failure("No local DNS zone found for {$domain->getApexDomain()}. Create a DNS zone first.");
         }
 
         return $this->performDns01Challenge(
@@ -179,11 +188,15 @@ class AcmeService
             $client = $this->getClient();
             $accountData = $this->ensureAccount();
 
-            if ($onProgress) { $onProgress(20, __('Creating certificate order...')); }
+            if ($onProgress) {
+                $onProgress(20, __('Creating certificate order...'));
+            }
 
             $order = $client->order()->new($accountData, $domains);
 
-            if ($onProgress) { $onProgress(30, __('Setting up HTTP challenge files...')); }
+            if ($onProgress) {
+                $onProgress(30, __('Setting up HTTP challenge files...'));
+            }
             $challengeFiles = [];
 
             $validations = $client->domainValidation()->status($order);
@@ -201,7 +214,9 @@ class AcmeService
             }
 
             // Start validation for each domain
-            if ($onProgress) { $onProgress(40, __('Validating domain ownership via HTTP...')); }
+            if ($onProgress) {
+                $onProgress(40, __('Validating domain ownership via HTTP...'));
+            }
             foreach ($validations as $validation) {
                 if (! empty($validation->file)) {
                     $client->domainValidation()->start($accountData, $validation, AuthorizationChallengeEnum::HTTP, false);
@@ -209,7 +224,9 @@ class AcmeService
             }
 
             // Poll for all challenges to pass
-            if ($onProgress) { $onProgress(55, __('Waiting for validation...')); }
+            if ($onProgress) {
+                $onProgress(55, __('Waiting for validation...'));
+            }
             if (! $client->domainValidation()->allChallengesPassed($order)) {
                 $this->cleanupFiles($challengeFiles);
 
@@ -220,7 +237,9 @@ class AcmeService
             $order = $client->order()->get($order->id);
 
             // Finalize
-            if ($onProgress) { $onProgress(70, __('Finalizing certificate...')); }
+            if ($onProgress) {
+                $onProgress(70, __('Finalizing certificate...'));
+            }
             $result = $this->finalizeOrder($order, $domains);
 
             $this->cleanupFiles($challengeFiles);
@@ -329,11 +348,15 @@ class AcmeService
             $client = $this->getClient();
             $accountData = $this->ensureAccount();
 
-            if ($onProgress) { $onProgress(20, __('Creating certificate order...')); }
+            if ($onProgress) {
+                $onProgress(20, __('Creating certificate order...'));
+            }
 
             $order = $client->order()->new($accountData, $domains);
 
-            if ($onProgress) { $onProgress(30, __('Setting DNS challenge records...')); }
+            if ($onProgress) {
+                $onProgress(30, __('Setting DNS challenge records...'));
+            }
 
             $validations = $client->domainValidation()->status($order);
             $dnsAuths = $client->domainValidation()->getValidationData($validations, AuthorizationChallengeEnum::DNS);
@@ -347,11 +370,15 @@ class AcmeService
             }
 
             // Wait for DNS propagation
-            if ($onProgress) { $onProgress(40, __('Waiting for DNS propagation (:seconds seconds)...', ['seconds' => $propagationWait])); }
+            if ($onProgress) {
+                $onProgress(40, __('Waiting for DNS propagation (:seconds seconds)...', ['seconds' => $propagationWait]));
+            }
             sleep($propagationWait);
 
             // Start validation for each domain
-            if ($onProgress) { $onProgress(55, __('Validating domain ownership...')); }
+            if ($onProgress) {
+                $onProgress(55, __('Validating domain ownership...'));
+            }
             foreach ($validations as $validation) {
                 if (! empty($validation->dns)) {
                     $client->domainValidation()->start($accountData, $validation, AuthorizationChallengeEnum::DNS, false);
@@ -369,7 +396,9 @@ class AcmeService
             $order = $client->order()->get($order->id);
 
             // Finalize
-            if ($onProgress) { $onProgress(70, __('Finalizing certificate...')); }
+            if ($onProgress) {
+                $onProgress(70, __('Finalizing certificate...'));
+            }
             $result = $this->finalizeOrder($order, $domains);
 
             $this->cleanupDnsRecords($createdRecords);

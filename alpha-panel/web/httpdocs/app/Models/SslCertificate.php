@@ -98,4 +98,47 @@ class SslCertificate extends Model
         return $this->certificate_pem !== null
             && $this->certificate_pem !== '';
     }
+
+    /**
+     * Check whether this certificate's CN or SANs cover a given FQDN.
+     *
+     * Supports exact matches and single-label wildcards (e.g. `*.example.com`
+     * covers `test.example.com` but not `api.test.example.com`).
+     */
+    public function coversFqdn(string $fqdn): bool
+    {
+        $fqdn = strtolower(trim($fqdn));
+
+        if ($fqdn === '') {
+            return false;
+        }
+
+        $candidates = array_filter(array_merge(
+            [$this->common_name],
+            is_array($this->san_domains) ? $this->san_domains : [],
+        ));
+
+        foreach ($candidates as $pattern) {
+            $pattern = strtolower((string) $pattern);
+
+            if ($pattern === '') {
+                continue;
+            }
+
+            if ($pattern === $fqdn) {
+                return true;
+            }
+
+            if (str_starts_with($pattern, '*.')) {
+                $suffix = substr($pattern, 2);
+
+                if (str_ends_with($fqdn, '.'.$suffix)
+                    && substr_count($fqdn, '.') === substr_count($suffix, '.') + 1) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 }

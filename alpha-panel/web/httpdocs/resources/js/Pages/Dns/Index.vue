@@ -324,6 +324,14 @@
                                 </div>
                             </template>
 
+                            <template v-else-if="isNsType">
+                                <div class="md:col-span-12">
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">{{ t('Nameserver') }}</label>
+                                    <input v-model="recordForm.content" type="text" class="form-input" :placeholder="t('ns1.example.com')" />
+                                    <p v-if="formErrors.content" class="mt-1 text-xs text-error-500">{{ formErrors.content }}</p>
+                                </div>
+                            </template>
+
                             <div class="md:col-span-6">
                                 <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">{{ t('TTL') }}</label>
                                 <input v-model.number="recordForm.ttl" type="number" min="1" class="form-input" />
@@ -457,7 +465,7 @@ const breadcrumbs = computed(() => [
     { label: t('DNS Records') },
 ]);
 
-const dnsTypes = ['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'SRV', 'HTTPS', 'CAA'];
+const dnsTypes = ['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'SRV', 'HTTPS', 'CAA', 'NS'];
 const proxyTypes = ['A', 'AAAA', 'CNAME'];
 
 const { addToast } = useToast();
@@ -540,6 +548,7 @@ const isMxType = computed(() => recordForm.value.record_type === 'MX');
 const isCaaType = computed(() => recordForm.value.record_type === 'CAA');
 const isSrvType = computed(() => recordForm.value.record_type === 'SRV');
 const isHttpsType = computed(() => recordForm.value.record_type === 'HTTPS');
+const isNsType = computed(() => recordForm.value.record_type === 'NS');
 const isProxyType = computed(() => proxyTypes.includes(recordForm.value.record_type));
 
 const formModalTitle = computed(() => (recordForm.value.dns_id ? t('DNS Edit') : t('DNS Add')));

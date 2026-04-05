@@ -311,16 +311,11 @@
                             </div>
 
                             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                                <button
-                                    type="button"
-                                    @click="activateSsl(subdomain.id)"
-                                    :disabled="sslLoading"
-                                    class="quick-link disabled:opacity-60"
-                                >
+                                <Link :href="route('domains.ssl.index', subdomain.id)" class="quick-link">
                                     <i class="fa-brands fa-expeditedssl quick-link-icon"></i>
                                     <span class="quick-link-label">{{ t('SSL Certificate') }}</span>
                                     <i class="fa-solid fa-angle-right quick-link-arrow"></i>
-                                </button>
+                                </Link>
 
                                 <Link :href="route('domains.edit', subdomain.id)" class="quick-link">
                                     <i class="fa-solid fa-gears quick-link-icon"></i>
@@ -706,7 +701,6 @@ const canManagePhpSettings = computed(() => domain.value.type === 'apache_revers
 const hasStoredFtpPassword = computed(() => Boolean(domain.value.ftp_user?.encrypted_password));
 const subdomains = computed(() => domain.value.subdomains ?? []);
 
-const sslLoading = ref(false);
 const showCreateSubdomainModal = ref(false);
 const showDomainDetails = ref(false);
 
@@ -1240,19 +1234,6 @@ const deleteFirewallRule = async (ruleId: string): Promise<void> => {
 
 const toggleUnderAttackQuick = async (): Promise<void> => {
     await updateCloudflareSetting('under_attack', !underAttackEnabled.value);
-};
-
-const activateSsl = (domainId: number) => {
-    sslLoading.value = true;
-    router.post(route('domains.ssl.activate', domainId), {}, {
-        preserveScroll: true,
-            onSuccess: () => {
-            addToast('success', t('SSL certificate operation started.'));
-        },
-        onFinish: () => {
-            sslLoading.value = false;
-        },
-    });
 };
 
 const confirmDomainDeletion = async (isSubdomain: boolean, fqdn: string): Promise<boolean | null> => {

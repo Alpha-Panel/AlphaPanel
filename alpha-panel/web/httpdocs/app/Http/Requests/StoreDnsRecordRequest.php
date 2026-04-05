@@ -16,7 +16,7 @@ class StoreDnsRecordRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'record_type' => ['required', 'string', Rule::in(['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'SRV', 'CAA', 'HTTPS'])],
+            'record_type' => ['required', 'string', Rule::in(['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'SRV', 'CAA', 'HTTPS', 'NS'])],
             'name' => ['required', 'string', 'max:255'],
             'content' => ['required', 'string', 'max:4096'],
             'ttl' => ['nullable', 'integer', 'min:1'],

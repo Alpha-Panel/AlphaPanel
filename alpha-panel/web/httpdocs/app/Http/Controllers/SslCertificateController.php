@@ -35,11 +35,31 @@ class SslCertificateController extends Controller
     {
         $this->authorize('manageSsl', $domain);
 
-        $domain->load(['sslCertificates' => fn ($q) => $q->orderByDesc('created_at')]);
+        $own = $domain->sslCertificates()
+            ->orderByDesc('created_at')
+            ->get();
+
+        $inherited = collect();
+
+        if ($domain->isSubdomain()) {
+            $apex = Domain::where('fqdn', $domain->getApexDomain())->first();
+
+            if ($apex) {
+                $apex->loadMissing('sslCertificates');
+                $inherited = $apex->sslCertificates
+                    ->filter(fn (SslCertificate $c): bool => $c->coversFqdn($domain->fqdn))
+                    ->values();
+
+                $inherited->each(function (SslCertificate $c) use ($apex): void {
+                    $c->setAttribute('inherited_from_fqdn', $apex->fqdn);
+                    $c->setAttribute('inherited_from_domain_id', $apex->id);
+                });
+            }
+        }
 
         return Inertia::render('Domains/SslCertificates', [
             'domain' => $domain,
-            'certificates' => $domain->sslCertificates,
+            'certificates' => $own->concat($inherited)->values(),
             'activeCertificateId' => $domain->active_ssl_certificate_id,
         ]);
     }
@@ -277,7 +297,13 @@ class SslCertificateController extends Controller
         $this->authorize('manageSsl', $domain);
 
         if ($certificate->domain_id !== $domain->id) {
-            abort(404);
+            // Allow activating an ancestor cert on a subdomain it covers
+            // (e.g. a wildcard cert owned by the apex domain).
+            if (! $domain->isSubdomain()
+                || $certificate->domain?->fqdn !== $domain->getApexDomain()
+                || ! $certificate->coversFqdn($domain->fqdn)) {
+                abort(404);
+            }
         }
 
         if (! $certificate->certificate_pem) {

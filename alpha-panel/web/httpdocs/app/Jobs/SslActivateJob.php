@@ -68,6 +68,34 @@ class SslActivateJob implements ShouldQueue
                 return;
             }
 
+            // Subdomain short-circuit: if the apex holds a cert that covers this
+            // subdomain's FQDN (e.g. a wildcard), reuse it instead of issuing a
+            // new one. No ACME order, no DNS zone lookup, no duplication.
+            if ($domain->isSubdomain()) {
+                $parent = $domain->parentDomain
+                    ?: Domain::where('fqdn', $domain->getApexDomain())->first();
+                $parentCert = $parent?->activeSslCertificate;
+
+                if ($parentCert && $parentCert->coversFqdn($domain->fqdn)) {
+                    Log::info("Subdomain {$fqdn} is covered by apex cert for {$parent->fqdn}; reusing and skipping issuance.");
+
+                    // Stop the cron from trying to renew any stale per-subdomain certs
+                    SslCertificate::where('domain_id', $domain->id)
+                        ->where('id', '!=', $parentCert->id)
+                        ->update(['auto_renew' => false]);
+
+                    $domain->update(['active_ssl_certificate_id' => $parentCert->id]);
+                    $domain->setRelation('activeSslCertificate', $parentCert);
+
+                    $configService->renderWithTls($domain);
+                    $reloadService->reloadCaddy();
+
+                    $this->progress($domain, 100, __('Subdomain reuses apex certificate.'), 'completed');
+
+                    return;
+                }
+            }
+
             $this->progress($domain, 5, __('Starting SSL activation for :fqdn...', ['fqdn' => $fqdn]));
 
             $acmeService->clearCaddyAcmeLocks($domain);
@@ -236,6 +264,25 @@ class SslActivateJob implements ShouldQueue
             $sslCertService->writeCertToDisk($domain, $cert);
             $configService->renderWithTls($domain);
             $reloadService->reloadCaddy();
+
+            // If this is an apex cert, propagate the new cert id to any
+            // direct subdomains that were inheriting the previous version,
+            // and re-render their Caddyfiles so they pick up the new path.
+            if (! $domain->isSubdomain()) {
+                $oldCertIds = SslCertificate::where('domain_id', $domain->id)
+                    ->where('id', '!=', $cert->id)
+                    ->pluck('id');
+
+                $domain->subdomains()
+                    ->whereIn('active_ssl_certificate_id', $oldCertIds)
+                    ->get()
+                    ->each(function (Domain $child) use ($cert, $configService): void {
+                        if ($cert->coversFqdn($child->fqdn)) {
+                            $child->update(['active_ssl_certificate_id' => $cert->id]);
+                            $configService->renderWithTls($child);
+                        }
+                    });
+            }
         } catch (\Exception $e) {
             Log::warning("Failed to create SslCertificate record for {$domain->fqdn}: {$e->getMessage()}");
         }

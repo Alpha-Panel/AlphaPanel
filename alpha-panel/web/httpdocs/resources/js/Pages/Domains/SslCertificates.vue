@@ -207,7 +207,17 @@
                                         @click="openCertDetail(cert)"
                                     >
                                         <td class="py-3 pr-4 text-gray-700 dark:text-gray-300">
-                                            {{ cert.label || t('Untitled') }}
+                                            <div class="flex flex-col gap-1">
+                                                <span>{{ cert.label || t('Untitled') }}</span>
+                                                <span
+                                                    v-if="cert.inherited_from_fqdn"
+                                                    class="inline-flex w-fit items-center gap-1 rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold text-brand-700 dark:text-brand-300"
+                                                    :title="t('This certificate is owned by the parent domain and covers this subdomain.')"
+                                                >
+                                                    <i class="bx bx-link-alt text-xs"></i>
+                                                    {{ t('Inherited from :fqdn', { fqdn: cert.inherited_from_fqdn }) }}
+                                                </span>
+                                            </div>
                                         </td>
                                         <td class="py-3 pr-4">
                                             <span :class="typeBadgeClass(cert)">

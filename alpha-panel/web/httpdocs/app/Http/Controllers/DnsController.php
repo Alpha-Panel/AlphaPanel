@@ -153,7 +153,7 @@ class DnsController extends Controller
             ];
 
             if ($isUpdate) {
-                $record = DnsRecord::where('dns_zone_id', $zone->id)->findOrFail($dnsId);
+                $record = DnsRecord::where('domain_id', $zone->id)->findOrFail($dnsId);
                 $this->localDns->updateRecord($record, $recordData);
                 $action = 'dns_updated';
                 $message = __('DNS record updated successfully.');
@@ -283,7 +283,7 @@ class DnsController extends Controller
             return response()->json(['status' => 'error', 'message' => __('DNS zone not found.')], 404);
         }
 
-        $record = DnsRecord::where('dns_zone_id', $zone->id)->findOrFail((int) $validated['dns_id']);
+        $record = DnsRecord::where('domain_id', $zone->id)->findOrFail((int) $validated['dns_id']);
 
         try {
             $this->localDns->deleteRecord($record);
@@ -439,7 +439,7 @@ class DnsController extends Controller
         }
 
         $records = DnsRecord::query()
-            ->where('dns_zone_id', $zone->id)
+            ->where('domain_id', $zone->id)
             ->whereIn('id', $validated['ids'])
             ->get();
 
@@ -518,7 +518,7 @@ class DnsController extends Controller
 
         // Skip if already exists
         $exists = DnsRecord::query()
-            ->where('dns_zone_id', $zone->id)
+            ->where('domain_id', $zone->id)
             ->where('name', $name)
             ->where('type', $type)
             ->where('content', $content)

@@ -21,7 +21,8 @@ class DomainConfigService
 
     private string $selfSignedBasePath;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->caddySitesBasePath = config('panel.caddy_sites_base');
         $this->apacheSitesBasePath = config('panel.apache_sites_base');
         $this->letsEncryptBasePath = config('panel.letsencrypt_base');
@@ -94,12 +95,16 @@ class DomainConfigService
 
             if ($cert->certificate_pem && $cert->private_key_pem) {
                 $sslService = app(SslCertificateService::class);
-                $diskPaths = $sslService->getActiveCertDiskPaths($domain, $cert);
+                // If the cert is owned by a different domain (e.g. a subdomain
+                // inheriting an apex wildcard), resolve disk paths against the
+                // owner so cert files are not duplicated per subdomain.
+                $owner = $cert->domain_id === $domain->id ? $domain : ($cert->domain ?? $domain);
+                $diskPaths = $sslService->getActiveCertDiskPaths($owner, $cert);
 
                 if (! $diskPaths) {
-                    // Files not on disk yet — write them
-                    $sslService->writeCertToDisk($domain, $cert);
-                    $diskPaths = $sslService->getActiveCertDiskPaths($domain, $cert);
+                    // Files not on disk yet — write them under the owner's directory
+                    $sslService->writeCertToDisk($owner, $cert);
+                    $diskPaths = $sslService->getActiveCertDiskPaths($owner, $cert);
                 }
 
                 if ($diskPaths) {
@@ -421,7 +426,7 @@ class DomainConfigService
     private function renderAcmeChallengePath(string $indent): array
     {
         return [
-            "{$indent}handle_path /.well-known/acme-challenge/* {",
+            "{$indent}handle /.well-known/acme-challenge/* {",
             "{$indent}    root * /var/www/acme-challenge",
             "{$indent}    file_server",
             "{$indent}}",

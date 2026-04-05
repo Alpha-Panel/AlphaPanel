@@ -157,7 +157,10 @@ class Domain extends Model
 
     public function dnsZone(): HasOne
     {
-        return $this->hasOne(DnsZone::class);
+        // `dns_zones` lives in the `powerdns` connection as PowerDNS's native
+        // `domains` table, which has no `domain_id` column — zones are linked
+        // to the Laravel Domain by matching the DNS zone name to the FQDN.
+        return $this->hasOne(DnsZone::class, 'name', 'fqdn');
     }
 
     public function usesLocalDns(): bool
