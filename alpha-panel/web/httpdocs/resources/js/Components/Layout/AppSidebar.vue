@@ -479,30 +479,7 @@ const menuGroups = computed(() => {
                     });
                 }
 
-                if (canAny('panel.firewall.view', 'panel.waf-rules.view', 'panel.waf-rules.manage', 'panel.crowdsec.view', 'panel.ftp-bans.view')) {
-                    const securitySubItems: Array<{ name: string; href: string; iconClass?: string }> = [];
-                    if (can('panel.firewall.view')) {
-                        securitySubItems.push({ name: t('Firewall'), href: route('security.firewall.index'), iconClass: 'fa-solid fa-fire' });
-                    }
-                    if (canAny('panel.waf-rules.view', 'panel.waf-rules.manage')) {
-                        securitySubItems.push({ name: t('WAF Rules'), href: route('security.waf-global.index'), iconClass: 'fa-solid fa-shield' });
-                    }
-                    if (can('panel.crowdsec.view')) {
-                        securitySubItems.push({ name: t('CrowdSec'), href: route('security.crowdsec.index'), iconClass: 'fa-solid fa-robot' });
-                    }
-                    if (can('panel.ftp-bans.view')) {
-                        securitySubItems.push({ name: t('FTP Bans'), href: route('security.ftp-bans.index'), iconClass: 'fa-solid fa-ban' });
-                    }
-                    if (securitySubItems.length > 0) {
-                        items.push({
-                            iconClass: 'fa-solid fa-shield-halved',
-                            name: t('Security'),
-                            subItems: securitySubItems,
-                        });
-                    }
-                }
-
-                // Settings (Ayarlar) — nested dropdown: DNS (inner dropdown), ACME, PHP Versions, System Updates
+                // Settings (Ayarlar) — nested dropdown: DNS, Security (inner dropdowns), ACME, PHP Versions, System Updates
                 const settingsSubItems: SidebarSubItem[] = [];
 
                 if (canAny('panel.dns-settings.view', 'panel.dns-settings.manage')) {
@@ -518,6 +495,29 @@ const menuGroups = computed(() => {
                             name: t('DNS'),
                             iconClass: 'fa-solid fa-server',
                             subItems: dnsLeaves,
+                        });
+                    }
+                }
+
+                if (canAny('panel.firewall.view', 'panel.waf-rules.view', 'panel.waf-rules.manage', 'panel.crowdsec.view', 'panel.ftp-bans.view')) {
+                    const securityLeaves: SidebarSubLeaf[] = [];
+                    if (can('panel.firewall.view')) {
+                        securityLeaves.push({ name: t('Firewall'), href: route('security.firewall.index'), iconClass: 'fa-solid fa-fire' });
+                    }
+                    if (canAny('panel.waf-rules.view', 'panel.waf-rules.manage')) {
+                        securityLeaves.push({ name: t('WAF Rules'), href: route('security.waf-global.index'), iconClass: 'fa-solid fa-shield' });
+                    }
+                    if (can('panel.crowdsec.view')) {
+                        securityLeaves.push({ name: t('CrowdSec'), href: route('security.crowdsec.index'), iconClass: 'fa-solid fa-robot' });
+                    }
+                    if (can('panel.ftp-bans.view')) {
+                        securityLeaves.push({ name: t('FTP Bans'), href: route('security.ftp-bans.index'), iconClass: 'fa-solid fa-ban' });
+                    }
+                    if (securityLeaves.length > 0) {
+                        settingsSubItems.push({
+                            name: t('Security'),
+                            iconClass: 'fa-solid fa-shield-halved',
+                            subItems: securityLeaves,
                         });
                     }
                 }

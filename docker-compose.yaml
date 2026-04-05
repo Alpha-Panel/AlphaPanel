@@ -13,6 +13,7 @@ services:
     pull_policy: never
     container_name: alpha_panel_web
     hostname: alpha_panel_web
+    working_dir: /var/www/AlphaPanel/httpdocs
     restart: always
     volumes:
       - ./alpha-panel/web/httpdocs:/var/www/AlphaPanel/httpdocs
@@ -90,6 +91,7 @@ services:
       dockerfile: Dockerfile
     container_name: frankenphp
     hostname: frankenphp
+    working_dir: /var/www/vhosts
     restart: always
     environment:
       CF_API_TOKEN: ${CF_API_TOKEN}
@@ -339,7 +341,7 @@ services:
       PMA_URL: ${PMA_URL}
       PMA_SIGNON_BOOTSTRAP_URL: https://${PANEL_DOMAIN}:8443/pma/admin/sso
       PMA_SSO_ENFORCE_IP: ${PMA_SSO_ENFORCE_IP:-0}
-      PMA_SSO_SINGLE_USE: ${PMA_SSO_SINGLE_USE:-0}
+      PMA_SSO_SINGE_USE: ${PMA_SSO_SINGLE_USE:-0}
       PANEL_APP_KEY: ${PANEL_APP_KEY}
     volumes:
       - ./phpmyadmin/config.inc.php:/etc/phpmyadmin/config.inc.php:ro
