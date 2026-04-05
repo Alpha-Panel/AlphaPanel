@@ -58,6 +58,11 @@ class AcmeService
             baseUrl: $baseUrl,
         );
 
+        // Attach Laravel's logger so rw-acme-client's internal ACME flow logs
+        // (challenge status checks, validation attempts, HTTP responses) land
+        // in laravel.log. Without this, HTTP-01 failures are opaque black boxes.
+        $this->client->setLogger(Log::channel(config('logging.default')));
+
         return $this->client;
     }
 
@@ -179,10 +184,13 @@ class AcmeService
             $domains[] = "www.{$fqdn}";
         }
 
-        Log::info("Requesting HTTP-01 (webroot) certificate for {$fqdn}.");
+        Log::info("Requesting HTTP-01 (webroot) certificate for {$fqdn}.", [
+            'identifiers' => $domains,
+            'enable_www_redirect' => $domain->enable_www_redirect,
+        ]);
 
         $settings = $this->getSettings();
-        $webrootPath = $settings['webroot_path'];
+        $webrootPath = $this->normalizeWebrootPath($settings['webroot_path']);
 
         try {
             $client = $this->getClient();
@@ -194,6 +202,12 @@ class AcmeService
 
             $order = $client->order()->new($accountData, $domains);
 
+            Log::info("ACME order created for {$fqdn}.", [
+                'order_id' => $order->id ?? null,
+                'status' => $order->status ?? null,
+                'validation_urls' => $order->domainValidationUrls ?? [],
+            ]);
+
             if ($onProgress) {
                 $onProgress(30, __('Setting up HTTP challenge files...'));
             }
@@ -201,6 +215,12 @@ class AcmeService
 
             $validations = $client->domainValidation()->status($order);
             $httpAuths = $client->domainValidation()->getValidationData($validations, AuthorizationChallengeEnum::HTTP);
+
+            Log::info("HTTP-01 challenge setup for {$fqdn}.", [
+                'webroot_path' => $webrootPath,
+                'auth_count' => count($httpAuths),
+                'identifiers' => array_map(fn ($a) => $a['identifier'] ?? null, $httpAuths),
+            ]);
 
             foreach ($httpAuths as $auth) {
                 $challengePath = "{$webrootPath}/.well-known/acme-challenge";
@@ -210,7 +230,18 @@ class AcmeService
 
                 $filePath = "{$challengePath}/{$auth['filename']}";
                 File::put($filePath, $auth['content']);
+                // Ensure Caddy (potentially different UID in frankenphp container)
+                // can read the challenge file via the shared bind mount.
+                @chmod($filePath, 0644);
                 $challengeFiles[] = $filePath;
+
+                Log::info("HTTP-01 challenge file written for {$auth['identifier']}.", [
+                    'path' => $filePath,
+                    'exists' => File::exists($filePath),
+                    'size' => File::exists($filePath) ? File::size($filePath) : null,
+                    'perms' => File::exists($filePath) ? substr(sprintf('%o', fileperms($filePath)), -4) : null,
+                    'content_preview' => substr($auth['content'], 0, 20).'...',
+                ]);
             }
 
             // Start validation for each domain
@@ -219,7 +250,13 @@ class AcmeService
             }
             foreach ($validations as $validation) {
                 if (! empty($validation->file)) {
-                    $client->domainValidation()->start($accountData, $validation, AuthorizationChallengeEnum::HTTP, false);
+                    $identifier = $validation->identifier['value'] ?? 'unknown';
+                    Log::info("Triggering HTTP-01 validation for {$identifier}.");
+                    $startResponse = $client->domainValidation()->start($accountData, $validation, AuthorizationChallengeEnum::HTTP, false);
+                    Log::info("HTTP-01 start() response for {$identifier}.", [
+                        'http_code' => $startResponse->getHttpResponseCode(),
+                        'body' => $startResponse->getBody(),
+                    ]);
                 }
             }
 
@@ -228,6 +265,18 @@ class AcmeService
                 $onProgress(55, __('Waiting for validation...'));
             }
             if (! $client->domainValidation()->allChallengesPassed($order)) {
+                // Capture final authorization state so we can see WHY validation
+                // failed (which identifier, what error from Let's Encrypt).
+                $finalStatus = $client->domainValidation()->status($order);
+                foreach ($finalStatus as $s) {
+                    Log::error("HTTP-01 final status for {$fqdn}.", [
+                        'identifier' => $s->identifier ?? null,
+                        'status' => $s->status ?? null,
+                        'file' => $s->file ?? null,
+                        'expires' => $s->expires ?? null,
+                    ]);
+                }
+
                 $this->cleanupFiles($challengeFiles);
 
                 return AcmeResult::failure('HTTP-01 domain validation failed. Ensure the domain is publicly accessible.');
@@ -252,6 +301,32 @@ class AcmeService
 
             return AcmeResult::failure($e->getMessage());
         }
+    }
+
+    /**
+     * Normalize the ACME webroot base path.
+     *
+     * The base path MUST point at the directory Caddy serves as the root for
+     * `/.well-known/acme-challenge/*` (hard-coded to `/var/www/acme-challenge`
+     * in DomainConfigService::renderAcmeChallengePath). This method strips any
+     * trailing `.well-known/acme-challenge` subpath so a kirli setting like
+     * `/var/www/html/.well-known/acme-challenge` does not cause the writer to
+     * double-nest the path (which silently misses the bind-mounted directory
+     * Caddy is reading from, producing 404s for every HTTP-01 challenge).
+     */
+    private function normalizeWebrootPath(?string $path): string
+    {
+        $path = trim((string) $path);
+
+        if ($path === '') {
+            return '/var/www/acme-challenge';
+        }
+
+        $path = rtrim($path, '/');
+        $path = preg_replace('#/\.well-known/acme-challenge/?$#', '', $path);
+        $path = rtrim((string) $path, '/');
+
+        return $path === '' ? '/var/www/acme-challenge' : $path;
     }
 
     /**

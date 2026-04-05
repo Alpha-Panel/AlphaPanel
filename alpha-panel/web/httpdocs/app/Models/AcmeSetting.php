@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 
 class AcmeSetting extends Model
@@ -30,6 +31,33 @@ class AcmeSetting extends Model
             'poll_timeout' => 'integer',
             'auto_renew_days' => 'integer',
         ];
+    }
+
+    /**
+     * Normalize webroot_path on write so the value stored in the database
+     * never contains the `.well-known/acme-challenge` subpath. The ACME
+     * writer always appends that suffix itself, and Caddy's file_server
+     * roots at the base path (hard-coded to `/var/www/acme-challenge`).
+     * Storing the suffix caused double-nested paths and 404s during
+     * HTTP-01 validation.
+     */
+    protected function webrootPath(): Attribute
+    {
+        return Attribute::make(
+            set: function (?string $value): string {
+                $value = trim((string) $value);
+
+                if ($value === '') {
+                    return '/var/www/acme-challenge';
+                }
+
+                $value = rtrim($value, '/');
+                $value = preg_replace('#/\.well-known/acme-challenge/?$#', '', $value);
+                $value = rtrim((string) $value, '/');
+
+                return $value === '' ? '/var/www/acme-challenge' : $value;
+            },
+        );
     }
 
     public static function instance(): self

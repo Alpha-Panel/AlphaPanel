@@ -502,15 +502,7 @@ const menuGroups = computed(() => {
                     }
                 }
 
-                if (can('panel.system.updates')) {
-                    items.push({
-                        iconClass: 'fa-solid fa-arrow-up-from-bracket',
-                        name: t('System Updates'),
-                        href: route('system.updates.index'),
-                    });
-                }
-
-                // Settings (Ayarlar) — nested dropdown: DNS (inner dropdown), ACME, PHP Versions
+                // Settings (Ayarlar) — nested dropdown: DNS (inner dropdown), ACME, PHP Versions, System Updates
                 const settingsSubItems: SidebarSubItem[] = [];
 
                 if (canAny('panel.dns-settings.view', 'panel.dns-settings.manage')) {
@@ -543,6 +535,14 @@ const menuGroups = computed(() => {
                         name: t('PHP Versions'),
                         href: route('php-versions.index'),
                         iconClass: 'fa-brands fa-php',
+                    });
+                }
+
+                if (can('panel.system.updates')) {
+                    settingsSubItems.push({
+                        name: t('System Updates'),
+                        href: route('system.updates.index'),
+                        iconClass: 'fa-solid fa-arrow-up-from-bracket',
                     });
                 }
 

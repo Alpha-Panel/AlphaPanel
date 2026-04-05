@@ -490,6 +490,12 @@ class DomainConfigService
         $lines[] = "{$indent}handle {";
         $lines[] = "{$indent}    redir {$redirectUrl}";
         $lines[] = "{$indent}}";
+        // Log :80 traffic to the same per-domain file so HTTP-01 validation
+        // requests from Let's Encrypt are captured for diagnostics.
+        $lines[] = "{$indent}log {";
+        $lines[] = "{$indent}    output file /var/log/caddy/{$domain->fqdn}.log";
+        $lines[] = "{$indent}    format json";
+        $lines[] = "{$indent}}";
         $lines[] = '}';
 
         return $lines;

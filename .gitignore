@@ -43,6 +43,7 @@ frankenphp/caddy_data/
 frankenphp/sites-enabled
 alpha-panel/web/caddy_data/
 frankenphp/supervisor
+frankenphp/waf
 
 
 # =============================================================================
