@@ -1292,7 +1292,7 @@
     "SSL Renewal Failed": "SSL yenileme başarısız",
     "Staging Mode": "Test Modu",
     "Staging Mode Enabled": "Test Modu Etkin",
-    "Staging mode is enabled. Certificates will be issued by the Let's Encrypt staging CA and will NOT be trusted by browsers.": "Test modu etkin. Sertifikalar Let's Encrypt test CA tarafından verilecek ve tarayıcılar tarafından güvenilMEyecektir.",
+    "Staging mode is enabled. Certificates will be issued by the Let's Encrypt staging CA and will NOT be trusted by browsers.": "Test modu etkin. Sertifikalar Let's Encrypt test CA tarafından verilecek ve tarayıcılar tarafından güvenilmeyecektir.",
     "Staging Server URL": "Test Sunucusu URL’si",
     "Standard domain validation": "Standart alan adı doğrulaması",
     "Start": "Başlat",

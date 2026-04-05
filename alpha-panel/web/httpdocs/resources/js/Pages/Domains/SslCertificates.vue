@@ -12,7 +12,7 @@
 
                 <div class="space-y-4 md:space-y-6">
                     <!-- SSL Operation Progress -->
-                    <div v-if="sslOperationActive" class="mb-5 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div v-if="sslOperationActive" class="mb-5 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                         <div class="flex items-center justify-between">
                             <h4 class="mb-3 text-sm font-semibold text-gray-800 dark:text-white/90">
                                 <i class="bx bx-loader-alt bx-spin mr-1"></i>
@@ -42,7 +42,7 @@
                     </div>
 
                     <!-- Active Certificate Status -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <h4 class="mb-4 text-sm font-semibold text-gray-800 dark:text-white/90">
                             <i class="bx bx-lock-alt mr-1 text-brand-500"></i>
                             {{ t('Active Certificate') }}
@@ -158,7 +158,7 @@
                     </div>
 
                     <!-- Certificates Table -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <div class="mb-5 flex items-center">
                             <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
                                 <i class="bx bx-list-ul mr-1 text-brand-500"></i>
@@ -199,9 +199,9 @@
                                     <tr
                                         v-for="(cert, index) in certificates"
                                         :key="cert.id"
-                                        class="cursor-pointer border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.03]"
+                                        class="cursor-pointer border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/3"
                                         :class="[
-                                            index % 2 === 1 ? 'bg-gray-50/50 dark:bg-white/[0.01]' : '',
+                                            index % 2 === 1 ? 'bg-gray-50/50 dark:bg-white/1' : '',
                                             cert.is_active ? 'border-l-4 border-l-success-500' : '',
                                         ]"
                                         @click="openCertDetail(cert)"
@@ -299,7 +299,7 @@
                 <!-- Let's Encrypt Modal -->
                 <div
                     v-if="showLeModal"
-                    class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+                    class="fixed inset-0 z-1200000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
                 >
                     <div class="flex max-h-[92vh] w-full max-w-lg flex-col rounded-xl border border-gray-700 bg-[#171717] text-white/90 shadow-2xl">
                         <div class="flex items-center justify-between border-b border-white/10 px-5 py-4">
@@ -429,7 +429,7 @@
                 <!-- Generate CSR Modal -->
                 <div
                     v-if="showCsrModal"
-                    class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+                    class="fixed inset-0 z-1200000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
                 >
                     <div class="flex max-h-[92vh] w-full max-w-2xl flex-col rounded-xl border border-gray-700 bg-[#171717] text-white/90 shadow-2xl">
                         <div class="flex items-center justify-between border-b border-white/10 px-5 py-4">
@@ -546,7 +546,7 @@
                 <!-- Upload Certificate Modal -->
                 <div
                     v-if="showUploadModal"
-                    class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+                    class="fixed inset-0 z-1200000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
                 >
                     <div class="flex max-h-[92vh] w-full max-w-2xl flex-col rounded-xl border border-gray-700 bg-[#171717] text-white/90 shadow-2xl">
                         <div class="flex items-center justify-between border-b border-white/10 px-5 py-4">
@@ -633,7 +633,7 @@
                 <!-- Certificate Detail Modal -->
                 <div
                     v-if="showDetailModal && detailCert"
-                    class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+                    class="fixed inset-0 z-1200000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
                     @click.self="showDetailModal = false"
                 >
                     <div class="flex max-h-[92vh] w-full max-w-3xl flex-col rounded-xl border border-gray-700 bg-[#171717] text-white/90 shadow-2xl">
