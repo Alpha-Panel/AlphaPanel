@@ -323,6 +323,30 @@ class DomainConfigService
 
         $lines[] = '}';
 
+        // Additional :80 blocks for www and other hostnames so HTTP-01 validation
+        // succeeds for every identifier included in the ACME order. Without these,
+        // when AcmeService adds "www.{fqdn}" to the order (enable_www_redirect=true),
+        // Let's Encrypt cannot validate www because Caddy has no :80 block for it.
+        // Each extra block serves the ACME challenge path from the shared webroot
+        // and returns a minimal placeholder for everything else.
+        $extraHostnames = [];
+
+        if ($domain->enable_www_redirect && ! str_starts_with($fqdn, 'www.')) {
+            $extraHostnames[] = "www.{$fqdn}";
+        }
+
+        foreach (($domain->additional_hostnames ?? []) as $hostname) {
+            $extraHostnames[] = $hostname;
+        }
+
+        foreach ($extraHostnames as $hostname) {
+            $lines[] = '';
+            $lines[] = "{$hostname}:80 {";
+            $lines = array_merge($lines, $this->renderAcmeChallengePath('    '));
+            $lines[] = '    respond 404';
+            $lines[] = '}';
+        }
+
         return $lines;
     }
 

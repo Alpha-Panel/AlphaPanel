@@ -22,6 +22,7 @@ services:
       - ./alpha-panel/web/caddy_data:/data
       - ./alpha-panel/web/php.ini:/usr/local/etc/php/conf.d/99-custom.ini:ro
       - ./vhosts:/var/www/vhosts
+      - ./acme-challenge:/var/www/acme-challenge
       - ./letsencrypt:/etc/letsencrypt
       - ./secrets/cloudflare.ini:/secrets/cloudflare.ini:ro
       - ./alpha-panel/web/ssh-keys:/root/.ssh:ro

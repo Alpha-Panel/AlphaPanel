@@ -121,15 +121,19 @@ class SslActivateJob implements ShouldQueue
             if (! $result->success) {
                 Log::error("SSL certificate request failed for {$fqdn}: {$result->error}");
 
-                // For webroot failures, fall back to self-signed so the site stays accessible
+                // If we switched to HTTP-only for webroot validation, restore the
+                // previous TLS Caddyfile so the domain keeps serving HTTPS with
+                // whatever cert resolveCertPaths finds (existing active cert,
+                // inherited apex wildcard, legacy disk cert, or the panel default
+                // self-signed fallback). Do NOT generate a fresh self-signed cert
+                // on failure — that would clobber the existing certificate and
+                // create a new SslCertificate row on every failed attempt.
                 if ($sslMethod === SslMethod::WebrootHttp) {
-                    Log::info("Webroot failed for {$fqdn}, generating self-signed fallback.");
-                    $this->progress($domain, 80, __('Webroot validation failed, generating self-signed fallback...'));
-
-                    $fallback = $acmeService->generateSelfSigned($domain);
-
-                    if ($fallback->success) {
-                        $this->storeCertAndActivate($domain, $fallback, SslMethod::SelfSigned, $configService, $reloadService);
+                    try {
+                        $configService->regenerateCaddyConfig($domain);
+                        $reloadService->reloadCaddy();
+                    } catch (\Throwable $e) {
+                        Log::warning("Failed to restore TLS Caddyfile for {$fqdn} after HTTP-01 failure: {$e->getMessage()}");
                     }
                 }
 
