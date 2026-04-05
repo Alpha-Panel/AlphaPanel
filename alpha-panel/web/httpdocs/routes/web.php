@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminPushNotificationController;
+use App\Http\Controllers\AcmeSettingController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\BackupController;
@@ -167,6 +168,7 @@ Route::middleware('auth')->group(function (): void {
         Route::get('/{certificate}/export', [SslCertificateController::class, 'export'])->name('export');
         Route::post('/import', [SslCertificateController::class, 'importPem'])->name('import');
         Route::delete('/{certificate}', [SslCertificateController::class, 'destroy'])->name('destroy');
+        Route::post('/cancel', [SslCertificateController::class, 'cancelSslOperation'])->name('cancel');
     });
 
     // ModSecurity Management (per domain)
@@ -519,6 +521,12 @@ Route::middleware('auth')->group(function (): void {
     Route::middleware('permission:panel.dns-settings.manage')->prefix('settings/dns')->name('settings.dns.')->group(function (): void {
         Route::get('/', [DnsSettingController::class, 'index'])->name('index');
         Route::put('/', [DnsSettingController::class, 'update'])->name('update');
+    });
+
+    // ACME / Let's Encrypt Settings (admin)
+    Route::middleware('permission:panel.acme-settings.manage')->prefix('settings/acme')->name('settings.acme.')->group(function (): void {
+        Route::get('/', [AcmeSettingController::class, 'index'])->name('index');
+        Route::put('/', [AcmeSettingController::class, 'update'])->name('update');
     });
 
     // DNS Templates (admin)

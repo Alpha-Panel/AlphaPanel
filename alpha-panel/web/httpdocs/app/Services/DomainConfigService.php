@@ -21,9 +21,7 @@ class DomainConfigService
 
     private string $selfSignedBasePath;
 
-    public function __construct(
-        private CertbotService $certbotService,
-    ) {
+    public function __construct() {
         $this->caddySitesBasePath = config('panel.caddy_sites_base');
         $this->apacheSitesBasePath = config('panel.apache_sites_base');
         $this->letsEncryptBasePath = config('panel.letsencrypt_base');

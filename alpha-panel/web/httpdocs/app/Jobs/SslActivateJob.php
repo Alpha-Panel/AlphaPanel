@@ -5,18 +5,23 @@ namespace App\Jobs;
 use App\Enums\NotificationType;
 use App\Enums\SslCertificateType;
 use App\Enums\SslMethod;
+use App\Events\SslOperationProgress;
 use App\Models\AuditLog;
 use App\Models\Domain;
+use App\Models\SslCertificate;
 use App\Notifications\DomainNotification;
-use App\Services\CertbotService;
+use App\Services\Acme\AcmeResult;
+use App\Services\Acme\AcmeService;
 use App\Services\DomainConfigService;
 use App\Services\ReloadService;
 use App\Services\SslCertificateService;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class SslActivateJob implements ShouldQueue
@@ -38,14 +43,21 @@ class SslActivateJob implements ShouldQueue
     ) {}
 
     public function handle(
-        CertbotService $certbotService,
+        AcmeService $acmeService,
         DomainConfigService $configService,
         ReloadService $reloadService,
     ): void {
         $this->applyLocale();
         $domain = $this->domain;
         $fqdn = $domain->fqdn;
-        $isRenewal = $certbotService->certbotRenewalExists($domain);
+
+        $lock = Cache::lock("ssl:operation:{$domain->id}", $this->timeout);
+
+        if (! $lock->get()) {
+            Log::warning("SSL operation already in progress for {$fqdn}, skipping.");
+
+            return;
+        }
 
         try {
             $sslMethod = $domain->ssl_method ?? SslMethod::CloudflareDns;
@@ -56,56 +68,47 @@ class SslActivateJob implements ShouldQueue
                 return;
             }
 
-            // Clear stale Caddy ACME lock files before any cert operation.
-            // Lock files from crashed/killed Caddy processes block every subsequent reload.
-            $certbotService->clearCaddyAcmeLocks($domain);
+            $this->progress($domain, 5, __('Starting SSL activation for :fqdn...', ['fqdn' => $fqdn]));
 
-            // For webroot HTTP-01: switch to HTTP-only Caddyfile before certbot runs.
-            // renderWithoutTls writes only a :80 block with ACME challenge handler —
-            // no :443 block that would break when cleanCertDirectories removes self-signed files.
-            // After certbot succeeds, renderWithTls is called below with the real cert.
+            $acmeService->clearCaddyAcmeLocks($domain);
+            $this->progress($domain, 10, __('Cleared ACME lock files.'));
+
             if ($sslMethod === SslMethod::WebrootHttp) {
                 Log::info("Switching to HTTP-only Caddyfile for {$fqdn} before webroot validation.");
+                $this->progress($domain, 15, __('Preparing HTTP-only configuration for webroot validation...'));
                 $configService->renderWithoutTls($domain);
                 $reloadService->reloadCaddy();
             }
 
-            if ($sslMethod === SslMethod::SelfSigned) {
-                Log::info("Generating self-signed certificate for {$fqdn}.");
-                $success = $certbotService->generateSelfSigned($domain);
-            } elseif ($isRenewal) {
-                Log::info("Renewing SSL certificate for {$fqdn} using {$sslMethod->value}.");
-                $success = match ($sslMethod) {
-                    SslMethod::WebrootHttp => $certbotService->renewCertificateWebroot($domain),
-                    default => $certbotService->renewCertificate($domain),
-                };
-            } else {
-                Log::info("Requesting new SSL certificate for {$fqdn} using {$sslMethod->value}.");
-                $success = match ($sslMethod) {
-                    SslMethod::WebrootHttp => $certbotService->requestCertificateWebroot($domain),
-                    default => $certbotService->requestCertificate($domain),
-                };
-            }
+            $this->progress($domain, 20, __('Requesting certificate via :method...', ['method' => $sslMethod->value]));
 
-            if (! $success) {
-                // Webroot flow deleted self-signed cert and switched to HTTP-only.
-                // Restore HTTPS with a fresh self-signed cert so the site isn't left without TLS.
+            $result = match ($sslMethod) {
+                SslMethod::CloudflareDns => $acmeService->requestCertificateDnsCloudflare($domain, fn ($p, $m) => $this->progress($domain, $p, $m)),
+                SslMethod::LocalDns => $acmeService->requestCertificateDnsLocal($domain, fn ($p, $m) => $this->progress($domain, $p, $m)),
+                SslMethod::WebrootHttp => $acmeService->requestCertificateHttp($domain, fn ($p, $m) => $this->progress($domain, $p, $m)),
+                SslMethod::SelfSigned => $acmeService->generateSelfSigned($domain),
+                default => AcmeResult::failure("Unsupported SSL method: {$sslMethod->value}"),
+            };
+
+            if (! $result->success) {
+                Log::error("SSL certificate request failed for {$fqdn}: {$result->error}");
+
+                // For webroot failures, fall back to self-signed so the site stays accessible
                 if ($sslMethod === SslMethod::WebrootHttp) {
-                    Log::info("Webroot failed for {$fqdn}, restoring self-signed certificate.");
-                    $certbotService->generateSelfSigned($domain);
+                    Log::info("Webroot failed for {$fqdn}, generating self-signed fallback.");
+                    $this->progress($domain, 80, __('Webroot validation failed, generating self-signed fallback...'));
 
-                    if ($configService->certExists($domain)) {
-                        $configService->renderWithTls($domain);
-                        $reloadService->reloadCaddy();
+                    $fallback = $acmeService->generateSelfSigned($domain);
+
+                    if ($fallback->success) {
+                        $this->storeCertAndActivate($domain, $fallback, SslMethod::SelfSigned, $configService, $reloadService);
                     }
                 }
 
                 $domain->owner->notify(new DomainNotification(
                     level: 'error',
-                    title: $isRenewal ? __('SSL Renewal Failed') : __('SSL Activation Failed'),
-                    body: $isRenewal
-                        ? __('SSL certificate renewal failed for :fqdn. Check the logs for details.', ['fqdn' => $fqdn])
-                        : __('SSL certificate activation failed for :fqdn. Check the logs for details.', ['fqdn' => $fqdn]),
+                    title: __('SSL Activation Failed'),
+                    body: __('SSL certificate activation failed for :fqdn. Check the logs for details.', ['fqdn' => $fqdn]),
                     domainId: $domain->id,
                     url: route('domains.show', $domain),
                     icon: 'bx bx-error-circle',
@@ -114,58 +117,26 @@ class SslActivateJob implements ShouldQueue
 
                 AuditLog::create([
                     'user_id' => $this->triggeredBy,
-                    'action' => $isRenewal ? 'ssl_renew_failed' : 'ssl_activate_failed',
+                    'action' => 'ssl_activate_failed',
                     'domain_id' => $domain->id,
-                    'summary' => $isRenewal
-                        ? "SSL renewal failed for {$fqdn}."
-                        : "SSL activation failed for {$fqdn}.",
+                    'summary' => "SSL activation failed for {$fqdn}: {$result->error}",
                     'ip_address' => $this->actorIpAddress,
                     'port' => $this->actorPort,
                 ]);
 
+                $this->progress($domain, 100, __('SSL activation failed.'), 'failed');
+
                 return;
             }
 
-            if ($configService->certExists($domain)) {
-                $certPaths = $configService->resolveCertPaths($domain);
-
-                if ($certPaths) {
-                    $sslCertService = app(SslCertificateService::class);
-                    $type = match ($sslMethod) {
-                        SslMethod::SelfSigned => SslCertificateType::SelfSigned,
-                        default => SslCertificateType::LetsEncrypt,
-                    };
-                    $validationMethod = match ($sslMethod) {
-                        SslMethod::CloudflareDns => 'dns-01',
-                        SslMethod::WebrootHttp => 'http-01',
-                        default => null,
-                    };
-
-                    try {
-                        $cert = $sslCertService->createFromDiskCert(
-                            $domain,
-                            $type,
-                            $certPaths['cert'],
-                            $certPaths['key'],
-                            $validationMethod,
-                        );
-                        $domain->update(['active_ssl_certificate_id' => $cert->id]);
-                        $domain->setRelation('activeSslCertificate', $cert);
-                    } catch (\Exception $e) {
-                        Log::warning("Failed to create SslCertificate record for {$fqdn}: {$e->getMessage()}");
-                    }
-                }
-
-                $configService->renderWithTls($domain);
-                $reloadService->reloadCaddy();
-            }
+            // Certificate obtained successfully — store and activate
+            $this->progress($domain, 85, __('Certificate obtained, storing and activating...'));
+            $this->storeCertAndActivate($domain, $result, $sslMethod, $configService, $reloadService);
 
             $domain->owner->notify(new DomainNotification(
                 level: 'success',
-                title: $isRenewal ? __('SSL Certificate Renewed') : __('SSL Certificate Activated'),
-                body: $isRenewal
-                    ? __('SSL certificate renewed successfully for :fqdn.', ['fqdn' => $fqdn])
-                    : __('SSL certificate activated successfully for :fqdn.', ['fqdn' => $fqdn]),
+                title: __('SSL Certificate Activated'),
+                body: __('SSL certificate activated successfully for :fqdn.', ['fqdn' => $fqdn]),
                 domainId: $domain->id,
                 url: route('domains.show', $domain),
                 icon: 'bx bx-lock-alt',
@@ -174,16 +145,15 @@ class SslActivateJob implements ShouldQueue
 
             AuditLog::create([
                 'user_id' => $this->triggeredBy,
-                'action' => $isRenewal ? 'ssl_renewed' : 'ssl_activated',
+                'action' => 'ssl_activated',
                 'domain_id' => $domain->id,
-                'summary' => $isRenewal
-                    ? "SSL certificate renewed successfully for {$fqdn}."
-                    : "SSL certificate activated successfully for {$fqdn}.",
+                'summary' => "SSL certificate activated successfully for {$fqdn}.",
                 'ip_address' => $this->actorIpAddress,
                 'port' => $this->actorPort,
             ]);
 
-            Log::info($isRenewal ? "SSL certificate renewed for {$fqdn}." : "SSL certificate activated for {$fqdn}.");
+            $this->progress($domain, 100, __('SSL certificate activated successfully.'), 'completed');
+            Log::info("SSL certificate activated for {$fqdn}.");
         } catch (\Throwable $e) {
             Log::error("SSL activation failed for {$fqdn}: {$e->getMessage()}");
 
@@ -208,7 +178,75 @@ class SslActivateJob implements ShouldQueue
                 'ip_address' => $this->actorIpAddress,
                 'port' => $this->actorPort,
             ]);
+
+            $this->progress($domain, 100, __('SSL activation failed unexpectedly.'), 'failed');
+        } finally {
+            $lock->release();
         }
+    }
+
+    /**
+     * Store the certificate from PEM data and activate it for the domain.
+     */
+    private function storeCertAndActivate(
+        Domain $domain,
+        AcmeResult $result,
+        SslMethod $sslMethod,
+        DomainConfigService $configService,
+        ReloadService $reloadService,
+    ): void {
+        $sslCertService = app(SslCertificateService::class);
+
+        $type = match ($sslMethod) {
+            SslMethod::SelfSigned => SslCertificateType::SelfSigned,
+            default => SslCertificateType::LetsEncrypt,
+        };
+
+        $validationMethod = match ($sslMethod) {
+            SslMethod::CloudflareDns, SslMethod::LocalDns => 'dns-01',
+            SslMethod::WebrootHttp => 'http-01',
+            default => null,
+        };
+
+        try {
+            $meta = $sslCertService->parseCertificatePem($result->certificatePem);
+
+            $cert = SslCertificate::create([
+                'domain_id' => $domain->id,
+                'type' => $type,
+                'label' => $type->label().' - '.($meta['common_name'] ?? $domain->fqdn),
+                'common_name' => $meta['common_name'],
+                'issuer' => $meta['issuer'],
+                'san_domains' => $meta['san_domains'],
+                'private_key_pem' => $result->privateKeyPem,
+                'certificate_pem' => $result->certificatePem,
+                'ca_bundle_pem' => $result->caBundlePem,
+                'validation_method' => $validationMethod,
+                'not_before' => $meta['not_before'] ? Carbon::parse($meta['not_before']) : null,
+                'not_after' => $meta['not_after'] ? Carbon::parse($meta['not_after']) : null,
+                'fingerprint_sha256' => $meta['fingerprint_sha256'],
+                'is_wildcard' => $meta['is_wildcard'],
+                'auto_renew' => $type === SslCertificateType::LetsEncrypt,
+            ]);
+
+            $domain->update(['active_ssl_certificate_id' => $cert->id]);
+            $domain->setRelation('activeSslCertificate', $cert);
+
+            // Write cert to disk for Caddy and reload
+            $sslCertService->writeCertToDisk($domain, $cert);
+            $configService->renderWithTls($domain);
+            $reloadService->reloadCaddy();
+        } catch (\Exception $e) {
+            Log::warning("Failed to create SslCertificate record for {$domain->fqdn}: {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * Broadcast SSL operation progress to the frontend.
+     */
+    private function progress(Domain $domain, int $percent, string $message, string $status = 'running'): void
+    {
+        SslOperationProgress::dispatch($domain, $percent, $message, $status);
     }
 
     private function applyLocale(): void

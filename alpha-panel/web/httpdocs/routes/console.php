@@ -1,6 +1,7 @@
 <?php
 
 use App\Jobs\BackupUploadJob;
+use App\Jobs\CheckForUpdatesJob;
 use App\Jobs\ExecuteDomainCronJob;
 use App\Models\BackupSetting;
 use App\Models\DomainCronJob;
@@ -93,7 +94,7 @@ Schedule::call(function (): void {
 
 try {
     if (config('panel.update.auto_check')) {
-        Schedule::job(new \App\Jobs\CheckForUpdatesJob)
+        Schedule::job(new CheckForUpdatesJob)
             ->daily()
             ->name('check-for-updates')
             ->withoutOverlapping();
@@ -107,3 +108,19 @@ Schedule::command('panel:security-audit')
     ->name('security-audit')
     ->withoutOverlapping(30)
     ->onFailure(fn () => Log::warning('Security audit found vulnerabilities or failed to run'));
+
+/*
+|--------------------------------------------------------------------------
+| SSL Certificate Auto-Renewal
+|--------------------------------------------------------------------------
+|
+| Checks twice daily for Let's Encrypt certificates expiring within
+| the configured renewal window and dispatches renewal jobs.
+|
+*/
+
+Schedule::command('ssl:renew')
+    ->twiceDaily(3, 15)
+    ->name('ssl:renew')
+    ->withoutOverlapping(30)
+    ->onFailure(fn () => Log::error('SSL renewal check failed'));

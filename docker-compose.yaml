@@ -2,57 +2,11 @@ include:
   - ${LOCAL_SERVICES_COMPOSE_FILE:-./external-services/local-services.yaml}
 
 services:
-  # --- CERTBOT: ilk sertifikayı alma ---
-  certbot-init:
-    build:
-      context: ./certbot
-      dockerfile: Dockerfile
-    container_name: certbot-init
-    restart: "no"
-    environment:
-      - TZ=Europe/Istanbul
-      - ADMIN_EMAIL=${ADMIN_EMAIL}
-      - CERTBOT_DOMAIN_ROOT=/etc/frankenphp/sites-enabled
-      - CERTBOT_UPDATE_CADDYFILES=1
-      - CERTBOT_USE_STAGING=0
-    volumes:
-      - ./letsencrypt:/etc/letsencrypt
-      - ./secrets/cloudflare.ini:/secrets/cloudflare.ini:ro
-      - ./frankenphp/sites-enabled:/etc/frankenphp/sites-enabled
-      - ./scripts/certbot:/opt/certbot-scripts:ro
-      - ./acme-challenge:/var/www/acme-challenge
-    entrypoint:
-      - /bin/sh
-      - /opt/certbot-scripts/ensure-certs.sh
-    command: []
-    networks:
-      - vhost_network
-
-  # --- CERTBOT: otomatik yenileme ---
-  certbot-renew:
-    build:
-      context: ./certbot
-      dockerfile: Dockerfile
-    container_name: certbot-renew
-    restart: unless-stopped
-    environment:
-      - TZ=Europe/Istanbul
-      - ADMIN_EMAIL=${ADMIN_EMAIL}
-      - CERTBOT_DOMAIN_ROOT=/etc/frankenphp/sites-enabled
-      - CERTBOT_UPDATE_CADDYFILES=1
-      - CERTBOT_USE_STAGING=0
-    volumes:
-      - ./letsencrypt:/etc/letsencrypt
-      - ./secrets/cloudflare.ini:/secrets/cloudflare.ini:ro
-      - ./frankenphp/sites-enabled:/etc/frankenphp/sites-enabled
-      - ./scripts/certbot:/opt/certbot-scripts:ro
-      - ./acme-challenge:/var/www/acme-challenge
-    entrypoint:
-      - /bin/sh
-      - /opt/certbot-scripts/renew-loop.sh
-    command: []
-    networks:
-      - vhost_network
+  # --- CERTBOT CONTAINERS REMOVED ---
+  # SSL certificate management is now handled natively by the AlphaPanel
+  # Laravel application via the AcmeService (PHP ACME v2 client).
+  # Renewal is managed by the `ssl:renew` artisan command (scheduled twice daily).
+  # The certbot-init and certbot-renew containers are no longer needed.
 
   alpha_panel_web:
     image: alphapanel/frankenphp:local

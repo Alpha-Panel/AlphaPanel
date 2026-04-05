@@ -77,7 +77,7 @@ class DeleteDomainJob implements ShouldQueue
 
             if ($this->removedAnyFtpUser) {
                 $ftpUserService->syncUsersEnv();
-                $ftpUserService->recreateFtpContainers();
+                $ftpUserService->recreatePhpContainers();
             }
 
             AuditLog::create([

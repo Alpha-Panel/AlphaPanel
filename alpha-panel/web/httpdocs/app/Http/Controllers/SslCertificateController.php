@@ -4,13 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Enums\SslCertificateType;
 use App\Enums\SslMethod;
+use App\Events\SslOperationProgress;
 use App\Http\Requests\GenerateCsrRequest;
 use App\Http\Requests\UploadCertificateRequest;
 use App\Jobs\SslActivateJob;
 use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Models\SslCertificate;
-use App\Services\CertbotService;
+use App\Services\Acme\AcmeService;
 use App\Services\DomainConfigService;
 use App\Services\ReloadService;
 use App\Services\SslCertificateService;
@@ -18,6 +19,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -47,12 +49,23 @@ class SslCertificateController extends Controller
         $this->authorize('manageSsl', $domain);
 
         $validated = $request->validate([
-            'validation_method' => ['required', 'string', 'in:dns-01,http-01'],
+            'validation_method' => ['required', 'string', 'in:dns-01-cloudflare,dns-01-local,http-01'],
         ]);
 
-        $sslMethod = $validated['validation_method'] === 'dns-01'
-            ? SslMethod::CloudflareDns
-            : SslMethod::WebrootHttp;
+        // Prevent duplicate operations — if a lock already exists, another request is in progress
+        $lock = Cache::lock("ssl:operation:{$domain->id}", 300);
+        if (! $lock->get()) {
+            return redirect()
+                ->route('domains.ssl.index', $domain)
+                ->with('error', __('An SSL operation is already in progress for this domain. Please wait or cancel it first.'));
+        }
+        $lock->release(); // Release immediately — the job will acquire its own lock
+
+        $sslMethod = match ($validated['validation_method']) {
+            'dns-01-cloudflare' => SslMethod::CloudflareDns,
+            'dns-01-local' => SslMethod::LocalDns,
+            'http-01' => SslMethod::WebrootHttp,
+        };
 
         $domain->update(['ssl_method' => $sslMethod]);
 
@@ -81,30 +94,26 @@ class SslCertificateController extends Controller
     public function storeSelfSigned(
         Request $request,
         Domain $domain,
-        CertbotService $certbotService,
+        AcmeService $acmeService,
         DomainConfigService $configService,
         ReloadService $reloadService,
     ): RedirectResponse {
         $this->authorize('manageSsl', $domain);
 
-        $success = $certbotService->generateSelfSigned($domain);
+        $result = $acmeService->generateSelfSigned($domain);
 
-        if (! $success) {
+        if (! $result->success) {
             return redirect()
                 ->route('domains.ssl.index', $domain)
-                ->with('error', __('Failed to generate self-signed certificate.'));
+                ->with('error', __('Failed to generate self-signed certificate: :error', ['error' => $result->error ?? 'Unknown error']));
         }
 
-        $certDir = config('panel.letsencrypt_selfsigned_base')."/{$domain->fqdn}";
-        $certPath = "{$certDir}/fullchain.pem";
-        $keyPath = "{$certDir}/privkey.pem";
-
         try {
-            $certificate = $this->sslCertificateService->createFromDiskCert(
-                $domain,
-                SslCertificateType::SelfSigned,
-                $certPath,
-                $keyPath,
+            $certificate = $this->sslCertificateService->createFromPem(
+                domain: $domain,
+                type: SslCertificateType::SelfSigned,
+                fullchainPem: $result->fullchainPem,
+                keyPem: $result->privateKeyPem,
             );
 
             if ($domain->active_ssl_certificate_id === null) {
@@ -130,6 +139,26 @@ class SslCertificateController extends Controller
         return redirect()
             ->route('domains.ssl.index', $domain)
             ->with('success', __('Self-signed certificate generated successfully.'));
+    }
+
+    public function cancelSslOperation(Request $request, Domain $domain): RedirectResponse
+    {
+        $this->authorize('manageSsl', $domain);
+
+        Cache::lock("ssl:operation:{$domain->id}")->forceRelease();
+
+        app(AcmeService::class)->clearCaddyAcmeLocks($domain);
+
+        broadcast(new SslOperationProgress(
+            domain: $domain,
+            percent: 0,
+            message: __('SSL operation cancelled by user.'),
+            status: 'cancelled',
+        ));
+
+        return redirect()
+            ->route('domains.ssl.index', $domain)
+            ->with('success', __('SSL operation cancelled.'));
     }
 
     public function generateCsr(GenerateCsrRequest $request, Domain $domain): RedirectResponse

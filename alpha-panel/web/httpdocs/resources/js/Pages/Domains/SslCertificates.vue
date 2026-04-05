@@ -11,6 +11,36 @@
                 <Toast />
 
                 <div class="space-y-4 md:space-y-6">
+                    <!-- SSL Operation Progress -->
+                    <div v-if="sslOperationActive" class="mb-5 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                        <div class="flex items-center justify-between">
+                            <h4 class="mb-3 text-sm font-semibold text-gray-800 dark:text-white/90">
+                                <i class="bx bx-loader-alt bx-spin mr-1"></i>
+                                {{ t('SSL Operation In Progress') }}
+                            </h4>
+                            <button
+                                v-if="sslState === 'running'"
+                                type="button"
+                                class="rounded-lg border border-error-300 px-3 py-1.5 text-xs font-medium text-error-600 hover:bg-error-50 dark:border-error-700 dark:text-error-400 dark:hover:bg-error-900/20"
+                                @click="cancelSslOperation"
+                            >
+                                {{ t('Cancel') }}
+                            </button>
+                        </div>
+                        <div :class="['mb-3 rounded-lg border px-3 py-2 text-sm', sslMessageClass]">
+                            {{ sslMessage }}
+                        </div>
+                        <div class="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
+                            <div
+                                :class="['h-full transition-all duration-300', sslProgressClass]"
+                                :style="{ width: `${sslPercent}%` }"
+                            ></div>
+                        </div>
+                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                            {{ sslState === 'failed' ? t('Failed') : `${sslPercent}%` }}
+                        </p>
+                    </div>
+
                     <!-- Active Certificate Status -->
                     <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
                         <h4 class="mb-4 text-sm font-semibold text-gray-800 dark:text-white/90">
@@ -293,21 +323,21 @@
                                 <div class="space-y-3">
                                     <button
                                         type="button"
-                                        @click="leForm.validation_method = 'dns-01'"
+                                        @click="leForm.validation_method = 'dns-01-cloudflare'"
                                         class="w-full rounded-xl border-2 p-4 text-left transition-colors"
-                                        :class="leForm.validation_method === 'dns-01'
+                                        :class="leForm.validation_method === 'dns-01-cloudflare'
                                             ? 'border-brand-500 bg-brand-500/10'
                                             : 'border-white/15 bg-white/5 hover:border-white/25'"
                                     >
                                         <div class="flex items-center gap-2">
                                             <div
                                                 class="flex h-4 w-4 items-center justify-center rounded-full border-2"
-                                                :class="leForm.validation_method === 'dns-01'
+                                                :class="leForm.validation_method === 'dns-01-cloudflare'
                                                     ? 'border-brand-500'
                                                     : 'border-white/30'"
                                             >
                                                 <div
-                                                    v-if="leForm.validation_method === 'dns-01'"
+                                                    v-if="leForm.validation_method === 'dns-01-cloudflare'"
                                                     class="h-2 w-2 rounded-full bg-brand-500"
                                                 ></div>
                                             </div>
@@ -315,6 +345,34 @@
                                         </div>
                                         <p class="mt-1.5 pl-6 text-xs text-white/50">
                                             {{ t('Validates via Cloudflare DNS TXT records. Supports wildcard certificates.') }}
+                                        </p>
+                                    </button>
+
+                                    <button
+                                        v-if="domain.dns_provider === 'local'"
+                                        type="button"
+                                        @click="leForm.validation_method = 'dns-01-local'"
+                                        class="w-full rounded-xl border-2 p-4 text-left transition-colors"
+                                        :class="leForm.validation_method === 'dns-01-local'
+                                            ? 'border-brand-500 bg-brand-500/10'
+                                            : 'border-white/15 bg-white/5 hover:border-white/25'"
+                                    >
+                                        <div class="flex items-center gap-2">
+                                            <div
+                                                class="flex h-4 w-4 items-center justify-center rounded-full border-2"
+                                                :class="leForm.validation_method === 'dns-01-local'
+                                                    ? 'border-brand-500'
+                                                    : 'border-white/30'"
+                                            >
+                                                <div
+                                                    v-if="leForm.validation_method === 'dns-01-local'"
+                                                    class="h-2 w-2 rounded-full bg-brand-500"
+                                                ></div>
+                                            </div>
+                                            <span class="text-sm font-medium text-white">{{ t('DNS-01 (Local DNS)') }}</span>
+                                        </div>
+                                        <p class="mt-1.5 pl-6 text-xs text-white/50">
+                                            {{ t('Validates via local DNS server TXT records. Supports wildcard certificates.') }}
                                         </p>
                                     </button>
 
@@ -754,7 +812,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
@@ -793,6 +851,7 @@ interface Certificate {
 interface Domain {
     id: number;
     fqdn: string;
+    dns_provider: string | null;
     active_ssl_certificate_id: number | null;
 }
 
@@ -812,6 +871,65 @@ const showDetailModal = ref(false);
 const activating = ref<number | null>(null);
 const deleting = ref<number | null>(null);
 const importFileInput = ref<HTMLInputElement | null>(null);
+
+// -- SSL Operation Progress State --
+const sslMessage = ref(t('Starting SSL operation...'));
+const sslPercent = ref(0);
+const sslState = ref<'running' | 'completed' | 'failed' | 'cancelled'>('running');
+const sslOperationActive = ref(false);
+
+const sslMessageClass = computed(() => {
+    if (sslState.value === 'completed') return 'border-success-200 bg-success-50 text-success-700 dark:border-success-800 dark:bg-success-900/20 dark:text-success-400';
+    if (sslState.value === 'failed' || sslState.value === 'cancelled') return 'border-error-200 bg-error-50 text-error-700 dark:border-error-800 dark:bg-error-900/20 dark:text-error-400';
+    return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
+});
+
+const sslProgressClass = computed(() => {
+    if (sslState.value === 'completed') return 'bg-success-500';
+    if (sslState.value === 'failed' || sslState.value === 'cancelled') return 'bg-error-500';
+    return 'bg-brand-500';
+});
+
+const cancelSslOperation = () => {
+    router.post(route('domains.ssl.cancel', props.domain.id), {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            sslState.value = 'cancelled';
+            sslMessage.value = t('SSL operation cancelled.');
+        },
+    });
+};
+
+// -- WebSocket Listener --
+onMounted(() => {
+    if (typeof window.Echo !== 'undefined') {
+        window.Echo.channel(`domain.${props.domain.id}`)
+            .listen('.SslOperationProgress', (event: any) => {
+                sslOperationActive.value = true;
+                sslMessage.value = event.message;
+                sslPercent.value = event.percent;
+                sslState.value = event.status;
+
+                if (event.status === 'completed') {
+                    setTimeout(() => {
+                        sslOperationActive.value = false;
+                        router.reload({ only: ['certificates', 'domain'] });
+                    }, 2000);
+                }
+                if (event.status === 'failed' || event.status === 'cancelled') {
+                    setTimeout(() => {
+                        sslOperationActive.value = false;
+                    }, 5000);
+                }
+            });
+    }
+});
+
+onUnmounted(() => {
+    if (typeof window.Echo !== 'undefined') {
+        window.Echo.leave(`domain.${props.domain.id}`);
+    }
+});
 
 // -- Detail Modal State --
 interface CertDetail {
@@ -922,7 +1040,7 @@ const activeCert = computed(() => {
 // -- Let's Encrypt Form --
 
 const leForm = useForm({
-    validation_method: 'dns-01' as 'dns-01' | 'http-01',
+    validation_method: 'dns-01-cloudflare' as 'dns-01-cloudflare' | 'dns-01-local' | 'http-01',
 });
 
 const submitLe = (): void => {
@@ -930,6 +1048,11 @@ const submitLe = (): void => {
         preserveScroll: true,
         onSuccess: () => {
             showLeModal.value = false;
+            sslOperationActive.value = true;
+            sslPercent.value = 5;
+            sslMessage.value = t('SSL operation queued...');
+            sslState.value = 'running';
+            addToast('success', t('Certificate requested successfully.'));
             leForm.reset();
         },
     });

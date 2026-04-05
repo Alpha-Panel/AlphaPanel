@@ -259,6 +259,40 @@ class SslCertificateService
     }
 
     /**
+     * Create an SslCertificate record directly from PEM strings.
+     * Used by AcmeService which provides certificate data in memory.
+     */
+    public function createFromPem(
+        Domain $domain,
+        SslCertificateType $type,
+        string $fullchainPem,
+        string $keyPem,
+        ?string $validationMethod = null,
+        ?string $label = null,
+    ): SslCertificate {
+        $parts = $this->splitFullchain($fullchainPem);
+        $meta = $this->parseCertificatePem($parts['cert']);
+
+        return SslCertificate::create([
+            'domain_id' => $domain->id,
+            'type' => $type,
+            'label' => $label ?? $type->label().' - '.($meta['common_name'] ?? $domain->fqdn),
+            'common_name' => $meta['common_name'],
+            'issuer' => $meta['issuer'],
+            'san_domains' => $meta['san_domains'],
+            'private_key_pem' => $keyPem,
+            'certificate_pem' => $parts['cert'],
+            'ca_bundle_pem' => $parts['ca_bundle'],
+            'validation_method' => $validationMethod,
+            'not_before' => $meta['not_before'] ? Carbon::parse($meta['not_before']) : null,
+            'not_after' => $meta['not_after'] ? Carbon::parse($meta['not_after']) : null,
+            'fingerprint_sha256' => $meta['fingerprint_sha256'],
+            'is_wildcard' => $meta['is_wildcard'],
+            'auto_renew' => $type === SslCertificateType::LetsEncrypt,
+        ]);
+    }
+
+    /**
      * Store an uploaded certificate with validation and encrypted storage.
      */
     public function storeUploadedCert(

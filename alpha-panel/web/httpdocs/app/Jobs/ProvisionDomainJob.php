@@ -13,7 +13,7 @@ use App\Models\ApplyRun;
 use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Notifications\DomainNotification;
-use App\Services\CertbotService;
+use App\Services\Acme\AcmeService;
 use App\Services\DomainConfigService;
 use App\Services\ReloadService;
 use Illuminate\Bus\Queueable;
@@ -46,7 +46,7 @@ class ProvisionDomainJob implements ShouldQueue
 
     public function handle(
         DomainConfigService $configService,
-        CertbotService $certbotService,
+        AcmeService $acmeService,
         ReloadService $reloadService,
     ): void {
         $this->applyLocale();
@@ -127,8 +127,20 @@ class ProvisionDomainJob implements ShouldQueue
                 // The domain may not be pointed at this server yet, so real ACME/DNS
                 // challenges would fail. The user triggers real SSL explicitly later.
                 $this->progress($domain, 40, 'Generating self-signed certificate...');
-                $certObtained = $certbotService->generateSelfSigned($domain);
+                $selfSignedResult = $acmeService->generateSelfSigned($domain);
+                $certObtained = $selfSignedResult->success;
                 $selfSigned = $certObtained;
+
+                // Write self-signed cert to disk for Caddy
+                if ($certObtained) {
+                    $selfSignedDir = config('panel.letsencrypt_selfsigned_base').'/'.$domain->fqdn;
+                    if (! \Illuminate\Support\Facades\File::isDirectory($selfSignedDir)) {
+                        \Illuminate\Support\Facades\File::makeDirectory($selfSignedDir, 0755, true);
+                    }
+                    \Illuminate\Support\Facades\File::put("{$selfSignedDir}/fullchain.pem", $selfSignedResult->fullchainPem);
+                    \Illuminate\Support\Facades\File::put("{$selfSignedDir}/privkey.pem", $selfSignedResult->privateKeyPem);
+                    \Illuminate\Support\Facades\File::chmod("{$selfSignedDir}/privkey.pem", 0600);
+                }
             }
 
             if ($certObtained && $configService->certExists($domain)) {
