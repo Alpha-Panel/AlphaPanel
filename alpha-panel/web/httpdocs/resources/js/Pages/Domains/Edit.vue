@@ -62,6 +62,7 @@
                         <FormField :label="t('SSL Method')" :error="form.errors.ssl_method">
                             <select v-model="form.ssl_method" class="form-input">
                                 <option value="cloudflare_dns">{{ t('Cloudflare DNS (DNS-01)') }}</option>
+                                <option value="local_dns">{{ t('Local DNS (DNS-01)') }}</option>
                                 <option value="webroot_http">{{ t('Webroot HTTP (HTTP-01)') }}</option>
                                 <option value="self_signed">{{ t('Self-Signed Certificate') }}</option>
                                 <option value="none">{{ t('No SSL') }}</option>
