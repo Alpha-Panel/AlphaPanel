@@ -307,6 +307,86 @@ class AcmeService
     }
 
     /**
+     * Ensure the panel default self-signed certificate exists on disk.
+     *
+     * This certificate is used as a last-resort TLS fallback so Caddy can always
+     * serve HTTPS for a newly added domain — even before a domain-specific cert
+     * exists or if self-signed generation fails. Browsers will show a name
+     * mismatch warning, but no SSL protocol error.
+     *
+     * Idempotent: regenerates only if the cert is missing or has < 30 days left.
+     *
+     * @return array{cert_path: string, key_path: string}
+     */
+    public function ensurePanelDefaultSelfSigned(): array
+    {
+        $dir = (string) config('panel.panel_default_cert_dir', '/etc/letsencrypt/selfsigned/_panel_default');
+        $certPath = "{$dir}/fullchain.pem";
+        $keyPath = "{$dir}/privkey.pem";
+
+        if ($this->isDefaultCertFresh($certPath, $keyPath)) {
+            return ['cert_path' => $certPath, 'key_path' => $keyPath];
+        }
+
+        Log::info("Generating panel default self-signed certificate at {$dir}.");
+
+        if (! File::isDirectory($dir)) {
+            File::makeDirectory($dir, 0755, true);
+        }
+
+        $settings = $this->getSettings();
+        $keyArgs = $this->resolveKeyArgs($settings['key_type'], $settings['key_length']);
+
+        $command = implode(' ', [
+            'openssl req -x509 -nodes',
+            '-days 3650',
+            ...$keyArgs,
+            '-keyout', escapeshellarg($keyPath),
+            '-out', escapeshellarg($certPath),
+            '-subj', escapeshellarg('/CN=alphapanel.local'),
+            '-addext', escapeshellarg('subjectAltName=DNS:alphapanel.local,DNS:*.alphapanel.local,DNS:localhost'),
+        ]);
+
+        $result = Process::timeout(30)->run($command);
+
+        if (! $result->successful()) {
+            Log::error("Panel default self-signed generation failed: {$result->errorOutput()}");
+            throw new \RuntimeException("Panel default self-signed generation failed: {$result->errorOutput()}");
+        }
+
+        File::chmod($keyPath, 0600);
+
+        Log::info('Panel default self-signed certificate generated.');
+
+        return ['cert_path' => $certPath, 'key_path' => $keyPath];
+    }
+
+    /**
+     * Check whether the panel default certificate exists and has > 30 days of validity.
+     */
+    private function isDefaultCertFresh(string $certPath, string $keyPath): bool
+    {
+        if (! File::exists($certPath) || ! File::exists($keyPath)) {
+            return false;
+        }
+
+        try {
+            $pem = File::get($certPath);
+            $parsed = openssl_x509_parse($pem);
+
+            if (! is_array($parsed) || ! isset($parsed['validTo_time_t'])) {
+                return false;
+            }
+
+            $daysLeft = (int) floor(((int) $parsed['validTo_time_t'] - time()) / 86400);
+
+            return $daysLeft > 30;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * Delete stale Caddy ACME lock files for a domain.
      */
     public function clearCaddyAcmeLocks(Domain $domain): void

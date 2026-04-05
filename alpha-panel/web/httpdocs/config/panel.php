@@ -14,6 +14,7 @@ return [
     'letsencrypt_selfsigned_base' => env('PANEL_LETSENCRYPT_SELFSIGNED_BASE', '/etc/letsencrypt/selfsigned'),
     'letsencrypt_custom_base' => env('PANEL_LETSENCRYPT_CUSTOM_BASE', '/etc/letsencrypt/custom'),
     'letsencrypt_csr_base' => env('PANEL_LETSENCRYPT_CSR_BASE', '/etc/letsencrypt/csr'),
+    'panel_default_cert_dir' => env('PANEL_DEFAULT_CERT_DIR', '/etc/letsencrypt/selfsigned/_panel_default'),
 
     /*
     |--------------------------------------------------------------------------
@@ -22,6 +23,7 @@ return [
     */
     'docker_timeout' => env('PANEL_DOCKER_TIMEOUT', 15),
     'frankenphp_container' => env('PANEL_FRANKENPHP_CONTAINER', 'frankenphp'),
+    'frankenphp_restart_timeout' => (int) env('PANEL_FRANKENPHP_RESTART_TIMEOUT', 5),
     'php_code_server_container' => env('PANEL_PHP_CODE_SERVER_CONTAINER', 'php-code-server'),
     'caddy_admin_url' => env('PANEL_CADDY_ADMIN_URL', 'http://frankenphp:2019'),
 

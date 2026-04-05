@@ -21,6 +21,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 
 class ProvisionDomainJob implements ShouldQueue
@@ -61,11 +62,14 @@ class ProvisionDomainJob implements ShouldQueue
         ]);
 
         try {
-            $this->progress($domain, 10, 'Writing config without TLS...');
-            $configService->renderWithoutTls($domain);
-
-            $this->progress($domain, 25, 'Reloading Caddy (HTTP only)...');
-            $reloadService->reloadCaddy();
+            // Ensure the panel default self-signed cert exists up front so Caddy
+            // always has a last-resort TLS cert available for the new domain.
+            $this->progress($domain, 5, 'Ensuring panel default certificate...');
+            try {
+                $acmeService->ensurePanelDefaultSelfSigned();
+            } catch (\Throwable $e) {
+                Log::warning("Panel default cert ensure failed: {$e->getMessage()}");
+            }
 
             if ($this->createDnsRecord) {
                 $this->progress($domain, 30, 'Creating DNS records...');
@@ -84,7 +88,12 @@ class ProvisionDomainJob implements ShouldQueue
 
             // SslMethod::None — skip TLS entirely, stay on HTTP-only
             if ($sslMethod === SslMethod::None) {
-                $this->progress($domain, 60, 'No SSL requested, completing with HTTP-only...');
+                $this->progress($domain, 40, 'No SSL requested, writing HTTP-only config...');
+                $configService->renderWithoutTls($domain);
+
+                $this->progress($domain, 60, 'Restarting Caddy (HTTP only)...');
+                $reloadService->restartCaddy();
+
                 $domain->update(['status' => DomainStatus::Active]);
                 $applyRun->update([
                     'status' => 'completed',
@@ -118,37 +127,42 @@ class ProvisionDomainJob implements ShouldQueue
 
             if ($domain->isSubdomain()) {
                 $this->progress($domain, 40, 'Using parent wildcard certificate...');
-                $certObtained = $configService->certExists($domain);
             } elseif ($configService->certExists($domain)) {
                 $this->progress($domain, 40, 'SSL certificate already exists, skipping...');
-                $certObtained = true;
             } else {
-                // Always provision with self-signed on initial creation.
-                // The domain may not be pointed at this server yet, so real ACME/DNS
-                // challenges would fail. The user triggers real SSL explicitly later.
+                // Attempt to provision a domain-specific self-signed cert on initial
+                // creation. The domain may not be pointed at this server yet, so real
+                // ACME/DNS challenges would fail. The user triggers real SSL later.
+                //
+                // If this fails, we do NOT fail the job — resolveCertPaths() will
+                // fall back to the panel default self-signed cert so HTTPS still works.
                 $this->progress($domain, 40, 'Generating self-signed certificate...');
                 $selfSignedResult = $acmeService->generateSelfSigned($domain);
-                $certObtained = $selfSignedResult->success;
-                $selfSigned = $certObtained;
 
-                // Write self-signed cert to disk for Caddy
-                if ($certObtained) {
+                if ($selfSignedResult->success) {
                     $selfSignedDir = config('panel.letsencrypt_selfsigned_base').'/'.$domain->fqdn;
-                    if (! \Illuminate\Support\Facades\File::isDirectory($selfSignedDir)) {
-                        \Illuminate\Support\Facades\File::makeDirectory($selfSignedDir, 0755, true);
+                    if (! File::isDirectory($selfSignedDir)) {
+                        File::makeDirectory($selfSignedDir, 0755, true);
                     }
-                    \Illuminate\Support\Facades\File::put("{$selfSignedDir}/fullchain.pem", $selfSignedResult->fullchainPem);
-                    \Illuminate\Support\Facades\File::put("{$selfSignedDir}/privkey.pem", $selfSignedResult->privateKeyPem);
-                    \Illuminate\Support\Facades\File::chmod("{$selfSignedDir}/privkey.pem", 0600);
+                    File::put("{$selfSignedDir}/fullchain.pem", $selfSignedResult->fullchainPem);
+                    File::put("{$selfSignedDir}/privkey.pem", $selfSignedResult->privateKeyPem);
+                    File::chmod("{$selfSignedDir}/privkey.pem", 0600);
+                    $selfSigned = true;
+                } else {
+                    Log::warning("Self-signed cert generation failed for {$domain->fqdn}, falling back to panel default cert.");
                 }
             }
 
-            if ($certObtained && $configService->certExists($domain)) {
-                $this->progress($domain, 60, 'Rewriting config with TLS...');
+            // resolveCertPaths() always returns a path now (falls back to the
+            // panel default cert), so renderWithTls() is always safe to call.
+            $certObtained = $configService->certExists($domain);
+
+            if ($certObtained) {
+                $this->progress($domain, 60, 'Writing TLS config...');
                 $configService->renderWithTls($domain);
 
-                $this->progress($domain, 75, 'Reloading services...');
-                $reloadService->reloadCaddy();
+                $this->progress($domain, 75, 'Restarting Caddy...');
+                $reloadService->restartCaddy();
 
                 if ($domain->type === DomainType::ApacheReverseProxy) {
                     $reloadService->reloadApache();

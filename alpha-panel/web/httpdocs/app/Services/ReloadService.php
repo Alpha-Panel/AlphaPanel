@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\PhpVersion;
+use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Log;
 
 class ReloadService
@@ -28,7 +29,7 @@ class ReloadService
         $proxyUrl = rtrim((string) config('panel.docker_socket_proxy_url', 'http://docker-socket-proxy:2375'), '/');
 
         try {
-            $client = new \GuzzleHttp\Client(['connect_timeout' => 5, 'timeout' => 10]);
+            $client = new Client(['connect_timeout' => 5, 'timeout' => 10]);
 
             // Resolve container name → ID
             $listResp = $client->get("{$proxyUrl}/containers/json", [
@@ -70,6 +71,56 @@ class ReloadService
             return true;
         } catch (\Exception $e) {
             Log::error("Caddy reload failed: {$e->getMessage()}");
+
+            return false;
+        }
+    }
+
+    /**
+     * Restart the frankenphp container synchronously.
+     *
+     * Uses Docker Engine API (via docker-socket-proxy) to issue a container restart.
+     * Waits for the restart to complete before returning. This is more reliable than
+     * `frankenphp reload` because it guarantees the container re-reads all Caddyfile
+     * imports (sites-enabled/*) from disk — reload can miss newly created site files
+     * in some edge cases, and its detached execution makes failures invisible.
+     *
+     * The frankenphp container is separate from alpha_panel_web, so restarting it
+     * does not affect the panel UI itself.
+     */
+    public function restartCaddy(): bool
+    {
+        $container = (string) config('panel.frankenphp_container', 'frankenphp');
+        $proxyUrl = rtrim((string) config('panel.docker_socket_proxy_url', 'http://docker-socket-proxy:2375'), '/');
+        $stopTimeout = (int) config('panel.frankenphp_restart_timeout', 5);
+
+        try {
+            $client = new Client(['connect_timeout' => 5, 'timeout' => 60]);
+
+            $listResp = $client->get("{$proxyUrl}/containers/json", [
+                'query' => [
+                    'all' => 'true',
+                    'filters' => json_encode(['name' => [$container]]),
+                ],
+            ]);
+            $containers = json_decode($listResp->getBody()->getContents(), true);
+            $containerId = $containers[0]['Id'] ?? null;
+
+            if (! $containerId) {
+                Log::error("Caddy restart: container '{$container}' not found.");
+
+                return false;
+            }
+
+            $client->post("{$proxyUrl}/containers/{$containerId}/restart", [
+                'query' => ['t' => $stopTimeout],
+            ]);
+
+            Log::info("Caddy restart completed (container={$container}).");
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error("Caddy restart failed: {$e->getMessage()}");
 
             return false;
         }

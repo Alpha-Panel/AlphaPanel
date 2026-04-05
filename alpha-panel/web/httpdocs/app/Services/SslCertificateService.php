@@ -436,7 +436,7 @@ class SslCertificateService
         $domain->setRelation('activeSslCertificate', $certificate);
 
         $this->domainConfigService->renderWithTls($domain);
-        $this->reloadService->reloadCaddy();
+        $this->reloadService->restartCaddy();
 
         Log::info("Activated SSL certificate ID {$certificate->id} for {$domain->fqdn}.");
     }

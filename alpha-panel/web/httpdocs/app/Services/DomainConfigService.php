@@ -150,6 +150,17 @@ class DomainConfigService
             return ['cert' => $ssCert, 'key' => $ssKey];
         }
 
+        // Priority 4: Panel default self-signed fallback.
+        // Ensures Caddy can always serve HTTPS for any domain, even before a
+        // domain-specific cert exists. Browsers will show a name mismatch
+        // warning, but no SSL protocol error.
+        $defaultDir = (string) config('panel.panel_default_cert_dir', '/etc/letsencrypt/selfsigned/_panel_default');
+        $defaultCert = "{$defaultDir}/fullchain.pem";
+        $defaultKey = "{$defaultDir}/privkey.pem";
+        if (File::exists($defaultCert) && File::exists($defaultKey)) {
+            return ['cert' => $defaultCert, 'key' => $defaultKey];
+        }
+
         return null;
     }
 

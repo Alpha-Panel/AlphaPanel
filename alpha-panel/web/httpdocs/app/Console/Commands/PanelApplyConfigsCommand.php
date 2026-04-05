@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Domain;
+use App\Services\Acme\AcmeService;
 use App\Services\DomainConfigService;
 use App\Services\ReloadService;
 use Illuminate\Console\Command;
@@ -12,12 +13,24 @@ class PanelApplyConfigsCommand extends Command
     protected $signature = 'panel:apply
                             {--domain= : Regenerate config for a specific domain (FQDN)}
                             {--dry-run : Show what would be regenerated without writing}
-                            {--no-reload : Skip Caddy/Apache reload after regeneration}';
+                            {--no-restart : Skip frankenphp container restart after regeneration}
+                            {--no-reload : Alias for --no-restart (backwards compat)}';
 
-    protected $description = 'Regenerate Caddyfile configs for all domains from the database and reload Caddy';
+    protected $description = 'Regenerate Caddyfile configs for all domains from the database and restart Caddy';
 
-    public function handle(DomainConfigService $configService, ReloadService $reloadService): int
-    {
+    public function handle(
+        DomainConfigService $configService,
+        ReloadService $reloadService,
+        AcmeService $acmeService,
+    ): int {
+        // Ensure the panel default self-signed cert exists before any config
+        // regeneration so renderWithTls() always has a valid fallback path.
+        try {
+            $acmeService->ensurePanelDefaultSelfSigned();
+        } catch (\Throwable $e) {
+            $this->warn("Panel default cert ensure failed: {$e->getMessage()}");
+        }
+
         $query = Domain::query()->with(['phpVersion', 'activeSslCertificate', 'parentDomain']);
 
         if ($fqdn = $this->option('domain')) {
@@ -61,11 +74,13 @@ class PanelApplyConfigsCommand extends Command
         $this->newLine();
         $this->info("Done: {$success} regenerated, {$failed} failed.");
 
-        if ($failed === 0 && ! $this->option('dry-run') && ! $this->option('no-reload')) {
+        $skipRestart = $this->option('no-restart') || $this->option('no-reload');
+
+        if ($failed === 0 && ! $this->option('dry-run') && ! $skipRestart) {
             $this->newLine();
-            $this->info('Reloading Caddy...');
-            $reloaded = $reloadService->reloadCaddy();
-            $this->line($reloaded ? '  OK  Caddy reloaded.' : '  WARN  Caddy reload returned non-zero.');
+            $this->info('Restarting Caddy...');
+            $restarted = $reloadService->restartCaddy();
+            $this->line($restarted ? '  OK  Caddy restarted.' : '  WARN  Caddy restart returned non-zero.');
         }
 
         return $failed > 0 ? self::FAILURE : self::SUCCESS;
