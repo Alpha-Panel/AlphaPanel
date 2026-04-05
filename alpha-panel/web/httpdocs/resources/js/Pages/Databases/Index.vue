@@ -578,26 +578,16 @@ const copyToClipboard = async (value: string): Promise<boolean> => {
         return false;
     }
 
+    if (!navigator?.clipboard?.writeText) {
+        return false;
+    }
+
     try {
         await navigator.clipboard.writeText(value);
 
         return true;
     } catch {
-        if (typeof document === 'undefined') {
-            return false;
-        }
-
-        const textarea = document.createElement('textarea');
-        textarea.value = value;
-        textarea.setAttribute('readonly', 'readonly');
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        const copied = document.execCommand('copy');
-        document.body.removeChild(textarea);
-
-        return copied;
+        return false;
     }
 };
 

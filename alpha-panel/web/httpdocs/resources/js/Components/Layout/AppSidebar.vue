@@ -181,7 +181,9 @@
                                                 v-for="subItem in item.subItems"
                                                 :key="subItem.name"
                                             >
+                                                <!-- Leaf link -->
                                                 <Link
+                                                    v-if="!isSubGroup(subItem)"
                                                     :href="subItem.href"
                                                     :class="[
                                                         'menu-dropdown-item',
@@ -197,6 +199,65 @@
                                                     <i v-if="subItem.iconClass" :class="[subItem.iconClass, 'mr-2 w-4 text-center text-xs opacity-70']"></i>
                                                     {{ subItem.name }}
                                                 </Link>
+
+                                                <!-- Nested dropdown -->
+                                                <template v-else>
+                                                    <button
+                                                        type="button"
+                                                        @click="toggleNestedHandler(groupIndex, index, subItem.name)"
+                                                        :class="[
+                                                            'menu-dropdown-item flex w-full items-center justify-between',
+                                                            {
+                                                                'menu-dropdown-item-active': isNestedOpen(groupIndex, index, subItem.name),
+                                                                'menu-dropdown-item-inactive': !isNestedOpen(groupIndex, index, subItem.name),
+                                                            },
+                                                        ]"
+                                                    >
+                                                        <span class="flex items-center">
+                                                            <i v-if="subItem.iconClass" :class="[subItem.iconClass, 'mr-2 w-4 text-center text-xs opacity-70']"></i>
+                                                            {{ subItem.name }}
+                                                        </span>
+                                                        <ChevronDownIcon
+                                                            :class="[
+                                                                'h-4 w-4 transition-transform duration-200',
+                                                                isRtl ? 'mr-2' : 'ml-2',
+                                                                { 'rotate-180 text-brand-500': isNestedOpen(groupIndex, index, subItem.name) },
+                                                            ]"
+                                                        />
+                                                    </button>
+                                                    <transition
+                                                        @enter="startTransition"
+                                                        @after-enter="endTransition"
+                                                        @before-leave="startTransition"
+                                                        @after-leave="endTransition"
+                                                    >
+                                                        <div v-show="isNestedOpen(groupIndex, index, subItem.name)">
+                                                            <ul
+                                                                :class="isRtl ? 'mr-4' : 'ml-4'"
+                                                                class="mt-1 space-y-1"
+                                                            >
+                                                                <li
+                                                                    v-for="leaf in subItem.subItems"
+                                                                    :key="leaf.name"
+                                                                >
+                                                                    <Link
+                                                                        :href="leaf.href"
+                                                                        :class="[
+                                                                            'menu-dropdown-item',
+                                                                            {
+                                                                                'menu-dropdown-item-active': isActive(leaf.href),
+                                                                                'menu-dropdown-item-inactive': !isActive(leaf.href),
+                                                                            },
+                                                                        ]"
+                                                                    >
+                                                                        <i v-if="leaf.iconClass" :class="[leaf.iconClass, 'mr-2 w-4 text-center text-xs opacity-70']"></i>
+                                                                        {{ leaf.name }}
+                                                                    </Link>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                    </transition>
+                                                </template>
                                             </li>
                                         </ul>
                                     </div>
@@ -270,7 +331,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { useSidebar } from '@/Composables/useSidebar';
 import { useCan } from '@/Composables/useCan';
@@ -293,6 +354,20 @@ const appName = computed(() => page.props.app?.name ?? 'AlphaPanel');
 const logoUrl = computed(() => page.props.app?.logo_url ?? '/img/AlphaPanel-dark.svg');
 const externalLinks = computed(() => page.props.app?.links ?? {});
 
+interface SidebarSubLeaf {
+    name: string;
+    href: string;
+    iconClass?: string;
+}
+
+interface SidebarSubGroup {
+    name: string;
+    iconClass?: string;
+    subItems: SidebarSubLeaf[];
+}
+
+type SidebarSubItem = SidebarSubLeaf | SidebarSubGroup;
+
 interface SidebarMenuItem {
     icon?: unknown;
     iconClass?: string;
@@ -300,8 +375,12 @@ interface SidebarMenuItem {
     href?: string;
     external?: boolean;
     action?: () => void;
-    subItems?: Array<{ name: string; href: string; iconClass?: string }>;
+    subItems?: SidebarSubItem[];
 }
+
+const isSubGroup = (item: SidebarSubItem): item is SidebarSubGroup => {
+    return (item as SidebarSubGroup).subItems !== undefined;
+};
 
 const menuGroups = computed(() => {
     const groups = [
@@ -423,14 +502,6 @@ const menuGroups = computed(() => {
                     }
                 }
 
-                if (can('panel.php-versions.view')) {
-                    items.push({
-                        iconClass: 'fa-brands fa-php',
-                        name: t('PHP Versions'),
-                        href: route('php-versions.index'),
-                    });
-                }
-
                 if (can('panel.system.updates')) {
                     items.push({
                         iconClass: 'fa-solid fa-arrow-up-from-bracket',
@@ -439,21 +510,48 @@ const menuGroups = computed(() => {
                     });
                 }
 
+                // Settings (Ayarlar) — nested dropdown: DNS (inner dropdown), ACME, PHP Versions
+                const settingsSubItems: SidebarSubItem[] = [];
+
                 if (canAny('panel.dns-settings.view', 'panel.dns-settings.manage')) {
-                    const dnsSubItems: Array<{ name: string; href: string; iconClass?: string }> = [];
+                    const dnsLeaves: SidebarSubLeaf[] = [];
                     if (can('panel.dns-settings.manage')) {
-                        dnsSubItems.push({ name: t('DNS Settings'), href: route('settings.dns.index'), iconClass: 'fa-solid fa-gear' });
+                        dnsLeaves.push({ name: t('DNS Settings'), href: route('settings.dns.index'), iconClass: 'fa-solid fa-gear' });
                     }
                     if (can('panel.dns-templates.manage')) {
-                        dnsSubItems.push({ name: t('DNS Templates'), href: route('settings.dns-templates.index'), iconClass: 'fa-solid fa-file-lines' });
+                        dnsLeaves.push({ name: t('DNS Templates'), href: route('settings.dns-templates.index'), iconClass: 'fa-solid fa-file-lines' });
                     }
-                    if (dnsSubItems.length > 0) {
-                        items.push({
-                            iconClass: 'fa-solid fa-server',
+                    if (dnsLeaves.length > 0) {
+                        settingsSubItems.push({
                             name: t('DNS'),
-                            subItems: dnsSubItems,
+                            iconClass: 'fa-solid fa-server',
+                            subItems: dnsLeaves,
                         });
                     }
+                }
+
+                if (can('panel.acme-settings.manage')) {
+                    settingsSubItems.push({
+                        name: t('ACME Settings'),
+                        href: route('settings.acme.index'),
+                        iconClass: 'fa-solid fa-lock',
+                    });
+                }
+
+                if (can('panel.php-versions.view')) {
+                    settingsSubItems.push({
+                        name: t('PHP Versions'),
+                        href: route('php-versions.index'),
+                        iconClass: 'fa-brands fa-php',
+                    });
+                }
+
+                if (settingsSubItems.length > 0) {
+                    items.push({
+                        iconClass: 'fa-solid fa-gear',
+                        name: t('Settings'),
+                        subItems: settingsSubItems,
+                    });
                 }
 
                 return items;
@@ -483,13 +581,54 @@ const toggleSubmenuHandler = (groupIndex: number, itemIndex: number) => {
     openSubmenu.value = openSubmenu.value === key ? null : key;
 };
 
+const openNested = ref<Set<string>>(new Set());
+
+const nestedKey = (groupIndex: number, itemIndex: number, name: string) =>
+    `${groupIndex}-${itemIndex}-${name}`;
+
+const isNestedOpen = (groupIndex: number, itemIndex: number, name: string) => {
+    const key = nestedKey(groupIndex, itemIndex, name);
+    if (openNested.value.has(key)) {
+        return true;
+    }
+    // Auto-open if any leaf inside this nested group matches the active route
+    const item = menuGroups.value[groupIndex]?.items[itemIndex];
+    if (item && 'subItems' in item && item.subItems) {
+        const nested = item.subItems.find(
+            (si): si is SidebarSubGroup => isSubGroup(si) && si.name === name,
+        );
+        if (nested && nested.subItems.some((leaf) => isActive(leaf.href))) {
+            return true;
+        }
+    }
+    return false;
+};
+
+const toggleNestedHandler = (groupIndex: number, itemIndex: number, name: string) => {
+    const key = nestedKey(groupIndex, itemIndex, name);
+    const next = new Set(openNested.value);
+    if (next.has(key)) {
+        next.delete(key);
+    } else {
+        next.add(key);
+    }
+    openNested.value = next;
+};
+
+const subItemMatchesActive = (subItem: SidebarSubItem): boolean => {
+    if (isSubGroup(subItem)) {
+        return subItem.subItems.some((leaf) => isActive(leaf.href));
+    }
+    return isActive(subItem.href);
+};
+
 const isAnySubmenuRouteActive = computed(() => {
     return menuGroups.value.some((group) =>
         group.items.some(
             (item) =>
                 'subItems' in item &&
                 item.subItems &&
-                item.subItems.some((subItem) => isActive(subItem.href)),
+                item.subItems.some((subItem) => subItemMatchesActive(subItem)),
         ),
     );
 });
@@ -501,7 +640,7 @@ const isSubmenuOpen = (groupIndex: number, itemIndex: number) => {
         openSubmenu.value === key ||
         (isAnySubmenuRouteActive.value &&
             'subItems' in item &&
-            item.subItems?.some((subItem) => isActive(subItem.href)))
+            item.subItems?.some((subItem) => subItemMatchesActive(subItem)))
     );
 };
 
