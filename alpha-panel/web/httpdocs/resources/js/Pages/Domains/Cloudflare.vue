@@ -11,7 +11,7 @@
                 <Toast />
 
                 <div class="space-y-4 md:space-y-6">
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <div class="mb-3 flex items-center justify-between">
                             <h3 class="text-sm font-semibold text-gray-800 dark:text-white/90">{{ t('Cloudflare') }}</h3>
                             <span v-if="summaryLoading" class="text-xs text-gray-500 dark:text-gray-400">{{ t('Loading...') }}</span>
@@ -43,7 +43,7 @@
                         </div>
                     </div>
 
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                         <div class="mb-4 flex flex-wrap items-center gap-2">
                             <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
                                 <i class="fa-brands fa-cloudflare mr-1"></i>
@@ -201,7 +201,7 @@
                                         v-model.number="cloudflareForm.hsts.max_age"
                                         type="number"
                                         min="0"
-                                        class="cf-input max-w-[240px]"
+                                        class="cf-input max-w-60"
                                         :disabled="settingsControlsDisabled"
                                     />
                                     <button
@@ -319,7 +319,7 @@
                                     </div>
                                 </div>
 
-                                <div class="max-h-[320px] overflow-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                                <div class="max-h-80 overflow-auto rounded-lg border border-gray-200 dark:border-gray-700">
                                     <table class="w-full text-xs">
                                         <thead class="bg-gray-50 dark:bg-gray-800">
                                             <tr>

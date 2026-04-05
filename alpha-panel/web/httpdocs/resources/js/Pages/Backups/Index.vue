@@ -26,7 +26,7 @@
                     </div>
 
                     <!-- Connection Status Card -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-4">
                                 <div
@@ -76,7 +76,7 @@
                     <!-- Folder Selection + Settings (shown when connected) -->
                     <div v-if="settings.is_connected" class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
                         <!-- Folder Selection Card -->
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                             <h4 class="mb-4 text-sm font-semibold text-gray-800 dark:text-white/90">
                                 <i class="bx bx-folder mr-1"></i>
                                 {{ t('Backup Folder') }}
@@ -110,7 +110,7 @@
                         </div>
 
                         <!-- Settings Card -->
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                             <h4 class="mb-4 text-sm font-semibold text-gray-800 dark:text-white/90">
                                 <i class="bx bx-cog mr-1"></i>
                                 {{ t('Backup Settings') }}
@@ -122,7 +122,7 @@
                                         <label class="text-sm text-gray-700 dark:text-gray-300">{{ t('Enable Backups') }}</label>
                                         <div class="flex items-center gap-2.5">
                                             <span
-                                                class="min-w-[3rem] text-right text-xs font-semibold uppercase tracking-wide"
+                                                class="min-w-12 text-right text-xs font-semibold uppercase tracking-wide"
                                                 :class="settingsForm.is_enabled ? 'text-success-600 dark:text-success-400' : 'text-gray-400 dark:text-gray-500'"
                                             >
                                                 {{ settingsForm.is_enabled ? t('On') : t('Off') }}
@@ -133,7 +133,7 @@
                                                     type="checkbox"
                                                     class="peer sr-only"
                                                 />
-                                                <div class="peer h-6 w-11 rounded-full bg-gray-300 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-success-500 peer-checked:after:translate-x-full peer-checked:after:border-white dark:bg-gray-600 dark:after:border-gray-500"></div>
+                                                <div class="peer h-6 w-11 rounded-full bg-gray-300 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-success-500 peer-checked:after:translate-x-full peer-checked:after:border-white dark:bg-gray-600 dark:after:border-gray-500"></div>
                                             </label>
                                         </div>
                                     </div>
@@ -254,7 +254,7 @@
                     </div>
 
                     <!-- Backup History Table -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                         <div class="mb-4 flex items-center justify-between">
                             <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
                                 <i class="bx bx-history mr-1"></i>
@@ -275,7 +275,7 @@
                         </div>
 
                         <div v-else class="overflow-x-auto">
-                            <table class="w-full min-w-[600px] text-sm">
+                            <table class="w-full min-w-150 text-sm">
                                 <thead>
                                     <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
                                         <th class="pb-3 pr-3">{{ t('Type') }}</th>
@@ -335,7 +335,7 @@
 
                 <!-- Disconnect Confirmation Modal -->
                 <Teleport to="body">
-                    <div v-if="showDisconnectConfirm" class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+                    <div v-if="showDisconnectConfirm" class="fixed inset-0 z-1200000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
                         <div class="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
                             <h3 class="text-lg font-semibold text-gray-800 dark:text-white">{{ t('Disconnect Google Drive?') }}</h3>
                             <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
@@ -362,7 +362,7 @@
 
                 <!-- Run Backup Confirmation Modal -->
                 <Teleport to="body">
-                    <div v-if="showRunConfirm" class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+                    <div v-if="showRunConfirm" class="fixed inset-0 z-1200000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
                         <div class="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
                             <h3 class="text-lg font-semibold text-gray-800 dark:text-white">{{ t('Start Backup?') }}</h3>
                             <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
@@ -390,7 +390,7 @@
 
                 <!-- Folder Browser Modal -->
                 <Teleport to="body">
-                    <div v-if="showFolderBrowser" class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+                    <div v-if="showFolderBrowser" class="fixed inset-0 z-1200000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
                         <div class="mx-4 w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
                             <div class="mb-4 flex items-center justify-between">
                                 <h3 class="text-lg font-semibold text-gray-800 dark:text-white">
@@ -486,7 +486,7 @@
 
                 <!-- Backup Detail Modal -->
                 <Teleport to="body">
-                    <div v-if="showDetailModal && selectedRun" class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+                    <div v-if="showDetailModal && selectedRun" class="fixed inset-0 z-1200000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
                         <div class="mx-4 flex w-full max-w-2xl flex-col rounded-2xl bg-white shadow-xl dark:bg-gray-900" style="max-height: 85vh">
                             <!-- Header -->
                             <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">

@@ -182,7 +182,7 @@
                                         v-for="(rule, index) in localRules"
                                         :key="rule.id"
                                         class="border-b border-gray-100 dark:border-gray-800"
-                                        :class="index % 2 === 1 ? 'bg-gray-50/50 dark:bg-white/[0.01]' : ''"
+                                        :class="index % 2 === 1 ? 'bg-gray-50/50 dark:bg-white/1' : ''"
                                     >
                                         <td class="py-3 pr-4">
                                             <code class="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-300">

@@ -7,7 +7,7 @@
                 <Toast />
 
                 <div class="mx-auto max-w-2xl">
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <h3 class="mb-5 text-lg font-semibold text-gray-800 dark:text-white/90">
                             {{ t('Send Push Notification') }}
                         </h3>

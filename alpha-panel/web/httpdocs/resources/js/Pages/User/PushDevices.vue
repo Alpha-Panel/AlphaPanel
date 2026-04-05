@@ -8,7 +8,7 @@
 
                 <div class="space-y-6">
                     <!-- This Device -->
-                    <div v-if="pushSupported" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div v-if="pushSupported" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <h3 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white/90">{{ t('This Device') }}</h3>
                         <div class="flex items-center justify-between gap-3">
                             <div>
@@ -42,7 +42,7 @@
                     </div>
 
                     <!-- Subscribed Devices -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <h3 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white/90">{{ t('Subscribed Devices') }}</h3>
 
                         <div v-if="devices.length === 0" class="py-8 text-center text-sm text-gray-500 dark:text-gray-400">

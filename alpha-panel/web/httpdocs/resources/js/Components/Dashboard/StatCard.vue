@@ -1,6 +1,6 @@
 <template>
     <div
-        class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]"
+        class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3"
     >
         <div class="flex items-center justify-between">
             <div>

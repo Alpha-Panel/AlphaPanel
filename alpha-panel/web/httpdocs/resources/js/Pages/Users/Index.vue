@@ -6,7 +6,7 @@
                 <PageBreadcrumb :pageTitle="t('User Management')" />
                 <Toast />
 
-                <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+                <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/3">
                     <div class="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
                         <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">{{ t('Users') }}</h3>
                         <div class="flex items-center gap-3">
@@ -42,7 +42,7 @@
                                 <tr v-if="table.loading.value" class="border-t border-gray-200 dark:border-gray-800">
                                     <td colspan="6" class="px-5 py-8 text-center text-gray-500">{{ t('Loading...') }}</td>
                                 </tr>
-                                <tr v-for="user in table.data.value" :key="(user.id as number)" class="border-t border-gray-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.02]">
+                                <tr v-for="user in table.data.value" :key="(user.id as number)" class="border-t border-gray-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/2">
                                     <td class="px-5 py-4 font-medium text-gray-800 dark:text-white/90">{{ user.name }}</td>
                                     <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-400">{{ user.username }}</td>
                                     <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-400">{{ user.email }}</td>

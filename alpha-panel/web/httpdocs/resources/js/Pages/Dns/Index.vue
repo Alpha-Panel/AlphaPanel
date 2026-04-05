@@ -11,7 +11,7 @@
                 <Toast />
 
                 <!-- Provider Switch Bar -->
-                <div class="mb-4 flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between dark:border-gray-800 dark:bg-white/[0.03] md:p-5">
+                <div class="mb-4 flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between dark:border-gray-800 dark:bg-white/3 md:p-5">
                     <div class="flex items-center gap-3">
                         <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('DNS Provider') }}:</span>
                         <span
@@ -51,7 +51,7 @@
                 <!-- Switch to Local DNS Modal (with import option) -->
                 <div
                     v-if="showSwitchModal"
-                    class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+                    class="fixed inset-0 z-1200000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
                 >
                     <div class="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xl dark:border-gray-800 dark:bg-gray-900">
                         <h4 class="mb-4 text-base font-semibold text-gray-800 dark:text-white/90">{{ t('Switch to Local DNS') }}</h4>
@@ -83,7 +83,7 @@
                     </div>
                 </div>
 
-                <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+                <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/3">
                     <div class="flex flex-col gap-4 border-b border-gray-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-gray-800 md:px-6">
                         <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">{{ t('DNS Records') }}</h3>
                         <div class="flex items-center gap-2">
@@ -146,7 +146,7 @@
                                 <tr
                                     v-for="record in records"
                                     :key="record.id"
-                                    class="border-t border-gray-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.02]"
+                                    class="border-t border-gray-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/2"
                                 >
                                     <td v-if="currentProvider === 'local'" class="w-10 px-3 py-3">
                                         <input
@@ -193,7 +193,7 @@
 
                 <div
                     v-if="showFormModal"
-                    class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+                    class="fixed inset-0 z-1200000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
                 >
                     <div class="w-full max-w-3xl rounded-2xl border border-gray-200 bg-white shadow-theme-xl dark:border-gray-800 dark:bg-gray-900">
                         <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-800 md:px-6">
@@ -361,7 +361,7 @@
 
                 <div
                     v-if="showDeleteModal && selectedRecord"
-                    class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+                    class="fixed inset-0 z-1200000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
                 >
                     <div class="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-theme-xl dark:border-gray-800 dark:bg-gray-900">
                         <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-800">

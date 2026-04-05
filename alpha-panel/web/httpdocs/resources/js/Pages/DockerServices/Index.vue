@@ -8,7 +8,7 @@
 
                 <div class="space-y-4 md:space-y-6">
                     <!-- Header -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <h3 class="flex items-center gap-2 text-lg font-semibold text-gray-800 dark:text-white/90">
@@ -45,7 +45,7 @@
                     <!-- Empty State -->
                     <div
                         v-if="services.length === 0"
-                        class="rounded-2xl border border-gray-200 bg-white p-12 text-center dark:border-gray-800 dark:bg-white/[0.03]"
+                        class="rounded-2xl border border-gray-200 bg-white p-12 text-center dark:border-gray-800 dark:bg-white/3"
                     >
                         <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
                             <svg class="h-8 w-8 text-gray-400 dark:text-gray-500" viewBox="0 0 24 24" fill="currentColor">
@@ -73,7 +73,7 @@
                         <div
                             v-for="service in services"
                             :key="service.id"
-                            class="group rounded-2xl border border-gray-200 bg-white transition-all duration-200 hover:border-gray-300 hover:shadow-md dark:border-gray-800 dark:bg-white/[0.03] dark:hover:border-gray-700"
+                            class="group rounded-2xl border border-gray-200 bg-white transition-all duration-200 hover:border-gray-300 hover:shadow-md dark:border-gray-800 dark:bg-white/3 dark:hover:border-gray-700"
                         >
                             <!-- Card Header -->
                             <div class="p-5">
@@ -323,9 +323,6 @@ const formatPorts = (ports: Array<Record<string, any>>): string => {
 
     return ports
         .map((p) => {
-            if (typeof p === 'string') {
-                return p;
-            }
 
             if (p.host && p.container) {
                 return `${p.host}:${p.container}`;

@@ -9,7 +9,7 @@
                     :backHref="route('domains.show', domain.id)"
                 />
 
-                <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                     <h3 class="mb-5 text-lg font-semibold text-gray-800 dark:text-white/90">
                         {{ t('Edit Domain') }}
                     </h3>
@@ -119,7 +119,7 @@
                                     <textarea
                                         v-model="form.custom_caddy_directives"
                                         rows="16"
-                                        class="form-input font-mono text-xs min-h-[200px]"
+                                        class="form-input font-mono text-xs min-h-50"
                                         :placeholder="exampleDirectives"
                                     />
                                 </FormField>

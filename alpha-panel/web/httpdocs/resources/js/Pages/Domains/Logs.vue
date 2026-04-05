@@ -59,10 +59,10 @@
 
                         <div
                             ref="tableContainerRef"
-                            class="max-h-[620px] overflow-auto rounded-lg border border-gray-200 dark:border-gray-800"
+                            class="max-h-155 overflow-auto rounded-lg border border-gray-200 dark:border-gray-800"
                             @scroll.passive="handleScroll"
                         >
-                            <table class="w-full min-w-[1080px] text-sm">
+                            <table class="w-full min-w-270 text-sm">
                                 <thead>
                                     <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
                                         <th class="sticky top-0 z-10 bg-white px-3 py-2 dark:bg-gray-900">{{ t('Date') }}</th>

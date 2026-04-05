@@ -14,7 +14,7 @@
         <!-- Minimized Bar -->
         <div
             v-if="terminal.minimizedSessions.value.length > 0"
-            class="fixed bottom-2 right-2 z-[1300001] flex max-w-[calc(100vw-1rem)] gap-1 overflow-x-auto rounded-lg bg-gray-900/60 p-2 backdrop-blur-sm"
+            class="fixed bottom-2 right-2 z-1300001 flex max-w-[calc(100vw-1rem)] gap-1 overflow-x-auto rounded-lg bg-gray-900/60 p-2 backdrop-blur-sm"
         >
             <div
                 v-for="sessionId in terminal.minimizedSessions.value"

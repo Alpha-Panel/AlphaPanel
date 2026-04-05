@@ -10,7 +10,7 @@
                 />
 
                 <div class="space-y-4 md:space-y-6">
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">
                             {{ t('WAF') }}
                         </h3>
@@ -21,7 +21,7 @@
 
                     <div
                         v-if="isAdmin && globalRules.length > 0"
-                        class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6"
+                        class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6"
                     >
                         <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
                             {{ t('Server-wide Global IP Rules (Override Domain Rules)') }}
@@ -48,7 +48,7 @@
                         </div>
                     </div>
 
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <form class="space-y-5" @submit.prevent="submit">
                             <label class="flex items-center gap-2">
                                 <input v-model="form.modsecurity_enabled" type="checkbox" class="form-checkbox" />
@@ -122,7 +122,7 @@
                         </form>
                     </div>
 
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <div class="mb-3 flex flex-wrap items-center gap-2">
                             <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
                                 {{ t('Live WAF Logs') }}
@@ -157,8 +157,8 @@
                             </label>
                         </div>
 
-                        <div class="mt-3 max-h-[460px] overflow-auto">
-                            <table class="w-full min-w-[980px] text-sm">
+                        <div class="mt-3 max-h-115 overflow-auto">
+                            <table class="w-full min-w-245 text-sm">
                                 <thead>
                                     <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
                                         <th class="pb-2">{{ t('Time') }}</th>

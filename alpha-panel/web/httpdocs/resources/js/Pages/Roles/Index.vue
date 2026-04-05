@@ -123,7 +123,7 @@
                                         <label
                                             v-for="perm in group.permissions"
                                             :key="perm.name"
-                                            class="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-2 text-sm transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.02]"
+                                            class="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-2 text-sm transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/2"
                                             :class="{ 'border-brand-200 bg-brand-500/5 dark:border-brand-900': form.permissions.includes(perm.name) }"
                                         >
                                             <input

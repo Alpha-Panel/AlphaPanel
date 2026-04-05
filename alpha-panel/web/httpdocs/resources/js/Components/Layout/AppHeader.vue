@@ -120,7 +120,7 @@
 
                     <div
                         v-if="showSearchDropdown"
-                        class="absolute left-0 right-0 top-[calc(100%+0.4rem)] z-[1300000] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-theme-xl dark:border-gray-700 dark:bg-gray-900"
+                        class="absolute left-0 right-0 top-[calc(100%+0.4rem)] z-1300000 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-theme-xl dark:border-gray-700 dark:bg-gray-900"
                     >
                         <div v-if="searchLoading" class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                             {{ t('Searching...') }}
@@ -246,15 +246,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { Link, router, usePage } from '@inertiajs/vue3';
+import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue';
+import {Link, router, usePage} from '@inertiajs/vue3';
 import axios from 'axios';
-import { useSidebar } from '@/Composables/useSidebar';
-import { useI18n } from '@/Composables/useI18n';
+import {useSidebar} from '@/Composables/useSidebar';
+import {useI18n} from '@/Composables/useI18n';
 import ThemeToggler from '@/Components/Common/ThemeToggler.vue';
 import NotificationMenu from './header/NotificationMenu.vue';
 import UserMenu from './header/UserMenu.vue';
-import type { SharedProps } from '@/types/inertia';
+import type {SharedProps} from '@/types/inertia';
 
 interface DomainSearchResult {
     id: number;
@@ -464,8 +464,7 @@ const fetchSearchResults = async (): Promise<void> => {
             return;
         }
 
-        const results = Array.isArray(response.data?.data) ? response.data.data as DomainSearchResult[] : [];
-        searchResults.value = results;
+      searchResults.value = Array.isArray(response.data?.data) ? response.data.data as DomainSearchResult[] : [];
         showSearchDropdown.value = true;
     } catch {
         if (currentRequest !== searchRequestCounter) {

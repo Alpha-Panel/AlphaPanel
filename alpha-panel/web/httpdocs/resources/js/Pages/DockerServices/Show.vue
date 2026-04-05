@@ -11,7 +11,7 @@
 
                 <div class="space-y-4 md:space-y-6">
                     <!-- Service Info Card -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <div class="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center">
                             <div class="min-w-0 flex-1">
                                 <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">
@@ -61,7 +61,7 @@
                     </div>
 
                     <!-- Action Buttons -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <h4 class="mb-4 text-sm font-semibold text-gray-800 dark:text-white/90">{{ t('Actions') }}</h4>
                         <div class="flex flex-wrap gap-2">
                             <button
@@ -93,7 +93,7 @@
                             </button>
                             <Link
                                 :href="route('docker-services.edit', service.id)"
-                                class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]"
+                                class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/3"
                             >
                                 <i class="fa-solid fa-pen-to-square text-xs"></i>
                                 {{ t('Edit') }}
@@ -111,7 +111,7 @@
                     </div>
 
                     <!-- Resource Stats -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <div class="mb-4 flex items-center justify-between">
                             <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">{{ t('Resource Usage') }}</h4>
                             <span v-if="currentStatus === 'running'" class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
@@ -177,7 +177,7 @@
                     </div>
 
                     <!-- Logs Viewer -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <div class="mb-4 flex items-center justify-between">
                             <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">{{ t('Container Logs') }}</h4>
                             <div class="flex items-center gap-2">
@@ -189,7 +189,7 @@
                                     type="button"
                                     :disabled="logsLoading"
                                     @click="loadMoreLogs"
-                                    class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]"
+                                    class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/3"
                                 >
                                     <i class="fa-solid fa-arrow-down text-[10px]"></i>
                                     {{ t('Load More') }}
@@ -198,7 +198,7 @@
                                     type="button"
                                     :disabled="logsLoading"
                                     @click="fetchLogs"
-                                    class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]"
+                                    class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/3"
                                 >
                                     <i class="fa-solid fa-rotate text-[10px]"></i>
                                     {{ t('Refresh') }}

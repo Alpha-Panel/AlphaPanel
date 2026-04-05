@@ -8,21 +8,21 @@
 
                 <div class="space-y-4">
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                             <p class="text-xs uppercase text-gray-500 dark:text-gray-400">{{ t('LAPI') }}</p>
                             <p class="mt-1 text-2xl font-semibold text-gray-800 dark:text-white/90">
                                 {{ summary.configured ? (summary.lapi_online ? t('Online') : t('Offline')) : t('Not configured') }}
                             </p>
                         </div>
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                             <p class="text-xs uppercase text-gray-500 dark:text-gray-400">{{ t('Active Decisions') }}</p>
                             <p class="mt-1 text-2xl font-semibold text-gray-800 dark:text-white/90">{{ summary.active_decisions }}</p>
                         </div>
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                             <p class="text-xs uppercase text-gray-500 dark:text-gray-400">{{ t('Alerts (24h)') }}</p>
                             <p class="mt-1 text-2xl font-semibold text-gray-800 dark:text-white/90">{{ summary.recent_alerts_24h }}</p>
                         </div>
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                             <p class="text-xs uppercase text-gray-500 dark:text-gray-400">{{ t('Last Sync') }}</p>
                             <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-white/90">{{ formatDate(summary.last_sync_at) }}</p>
                             <button
@@ -35,7 +35,7 @@
                         </div>
                     </div>
 
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                         <h3 class="mb-3 text-sm font-semibold text-gray-800 dark:text-white/90">
                             <i class="bx bx-bar-chart-alt-2 mr-1"></i>
                             {{ t('Top Scenarios') }}
@@ -57,7 +57,7 @@
                         </div>
                     </div>
 
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                         <h3 class="mb-3 text-sm font-semibold text-gray-800 dark:text-white/90">{{ t('Recent Alerts') }}</h3>
                         <div class="overflow-auto">
                             <table class="w-full text-sm">
@@ -86,7 +86,7 @@
                         </div>
                     </div>
 
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                         <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <h3 class="text-sm font-semibold text-gray-800 dark:text-white/90">
                                 {{ t('Active Decisions') }}
@@ -148,7 +148,7 @@
                                     <button
                                         type="button"
                                         :disabled="decisionsPagination.current_page <= 1 || decisionsLoading"
-                                        class="inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg border border-gray-300 px-2 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                                        class="inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-gray-300 px-2 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
                                         @click="loadDecisions(decisionsPagination.current_page - 1)"
                                     >
                                         &lsaquo;
@@ -156,14 +156,14 @@
                                     <template v-for="page in paginationPages" :key="page">
                                         <span
                                             v-if="page === '...'"
-                                            class="inline-flex h-8 min-w-[2rem] items-center justify-center text-xs text-gray-400 dark:text-gray-500"
+                                            class="inline-flex h-8 min-w-8 items-center justify-center text-xs text-gray-400 dark:text-gray-500"
                                         >...</span>
                                         <button
                                             v-else
                                             type="button"
                                             :disabled="decisionsLoading"
                                             :class="[
-                                                'inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg border px-2 text-xs font-medium',
+                                                'inline-flex h-8 min-w-8 items-center justify-center rounded-lg border px-2 text-xs font-medium',
                                                 page === decisionsPagination.current_page
                                                     ? 'border-brand-500 bg-brand-500 text-white'
                                                     : 'border-gray-300 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800',
@@ -177,7 +177,7 @@
                                     <button
                                         type="button"
                                         :disabled="decisionsPagination.current_page >= decisionsPagination.last_page || decisionsLoading"
-                                        class="inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg border border-gray-300 px-2 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                                        class="inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-gray-300 px-2 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
                                         @click="loadDecisions(decisionsPagination.current_page + 1)"
                                     >
                                         &rsaquo;

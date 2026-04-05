@@ -6,7 +6,7 @@
                 <PageBreadcrumb :pageTitle="t('Domains')" />
                 <Toast />
 
-                <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+                <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/3">
                     <!-- Header -->
                     <div class="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
                         <div>
@@ -91,7 +91,7 @@
                                 <tr
                                     v-for="domain in table.data.value"
                                     :key="(domain.id as number)"
-                                    class="border-t border-gray-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.02]"
+                                    class="border-t border-gray-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/2"
                                 >
                                     <td class="px-5 py-4 md:px-6">
                                         <Link

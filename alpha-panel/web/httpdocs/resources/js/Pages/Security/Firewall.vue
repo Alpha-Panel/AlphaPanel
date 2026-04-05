@@ -72,7 +72,7 @@
 
                     <!-- Policy Cards -->
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                             <p class="text-xs uppercase text-gray-500 dark:text-gray-400">{{ t('INPUT Default Policy') }}</p>
                             <div class="mt-2 flex items-center gap-3">
                                 <span
@@ -95,7 +95,7 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                             <p class="text-xs uppercase text-gray-500 dark:text-gray-400">{{ t('OUTPUT Default Policy') }}</p>
                             <p class="mt-2">
                                 <span
@@ -134,7 +134,7 @@
                     </div>
 
                     <!-- INPUT Rules Table -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                         <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <h3 class="text-sm font-semibold text-gray-800 dark:text-white/90">
                                 <i class="fa-solid fa-arrow-right-to-bracket mr-1"></i>
@@ -253,7 +253,7 @@
                     </div>
 
                     <!-- OUTPUT Rules Table -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                         <h3 class="mb-3 text-sm font-semibold text-gray-800 dark:text-white/90">
                             <i class="fa-solid fa-arrow-right-from-bracket mr-1"></i>
                             {{ t('OUTPUT Rules') }}
@@ -391,7 +391,7 @@
                                         <label class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('Chain') }}</label>
                                         <select
                                             v-model="modalForm.chain"
-                                            class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:[color-scheme:dark]"
+                                            class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:scheme-dark"
                                         >
                                             <option value="INPUT">INPUT</option>
                                             <option value="OUTPUT">OUTPUT</option>
@@ -401,7 +401,7 @@
                                         <label class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('Action') }}</label>
                                         <select
                                             v-model="modalForm.action"
-                                            class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:[color-scheme:dark]"
+                                            class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:scheme-dark"
                                         >
                                             <option value="ACCEPT">ACCEPT</option>
                                             <option value="DROP">DROP</option>
@@ -415,7 +415,7 @@
                                     <label class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('Protocol') }}</label>
                                     <select
                                         v-model="modalForm.protocol"
-                                        class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:[color-scheme:dark]"
+                                        class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:scheme-dark"
                                     >
                                         <option value="all">{{ t('all') }}</option>
                                         <option value="tcp">tcp</option>

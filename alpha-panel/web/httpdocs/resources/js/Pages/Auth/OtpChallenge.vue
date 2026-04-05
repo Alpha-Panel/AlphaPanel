@@ -43,7 +43,7 @@
                     <div class="space-y-5">
                         <div
                             v-if="totp"
-                            class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]"
+                            class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/3"
                         >
                             <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
                                 {{ t('Authentication Code') }}

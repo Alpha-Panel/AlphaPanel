@@ -15,15 +15,15 @@
 
                     <!-- Summary Cards -->
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                             <p class="text-xs uppercase text-gray-500 dark:text-gray-400">{{ t('Active Bans') }}</p>
                             <p class="mt-1 text-2xl font-semibold text-gray-800 dark:text-white/90">{{ activeBans.length }}</p>
                         </div>
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                             <p class="text-xs uppercase text-gray-500 dark:text-gray-400">{{ t('Whitelist Entries') }}</p>
                             <p class="mt-1 text-2xl font-semibold text-gray-800 dark:text-white/90">{{ whitelistEntries.length }}</p>
                         </div>
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                             <p class="text-xs uppercase text-gray-500 dark:text-gray-400">{{ t('FTP Container') }}</p>
                             <p class="mt-1 text-2xl font-semibold text-gray-800 dark:text-white/90">
                                 <span :class="activeBans.length >= 0 ? 'text-success-600 dark:text-success-400' : 'text-error-600 dark:text-error-400'">
@@ -34,7 +34,7 @@
                     </div>
 
                     <!-- Section A: Active Bans -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                         <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <h3 class="text-sm font-semibold text-gray-800 dark:text-white/90">
                                 <i class="fa-solid fa-ban mr-1"></i>
@@ -114,7 +114,7 @@
                     </div>
 
                     <!-- Section B: Whitelist -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                         <h3 class="mb-3 text-sm font-semibold text-gray-800 dark:text-white/90">
                             <i class="fa-solid fa-shield-halved mr-1"></i>
                             {{ t('Whitelist') }}
@@ -189,7 +189,7 @@
                     </div>
 
                     <!-- Section C: Ban Log -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                         <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <h3 class="text-sm font-semibold text-gray-800 dark:text-white/90">
                                 <i class="fa-solid fa-scroll mr-1"></i>

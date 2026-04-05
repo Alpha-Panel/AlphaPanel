@@ -11,7 +11,7 @@
                 <Toast />
 
                 <div class="space-y-4 md:space-y-6">
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <h3 class="flex items-center gap-2 text-lg font-semibold text-gray-800 dark:text-white/90">
                                 <i class="bx bx-data text-xl text-brand-500"></i>
@@ -28,7 +28,7 @@
                         </div>
                     </div>
 
-                    <div v-if="dbList.length === 0" class="rounded-2xl border border-gray-200 bg-white p-8 text-center dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div v-if="dbList.length === 0" class="rounded-2xl border border-gray-200 bg-white p-8 text-center dark:border-gray-800 dark:bg-white/3">
                         <i class="bx bx-data text-3xl text-gray-400"></i>
                         <p class="mt-2 text-gray-500 dark:text-gray-400">{{ t('No databases yet. Create one above.') }}</p>
                     </div>
@@ -37,7 +37,7 @@
                         <div
                             v-for="db in dbList"
                             :key="db.id"
-                            class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6"
+                            class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6"
                         >
                             <div class="mb-3 flex items-start justify-between gap-3">
                                 <div>
@@ -286,7 +286,7 @@
 
                 <div
                     v-if="showCreateDatabaseModal"
-                    class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+                    class="fixed inset-0 z-1200000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
                 >
                     <div class="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-theme-xl dark:border-gray-800 dark:bg-gray-900">
                         <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-800 md:px-6">

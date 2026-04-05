@@ -1,5 +1,5 @@
 <template>
-    <div class="fixed bottom-4 left-4 right-4 z-[9999] flex flex-col-reverse gap-2 pointer-events-none sm:left-auto sm:max-w-sm">
+    <div class="fixed bottom-4 left-4 right-4 z-9999 flex flex-col-reverse gap-2 pointer-events-none sm:left-auto sm:max-w-sm">
         <TransitionGroup name="provision-toast">
             <div
                 v-for="job in jobs"
@@ -16,7 +16,7 @@
                     </div>
                     <button
                         @click="dismissJob(job.domainId)"
-                        class="ml-2 flex-shrink-0 text-xs leading-none text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                        class="ml-2 shrink-0 text-xs leading-none text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                     >&times;</button>
                 </div>
                 <div class="h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
@@ -30,7 +30,7 @@
                     <p class="min-w-0 truncate text-[11px] text-gray-500 dark:text-gray-400">
                         {{ job.message }}
                     </p>
-                    <span class="ml-2 flex-shrink-0 text-[11px] font-medium" :class="percentClass(job.status)">
+                    <span class="ml-2 shrink-0 text-[11px] font-medium" :class="percentClass(job.status)">
                         {{ job.percent }}%
                     </span>
                 </div>

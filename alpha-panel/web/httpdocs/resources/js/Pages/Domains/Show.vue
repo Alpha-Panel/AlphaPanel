@@ -77,7 +77,7 @@
 
                         <div
                             class="overflow-hidden transition-all duration-300 ease-out"
-                            :class="showDomainDetails ? 'mt-4 max-h-[1600px] opacity-100' : 'max-h-0 opacity-0'"
+                            :class="showDomainDetails ? 'mt-4 max-h-400 opacity-100' : 'max-h-0 opacity-0'"
                         >
                             <dl class="grid grid-cols-1 gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
                                 <template v-for="row in detailInfoRows" :key="row.key">
@@ -95,7 +95,7 @@
                         </div>
                     </div>
 
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                         <h4 class="mb-4 text-sm font-semibold text-gray-800 dark:text-white/90">{{ t('Quick Links') }}</h4>
                         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             <template v-if="can('domain.files.view')">
@@ -390,7 +390,7 @@
                         </div>
                     </div>
 
-                    <div v-if="showProvisioningCard" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div v-if="showProvisioningCard" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                         <h4 class="mb-3 text-sm font-semibold text-gray-800 dark:text-white/90">{{ t('Provisioning Status') }}</h4>
                         <div :class="['mb-3 rounded-lg border px-3 py-2 text-sm', provisioningMessageClass]">
                             {{ provisioningMessage }}
@@ -418,7 +418,7 @@
                 <!-- FTP Modal -->
                 <div
                     v-if="showFtpModal"
-                    class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+                    class="fixed inset-0 z-1200000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
                 >
                     <div class="w-full max-w-xl rounded-xl border border-gray-700 bg-[#171717] text-white/80 shadow-2xl">
                         <div class="flex items-center justify-between border-b border-white/10 px-5 py-4">
@@ -516,7 +516,7 @@
                 <!-- Jenkins Modal -->
                 <div
                     v-if="showJenkinsModal"
-                    class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+                    class="fixed inset-0 z-1200000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
                 >
                     <div class="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl border border-gray-700 bg-[#171717] text-white/80 shadow-2xl">
                         <div class="flex items-center justify-between border-b border-white/10 px-5 py-4">

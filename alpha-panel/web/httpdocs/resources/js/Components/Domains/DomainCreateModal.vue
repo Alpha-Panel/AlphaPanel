@@ -1,7 +1,7 @@
 <template>
     <div
         v-if="modelValue"
-        class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+        class="fixed inset-0 z-1200000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
     >
         <div class="flex max-h-[92vh] w-full max-w-3xl flex-col rounded-xl border border-gray-700 bg-[#171717] text-white/90 shadow-2xl">
             <div class="flex items-center justify-between border-b border-white/10 px-5 py-4">
@@ -272,11 +272,9 @@ const hasUnsavedInput = computed(() => {
         return true;
     }
 
-    if (form.ftp_username.trim() !== '' || form.ftp_password !== '') {
-        return true;
-    }
+    return form.ftp_username.trim() !== '' || form.ftp_password !== '';
 
-    return false;
+
 });
 
 const resetFormState = (): void => {

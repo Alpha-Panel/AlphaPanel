@@ -83,7 +83,7 @@
                         <!-- Sidebar / Tree -->
                         <div
                             ref="sidebarRef"
-                            :class="[mobileTab !== 'tree' ? 'hidden sm:block' : '', 'flex-shrink-0 overflow-y-auto border-r border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50']"
+                            :class="[mobileTab !== 'tree' ? 'hidden sm:block' : '', 'shrink-0 overflow-y-auto border-r border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50']"
                             :style="isMobile ? {} : { width: fm.sidebarWidth.value + 'px' }"
                         >
                             <TreeView
@@ -173,7 +173,7 @@
                                                 v-if="fm.currentPath.value"
                                                 @click="isMobile && fm.loadDirectory(fm.getParentPath(fm.currentPath.value))"
                                                 @dblclick="fm.loadDirectory(fm.getParentPath(fm.currentPath.value))"
-                                                class="cursor-pointer border-b border-gray-100 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.02]"
+                                                class="cursor-pointer border-b border-gray-100 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/2"
                                             >
                                                 <td></td>
                                                 <td class="px-3 py-1.5 text-gray-500">
@@ -197,7 +197,7 @@
                                                 @dragover.prevent="onDragOver($event, item)"
                                                 @dragleave="onDragLeave($event)"
                                                 @drop.prevent.stop="onDrop($event, item)"
-                                                :class="['cursor-pointer border-b border-gray-100 dark:border-gray-800', fm.selectedItems.has(item.path) ? 'bg-brand-50 dark:bg-brand-500/10' : 'hover:bg-gray-50 dark:hover:bg-white/[0.02]']"
+                                                :class="['cursor-pointer border-b border-gray-100 dark:border-gray-800', fm.selectedItems.has(item.path) ? 'bg-brand-50 dark:bg-brand-500/10' : 'hover:bg-gray-50 dark:hover:bg-white/2']"
                                             >
                                                 <td class="px-2 py-1.5">
                                                     <input
@@ -251,7 +251,7 @@
                     v-if="fm.contextMenu.visible"
                     ref="contextMenuRef"
                     :style="contextMenuStyle"
-                    class="fixed z-[99999] min-w-[180px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+                    class="fixed z-99999 min-w-45 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800"
                     @click.stop
                 >
                     <template v-if="fm.contextMenu.item?.type === 'file' && fm.singleSelection.value">
@@ -281,7 +281,7 @@
                 </div>
 
                 <!-- Prompt Modal -->
-                <div v-if="fm.modal.visible" class="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-900/50">
+                <div v-if="fm.modal.visible" class="fixed inset-0 z-99999 flex items-center justify-center bg-gray-900/50">
                     <div class="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-5 shadow-xl dark:border-gray-800 dark:bg-gray-900">
                         <h4 class="mb-3 text-base font-semibold text-gray-800 dark:text-white/90">{{ fm.modal.title }}</h4>
                         <label class="mb-1.5 block text-sm text-gray-600 dark:text-gray-400">{{ fm.modal.label }}</label>

@@ -6,7 +6,7 @@
                 <PageBreadcrumb :pageTitle="t('Audit Logs')" />
 
                 <div class="space-y-4">
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                         <div class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">{{ t('Audit Logs') }}</h3>
                             <div class="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
@@ -191,7 +191,7 @@
                         </div>
                     </div>
 
-                    <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/3">
                         <div class="overflow-x-auto">
                             <table class="w-full">
                                 <thead>
@@ -215,7 +215,7 @@
                                         <tr
                                             :class="[
                                                 'border-t border-gray-200 dark:border-gray-800',
-                                                log.details ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.02]' : 'hover:bg-gray-50 dark:hover:bg-white/[0.02]',
+                                                log.details ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-white/2' : 'hover:bg-gray-50 dark:hover:bg-white/2',
                                             ]"
                                             @click="log.details ? toggleDetails(String(log.id)) : undefined"
                                         >
@@ -599,7 +599,7 @@ const applyDraftRangeToFilters = (): void => {
 const selectCalendarDay = (date: Date): void => {
     const selected = stripTime(date);
 
-    if (draftDateFrom.value === null || (draftDateFrom.value !== null && draftDateTo.value !== null)) {
+    if (draftDateFrom.value === null || (draftDateTo.value !== null)) {
         draftDateFrom.value = selected;
         draftDateTo.value = null;
         return;
@@ -924,7 +924,7 @@ void fetchDomainOptions();
 }
 
 .date-range-dropdown {
-    @apply absolute left-0 top-full z-50 mt-2 w-[680px] max-w-[95vw] rounded-xl border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-900;
+    @apply absolute left-0 top-full z-50 mt-2 w-170 max-w-[95vw] rounded-xl border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-900;
 }
 
 .calendar-nav-btn {

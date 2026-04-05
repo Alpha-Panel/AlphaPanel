@@ -274,16 +274,14 @@ const arrayBufferToBase64 = (value: ArrayBuffer | Uint8Array | null): string | n
 const normalizeRequestOptions = (
     options: PublicKeyCredentialRequestOptionsPayload,
 ): PublicKeyCredentialRequestOptions => {
-    const normalized: PublicKeyCredentialRequestOptions = {
-        ...options,
-        challenge: base64UrlToArrayBuffer(options.challenge),
-        allowCredentials: options.allowCredentials?.map((credential) => ({
-            ...credential,
-            id: base64UrlToArrayBuffer(credential.id),
-        })),
+  return {
+      ...options,
+      challenge: base64UrlToArrayBuffer(options.challenge),
+      allowCredentials: options.allowCredentials?.map((credential) => ({
+        ...credential,
+        id: base64UrlToArrayBuffer(credential.id),
+      })),
     };
-
-    return normalized;
 };
 
 const serializeCredential = (credential: PublicKeyCredential): Record<string, any> => {

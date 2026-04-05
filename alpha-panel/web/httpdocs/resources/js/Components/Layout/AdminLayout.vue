@@ -6,12 +6,12 @@
             class="min-h-screen flex-1 bg-gray-50 transition-all duration-300 ease-in-out dark:bg-gray-950"
             :class="[
                 isExpanded || isHovered
-                    ? (isRtl ? 'lg:mr-[290px]' : 'lg:ml-[290px]')
-                    : (isRtl ? 'lg:mr-[90px]' : 'lg:ml-[90px]'),
+                    ? (isRtl ? 'lg:mr-72.5' : 'lg:ml-72.5')
+                    : (isRtl ? 'lg:mr-22.5' : 'lg:ml-22.5'),
             ]"
         >
             <AppHeader />
-            <div class="p-4 mx-auto w-full max-w-[1800px] md:p-6">
+            <div class="p-4 mx-auto w-full max-w-450 md:p-6">
                 <slot></slot>
             </div>
         </div>

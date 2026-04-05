@@ -39,7 +39,7 @@
                     </div>
 
                     <!-- Current Version Card -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                         <div class="mb-4 flex items-center justify-between">
                             <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
                                 <i class="fa-solid fa-info-circle mr-1"></i>
@@ -119,7 +119,7 @@
                     <!-- Panel Update Card -->
                     <div
                         v-if="checkResult?.panel_update"
-                        class="rounded-2xl border border-brand-200 bg-white p-5 dark:border-brand-500/30 dark:bg-white/[0.03]"
+                        class="rounded-2xl border border-brand-200 bg-white p-5 dark:border-brand-500/30 dark:bg-white/3"
                     >
                         <div class="mb-4 flex items-center justify-between">
                             <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
@@ -179,7 +179,7 @@
                     <!-- MySQL Upgrade Card -->
                     <div
                         v-if="checkResult?.mysql_update"
-                        class="rounded-2xl border border-warning-200 bg-white p-5 dark:border-warning-500/30 dark:bg-white/[0.03]"
+                        class="rounded-2xl border border-warning-200 bg-white p-5 dark:border-warning-500/30 dark:bg-white/3"
                     >
                         <div class="mb-4 flex items-center gap-3">
                             <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
@@ -332,7 +332,7 @@
                     </div>
 
                     <!-- Update History Table -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                         <div class="mb-4 flex items-center justify-between">
                             <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
                                 <i class="bx bx-history mr-1"></i>
@@ -353,7 +353,7 @@
                         </div>
 
                         <div v-else class="overflow-x-auto">
-                            <table class="w-full min-w-[700px] text-sm">
+                            <table class="w-full min-w-175 text-sm">
                                 <thead>
                                     <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
                                         <th class="pb-3 pr-3">{{ t('Type') }}</th>
@@ -400,7 +400,7 @@
                                             </template>
                                             <span v-else class="text-gray-400">-</span>
                                         </td>
-                                        <td class="max-w-[200px] truncate py-3 pr-3 text-gray-500 dark:text-gray-400" :title="update.message || ''">
+                                        <td class="max-w-50 truncate py-3 pr-3 text-gray-500 dark:text-gray-400" :title="update.message || ''">
                                             {{ update.message || '-' }}
                                         </td>
                                         <td class="py-3 pr-3 text-gray-500 dark:text-gray-400">
@@ -421,7 +421,7 @@
 
                 <!-- Panel Update Confirmation Modal -->
                 <Teleport to="body">
-                    <div v-if="showPanelUpdateConfirm" class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+                    <div v-if="showPanelUpdateConfirm" class="fixed inset-0 z-1200000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
                         <div class="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
                             <h3 class="text-lg font-semibold text-gray-800 dark:text-white">{{ t('Update Panel?') }}</h3>
                             <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
@@ -449,7 +449,7 @@
 
                 <!-- MySQL Apply Confirmation Modal -->
                 <Teleport to="body">
-                    <div v-if="showMysqlApplyConfirm" class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+                    <div v-if="showMysqlApplyConfirm" class="fixed inset-0 z-1200000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
                         <div class="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
                             <h3 class="text-lg font-semibold text-red-600 dark:text-red-400">
                                 <i class="bx bx-error mr-1"></i>
@@ -480,7 +480,7 @@
 
                 <!-- MySQL Rollback Confirmation Modal -->
                 <Teleport to="body">
-                    <div v-if="showMysqlRollbackConfirm" class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+                    <div v-if="showMysqlRollbackConfirm" class="fixed inset-0 z-1200000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
                         <div class="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
                             <h3 class="text-lg font-semibold text-gray-800 dark:text-white">{{ t('Rollback MySQL Upgrade?') }}</h3>
                             <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
@@ -508,7 +508,7 @@
 
                 <!-- MySQL Delete Backup Confirmation Modal -->
                 <Teleport to="body">
-                    <div v-if="showMysqlDeleteBackupConfirm" class="fixed inset-0 z-[1200000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+                    <div v-if="showMysqlDeleteBackupConfirm" class="fixed inset-0 z-1200000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
                         <div class="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
                             <h3 class="text-lg font-semibold text-gray-800 dark:text-white">{{ t('Delete MySQL Backup?') }}</h3>
                             <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">

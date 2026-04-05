@@ -11,7 +11,7 @@
                 <Toast />
 
                 <div class="space-y-4 md:space-y-6">
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">
                             {{ t('Package Manager') }}
                         </h3>
@@ -21,7 +21,7 @@
                     </div>
 
                     <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                             <div class="mb-4 flex items-center gap-2">
                                 <i class="fa-brands fa-npm text-xl text-error-500"></i>
                                 <h4 class="text-base font-semibold text-gray-800 dark:text-white/90">{{ t('NPM Manager') }}</h4>
@@ -90,7 +90,7 @@
                             </div>
                         </div>
 
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                             <div class="mb-4 flex items-center gap-2">
                                 <i class="fa-solid fa-box-archive text-lg text-blue-light-600 dark:text-blue-light-300"></i>
                                 <h4 class="text-base font-semibold text-gray-800 dark:text-white/90">{{ t('Composer Manager') }}</h4>
@@ -172,12 +172,12 @@
                         </div>
                     </div>
 
-                    <div v-if="lastCommand.output !== ''" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div v-if="lastCommand.output !== ''" class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
                             <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">{{ t('Last Command Output') }}</h4>
                             <span class="text-xs text-gray-500 dark:text-gray-400">{{ lastCommand.label }} · {{ lastCommand.executedAt }}</span>
                         </div>
-                        <pre class="max-h-[360px] overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">{{ lastCommand.output }}</pre>
+                        <pre class="max-h-90 overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">{{ lastCommand.output }}</pre>
                         <p v-if="lastCommand.truncated" class="mt-2 text-xs text-warning-600 dark:text-warning-300">
                             {{ t('Output is truncated due to size.') }}
                         </p>

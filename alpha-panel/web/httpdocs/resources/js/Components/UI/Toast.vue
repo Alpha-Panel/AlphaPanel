@@ -9,7 +9,7 @@
                     typeClasses[toast.type],
                 ]"
             >
-                <span class="max-w-[420px] break-words leading-5">{{ toast.message }}</span>
+                <span class="max-w-105 wrap-break-word leading-5">{{ toast.message }}</span>
                 <button
                     @click="removeToast(toast.id)"
                     class="ml-2 opacity-80 hover:opacity-100"

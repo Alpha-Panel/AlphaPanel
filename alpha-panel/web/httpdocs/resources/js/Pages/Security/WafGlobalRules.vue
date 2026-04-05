@@ -6,7 +6,7 @@
                 <PageBreadcrumb :pageTitle="t('WAF Global Rules')" />
 
                 <div class="space-y-4">
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                         <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">{{ t('Server-wide WAF IP Rules') }}</h3>
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                             {{ t('Global rules are evaluated before domain-specific rules.') }}
@@ -29,7 +29,7 @@
                         </form>
                     </div>
 
-                    <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/3">
                         <div class="overflow-x-auto">
                             <table class="w-full text-sm">
                                 <thead>

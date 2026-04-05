@@ -8,7 +8,7 @@
 
                 <div class="space-y-6">
                     <!-- Two-Factor Authentication -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <h3 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white/90">{{ t('Two-Factor Authentication') }}</h3>
 
                         <div v-if="!twoFactorEnabled">
@@ -54,7 +54,7 @@
                     </div>
 
                     <!-- WebAuthn / Security Keys -->
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <div class="mb-4 flex items-center justify-between">
                             <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">{{ t('Security Keys (WebAuthn)') }}</h3>
                             <button @click="registerWebAuthn" :disabled="loading" class="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50">

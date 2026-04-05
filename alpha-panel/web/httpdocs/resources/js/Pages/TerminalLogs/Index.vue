@@ -6,7 +6,7 @@
                 <PageBreadcrumb :pageTitle="t('Terminal Logs')" />
 
                 <div class="space-y-4">
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                         <div class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">
                                 <i class="bx bx-terminal mr-2"></i>
@@ -32,7 +32,7 @@
                         </div>
                     </div>
 
-                    <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/3">
                         <div class="overflow-x-auto">
                             <table class="w-full">
                                 <thead>
@@ -55,7 +55,7 @@
                                     </tr>
                                     <template v-for="log in table.data.value" :key="String(log.id)">
                                         <tr
-                                            class="border-t border-gray-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.02]"
+                                            class="border-t border-gray-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/2"
                                             :class="{ 'cursor-pointer': log.has_output }"
                                             @click="log.has_output ? toggleOutput(log) : null"
                                         >

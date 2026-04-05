@@ -69,7 +69,7 @@
                                 : 'sm:grid-cols-2 xl:grid-cols-3',
                         ]"
                     >
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                             <div class="flex items-center gap-4">
                                 <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-500 dark:bg-brand-500/20 dark:text-brand-300">
                                     <i class="bx bx-globe text-2xl"></i>
@@ -90,7 +90,7 @@
                             </div>
                         </div>
 
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                             <div class="flex items-center gap-4">
                                 <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-success-50 text-success-600 dark:bg-success-500/20 dark:text-success-300">
                                     <i class="bx bx-check-shield text-2xl"></i>
@@ -107,7 +107,7 @@
                             </div>
                         </div>
 
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                             <div class="flex items-center gap-4">
                                 <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-warning-50 text-warning-600 dark:bg-warning-500/20 dark:text-warning-300">
                                     <i class="bx bx-data text-2xl"></i>
@@ -124,7 +124,7 @@
 
                         <div
                             v-if="isAdmin"
-                            class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]"
+                            class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3"
                         >
                             <div class="flex items-center gap-4">
                                 <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-light-50 text-blue-light-600 dark:bg-blue-light-500/20 dark:text-blue-light-300">
@@ -143,7 +143,7 @@
                         <!-- Google Drive Card -->
                         <div
                             v-if="isAdmin && googleDrive"
-                            class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]"
+                            class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3"
                         >
                             <div class="flex items-center gap-4">
                                 <div class="relative flex h-12 w-12 items-center justify-center rounded-xl bg-success-50 dark:bg-success-500/20">
@@ -199,7 +199,7 @@
                         <!-- CrowdSec Card -->
                         <div
                             v-if="isAdmin"
-                            class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]"
+                            class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3"
                         >
                             <div class="flex items-center gap-4">
                                 <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-error-50 text-error-600 dark:bg-error-500/20 dark:text-error-300">
@@ -253,7 +253,7 @@
                     </div>
 
                     <div v-if="isAdmin" class="grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-12">
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] xl:col-span-5">
+                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 xl:col-span-5">
                             <div class="mb-4 flex items-center">
                                 <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
                                     <i class="bx bx-chip mr-1"></i>
@@ -279,32 +279,32 @@
                             <template v-if="metricsLoading">
                                 <div class="grid grid-cols-1 gap-3 text-center sm:grid-cols-3">
                                     <div v-for="n in 3" :key="n">
-                                        <div class="mx-auto flex h-[160px] w-[120px] items-center justify-center">
-                                            <div class="h-[120px] w-[120px] animate-pulse rounded-full border-[12px] border-gray-200 dark:border-gray-800"></div>
+                                        <div class="mx-auto flex h-40 w-30 items-center justify-center">
+                                            <div class="h-30 w-30 animate-pulse rounded-full border-12 border-gray-200 dark:border-gray-800"></div>
                                         </div>
                                         <div class="mx-auto mt-2 h-3 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
                                     </div>
                                 </div>
                                 <div class="mt-3">
                                     <div class="mb-1 h-3 w-20 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
-                                    <div class="h-[60px] animate-pulse rounded bg-gray-100 dark:bg-gray-800/50"></div>
+                                    <div class="h-15 animate-pulse rounded bg-gray-100 dark:bg-gray-800/50"></div>
                                 </div>
                             </template>
 
                             <template v-else>
                                 <div class="grid grid-cols-1 gap-3 text-center sm:grid-cols-3">
                                     <div>
-                                        <div ref="cpuGaugeRef" class="min-h-[160px]"></div>
+                                        <div ref="cpuGaugeRef" class="min-h-40"></div>
                                         <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('CPU') }}</p>
                                     </div>
                                     <div>
-                                        <div ref="ramGaugeRef" class="min-h-[160px]"></div>
+                                        <div ref="ramGaugeRef" class="min-h-40"></div>
                                         <p class="text-xs text-gray-500 dark:text-gray-400">
                                             {{ t('RAM') }} {{ hostMetrics?.mem_used_mb ?? 0 }}MB / {{ hostMetrics?.mem_total_mb ?? 0 }}MB
                                         </p>
                                     </div>
                                     <div>
-                                        <div ref="diskGaugeRef" class="min-h-[160px]"></div>
+                                        <div ref="diskGaugeRef" class="min-h-40"></div>
                                         <p class="text-xs text-gray-500 dark:text-gray-400">
                                             {{ t('Disk') }} {{ hostMetrics?.disk_used_gb ?? 0 }}GB / {{ hostMetrics?.disk_total_gb ?? 0 }}GB
                                         </p>
@@ -316,12 +316,12 @@
                                         <i class="bx bx-line-chart mr-1"></i>
                                         {{ t('CPU History') }}
                                     </p>
-                                    <div ref="cpuSparklineRef" class="min-h-[60px]"></div>
+                                    <div ref="cpuSparklineRef" class="min-h-15"></div>
                                 </div>
                             </template>
                         </div>
 
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] xl:col-span-7">
+                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 xl:col-span-7">
                             <div class="mb-4 flex items-center gap-3">
                                 <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
                                     <i class="bx bx-box mr-1"></i>
@@ -362,15 +362,15 @@
                                 <p class="mt-2 text-sm">{{ t('Portainer unreachable') }}</p>
                             </div>
 
-                            <div v-else class="max-h-[320px] overflow-y-auto overflow-x-auto">
-                                <table class="w-full min-w-[700px] table-fixed text-sm">
+                            <div v-else class="max-h-80 overflow-y-auto overflow-x-auto">
+                                <table class="w-full min-w-175 table-fixed text-sm">
                                     <thead class="sticky top-0 z-10 bg-white dark:bg-gray-900">
                                         <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                                            <th class="w-[210px] pb-3 pr-3">{{ t('Name') }}</th>
-                                            <th class="w-[96px] pb-3 pr-3">{{ t('Status') }}</th>
-                                            <th class="w-[166px] pb-3 pr-3">{{ t('CPU') }}</th>
-                                            <th class="w-[166px] pb-3 pr-3">{{ t('RAM') }}</th>
-                                            <th class="w-[96px] pb-3 text-center">{{ t('Actions') }}</th>
+                                            <th class="w-52.5 pb-3 pr-3">{{ t('Name') }}</th>
+                                            <th class="w-24 pb-3 pr-3">{{ t('Status') }}</th>
+                                            <th class="w-41.5 pb-3 pr-3">{{ t('CPU') }}</th>
+                                            <th class="w-41.5 pb-3 pr-3">{{ t('RAM') }}</th>
+                                            <th class="w-24 pb-3 text-center">{{ t('Actions') }}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -391,13 +391,13 @@
                                                     ></i>
                                                     <div class="min-w-0">
                                                         <p
-                                                            class="max-w-[180px] truncate font-semibold text-gray-800 dark:text-white/90"
+                                                            class="max-w-45 truncate font-semibold text-gray-800 dark:text-white/90"
                                                             :title="container.name"
                                                         >
                                                             {{ container.name }}
                                                         </p>
                                                         <p
-                                                            class="max-w-[180px] truncate text-xs text-gray-500 dark:text-gray-400"
+                                                            class="max-w-45 truncate text-xs text-gray-500 dark:text-gray-400"
                                                             :title="container.image"
                                                         >
                                                             {{ container.image }}
@@ -421,14 +421,14 @@
                                             </td>
                                             <td class="py-3 pr-3 align-middle">
                                                 <div v-if="container.state === 'running'" class="flex items-center gap-2">
-                                                    <div class="h-1.5 w-[110px] shrink-0 overflow-hidden rounded bg-gray-200 dark:bg-gray-800">
+                                                    <div class="h-1.5 w-27.5 shrink-0 overflow-hidden rounded bg-gray-200 dark:bg-gray-800">
                                                         <div
                                                             class="h-full"
                                                             :class="cpuProgressClass(container.cpu_percent)"
                                                             :style="{ width: `${Math.min(container.cpu_percent, 100)}%` }"
                                                         ></div>
                                                     </div>
-                                                    <span class="min-w-[44px] text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                                    <span class="min-w-11 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                                                         {{ container.cpu_percent.toFixed(1) }}%
                                                     </span>
                                                 </div>
@@ -439,13 +439,13 @@
                                                     v-if="container.state === 'running' && container.mem_mb > 0"
                                                     class="flex items-center gap-2"
                                                 >
-                                                    <div class="h-1.5 w-[110px] shrink-0 overflow-hidden rounded bg-gray-200 dark:bg-gray-800">
+                                                    <div class="h-1.5 w-27.5 shrink-0 overflow-hidden rounded bg-gray-200 dark:bg-gray-800">
                                                         <div
                                                             class="h-full bg-theme-purple-500"
                                                             :style="{ width: `${Math.min(container.mem_mb / 10.24, 100)}%` }"
                                                         ></div>
                                                     </div>
-                                                    <span class="min-w-[58px] text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                                    <span class="min-w-14.5 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                                                         {{ container.mem_mb.toFixed(0) }} MB
                                                     </span>
                                                 </div>
@@ -499,7 +499,7 @@
                     <div :class="['grid grid-cols-1 gap-4 md:gap-6', isAdmin ? 'xl:grid-cols-12' : '']">
                         <div
                             :class="[
-                                'rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]',
+                                'rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3',
                                 isAdmin ? 'xl:col-span-6' : '',
                             ]"
                         >
@@ -633,7 +633,7 @@
 
                         <div
                             v-if="isAdmin"
-                            class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] xl:col-span-6"
+                            class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 xl:col-span-6"
                         >
                             <div class="mb-4 flex items-center">
                                 <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
@@ -675,8 +675,8 @@
                                 <p class="mt-2 text-sm">{{ t('MySQL unreachable') }}</p>
                             </div>
 
-                            <div v-else class="max-h-[320px] overflow-auto">
-                                <table class="w-full min-w-[680px] text-sm">
+                            <div v-else class="max-h-80 overflow-auto">
+                                <table class="w-full min-w-170 text-sm">
                                     <thead class="sticky top-0 z-10 bg-white dark:bg-gray-900">
                                         <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
                                             <th class="pb-3">{{ t('ID') }}</th>
@@ -721,7 +721,7 @@
                                             <td class="py-3">
                                                 <code
                                                     v-if="process.info"
-                                                    class="inline-block max-w-[240px] truncate text-xs text-blue-light-600 dark:text-blue-light-300"
+                                                    class="inline-block max-w-60 truncate text-xs text-blue-light-600 dark:text-blue-light-300"
                                                     :title="process.info"
                                                 >
                                                     {{ truncate(process.info, 80) }}
