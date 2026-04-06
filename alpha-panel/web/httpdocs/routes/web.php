@@ -453,6 +453,18 @@ Route::middleware('auth')->group(function (): void {
     Route::post('php-versions/{phpVersion}/toggle', [PhpVersionController::class, 'toggle'])
         ->middleware('permission:panel.php-versions.manage')
         ->name('php-versions.toggle');
+    Route::get('php-versions/frankenphp/php-ini', [PhpVersionController::class, 'getFrankenPhpIni'])
+        ->middleware('permission:panel.php-versions.manage')
+        ->name('php-versions.frankenphp-ini');
+    Route::put('php-versions/frankenphp/php-ini', [PhpVersionController::class, 'updateFrankenPhpIni'])
+        ->middleware('permission:panel.php-versions.manage')
+        ->name('php-versions.frankenphp-ini.update');
+    Route::get('php-versions/{phpVersion}/php-ini', [PhpVersionController::class, 'getPhpIni'])
+        ->middleware('permission:panel.php-versions.manage')
+        ->name('php-versions.php-ini');
+    Route::put('php-versions/{phpVersion}/php-ini', [PhpVersionController::class, 'updatePhpIni'])
+        ->middleware('permission:panel.php-versions.manage')
+        ->name('php-versions.php-ini.update');
 
     // Docker Services
     Route::middleware('permission:panel.docker-services.view')->group(function (): void {

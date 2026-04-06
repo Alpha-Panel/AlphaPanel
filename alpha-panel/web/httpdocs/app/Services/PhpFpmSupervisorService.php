@@ -23,6 +23,63 @@ class PhpFpmSupervisorService
     }
 
     /**
+     * Restart a running PHP-FPM process to pick up php.ini changes.
+     */
+    public function restartFpm(PhpVersion $phpVersion): void
+    {
+        $container = config('panel.php_code_server_container', 'php-code-server');
+        $program = "php{$phpVersion->slug}-fpm";
+
+        try {
+            $this->portainer->execInContainer($container, ['supervisorctl', 'restart', $program]);
+
+            Log::info("PHP-FPM {$phpVersion->slug} restarted via supervisor");
+        } catch (\Throwable $e) {
+            Log::error("Failed to restart PHP-FPM {$phpVersion->slug}: {$e->getMessage()}");
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Get the host-side path to a PHP version's custom php.ini file.
+     */
+    public function phpIniPath(PhpVersion $phpVersion): string
+    {
+        $root = config('panel.compose_project_root');
+
+        return "{$root}/php-code-server/{$phpVersion->slug}/php.ini";
+    }
+
+    /**
+     * Get the host-side path to the FrankenPHP php.ini file.
+     */
+    public function frankenPhpIniPath(): string
+    {
+        $root = config('panel.compose_project_root');
+
+        return "{$root}/frankenphp/php.ini";
+    }
+
+    /**
+     * Restart the FrankenPHP container to apply php.ini changes.
+     */
+    public function restartFrankenPhp(): void
+    {
+        $container = config('panel.frankenphp_container', 'frankenphp');
+
+        try {
+            $this->portainer->restartContainer($container);
+
+            Log::info('FrankenPHP container restarted for php.ini changes');
+        } catch (\Throwable $e) {
+            Log::error("Failed to restart FrankenPHP container: {$e->getMessage()}");
+
+            throw $e;
+        }
+    }
+
+    /**
      * Disable a PHP-FPM version by commenting out its supervisor config and reloading.
      */
     public function disable(PhpVersion $phpVersion): void

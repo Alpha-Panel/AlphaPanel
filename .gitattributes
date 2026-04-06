@@ -2,8 +2,4 @@
 # AlphaPanel-Docker — .gitattributes
 # =============================================================================
 
-# php.local.ini dosyaları git'te izlenir (Docker bind-mount için var olmaları
-# gerekir), ancak kullanıcı kendi ayarlarını ekleyebilir.
-# "union" stratejisi: git pull sırasında kullanıcının eklediği satırlar
-# kaybolmaz — her iki tarafın değişiklikleri birleştirilir.
-php.local.ini merge=union
+php-code-server/*/php.ini merge=union

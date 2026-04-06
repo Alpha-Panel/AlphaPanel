@@ -25,6 +25,109 @@ class PhpVersionController extends Controller
         ]);
     }
 
+    public function getPhpIni(PhpVersion $phpVersion, PhpFpmSupervisorService $service): JsonResponse
+    {
+        $path = $service->phpIniPath($phpVersion);
+        $content = file_exists($path) ? (string) file_get_contents($path) : '';
+
+        return response()->json(['content' => $content]);
+    }
+
+    public function updatePhpIni(Request $request, PhpVersion $phpVersion, PhpFpmSupervisorService $service): JsonResponse
+    {
+        $request->validate([
+            'content' => ['required', 'string', 'max:500000'],
+        ]);
+
+        $path = $service->phpIniPath($phpVersion);
+
+        try {
+            file_put_contents($path, $request->input('content'));
+
+            if ($phpVersion->is_enabled) {
+                $service->restartFpm($phpVersion);
+            }
+
+            AuditLog::create([
+                'user_id' => $request->user()?->id,
+                'action' => 'php_ini_updated',
+                'summary' => "PHP {$phpVersion->slug} php.ini updated",
+                'ip_address' => $request->ip(),
+                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+            ]);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => __('PHP :version configuration saved.', ['version' => $phpVersion->slug]),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("PHP ini update failed for {$phpVersion->slug}: {$e->getMessage()}");
+
+            AuditLog::create([
+                'user_id' => $request->user()?->id,
+                'action' => 'php_ini_update_failed',
+                'summary' => "PHP {$phpVersion->slug}: {$e->getMessage()}",
+                'ip_address' => $request->ip(),
+                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => __('Failed to save PHP configuration: :error', ['error' => $e->getMessage()]),
+            ], 500);
+        }
+    }
+
+    public function getFrankenPhpIni(PhpFpmSupervisorService $service): JsonResponse
+    {
+        $path = $service->frankenPhpIniPath();
+        $content = file_exists($path) ? (string) file_get_contents($path) : '';
+
+        return response()->json(['content' => $content]);
+    }
+
+    public function updateFrankenPhpIni(Request $request, PhpFpmSupervisorService $service): JsonResponse
+    {
+        $request->validate([
+            'content' => ['required', 'string', 'max:500000'],
+        ]);
+
+        $path = $service->frankenPhpIniPath();
+
+        try {
+            file_put_contents($path, $request->input('content'));
+            $service->restartFrankenPhp();
+
+            AuditLog::create([
+                'user_id' => $request->user()?->id,
+                'action' => 'frankenphp_ini_updated',
+                'summary' => 'FrankenPHP php.ini updated',
+                'ip_address' => $request->ip(),
+                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+            ]);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => __('FrankenPHP configuration saved.'),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("FrankenPHP ini update failed: {$e->getMessage()}");
+
+            AuditLog::create([
+                'user_id' => $request->user()?->id,
+                'action' => 'frankenphp_ini_update_failed',
+                'summary' => "FrankenPHP: {$e->getMessage()}",
+                'ip_address' => $request->ip(),
+                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => __('Failed to save PHP configuration: :error', ['error' => $e->getMessage()]),
+            ], 500);
+        }
+    }
+
     public function toggle(Request $request, PhpVersion $phpVersion, PhpFpmSupervisorService $service): JsonResponse
     {
         $newState = ! $phpVersion->is_enabled;

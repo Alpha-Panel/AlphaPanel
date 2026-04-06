@@ -9,6 +9,47 @@
                 />
                 <Toast />
 
+                <PhpIniEditorModal
+                    v-model="showPhpIniModal"
+                    :phpVersion="selectedVersion"
+                    :frankenphp="isFrankenPhpMode"
+                    @saved="onPhpIniSaved"
+                />
+
+                <!-- FrankenPHP -->
+                <div class="mb-6 min-w-0 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
+                    <div class="mb-4 flex items-center">
+                        <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">
+                            <i class="bx bx-server mr-2 text-brand-500"></i>
+                            FrankenPHP
+                        </h3>
+                    </div>
+
+                    <div class="rounded-xl border border-brand-500/30 bg-brand-500/5 p-4 dark:border-brand-500/20 dark:bg-brand-500/5">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                            <div class="flex min-w-0 items-center gap-3 sm:flex-1 sm:gap-4">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-500/15 text-brand-600 dark:text-brand-400">
+                                    <i class="fa-brands fa-php text-lg"></i>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <h4 class="font-semibold text-gray-800 dark:text-white/90">FrankenPHP</h4>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('Main web server PHP runtime') }}</p>
+                                </div>
+                            </div>
+                            <div class="flex shrink-0 items-center gap-2">
+                                <button
+                                    @click="openFrankenPhpIni"
+                                    class="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-300 px-3 text-sm font-medium text-gray-600 shadow-theme-xs transition-colors hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
+                                >
+                                    <i class="bx bx-cog text-base"></i>
+                                    {{ t('PHP Settings') }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PHP-FPM Versions -->
                 <div class="min-w-0 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                     <div class="mb-5 flex items-center">
                         <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">
@@ -61,6 +102,13 @@
                                 </div>
 
                                 <div class="flex shrink-0 items-center gap-2">
+                                    <button
+                                        @click="openPhpIni(version)"
+                                        class="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-300 px-3 text-sm font-medium text-gray-600 shadow-theme-xs transition-colors hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
+                                    >
+                                        <i class="bx bx-cog text-base"></i>
+                                        {{ t('PHP Settings') }}
+                                    </button>
                                     <span
                                         v-if="version.is_enabled && version.domains_count > 0"
                                         class="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-300 bg-gray-100 px-4 text-sm font-medium text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
@@ -102,6 +150,7 @@ import SidebarProvider from '@/Components/Layout/SidebarProvider.vue';
 import AdminLayout from '@/Components/Layout/AdminLayout.vue';
 import PageBreadcrumb from '@/Components/Common/PageBreadcrumb.vue';
 import Toast from '@/Components/UI/Toast.vue';
+import PhpIniEditorModal from '@/Components/PhpVersions/PhpIniEditorModal.vue';
 import { useToast } from '@/Composables/useToast';
 import { useI18n } from '@/Composables/useI18n';
 
@@ -121,10 +170,29 @@ const { addToast } = useToast();
 
 const localVersions = ref<PhpVersion[]>([]);
 const actionLoading = ref<number | null>(null);
+const showPhpIniModal = ref(false);
+const selectedVersion = ref<PhpVersion | null>(null);
+const isFrankenPhpMode = ref(false);
 
 onMounted(() => {
     localVersions.value = JSON.parse(JSON.stringify(props.versions));
 });
+
+const openPhpIni = (version: PhpVersion) => {
+    selectedVersion.value = version;
+    isFrankenPhpMode.value = false;
+    showPhpIniModal.value = true;
+};
+
+const openFrankenPhpIni = () => {
+    selectedVersion.value = null;
+    isFrankenPhpMode.value = true;
+    showPhpIniModal.value = true;
+};
+
+const onPhpIniSaved = () => {
+    // Toast already shown by the modal on save success
+};
 
 const toggleVersion = async (version: PhpVersion) => {
     actionLoading.value = version.id;
