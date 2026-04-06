@@ -67,6 +67,7 @@
                                 >
                                     <span
                                         :class="[
+                                            'w-6 flex items-center justify-center',
                                             isSubmenuOpen(groupIndex, index)
                                                 ? 'menu-item-icon-active'
                                                 : 'menu-item-icon-inactive',
@@ -104,7 +105,7 @@
                                             : 'lg:justify-start',
                                     ]"
                                 >
-                                    <span class="menu-item-icon-inactive">
+                                    <span class="menu-item-icon-inactive w-6 flex items-center justify-center">
                                         <component v-if="item.icon" :is="item.icon" />
                                         <i v-else-if="item.iconClass" :class="[item.iconClass, 'text-base']"></i>
                                     </span>
@@ -122,7 +123,7 @@
                                     rel="noopener noreferrer"
                                     class="menu-item group menu-item-inactive"
                                 >
-                                    <span class="menu-item-icon-inactive">
+                                    <span class="menu-item-icon-inactive w-6 flex items-center justify-center">
                                         <component v-if="item.icon" :is="item.icon" />
                                         <i v-else-if="item.iconClass" :class="[item.iconClass, 'text-base']"></i>
                                     </span>
@@ -146,6 +147,7 @@
                                 >
                                     <span
                                         :class="[
+                                            'w-6 flex items-center justify-center',
                                             isActive(item.href)
                                                 ? 'menu-item-icon-active'
                                                 : 'menu-item-icon-inactive',
@@ -196,7 +198,7 @@
                                                         },
                                                     ]"
                                                 >
-                                                    <i v-if="subItem.iconClass" :class="[subItem.iconClass, 'mr-2 w-4 text-center text-xs opacity-70']"></i>
+                                                    <i v-if="subItem.iconClass" :class="[subItem.iconClass, 'w-5 text-center text-xs opacity-70']"></i>
                                                     {{ subItem.name }}
                                                 </Link>
 
@@ -213,8 +215,8 @@
                                                             },
                                                         ]"
                                                     >
-                                                        <span class="flex items-center">
-                                                            <i v-if="subItem.iconClass" :class="[subItem.iconClass, 'mr-2 w-4 text-center text-xs opacity-70']"></i>
+                                                        <span class="flex items-center gap-3">
+                                                            <i v-if="subItem.iconClass" :class="[subItem.iconClass, 'w-5 text-center text-xs opacity-70']"></i>
                                                             {{ subItem.name }}
                                                         </span>
                                                         <ChevronDownIcon
@@ -250,7 +252,7 @@
                                                                             },
                                                                         ]"
                                                                     >
-                                                                        <i v-if="leaf.iconClass" :class="[leaf.iconClass, 'mr-2 w-4 text-center text-xs opacity-70']"></i>
+                                                                        <i v-if="leaf.iconClass" :class="[leaf.iconClass, 'w-5 text-center text-xs opacity-70']"></i>
                                                                         {{ leaf.name }}
                                                                     </Link>
                                                                 </li>
@@ -283,6 +285,7 @@
                 >
                     <span
                         :class="[
+                            'w-6 flex items-center justify-center',
                             isActive(route('audit-logs.index'))
                                 ? 'menu-item-icon-active'
                                 : 'menu-item-icon-inactive',
@@ -311,6 +314,7 @@
                 >
                     <span
                         :class="[
+                            'w-6 flex items-center justify-center',
                             isActive(route('terminal-logs.index'))
                                 ? 'menu-item-icon-active'
                                 : 'menu-item-icon-inactive',
