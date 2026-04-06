@@ -1061,6 +1061,8 @@
     "PHP Versions": "PHP Sürümleri",
     "PHP :version Settings": "PHP :version Ayarları",
     "PHP :version configuration saved.": "PHP :version yapılandırması kaydedildi.",
+    "PHP :version configuration saved. PHP-FPM restarted.": "PHP :version yapılandırması kaydedildi. PHP-FPM yeniden başlatıldı.",
+    "FrankenPHP configuration saved. Container restarted.": "FrankenPHP yapılandırması kaydedildi. Container yeniden başlatıldı.",
     "PHP configuration applied.": "PHP yapılandırması uygulandı.",
     "Failed to save PHP configuration: :error": "PHP yapılandırması kaydedilemedi: :error",
     "Failed to load PHP configuration.": "PHP yapılandırması yüklenemedi.",

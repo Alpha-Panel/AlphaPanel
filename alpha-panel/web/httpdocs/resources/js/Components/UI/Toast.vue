@@ -1,5 +1,5 @@
 <template>
-    <div class="fixed top-4 right-4 z-999999 flex max-w-[calc(100vw-2rem)] flex-col gap-2">
+    <div class="fixed top-4 right-4 z-[9999999] flex max-w-[calc(100vw-2rem)] flex-col gap-2">
         <TransitionGroup name="toast">
             <div
                 v-for="toast in toasts"

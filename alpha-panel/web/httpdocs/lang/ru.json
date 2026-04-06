@@ -1055,6 +1055,8 @@
     "PHP Versions": "Версии PHP",
     "PHP :version Settings": "Настройки PHP :version",
     "PHP :version configuration saved.": "Конфигурация PHP :version сохранена.",
+    "PHP :version configuration saved. PHP-FPM restarted.": "Конфигурация PHP :version сохранена. PHP-FPM перезапущен.",
+    "FrankenPHP configuration saved. Container restarted.": "Конфигурация FrankenPHP сохранена. Контейнер перезапущен.",
     "PHP configuration applied.": "Конфигурация PHP применена.",
     "Failed to save PHP configuration: :error": "Не удалось сохранить конфигурацию PHP: :error",
     "Failed to load PHP configuration.": "Не удалось загрузить конфигурацию PHP.",

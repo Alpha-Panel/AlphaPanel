@@ -1055,6 +1055,8 @@
     "PHP Versions": "PHP Versiyaları",
     "PHP :version Settings": "PHP :version Parametrləri",
     "PHP :version configuration saved.": "PHP :version konfiqurasiyası yadda saxlanıldı.",
+    "PHP :version configuration saved. PHP-FPM restarted.": "PHP :version konfiqurasiyası yadda saxlanıldı. PHP-FPM yenidən başladıldı.",
+    "FrankenPHP configuration saved. Container restarted.": "FrankenPHP konfiqurasiyası yadda saxlanıldı. Konteyner yenidən başladıldı.",
     "PHP configuration applied.": "PHP konfiqurasiyası tətbiq edildi.",
     "Failed to save PHP configuration: :error": "PHP konfiqurasiyası yadda saxlanılmadı: :error",
     "Failed to load PHP configuration.": "PHP konfiqurasiyası yüklənmədi.",

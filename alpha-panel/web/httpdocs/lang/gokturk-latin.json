@@ -1055,6 +1055,8 @@
     "PHP Versions": "PHP Sürümleri",
     "PHP :version Settings": "PHP :version tüzükleri",
     "PHP :version configuration saved.": "PHP :version tüzümü saklandi.",
+    "PHP :version configuration saved. PHP-FPM restarted.": "PHP :version tüzümü saklandi. PHP-FPM yeniden başladi.",
+    "FrankenPHP configuration saved. Container restarted.": "FrankenPHP tüzümü saklandi. Konteyner yeniden başladi.",
     "PHP configuration applied.": "PHP tüzümü uygulandi.",
     "Failed to save PHP configuration: :error": "PHP tüzümü saklanamadi: :error",
     "Failed to load PHP configuration.": "PHP tüzümü yüklenemedi.",

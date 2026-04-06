@@ -44,21 +44,28 @@ class PhpVersionController extends Controller
         try {
             file_put_contents($path, $request->input('content'));
 
+            $restarted = false;
+
             if ($phpVersion->is_enabled) {
                 $service->restartFpm($phpVersion);
+                $restarted = true;
             }
 
             AuditLog::create([
                 'user_id' => $request->user()?->id,
                 'action' => 'php_ini_updated',
-                'summary' => "PHP {$phpVersion->slug} php.ini updated",
+                'summary' => "PHP {$phpVersion->slug} php.ini updated".($restarted ? ' (FPM restarted)' : ''),
                 'ip_address' => $request->ip(),
                 'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
             ]);
 
+            $message = $restarted
+                ? __('PHP :version configuration saved. PHP-FPM restarted.', ['version' => $phpVersion->slug])
+                : __('PHP :version configuration saved.', ['version' => $phpVersion->slug]);
+
             return response()->json([
                 'status' => 'success',
-                'message' => __('PHP :version configuration saved.', ['version' => $phpVersion->slug]),
+                'message' => $message,
             ]);
         } catch (\Throwable $e) {
             Log::error("PHP ini update failed for {$phpVersion->slug}: {$e->getMessage()}");
@@ -101,14 +108,14 @@ class PhpVersionController extends Controller
             AuditLog::create([
                 'user_id' => $request->user()?->id,
                 'action' => 'frankenphp_ini_updated',
-                'summary' => 'FrankenPHP php.ini updated',
+                'summary' => 'FrankenPHP php.ini updated (container restarted)',
                 'ip_address' => $request->ip(),
                 'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
             ]);
 
             return response()->json([
                 'status' => 'success',
-                'message' => __('FrankenPHP configuration saved.'),
+                'message' => __('FrankenPHP configuration saved. Container restarted.'),
             ]);
         } catch (\Throwable $e) {
             Log::error("FrankenPHP ini update failed: {$e->getMessage()}");

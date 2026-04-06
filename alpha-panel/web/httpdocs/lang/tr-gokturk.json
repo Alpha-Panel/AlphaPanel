@@ -1062,6 +1062,8 @@
     "PHP Versions": "PHP 𐰾𐰇𐰼𐰇𐰢𐰠𐰀𐰼𐰃",
     "PHP :version Settings": "PHP :version 𐱃𐰇𐰔𐰇𐰚𐰞𐰁𐰺𐰃",
     "PHP :version configuration saved.": "PHP :version 𐱃𐰇𐰔𐰇𐰢𐰇 𐰽𐰀𐰚𐰞𐰀𐰤𐰑𐰃.",
+    "PHP :version configuration saved. PHP-FPM restarted.": "PHP :version 𐱃𐰇𐰔𐰇𐰢𐰇 𐰽𐰀𐰚𐰞𐰀𐰤𐰑𐰃. PHP-FPM 𐰖𐰀𐰤𐰃𐰑𐰀𐰤 𐰉𐰀𐱁𐰞𐰀𐰑𐰃.",
+    "FrankenPHP configuration saved. Container restarted.": "FrankenPHP 𐱃𐰇𐰔𐰇𐰢𐰇 𐰽𐰀𐰚𐰞𐰀𐰤𐰑𐰃. 𐰚𐰆𐰤𐱅𐰀𐰖𐰤𐰀𐰺 𐰖𐰀𐰤𐰃𐰑𐰀𐰤 𐰉𐰀𐱁𐰞𐰀𐰑𐰃.",
     "PHP configuration applied.": "PHP 𐱃𐰇𐰔𐰇𐰢𐰇 𐰆𐰖𐰍𐰆𐰞𐰀𐰤𐰑𐰃.",
     "Failed to save PHP configuration: :error": "PHP 𐱃𐰇𐰔𐰇𐰢𐰇 𐰽𐰀𐰚𐰞𐰀𐰤𐰀𐰢𐰀𐰑𐰃: :error",
     "Failed to load PHP configuration.": "PHP 𐱃𐰇𐰔𐰇𐰢𐰇 𐰖𐰇𐰚𐰞𐰀𐰤𐰀𐰢𐰀𐰑𐰃.",
