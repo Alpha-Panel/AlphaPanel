@@ -58,6 +58,7 @@ class DomainConfigService
      */
     public function renderWithTls(Domain $domain): void
     {
+        $this->ensureDirectories($domain);
         $this->writeCaddyConfig($domain, true);
 
         if ($domain->type === DomainType::ApacheReverseProxy) {

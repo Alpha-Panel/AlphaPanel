@@ -59,6 +59,7 @@ return [
     'cloudflare_api_token' => env('CLOUDFLARE_API_TOKEN'),
     'cloudflare_email' => env('CLOUDFLARE_EMAIL'),
     'cloudflare_api_key' => env('CLOUDFLARE_APIKEY'),
+    'cloudflare_account_id' => env('CLOUDFLARE_ACCOUNT_ID'),
     'server_ip' => env('PANEL_SERVER_IP', '127.0.0.1'),
     'server_public_ips' => array_values(array_filter(array_map(
         'trim',

@@ -560,7 +560,34 @@ class CloudflareDnsService
             // Zone does not exist yet, continue and create it.
         }
 
-        $this->client->post('zones', ['name' => $domainName]);
+        $this->client->post('zones', [
+            'name' => $domainName,
+            'account' => ['id' => $this->resolveAccountId()],
+            'type' => 'full',
+        ]);
+    }
+
+    /**
+     * Resolve the Cloudflare account ID from config or API.
+     *
+     * @throws CloudflareException
+     */
+    private function resolveAccountId(): string
+    {
+        $accountId = config('panel.cloudflare_account_id');
+
+        if (! empty($accountId)) {
+            return (string) $accountId;
+        }
+
+        $response = $this->client->get('accounts', ['per_page' => 1]);
+        $accounts = $response['result'] ?? [];
+
+        if (empty($accounts)) {
+            throw new CloudflareException('No Cloudflare account found. Set CLOUDFLARE_ACCOUNT_ID in your .env file.');
+        }
+
+        return (string) $accounts[0]['id'];
     }
 
     /**
