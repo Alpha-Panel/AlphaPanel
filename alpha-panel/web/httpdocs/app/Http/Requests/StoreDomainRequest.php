@@ -33,6 +33,12 @@ class StoreDomainRequest extends FormRequest
                 'sometimes',
                 'boolean',
             ],
+            'dns_provider' => [
+                Rule::excludeIf(fn () => $this->filled('parent_domain_id')),
+                'nullable',
+                'string',
+                Rule::in(['local', 'cloudflare']),
+            ],
             'enable_www_redirect' => ['boolean'],
             'additional_hostnames' => ['nullable', 'array'],
             'additional_hostnames.*' => ['string', 'max:255'],

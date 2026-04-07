@@ -83,8 +83,8 @@ class DomainController extends Controller
         $data = $request->validated();
         $parentDomainId = (int) ($data['parent_domain_id'] ?? 0);
         $inheritParentRootPath = (bool) ($data['inherit_parent_root_path'] ?? false);
-        $dnsProvider = (string) ($data['dns_provider'] ?? 'local');
         $cloudflareMode = (string) ($data['cloudflare_mode'] ?? 'skip');
+        $dnsProvider = (string) ($data['dns_provider'] ?? ($cloudflareMode !== 'skip' ? 'cloudflare' : 'local'));
         $requestedSubdomainDnsRecord = (bool) ($data['create_dns_record'] ?? false);
         $dnsTargetIp = isset($data['dns_target_ip']) ? trim((string) $data['dns_target_ip']) : '';
         $dnsTargetIp = $dnsTargetIp !== '' ? $dnsTargetIp : null;

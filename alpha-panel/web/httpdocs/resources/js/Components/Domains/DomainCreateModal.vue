@@ -221,6 +221,7 @@ const form = useForm({
     root_path: '',
     inherit_parent_root_path: false,
     enable_www_redirect: true,
+    dns_provider: 'local' as 'local' | 'cloudflare',
     cloudflare_mode: 'skip' as 'add' | 'skip' | 'existing',
     create_dns_record: false,
     dns_target_ip: '',
@@ -287,6 +288,7 @@ const resetFormState = (): void => {
         root_path: '',
         inherit_parent_root_path: false,
         enable_www_redirect: true,
+        dns_provider: 'local',
         cloudflare_mode: 'skip',
         create_dns_record: false,
         dns_target_ip: '',
@@ -361,7 +363,9 @@ const submit = (): void => {
     if (isSubdomain.value) {
         form.owner_user_id = null;
         form.cloudflare_mode = 'skip';
+        form.dns_provider = 'local';
     } else {
+        form.dns_provider = form.cloudflare_mode === 'skip' ? 'local' : 'cloudflare';
         form.create_dns_record = false;
         form.root_path = '';
         form.inherit_parent_root_path = false;
@@ -382,10 +386,16 @@ const submit = (): void => {
         headers: {
             Accept: 'application/json',
         },
-    }).then(() => {
+    }).then((response: any) => {
         emit('update:modelValue', false);
         resetFormState();
-        router.reload({ preserveScroll: true });
+
+        const domainId = response?.data?.domain_id;
+        if (domainId) {
+            router.visit(route('domains.show', domainId));
+        } else {
+            router.reload({ preserveScroll: true });
+        }
     }).catch((error: any) => {
         const errors = error?.response?.data?.errors;
         if (!errors || typeof errors !== 'object') {
