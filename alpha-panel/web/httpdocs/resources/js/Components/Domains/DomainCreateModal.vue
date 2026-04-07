@@ -392,7 +392,7 @@ const submit = (): void => {
 
         const domainId = response?.data?.domain_id;
         if (domainId) {
-            router.visit(route('domains.show', domainId));
+            window.location.href = route('domains.show', domainId);
         } else {
             router.reload({ preserveScroll: true });
         }
