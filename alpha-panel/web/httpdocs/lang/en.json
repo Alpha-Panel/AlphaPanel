@@ -703,6 +703,7 @@
     "Global rules are evaluated before domain-specific rules.": "Global rules are evaluated before domain-specific rules.",
     "Google API Credentials Required": "Google API Credentials Required",
     "Google Drive": "Google Drive",
+    "Google Drive is not connected or no folder selected.": "Google Drive is not connected or no folder selected.",
     "Gradient Background": "Gradient Background",
     "Hide output": "Hide output",
     "Home": "Home",

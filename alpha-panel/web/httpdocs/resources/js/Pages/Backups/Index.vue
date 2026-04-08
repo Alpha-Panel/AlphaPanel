@@ -749,12 +749,26 @@ let echoChannel: any = null;
 onMounted(() => {
     if (typeof window.Echo !== 'undefined') {
         echoChannel = window.Echo.private('admin').listen('BackupProgress', (e: any) => {
-            const run = props.recent_runs.find((r) => r.id === e.backup_run_id);
-            if (run) {
-                run.progress_percent = e.percent;
-                run.status = e.status;
-                activeRunMessage.value = e.message;
+            let run = props.recent_runs.find((r) => r.id === e.backup_run_id);
+            if (!run) {
+                run = {
+                    id: e.backup_run_id,
+                    type: 'manual',
+                    status: e.status,
+                    file_name: null,
+                    file_size: null,
+                    progress_percent: e.percent,
+                    error_message: null,
+                    drive_file_id: null,
+                    started_at: new Date().toISOString(),
+                    finished_at: null,
+                    triggered_by: null,
+                };
+                props.recent_runs.unshift(run);
             }
+            run.progress_percent = e.percent;
+            run.status = e.status;
+            activeRunMessage.value = e.message;
 
             if (e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled') {
                 setTimeout(() => router.reload(), 1000);

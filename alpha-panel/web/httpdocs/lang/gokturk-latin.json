@@ -703,6 +703,7 @@
     "Global rules are evaluated before domain-specific rules.": "Külli qaydalar domain qaydalarından öŋ qiymetlenür.",
     "Google API Credentials Required": "Google API kimligi kerek",
     "Google Drive": "Google Drive",
+    "Google Drive is not connected or no folder selected.": "Google Drive baglï degül ya da qısqa seçülmedi.",
     "Gradient Background": "köçük renk arqa",
     "Hide output": "Çıqışın gizle",
     "Home": "baş",

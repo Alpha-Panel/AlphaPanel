@@ -32,26 +32,27 @@ class BackupUploadJob implements ShouldQueue
     private int $totalBytes = 0;
 
     public function __construct(
-        public string $type = 'manual',
-        public ?int $triggeredBy = null,
+        public int $backupRunId,
     ) {}
 
     public function handle(GoogleDriveService $driveService): void
     {
+        $run = BackupRun::findOrFail($this->backupRunId);
+        $run->update(['status' => 'uploading']);
+
         $settings = BackupSetting::instance();
 
         if (! $settings->isConnected() || ! $settings->drive_folder_id) {
             Log::error('BackupUploadJob: Google Drive not configured');
+            $run->update([
+                'status' => 'failed',
+                'error_message' => __('Google Drive is not connected or no folder selected.'),
+                'finished_at' => now(),
+            ]);
+            BackupProgress::dispatch($run->id, 0, __('Google Drive is not connected or no folder selected.'), 'failed');
 
             return;
         }
-
-        $run = BackupRun::create([
-            'type' => $this->type,
-            'status' => 'uploading',
-            'started_at' => now(),
-            'triggered_by' => $this->triggeredBy,
-        ]);
 
         $datetime = now()->format('d-M-Y');
         $tempBase = config('backup.local_backup_base').'/'.$datetime;
@@ -111,9 +112,9 @@ class BackupUploadJob implements ShouldQueue
             BackupProgress::dispatch($run->id, 100, __('Backup complete'), 'completed');
 
             AuditLog::create([
-                'user_id' => $this->triggeredBy,
+                'user_id' => $run->triggered_by,
                 'action' => 'backup_upload_completed',
-                'summary' => "Backup completed: {$this->type}, {$this->totalFiles} files uploaded",
+                'summary' => "Backup completed: {$run->type}, {$this->totalFiles} files uploaded",
             ]);
 
             // Notify admins: backup completed
@@ -126,7 +127,7 @@ class BackupUploadJob implements ShouldQueue
         } catch (\Throwable $e) {
             Log::error('BackupUploadJob failed', [
                 'error' => $e->getMessage(),
-                'type' => $this->type,
+                'type' => $run->type,
             ]);
 
             $run->update([
@@ -138,7 +139,7 @@ class BackupUploadJob implements ShouldQueue
             BackupProgress::dispatch($run->id, $run->progress_percent, $e->getMessage(), 'failed');
 
             AuditLog::create([
-                'user_id' => $this->triggeredBy,
+                'user_id' => $run->triggered_by,
                 'action' => 'backup_upload_failed',
                 'summary' => "Backup failed: {$e->getMessage()}",
             ]);

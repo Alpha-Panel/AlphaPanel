@@ -26,6 +26,9 @@ export default defineConfig({
             'ziggy-js': resolve(__dirname, 'vendor/tightenco/ziggy/dist/index.esm.js'),
         },
     },
+    build: {
+        chunkSizeWarningLimit: 4000,
+    },
     server: {
         watch: {
             ignored: ['**/storage/framework/views/**'],

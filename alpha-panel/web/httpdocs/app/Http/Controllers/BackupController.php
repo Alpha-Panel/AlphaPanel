@@ -219,10 +219,14 @@ class BackupController extends Controller
                 ->with('error', __('No backup folder selected.'));
         }
 
-        BackupUploadJob::dispatch(
-            type: 'manual',
-            triggeredBy: $request->user()->id,
-        );
+        $run = BackupRun::create([
+            'type' => 'manual',
+            'status' => 'running',
+            'started_at' => now(),
+            'triggered_by' => $request->user()->id,
+        ]);
+
+        BackupUploadJob::dispatch(backupRunId: $run->id);
 
         AuditLog::create([
             'user_id' => $request->user()->id,
@@ -291,10 +295,14 @@ class BackupController extends Controller
                 BackupProgress::dispatch($run->id, $run->progress_percent, __('Backup cancelled for restart'), 'cancelled');
             });
 
-        BackupUploadJob::dispatch(
-            type: 'manual',
-            triggeredBy: $request->user()->id,
-        );
+        $run = BackupRun::create([
+            'type' => 'manual',
+            'status' => 'running',
+            'started_at' => now(),
+            'triggered_by' => $request->user()->id,
+        ]);
+
+        BackupUploadJob::dispatch(backupRunId: $run->id);
 
         AuditLog::create([
             'user_id' => $request->user()->id,

@@ -12,7 +12,7 @@ layer(base);
 
 @font-face {
   font-family: 'Gokturk';
-  src: url('/fonts/gokturk.ttf') format('truetype');
+  src: url('../fonts/gokturk.ttf') format('truetype');
   font-display: swap;
 }
 

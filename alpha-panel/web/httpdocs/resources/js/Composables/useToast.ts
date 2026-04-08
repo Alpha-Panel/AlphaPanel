@@ -14,6 +14,9 @@ const toasts = ref<Toast[]>([]);
 
 export function useToast() {
     const addToast = (type: Toast['type'], message: string) => {
+        if (toasts.value.some((t) => t.message === message)) {
+            return;
+        }
         const id = nextId++;
         toasts.value.push({ id, type, message });
         setTimeout(() => {
