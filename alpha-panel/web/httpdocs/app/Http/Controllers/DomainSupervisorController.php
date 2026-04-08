@@ -365,23 +365,11 @@ class DomainSupervisorController extends Controller
 
     private function buildAppCommandScript(Domain $domain, string $command): string
     {
-        $webRoot = escapeshellarg($domain->getWebRootPath());
+        $appDir = escapeshellarg('/var/www/vhosts/'.$domain->getApexDomain().'/httpdocs');
 
         return <<<SH
 export COLUMNS=220
-WEB_ROOT={$webRoot}
-APP_DIR="\$WEB_ROOT"
-
-DIR="\$WEB_ROOT"
-for i in 1 2 3; do
-  if [ -f "\$DIR/artisan" ]; then
-    APP_DIR="\$DIR"
-    break
-  fi
-  DIR=\$(dirname "\$DIR")
-done
-
-cd "\$APP_DIR"
+cd {$appDir}
 {$command}
 SH;
     }
