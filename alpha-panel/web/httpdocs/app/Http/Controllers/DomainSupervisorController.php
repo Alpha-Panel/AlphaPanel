@@ -13,7 +13,6 @@ use App\Services\PortainerService;
 use App\Services\SupervisorConfigService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -21,8 +20,6 @@ use Inertia\Response;
 
 class DomainSupervisorController extends Controller
 {
-    private const FRANKENPHP_WORKERS_RESTART_URL = 'http://frankenphp:2019/frankenphp/workers/restart';
-
     private const MAX_OUTPUT_LENGTH = 50000;
 
     public function index(Domain $domain, LaravelPackageDetector $packageDetector): Response
@@ -190,12 +187,22 @@ class DomainSupervisorController extends Controller
         }
     }
 
-    public function restartFrankenphpWorkers(Request $request, Domain $domain): JsonResponse
+    public function restartFrankenphpWorkers(Request $request, Domain $domain, PortainerService $portainer): JsonResponse
     {
         $this->authorize('manageSupervisor', $domain);
 
         try {
-            Http::timeout(5)->post(self::FRANKENPHP_WORKERS_RESTART_URL);
+            $result = $portainer->execInContainer(
+                'frankenphp',
+                ['sh', '-c', 'curl -sf -X POST http://localhost:2019/frankenphp/workers/restart'],
+                10,
+            );
+
+            if (! $result->isSuccessful()) {
+                $error = trim($result->errorOutput) !== '' ? trim($result->errorOutput) : trim($result->output);
+
+                throw new \RuntimeException($error !== '' ? $error : 'Worker restart command failed.');
+            }
 
             $this->createAuditLog(
                 $request,
@@ -231,9 +238,13 @@ class DomainSupervisorController extends Controller
     {
         $this->authorize('manageSupervisor', $domain);
 
+        $container = $domain->type === DomainType::ApacheReverseProxy
+            ? 'php-code-server'
+            : 'frankenphp';
+
         try {
             $result = $portainer->execInContainer(
-                'frankenphp',
+                $container,
                 ['sh', '-lc', $this->buildAppCommandScript($domain, 'php artisan optimize:clear && php artisan optimize')],
                 300,
             );
@@ -360,11 +371,15 @@ class DomainSupervisorController extends Controller
 export COLUMNS=220
 WEB_ROOT={$webRoot}
 APP_DIR="\$WEB_ROOT"
-PARENT_DIR=\$(dirname "\$WEB_ROOT")
 
-if [ -f "\$PARENT_DIR/artisan" ]; then
-  APP_DIR="\$PARENT_DIR"
-fi
+DIR="\$WEB_ROOT"
+for i in 1 2 3; do
+  if [ -f "\$DIR/artisan" ]; then
+    APP_DIR="\$DIR"
+    break
+  fi
+  DIR=\$(dirname "\$DIR")
+done
 
 cd "\$APP_DIR"
 {$command}

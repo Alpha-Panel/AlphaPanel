@@ -51,6 +51,12 @@ class TerminalServeCommand extends Command
         $pendingBrowserData = '';
         $sessionId = 'unknown';
 
+        // Portainer resize state
+        $execId = '';
+        $portainerResizeBaseUrl = '';
+        $portainerApiKey = '';
+        $portainerEndpointId = 1;
+
         // SSH session state
         $sessionType = 'portainer';
         $sshProcess = null;
@@ -110,6 +116,10 @@ class TerminalServeCommand extends Command
             &$containerName,
             &$clientIp,
             &$clientPort,
+            &$execId,
+            &$portainerResizeBaseUrl,
+            &$portainerApiKey,
+            &$portainerEndpointId,
         ) {
             if ($handshakeDone) {
                 if ($sessionType === 'ssh') {
@@ -124,6 +134,16 @@ class TerminalServeCommand extends Command
                         }
                         if (($frame['opcode'] === 0x01 || $frame['opcode'] === 0x02)
                             && isset($sshPipes[0]) && is_resource($sshPipes[0])) {
+                            // Intercept resize messages (text frames with JSON)
+                            if ($frame['opcode'] === 0x01) {
+                                $resize = $this->parseResizeMessage($frame['payload']);
+                                if ($resize !== null) {
+                                    @fwrite($sshPipes[0], sprintf("stty rows %d cols %d\n", $resize[1], $resize[0]));
+
+                                    continue;
+                                }
+                            }
+
                             @fwrite($sshPipes[0], $frame['payload']);
                             $this->bufferCommand($commandBuffer, $frame['payload'], $userId, $sessionId, $sessionType, $containerName, $clientIp, $clientPort, $outputBuffer, $lastLogId);
                         }
@@ -134,8 +154,12 @@ class TerminalServeCommand extends Command
 
                 // Both handshakes complete — raw proxy (Portainer)
                 if ($proxyActive && $portainerConn !== null) {
-                    $this->captureFromWsFrames($commandBuffer, $chunk, $userId, $sessionId, $sessionType, $containerName, $clientIp, $clientPort, $outputBuffer, $lastLogId);
-                    $portainerConn->write($chunk);
+                    $filtered = $this->filterResizeFrames($chunk, $execId, $portainerResizeBaseUrl, $portainerApiKey, $portainerEndpointId);
+                    if ($filtered === '') {
+                        return;
+                    }
+                    $this->captureFromWsFrames($commandBuffer, $filtered, $userId, $sessionId, $sessionType, $containerName, $clientIp, $clientPort, $outputBuffer, $lastLogId);
+                    $portainerConn->write($filtered);
                 } else {
                     // Portainer TCP open but its WS handshake pending; buffer
                     $pendingBrowserData .= $chunk;
@@ -191,6 +215,14 @@ class TerminalServeCommand extends Command
             $userId = $sessionData['user_id'] ?? null;
             $clientIp = $sessionData['ip_address'] ?? null;
             $clientPort = $sessionData['port'] ?? null;
+
+            // Store Portainer credentials for exec resize calls
+            if ($sessionType !== 'ssh') {
+                $execId = $sessionData['exec_id'] ?? '';
+                $portainerResizeBaseUrl = rtrim((string) config('panel.portainer_url'), '/');
+                $portainerApiKey = $sessionData['api_key'] ?? '';
+                $portainerEndpointId = (int) config('panel.portainer_endpoint_id', 1);
+            }
 
             // Extract browser's Sec-WebSocket-Key
             $wsKey = '';
@@ -909,5 +941,113 @@ class TerminalServeCommand extends Command
         $buffer = substr($buffer, $offset + $payloadLen);
 
         return ['opcode' => $opcode, 'payload' => $payload];
+    }
+
+    /**
+     * Parse a resize message from a WebSocket text frame payload.
+     *
+     * @return array{0: int, 1: int}|null  [cols, rows] or null if not a resize message
+     */
+    private function parseResizeMessage(string $payload): ?array
+    {
+        $json = @json_decode($payload, true);
+
+        if (! is_array($json) || ! isset($json['resize']) || ! is_array($json['resize']) || count($json['resize']) < 2) {
+            return null;
+        }
+
+        $cols = (int) $json['resize'][0];
+        $rows = (int) $json['resize'][1];
+
+        if ($cols <= 0 || $rows <= 0) {
+            return null;
+        }
+
+        return [$cols, $rows];
+    }
+
+    /**
+     * Scan a raw chunk for WebSocket resize frames, handle them, and return the
+     * chunk with resize frames stripped out so only data frames are forwarded.
+     */
+    private function filterResizeFrames(
+        string $chunk,
+        string $execId,
+        string $portainerBaseUrl,
+        string $portainerApiKey,
+        int $portainerEndpointId,
+    ): string {
+        if ($execId === '' || $portainerBaseUrl === '') {
+            return $chunk;
+        }
+
+        $result = '';
+        $buffer = $chunk;
+
+        while ($buffer !== '') {
+            if (strlen($buffer) < 2) {
+                $result .= $buffer;
+                break;
+            }
+
+            // Remember position before decoding
+            $beforeLen = strlen($buffer);
+            $tempBuffer = $buffer;
+            $frame = $this->decodeWsFrame($tempBuffer);
+
+            if ($frame === null) {
+                // Incomplete frame — forward remaining bytes as-is
+                $result .= $buffer;
+                break;
+            }
+
+            $consumedLen = $beforeLen - strlen($tempBuffer);
+            $rawFrame = substr($buffer, 0, $consumedLen);
+            $buffer = $tempBuffer;
+
+            // Check for resize message (text frame with JSON)
+            if ($frame['opcode'] === 0x01) {
+                $resize = $this->parseResizeMessage($frame['payload']);
+                if ($resize !== null) {
+                    $this->handlePortainerResize($execId, $resize[0], $resize[1], $portainerBaseUrl, $portainerApiKey, $portainerEndpointId);
+
+                    continue; // Strip this frame from forwarded data
+                }
+            }
+
+            $result .= $rawFrame;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Call Docker exec resize API via Portainer to update PTY dimensions.
+     */
+    private function handlePortainerResize(
+        string $execId,
+        int $cols,
+        int $rows,
+        string $portainerBaseUrl,
+        string $portainerApiKey,
+        int $endpointId,
+    ): void {
+        $url = "{$portainerBaseUrl}/api/endpoints/{$endpointId}/docker/exec/{$execId}/resize?"
+            .http_build_query(['h' => $rows, 'w' => $cols]);
+
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'header' => "X-API-Key: {$portainerApiKey}\r\nContent-Length: 0\r\n",
+                'timeout' => 3,
+                'ignore_errors' => true,
+            ],
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+            ],
+        ]);
+
+        @file_get_contents($url, false, $context);
     }
 }

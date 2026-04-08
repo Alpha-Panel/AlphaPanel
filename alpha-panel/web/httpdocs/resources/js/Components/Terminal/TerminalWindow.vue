@@ -86,7 +86,14 @@ let terminal: any = null;
 let fitAddon: any = null;
 let ws: WebSocket | null = null;
 let resizeObserver: ResizeObserver | null = null;
+let resizeTimer: ReturnType<typeof setTimeout> | null = null;
 const encoder = new TextEncoder();
+
+function sendResize(cols: number, rows: number) {
+    if (ws && ws.readyState === WebSocket.OPEN && cols > 0 && rows > 0) {
+        ws.send(JSON.stringify({ resize: [cols, rows] }));
+    }
+}
 
 const windowStyle = ref<Record<string, string>>({});
 
@@ -171,6 +178,10 @@ function openWebSocket() {
 
     ws.onopen = () => {
         connected.value = true;
+        // Send initial terminal dimensions so the PTY knows the correct size
+        if (terminal) {
+            sendResize(terminal.cols, terminal.rows);
+        }
     };
 
     ws.onclose = () => {
@@ -261,6 +272,12 @@ async function initTerminal() {
         if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(encoder.encode(data).buffer);
         }
+    });
+
+    // Notify backend when terminal dimensions change (debounced)
+    terminal.onResize(({ cols, rows }: { cols: number; rows: number }) => {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => sendResize(cols, rows), 150);
     });
 
     // Store persistent reference (ws is null here, openWebSocket updates it)
