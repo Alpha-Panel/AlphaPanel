@@ -124,3 +124,18 @@ Schedule::command('ssl:renew')
     ->name('ssl:renew')
     ->withoutOverlapping(30)
     ->onFailure(fn () => Log::error('SSL renewal check failed'));
+
+/*
+|--------------------------------------------------------------------------
+| Telescope Pruning
+|--------------------------------------------------------------------------
+|
+| Prunes old Telescope entries daily to prevent database bloat.
+| Retention period is configurable via TELESCOPE_PRUNE_HOURS (default: 48).
+|
+*/
+
+Schedule::command('telescope:prune --hours='.config('telescope.prune_hours', 48))
+    ->daily()
+    ->name('telescope:prune')
+    ->withoutOverlapping();

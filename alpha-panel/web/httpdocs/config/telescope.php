@@ -20,6 +20,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Telescope Pruning
+    |--------------------------------------------------------------------------
+    |
+    | Number of hours to retain Telescope entries before pruning.
+    |
+    */
+
+    'prune_hours' => env('TELESCOPE_PRUNE_HOURS', 48),
+
+    /*
+    |--------------------------------------------------------------------------
     | Telescope Domain
     |--------------------------------------------------------------------------
     |
@@ -118,10 +129,22 @@ return [
         'pulse*',
         '_boost*',
         '.well-known*',
+        'telescope*',
+        'horizon*',
+        'health*',
     ],
 
     'ignore_commands' => [
-        //
+        'schedule:run',
+        'schedule:finish',
+        'telescope:prune',
+        'queue:work',
+        'queue:listen',
+        'queue:restart',
+        'reverb:start',
+        'octane:start',
+        'octane:reload',
+        'package:discover',
     ],
 
     /*
@@ -139,7 +162,7 @@ return [
         Watchers\BatchWatcher::class => env('TELESCOPE_BATCH_WATCHER', true),
 
         Watchers\CacheWatcher::class => [
-            'enabled' => env('TELESCOPE_CACHE_WATCHER', true),
+            'enabled' => env('TELESCOPE_CACHE_WATCHER', false),
             'hidden' => [],
             'ignore' => [],
         ],
@@ -161,13 +184,15 @@ return [
 
         Watchers\EventWatcher::class => [
             'enabled' => env('TELESCOPE_EVENT_WATCHER', true),
-            'ignore' => [],
+            'ignore' => [
+                'Illuminate\*',
+            ],
         ],
 
         Watchers\ExceptionWatcher::class => env('TELESCOPE_EXCEPTION_WATCHER', true),
 
         Watchers\GateWatcher::class => [
-            'enabled' => env('TELESCOPE_GATE_WATCHER', true),
+            'enabled' => env('TELESCOPE_GATE_WATCHER', false),
             'ignore_abilities' => [],
             'ignore_packages' => true,
             'ignore_paths' => [],
@@ -185,7 +210,7 @@ return [
         Watchers\ModelWatcher::class => [
             'enabled' => env('TELESCOPE_MODEL_WATCHER', true),
             'events' => ['eloquent.*'],
-            'hydrations' => true,
+            'hydrations' => false,
         ],
 
         Watchers\NotificationWatcher::class => env('TELESCOPE_NOTIFICATION_WATCHER', true),
@@ -194,19 +219,19 @@ return [
             'enabled' => env('TELESCOPE_QUERY_WATCHER', true),
             'ignore_packages' => true,
             'ignore_paths' => [],
-            'slow' => 100,
+            'slow' => 200,
         ],
 
-        Watchers\RedisWatcher::class => env('TELESCOPE_REDIS_WATCHER', true),
+        Watchers\RedisWatcher::class => env('TELESCOPE_REDIS_WATCHER', false),
 
         Watchers\RequestWatcher::class => [
             'enabled' => env('TELESCOPE_REQUEST_WATCHER', true),
-            'size_limit' => env('TELESCOPE_RESPONSE_SIZE_LIMIT', 64),
+            'size_limit' => env('TELESCOPE_RESPONSE_SIZE_LIMIT', 32),
             'ignore_http_methods' => [],
             'ignore_status_codes' => [],
         ],
 
         Watchers\ScheduleWatcher::class => env('TELESCOPE_SCHEDULE_WATCHER', true),
-        Watchers\ViewWatcher::class => env('TELESCOPE_VIEW_WATCHER', true),
+        Watchers\ViewWatcher::class => env('TELESCOPE_VIEW_WATCHER', false),
     ],
 ];
