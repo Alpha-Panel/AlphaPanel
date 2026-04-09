@@ -11,6 +11,7 @@ enum NotificationType: string
     case FtpChanges = 'ftp_changes';
     case BackupStatus = 'backup_status';
     case SystemUpdates = 'system_updates';
+    case SystemAlert = 'system_alert';
     case AdminAnnouncements = 'admin_announcements';
 
     public function label(): string
@@ -23,6 +24,7 @@ enum NotificationType: string
             self::FtpChanges => __('FTP Account Changes'),
             self::BackupStatus => __('Backup Operations'),
             self::SystemUpdates => __('System Updates'),
+            self::SystemAlert => __('System Alerts'),
             self::AdminAnnouncements => __('Admin Announcements'),
         };
     }
@@ -37,6 +39,7 @@ enum NotificationType: string
             self::FtpChanges => 'bx bx-transfer',
             self::BackupStatus => 'bx bx-cloud-upload',
             self::SystemUpdates => 'bx bx-revision',
+            self::SystemAlert => 'bx bx-error',
             self::AdminAnnouncements => 'bx bx-megaphone',
         };
     }
@@ -51,6 +54,7 @@ enum NotificationType: string
             self::FtpChanges => __('FTP user and password changes'),
             self::BackupStatus => __('Backup start, completion, and failure'),
             self::SystemUpdates => __('Available system updates and patches'),
+            self::SystemAlert => __('CPU, RAM, and disk usage alerts and recovery'),
             self::AdminAnnouncements => __('Announcements sent by administrators'),
         };
     }

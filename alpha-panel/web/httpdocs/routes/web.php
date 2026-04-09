@@ -550,4 +550,20 @@ Route::middleware('auth')->group(function (): void {
         Route::delete('/{dnsTemplate}', [DnsTemplateController::class, 'destroy'])->name('destroy');
         Route::post('/{dnsTemplate}/default', [DnsTemplateController::class, 'setDefault'])->name('set-default');
     });
+
+    // Login Security Settings (anti-bot + IP filter)
+    Route::middleware('permission:panel.security-settings.manage')->prefix('settings/security')->name('settings.security.')->group(function (): void {
+        Route::get('anti-bot', [\App\Http\Controllers\SecuritySettingController::class, 'antiBot'])->name('anti-bot.index');
+        Route::put('anti-bot', [\App\Http\Controllers\SecuritySettingController::class, 'updateAntiBot'])->name('anti-bot.update');
+        Route::get('login-ip-filter', [\App\Http\Controllers\LoginIpFilterController::class, 'index'])->name('login-ip-filter.index');
+        Route::put('login-ip-filter/mode', [\App\Http\Controllers\LoginIpFilterController::class, 'updateMode'])->name('login-ip-filter.update-mode');
+        Route::post('login-ip-filter', [\App\Http\Controllers\LoginIpFilterController::class, 'store'])->name('login-ip-filter.store');
+        Route::delete('login-ip-filter/{loginIpRule}', [\App\Http\Controllers\LoginIpFilterController::class, 'destroy'])->name('login-ip-filter.destroy');
+    });
+
+    // System Alert Settings
+    Route::middleware('permission:panel.alert-settings.manage')->prefix('settings/alerts')->name('settings.alerts.')->group(function (): void {
+        Route::get('/', [\App\Http\Controllers\AlertSettingController::class, 'index'])->name('index');
+        Route::put('/', [\App\Http\Controllers\AlertSettingController::class, 'update'])->name('update');
+    });
 });

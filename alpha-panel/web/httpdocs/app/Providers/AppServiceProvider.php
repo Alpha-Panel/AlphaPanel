@@ -2,9 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\SecuritySetting;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -30,9 +30,11 @@ class AppServiceProvider extends ServiceProvider
             }
         }
 
-        View::share('recaptcha_settings', (object) [
-            'recaptchaV2_site_key' => (string) env('RECAPTCHA_V2_SITE_KEY', ''),
-            'recaptchaV3_site_key' => (string) env('RECAPTCHA_V3_SITE_KEY', ''),
-        ]);
+        // Dynamically enable/disable honeypot from database settings
+        try {
+            config()->set('honeypot.enabled', SecuritySetting::instance()->honeypot_enabled);
+        } catch (\Throwable) {
+            // Table may not exist yet (before migration)
+        }
     }
 }

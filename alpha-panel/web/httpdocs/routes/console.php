@@ -139,3 +139,19 @@ Schedule::command('telescope:prune --hours='.config('telescope.prune_hours', 48)
     ->daily()
     ->name('telescope:prune')
     ->withoutOverlapping();
+
+/*
+|--------------------------------------------------------------------------
+| System Health Monitoring
+|--------------------------------------------------------------------------
+|
+| Checks CPU, RAM, and disk usage against configured thresholds.
+| Sends notifications when warning or critical levels are exceeded
+| and when metrics recover to normal.
+|
+*/
+
+Schedule::command('system:check-health')
+    ->everyFiveMinutes()
+    ->name('system:check-health')
+    ->withoutOverlapping();

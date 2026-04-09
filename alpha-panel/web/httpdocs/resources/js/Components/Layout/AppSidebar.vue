@@ -503,7 +503,7 @@ const menuGroups = computed(() => {
                     }
                 }
 
-                if (canAny('panel.firewall.view', 'panel.waf-rules.view', 'panel.waf-rules.manage', 'panel.crowdsec.view', 'panel.ftp-bans.view')) {
+                if (canAny('panel.firewall.view', 'panel.waf-rules.view', 'panel.waf-rules.manage', 'panel.crowdsec.view', 'panel.ftp-bans.view', 'panel.security-settings.manage')) {
                     const securityLeaves: SidebarSubLeaf[] = [];
                     if (can('panel.firewall.view')) {
                         securityLeaves.push({ name: t('Firewall'), href: route('security.firewall.index'), iconClass: 'fa-solid fa-fire' });
@@ -516,6 +516,10 @@ const menuGroups = computed(() => {
                     }
                     if (can('panel.ftp-bans.view')) {
                         securityLeaves.push({ name: t('FTP Bans'), href: route('security.ftp-bans.index'), iconClass: 'fa-solid fa-ban' });
+                    }
+                    if (can('panel.security-settings.manage')) {
+                        securityLeaves.push({ name: t('Login IP Filter'), href: route('settings.security.login-ip-filter.index'), iconClass: 'fa-solid fa-filter' });
+                        securityLeaves.push({ name: t('Anti-Bot Protection'), href: route('settings.security.anti-bot.index'), iconClass: 'fa-solid fa-shield-virus' });
                     }
                     if (securityLeaves.length > 0) {
                         settingsSubItems.push({
@@ -539,6 +543,14 @@ const menuGroups = computed(() => {
                         name: t('PHP Versions'),
                         href: route('php-versions.index'),
                         iconClass: 'fa-brands fa-php',
+                    });
+                }
+
+                if (can('panel.alert-settings.manage')) {
+                    settingsSubItems.push({
+                        name: t('System Alerts'),
+                        href: route('settings.alerts.index'),
+                        iconClass: 'fa-solid fa-bell',
                     });
                 }
 

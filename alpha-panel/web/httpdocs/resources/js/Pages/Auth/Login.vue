@@ -128,6 +128,20 @@
                                 {{ t('This account requires a 2FA verification code after password sign in.') }}
                             </div>
 
+                            <!-- CAPTCHA Widget -->
+                            <div v-if="captcha && stage === 'password'">
+                                <div ref="captchaWidgetRef" class="flex justify-center"></div>
+                                <p v-if="form.errors.captcha_token" class="mt-1 text-sm text-error-500">
+                                    {{ form.errors.captcha_token }}
+                                </p>
+                            </div>
+
+                            <!-- Honeypot (hidden from users, traps bots) -->
+                            <div v-if="honeypot" style="position: absolute; left: -9999px; top: -9999px;" aria-hidden="true" tabindex="-1">
+                                <input :name="honeypot.name_field" v-model="form[honeypot.name_field]" type="text" autocomplete="off" />
+                                <input :name="honeypot.valid_from_field" v-model="form[honeypot.valid_from_field]" type="text" autocomplete="off" />
+                            </div>
+
                             <button
                                 type="submit"
                                 :disabled="identifierLoading || webauthnLoading || form.processing"
@@ -169,6 +183,30 @@ import FullScreenLayout from '@/Components/Layout/FullScreenLayout.vue';
 import { useI18n } from '@/Composables/useI18n';
 import type { SharedProps } from '@/types/inertia';
 
+declare global {
+    interface Window {
+        turnstile?: {
+            render: (element: HTMLElement, options: Record<string, any>) => string;
+            reset: (widgetId?: string) => void;
+        };
+        grecaptcha?: {
+            render: (element: HTMLElement, options: Record<string, any>) => number;
+            reset: (widgetId?: number) => void;
+        };
+    }
+}
+
+interface CaptchaConfig {
+    provider: 'turnstile' | 'recaptcha';
+    site_key: string;
+}
+
+interface HoneypotConfig {
+    name_field: string;
+    valid_from_field: string;
+    encrypted_valid_from: string;
+}
+
 interface LoginMethodsResponse {
     has_webauthn: boolean;
     has_totp: boolean;
@@ -184,6 +222,11 @@ type PublicKeyCredentialRequestOptionsPayload = {
     }>;
 };
 
+const props = defineProps<{
+    captcha?: CaptchaConfig | null;
+    honeypot?: HoneypotConfig | null;
+}>();
+
 const stage = ref<'identifier' | 'password'>('identifier');
 const { t } = useI18n();
 const page = usePage<SharedProps>();
@@ -196,6 +239,9 @@ const identifierLoading = ref(false);
 const webauthnLoading = ref(false);
 const methods = ref<LoginMethodsResponse | null>(null);
 const passwordInputRef = ref<HTMLInputElement | null>(null);
+const captchaToken = ref<string>('');
+const captchaWidgetRef = ref<HTMLDivElement | null>(null);
+const captchaScriptLoaded = ref(false);
 
 const nativeLocaleNamesByLocale: Record<string, string> = {
     'tr-gokturk': 'Göktürkçe',
@@ -246,7 +292,54 @@ const form = useForm({
     login: '',
     password: '',
     remember: false,
+    captcha_token: '',
+    ...(props.honeypot ? {
+        [props.honeypot.name_field]: '',
+        [props.honeypot.valid_from_field]: props.honeypot.encrypted_valid_from,
+    } : {}),
 });
+
+const loadCaptchaScript = (): void => {
+    if (!props.captcha || captchaScriptLoaded.value) {
+        return;
+    }
+
+    const src = props.captcha.provider === 'turnstile'
+        ? 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
+        : 'https://www.google.com/recaptcha/api.js?render=explicit';
+
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+        captchaScriptLoaded.value = true;
+        renderCaptchaWidget();
+    };
+    document.head.appendChild(script);
+};
+
+const renderCaptchaWidget = (): void => {
+    if (!captchaWidgetRef.value || !props.captcha) {
+        return;
+    }
+
+    captchaWidgetRef.value.innerHTML = '';
+
+    if (props.captcha.provider === 'turnstile' && window.turnstile) {
+        window.turnstile.render(captchaWidgetRef.value, {
+            sitekey: props.captcha.site_key,
+            callback: (token: string) => { captchaToken.value = token; },
+            'expired-callback': () => { captchaToken.value = ''; },
+        });
+    } else if (props.captcha.provider === 'recaptcha' && window.grecaptcha) {
+        window.grecaptcha.render(captchaWidgetRef.value, {
+            sitekey: props.captcha.site_key,
+            callback: (token: string) => { captchaToken.value = token; },
+            'expired-callback': () => { captchaToken.value = ''; },
+        });
+    }
+};
 
 const base64UrlToArrayBuffer = (value: string): ArrayBuffer => {
     const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
@@ -327,6 +420,7 @@ const continueWithIdentifier = async () => {
         }
 
         stage.value = 'password';
+        loadCaptchaScript();
         await nextTick();
         passwordInputRef.value?.focus();
     } catch (error: any) {
@@ -340,6 +434,7 @@ const continueWithIdentifier = async () => {
 const loginWithDevice = async (email: string) => {
     if (!window.PublicKeyCredential) {
         stage.value = 'password';
+        loadCaptchaScript();
         form.setError('login', t('This browser does not support passkey login.'));
         await nextTick();
         passwordInputRef.value?.focus();
@@ -375,6 +470,7 @@ const loginWithDevice = async (email: string) => {
         }
 
         stage.value = 'password';
+        loadCaptchaScript();
         await nextTick();
         passwordInputRef.value?.focus();
     } finally {
@@ -383,9 +479,16 @@ const loginWithDevice = async (email: string) => {
 };
 
 const submitPassword = () => {
+    form.captcha_token = captchaToken.value;
+
     form.post(route('login'), {
         onFinish: () => {
             form.reset('password');
+            captchaToken.value = '';
+
+            if (captchaScriptLoaded.value) {
+                nextTick(() => renderCaptchaWidget());
+            }
         },
     });
 };
