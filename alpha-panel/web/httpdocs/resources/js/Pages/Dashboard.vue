@@ -85,9 +85,9 @@
                             'grid grid-cols-1 gap-4 md:gap-6',
                             isAdmin
                                 ? googleDrive
-                                    ? 'sm:grid-cols-2 xl:grid-cols-6'
-                                    : 'sm:grid-cols-2 xl:grid-cols-5'
-                                : 'sm:grid-cols-2 xl:grid-cols-3',
+                                    ? 'sm:grid-cols-2 xl:grid-cols-5'
+                                    : 'sm:grid-cols-2 xl:grid-cols-4'
+                                : 'sm:grid-cols-2',
                         ]"
                     >
                         <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
@@ -99,27 +99,6 @@
                                     <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('Total Domains') }}</p>
                                     <h3 class="text-2xl font-semibold text-gray-800 dark:text-white/90">
                                         {{ stats.total_domains }}
-                                    </h3>
-                                    <Link
-                                        :href="route('domains.index')"
-                                        class="inline-flex items-center gap-1 text-xs font-medium text-brand-500 hover:text-brand-600"
-                                    >
-                                        {{ t('View all') }}
-                                        <i class="bx bx-right-arrow-alt text-sm"></i>
-                                    </Link>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
-                            <div class="flex items-center gap-4">
-                                <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-success-50 text-success-600 dark:bg-success-500/20 dark:text-success-300">
-                                    <i class="bx bx-check-shield text-2xl"></i>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('Active Domains') }}</p>
-                                    <h3 class="text-2xl font-semibold text-gray-800 dark:text-white/90">
-                                        {{ stats.active_domains }}
                                     </h3>
                                     <p class="text-xs text-gray-500 dark:text-gray-400">
                                         {{ stats.subdomains }} {{ t('subdomains') }}
@@ -777,7 +756,6 @@ type DockerAction = 'start' | 'stop' | 'restart';
 
 interface DashboardStats {
     total_domains: number;
-    active_domains: number;
     subdomains: number;
     total_databases: number;
     total_users: number;

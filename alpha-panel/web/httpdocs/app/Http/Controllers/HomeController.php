@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\DomainStatus;
 use App\Models\AuditLog;
 use App\Models\BackupRun;
 use App\Models\BackupSetting;
@@ -167,18 +166,12 @@ class HomeController extends Controller
      */
     private function buildStats(User $user): array
     {
-        $parentDomainQuery = Domain::query()
-            ->whereNull('parent_domain_id')
-            ->when(! $user->isAdmin(), fn ($query) => $query->where('owner_user_id', $user->id));
-
-        $subdomainQuery = Domain::query()
-            ->whereNotNull('parent_domain_id')
+        $domainQuery = Domain::query()
             ->when(! $user->isAdmin(), fn ($query) => $query->where('owner_user_id', $user->id));
 
         return [
-            'total_domains' => (clone $parentDomainQuery)->count(),
-            'active_domains' => (clone $parentDomainQuery)->where('status', DomainStatus::Active)->count(),
-            'subdomains' => $subdomainQuery->count(),
+            'total_domains' => (clone $domainQuery)->whereNull('parent_domain_id')->count(),
+            'subdomains' => (clone $domainQuery)->whereNotNull('parent_domain_id')->count(),
             'total_databases' => ManagedDatabase::count(),
             'total_users' => User::count(),
         ];

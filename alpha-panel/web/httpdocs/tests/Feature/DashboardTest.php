@@ -33,7 +33,6 @@ class DashboardTest extends TestCase
         $response->assertOk();
         $response->assertJsonPath('is_admin', false);
         $response->assertJsonPath('stats.total_domains', 1);
-        $response->assertJsonPath('stats.active_domains', 1);
         $response->assertJsonPath('host_metrics', null);
         $response->assertJsonPath('docker_services', null);
         $response->assertJsonPath('mysql_monitor', null);
