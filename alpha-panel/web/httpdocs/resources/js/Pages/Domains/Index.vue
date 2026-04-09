@@ -226,7 +226,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
@@ -252,6 +252,13 @@ const searchInput = ref('');
 const showCreateDomainModal = ref(false);
 const { t } = useI18n();
 const { addToast } = useToast();
+
+onMounted(() => {
+    const query = new URLSearchParams(window.location.search);
+    if (query.has('create')) {
+        showCreateDomainModal.value = true;
+    }
+});
 const underAttackLoading = ref<number | null>(null);
 let underAttackRequestController: AbortController | null = null;
 

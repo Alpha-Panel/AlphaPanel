@@ -11,14 +11,14 @@ class HostMetricsService
     /**
      * Get host-level CPU, RAM, and disk metrics via /proc and df.
      *
-     * @return array{cpu_percent: float, mem_used_mb: int, mem_total_mb: int, mem_percent: float, disk_used_gb: float, disk_total_gb: float, disk_percent: float}
+     * @return array{cpu_percent: float, mem_used_mb: int, mem_total_mb: int, mem_percent: float, disk_used_gb: float, disk_total_gb: float, disk_percent: float, uptime_seconds: int, load_1: float, load_5: float, load_15: float}
      */
     public function getHostMetrics(): array
     {
         $container = config('panel.frankenphp_container', 'frankenphp');
 
         $result = $this->portainer->execInContainer($container, ['sh', '-c',
-            'head -1 /proc/stat; sleep 0.3; head -1 /proc/stat; grep -E "^(MemTotal|MemAvailable):" /proc/meminfo; df -k / | tail -1',
+            'head -1 /proc/stat; sleep 0.3; head -1 /proc/stat; grep -E "^(MemTotal|MemAvailable):" /proc/meminfo; df -k / | tail -1; cat /proc/uptime; cat /proc/loadavg',
         ], timeout: 10);
 
         $lines = array_values(array_filter(explode("\n", trim($result->output))));
@@ -27,6 +27,8 @@ class HostMetricsService
             ...$this->parseCpu($lines[0] ?? '', $lines[1] ?? ''),
             ...$this->parseMemory($lines[2] ?? '', $lines[3] ?? ''),
             ...$this->parseDisk($lines[4] ?? ''),
+            ...$this->parseUptime($lines[5] ?? ''),
+            ...$this->parseLoadAverage($lines[6] ?? ''),
         ];
     }
 
@@ -138,6 +140,30 @@ class HostMetricsService
         $percent = $totalKb > 0 ? round($usedKb / $totalKb * 100, 1) : 0;
 
         return ['disk_used_gb' => $usedGb, 'disk_total_gb' => $totalGb, 'disk_percent' => $percent];
+    }
+
+    /**
+     * @return array{uptime_seconds: int}
+     */
+    private function parseUptime(string $line): array
+    {
+        $parts = preg_split('/\s+/', trim($line));
+
+        return ['uptime_seconds' => (int) ($parts[0] ?? 0)];
+    }
+
+    /**
+     * @return array{load_1: float, load_5: float, load_15: float}
+     */
+    private function parseLoadAverage(string $line): array
+    {
+        $parts = preg_split('/\s+/', trim($line));
+
+        return [
+            'load_1' => round((float) ($parts[0] ?? 0), 2),
+            'load_5' => round((float) ($parts[1] ?? 0), 2),
+            'load_15' => round((float) ($parts[2] ?? 0), 2),
+        ];
     }
 
     /**

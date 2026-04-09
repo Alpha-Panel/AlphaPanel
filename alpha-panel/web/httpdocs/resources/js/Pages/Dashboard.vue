@@ -296,6 +296,7 @@
                                     <div class="mb-1 h-3 w-20 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
                                     <div class="h-15 animate-pulse rounded bg-gray-100 dark:bg-gray-800/50"></div>
                                 </div>
+                                <div class="mt-2 h-6 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800/50"></div>
                             </template>
 
                             <template v-else>
@@ -324,6 +325,18 @@
                                         {{ t('CPU History') }}
                                     </p>
                                     <div ref="cpuSparklineRef" class="min-h-15"></div>
+                                </div>
+
+                                <div class="mt-2 flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-1.5 text-xs text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
+                                    <span>
+                                        <i class="bx bx-time-five mr-1"></i>
+                                        {{ t('Uptime') }}: {{ formatUptime(hostMetrics?.uptime_seconds ?? 0) }}
+                                    </span>
+                                    <span class="h-3 w-px bg-gray-300 dark:bg-gray-600"></span>
+                                    <span>
+                                        <i class="bx bx-bar-chart-alt-2 mr-1"></i>
+                                        {{ t('Load') }}: {{ (hostMetrics?.load_1 ?? 0).toFixed(2) }} / {{ (hostMetrics?.load_5 ?? 0).toFixed(2) }} / {{ (hostMetrics?.load_15 ?? 0).toFixed(2) }}
+                                    </span>
                                 </div>
                             </template>
                         </div>
@@ -515,13 +528,22 @@
                                     <i class="bx bx-time-five mr-1"></i>
                                     {{ t('Recent Domains') }}
                                 </h4>
-                                <Link
-                                    :href="route('domains.index')"
-                                    class="ml-auto inline-flex items-center gap-1 text-xs font-medium text-brand-500 hover:text-brand-600"
-                                >
-                                    {{ t('View all') }}
-                                    <i class="bx bx-right-arrow-alt text-sm"></i>
-                                </Link>
+                                <div class="ml-auto flex items-center gap-3">
+                                    <Link
+                                        :href="route('domains.index', { create: true })"
+                                        class="inline-flex items-center gap-1 text-xs font-medium text-brand-500 hover:text-brand-600"
+                                    >
+                                        <i class="bx bx-plus text-sm"></i>
+                                        {{ t('Add New') }}
+                                    </Link>
+                                    <Link
+                                        :href="route('domains.index')"
+                                        class="inline-flex items-center gap-1 text-xs font-medium text-brand-500 hover:text-brand-600"
+                                    >
+                                        {{ t('View all') }}
+                                        <i class="bx bx-right-arrow-alt text-sm"></i>
+                                    </Link>
+                                </div>
                             </div>
 
                             <div class="max-h-80 overflow-x-hidden overflow-y-auto">
@@ -777,6 +799,10 @@ interface HostMetrics {
     disk_used_gb: number;
     disk_total_gb: number;
     disk_percent: number;
+    uptime_seconds: number;
+    load_1: number;
+    load_5: number;
+    load_15: number;
 }
 
 interface DockerContainer {
@@ -1110,6 +1136,17 @@ const truncate = (value: string, max: number): string => {
     }
 
     return `${value.slice(0, max - 3)}...`;
+};
+
+const formatUptime = (seconds: number): string => {
+    if (seconds <= 0) return '-';
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${mins}m`;
+    return `${mins}m`;
 };
 
 const humanSize = (bytes: number): string => {

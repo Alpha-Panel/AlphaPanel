@@ -23,7 +23,7 @@ use Inertia\Response;
 
 class HomeController extends Controller
 {
-    private const HOST_METRICS_CACHE_KEY = 'dashboard:host-metrics:v1';
+    private const HOST_METRICS_CACHE_KEY = 'dashboard:host-metrics:v2';
 
     private const DOCKER_SERVICES_CACHE_KEY = 'dashboard:docker-services:v1';
 
@@ -269,6 +269,10 @@ class HomeController extends Controller
                 'disk_used_gb' => $data['disk_used_gb'],
                 'disk_total_gb' => $data['disk_total_gb'],
                 'disk_percent' => $data['disk_percent'],
+                'uptime_seconds' => $data['uptime_seconds'],
+                'load_1' => $data['load_1'],
+                'load_5' => $data['load_5'],
+                'load_15' => $data['load_15'],
             ];
         } catch (\Throwable) {
             return [
@@ -280,6 +284,10 @@ class HomeController extends Controller
                 'disk_used_gb' => 0,
                 'disk_total_gb' => 0,
                 'disk_percent' => 0,
+                'uptime_seconds' => 0,
+                'load_1' => 0,
+                'load_5' => 0,
+                'load_15' => 0,
             ];
         }
     }
