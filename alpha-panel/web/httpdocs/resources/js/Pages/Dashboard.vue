@@ -103,6 +103,13 @@
                                     <p class="text-xs text-gray-500 dark:text-gray-400">
                                         {{ stats.subdomains }} {{ t('subdomains') }}
                                     </p>
+                                    <Link
+                                        :href="route('domains.index')"
+                                        class="inline-flex items-center gap-1 text-xs font-medium text-brand-500 hover:text-brand-600"
+                                    >
+                                        {{ t('View all') }}
+                                        <i class="bx bx-right-arrow-alt text-sm"></i>
+                                    </Link>
                                 </div>
                             </div>
                         </div>
