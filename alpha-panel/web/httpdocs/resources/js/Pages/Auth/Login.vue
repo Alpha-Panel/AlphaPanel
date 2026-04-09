@@ -280,7 +280,7 @@ const normalizeRequestOptions = (
       allowCredentials: options.allowCredentials?.map((credential) => ({
         ...credential,
         id: base64UrlToArrayBuffer(credential.id),
-      })),
+      } as PublicKeyCredentialDescriptor)),
     };
 };
 

@@ -2,10 +2,14 @@
 
 import type { route as ziggyRoute } from 'ziggy-js';
 import type { router as inertiaRouter } from '@inertiajs/vue3';
+import type { Directive } from 'vue';
 
 declare module 'vue' {
     interface ComponentCustomProperties {
         route: typeof ziggyRoute;
+    }
+    interface GlobalDirectives {
+        vTooltip: Directive<HTMLElement, string>;
     }
 }
 

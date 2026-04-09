@@ -85,7 +85,7 @@ const { addToast } = useToast();
 
 const title = computed(() => {
     if (props.frankenphp) return t('FrankenPHP Settings');
-    return t('PHP :version Settings', { version: props.phpVersion?.slug });
+    return t('PHP :version Settings', { version: props.phpVersion?.slug ?? '' });
 });
 
 const getRoute = computed(() => {

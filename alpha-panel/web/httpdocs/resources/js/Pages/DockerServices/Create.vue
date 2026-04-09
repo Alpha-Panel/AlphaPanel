@@ -839,7 +839,7 @@ const fetchPopularImages = async (): Promise<void> => {
     }
 };
 
-const selectImage = (image: { name: string; description?: string }): void => {
+const selectImage = (image: { name: string; description?: string; [key: string]: unknown }): void => {
     form.image = image.name;
     selectedImageData.value = {
         name: image.name,

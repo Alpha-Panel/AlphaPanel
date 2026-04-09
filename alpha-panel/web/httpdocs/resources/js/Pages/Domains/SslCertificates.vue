@@ -72,7 +72,7 @@
                                         {{ t('Expired') }}
                                     </template>
                                     <template v-else-if="activeCert.is_expiring_soon">
-                                        {{ t('Expires in :days days', { days: activeCert.days_until_expiry }) }}
+                                        {{ t('Expires in :days days', { days: activeCert.days_until_expiry ?? 0 }) }}
                                     </template>
                                     <template v-else>
                                         {{ t('Expires :date', { date: formatDateTime(activeCert.not_after) }) }}
@@ -855,6 +855,7 @@ interface Certificate {
     is_expiring_soon: boolean;
     days_until_expiry: number | null;
     has_certificate: boolean;
+    inherited_from_fqdn: string | null;
     created_at: string;
 }
 

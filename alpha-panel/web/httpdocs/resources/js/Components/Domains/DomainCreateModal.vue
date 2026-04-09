@@ -394,7 +394,7 @@ const submit = (): void => {
         if (domainId) {
             window.location.href = route('domains.show', domainId);
         } else {
-            router.reload({ preserveScroll: true });
+            router.reload();
         }
     }).catch((error: any) => {
         const errors = error?.response?.data?.errors;
@@ -403,11 +403,8 @@ const submit = (): void => {
         }
 
         for (const [field, messages] of Object.entries(errors)) {
-            if (Array.isArray(messages)) {
-                form.setError(field, String(messages[0] ?? ''));
-            } else {
-                form.setError(field, String(messages ?? ''));
-            }
+            const msg = Array.isArray(messages) ? String(messages[0] ?? '') : String(messages ?? '');
+            form.setError(field as keyof typeof form.errors, msg);
         }
     }).finally(() => {
         form.processing = false;

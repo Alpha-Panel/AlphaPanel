@@ -1043,7 +1043,7 @@ const applyCloudflareStatusPayload = (payload: Record<string, any>): void => {
     cloudflareZoneSummary.value = {
         exists: Boolean(zone.exists),
         zone_name: typeof zone.zone_name === 'string' ? zone.zone_name : null,
-        name_servers: Array.isArray(zone.name_servers) ? zone.name_servers.map((nameServer) => String(nameServer)) : [],
+        name_servers: Array.isArray(zone.name_servers) ? zone.name_servers.map((nameServer: unknown) => String(nameServer)) : [],
     };
 
     if (typeof payload.cloudflare_enabled === 'boolean') {

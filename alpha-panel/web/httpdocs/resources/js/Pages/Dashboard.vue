@@ -327,7 +327,7 @@
                                     <div ref="cpuSparklineRef" class="min-h-15"></div>
                                 </div>
 
-                                <div class="mt-2 flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-1.5 text-xs text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
+                                <div class="mt-2 flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
                                     <span>
                                         <i class="bx bx-time-five mr-1"></i>
                                         {{ t('Uptime') }}: {{ formatUptime(hostMetrics?.uptime_seconds ?? 0) }}
@@ -1436,8 +1436,7 @@ const refreshDashboard = async (): Promise<void> => {
 };
 
 const performDockerAction = async (action: DockerAction, container: DockerContainer): Promise<void> => {
-    const key = dockerActionKey(action, container.id);
-    dockerActionLoading.value = key;
+  dockerActionLoading.value = dockerActionKey(action, container.id);
 
     try {
         const response = await axios.post<DockerActionResponse>(route('dashboard.docker.action'), {

@@ -776,12 +776,12 @@ const switchToLocal = async () => {
             dns_provider: 'local',
             import_records: importRecordsOnSwitch.value,
         });
-        addToast({ type: 'success', message: response.data.message });
+        addToast('success', response.data.message);
         currentProvider.value = 'local';
         showSwitchModal.value = false;
         void fetchRecords();
     } catch (e: any) {
-        addToast({ type: 'error', message: e.response?.data?.message ?? t('Failed to switch DNS provider.') });
+        addToast('error', e.response?.data?.message ?? t('Failed to switch DNS provider.'));
     } finally {
         switchLoading.value = false;
     }
@@ -794,11 +794,11 @@ const switchToCloudflare = async () => {
             dns_provider: 'cloudflare',
             import_records: false,
         });
-        addToast({ type: 'success', message: response.data.message });
+        addToast('success', response.data.message);
         currentProvider.value = 'cloudflare';
         void fetchRecords();
     } catch (e: any) {
-        addToast({ type: 'error', message: e.response?.data?.message ?? t('Failed to switch DNS provider.') });
+        addToast('error', e.response?.data?.message ?? t('Failed to switch DNS provider.'));
     } finally {
         switchLoading.value = false;
     }

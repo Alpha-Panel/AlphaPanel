@@ -36,6 +36,7 @@ export interface SharedProps {
     rtl_locales?: string[];
     translations?: Record<string, string>;
     vapid_public_key?: string;
+    [key: string]: unknown;
 }
 
 export interface Domain {
