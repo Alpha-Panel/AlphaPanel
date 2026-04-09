@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
@@ -17,9 +18,13 @@ class BackupProgress implements ShouldBroadcast
         public int $percent,
         public string $message,
         public string $status = 'uploading',
+        public string $currentFileName = '',
+        public int $currentFilePercent = 0,
+        public int $itemsDone = 0,
+        public int $itemsTotal = 0,
     ) {}
 
-    /** @return array<int, \Illuminate\Broadcasting\Channel> */
+    /** @return array<int, Channel> */
     public function broadcastOn(): array
     {
         return [
@@ -35,6 +40,10 @@ class BackupProgress implements ShouldBroadcast
             'percent' => $this->percent,
             'message' => $this->message,
             'status' => $this->status,
+            'current_file_name' => $this->currentFileName,
+            'current_file_percent' => $this->currentFilePercent,
+            'items_done' => $this->itemsDone,
+            'items_total' => $this->itemsTotal,
         ];
     }
 }

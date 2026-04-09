@@ -12,24 +12,45 @@
                     class="mb-6 rounded-2xl border border-brand-200 bg-brand-50 p-5 dark:border-brand-500/30 dark:bg-brand-500/10"
                 >
                     <div class="flex items-center gap-3">
-                        <div class="h-8 w-8 animate-spin rounded-full border-4 border-brand-200 border-t-brand-500"></div>
-                        <div class="flex-1">
-                            <div class="flex items-center justify-between">
-                                <p class="text-sm font-medium text-brand-800 dark:text-brand-200">
-                                    {{ backupProgress.message || t('Uploading backup...') }}
-                                </p>
-                                <span class="text-sm font-semibold text-brand-700 dark:text-brand-300">
-                                    {{ backupProgress.percent }}%
-                                </span>
+                        <div class="h-8 w-8 shrink-0 animate-spin rounded-full border-4 border-brand-200 border-t-brand-500"></div>
+                        <div class="flex-1 space-y-3">
+                            <!-- Per-file progress -->
+                            <div>
+                                <div class="flex items-center justify-between">
+                                    <p class="truncate text-sm font-medium text-brand-800 dark:text-brand-200">
+                                        {{ backupProgress.message || t('Uploading backup...') }}
+                                    </p>
+                                    <span v-if="backupProgress.currentFileName" class="ml-2 shrink-0 text-sm font-semibold text-brand-700 dark:text-brand-300">
+                                        {{ backupProgress.currentFilePercent }}%
+                                    </span>
+                                </div>
+                                <div class="mt-1.5 h-2 overflow-hidden rounded-full bg-brand-200 dark:bg-brand-800">
+                                    <div
+                                        class="h-full rounded-full bg-brand-500 transition-all duration-300"
+                                        :style="{ width: (backupProgress.currentFileName ? backupProgress.currentFilePercent : backupProgress.percent) + '%' }"
+                                    ></div>
+                                </div>
                             </div>
-                            <div class="mt-2 h-2 overflow-hidden rounded-full bg-brand-200 dark:bg-brand-800">
-                                <div
-                                    class="h-full rounded-full bg-brand-500 transition-all duration-300"
-                                    :style="{ width: backupProgress.percent + '%' }"
-                                ></div>
+
+                            <!-- Overall progress -->
+                            <div v-if="backupProgress.itemsTotal > 0">
+                                <div class="flex items-center justify-between">
+                                    <p class="text-xs font-medium text-brand-600 dark:text-brand-400">
+                                        {{ t(':done / :total items', { done: backupProgress.itemsDone, total: backupProgress.itemsTotal }) }}
+                                    </p>
+                                    <span class="text-xs font-semibold text-brand-600 dark:text-brand-400">
+                                        {{ backupProgress.percent }}%
+                                    </span>
+                                </div>
+                                <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-brand-100 dark:bg-brand-900">
+                                    <div
+                                        class="h-full rounded-full bg-brand-400 transition-all duration-500"
+                                        :style="{ width: backupProgress.percent + '%' }"
+                                    ></div>
+                                </div>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex shrink-0 items-center gap-2">
                             <button
                                 @click="cancelBackup"
                                 :disabled="backupCancelProcessing"
@@ -903,6 +924,10 @@ const backupProgress = ref({
     percent: props.dashboard.active_backup?.progress_percent ?? 0,
     message: '',
     runId: props.dashboard.active_backup?.id ?? null as number | null,
+    currentFileName: '',
+    currentFilePercent: 0,
+    itemsDone: 0,
+    itemsTotal: 0,
 });
 const backupCancelProcessing = ref(false);
 const backupRestartProcessing = ref(false);
@@ -1469,10 +1494,18 @@ onMounted(async () => {
                 backupProgress.value.percent = e.percent;
                 backupProgress.value.message = e.message;
                 backupProgress.value.runId = e.backup_run_id;
+                backupProgress.value.currentFileName = e.current_file_name || '';
+                backupProgress.value.currentFilePercent = e.current_file_percent || 0;
+                backupProgress.value.itemsDone = e.items_done || 0;
+                backupProgress.value.itemsTotal = e.items_total || 0;
 
                 if (e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled') {
                     setTimeout(() => {
                         backupProgress.value.active = false;
+                        backupProgress.value.currentFileName = '';
+                        backupProgress.value.currentFilePercent = 0;
+                        backupProgress.value.itemsDone = 0;
+                        backupProgress.value.itemsTotal = 0;
                     }, 2000);
                 }
             });
