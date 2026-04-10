@@ -29,7 +29,14 @@ try {
     $backupSettings = BackupSetting::instance();
 
     if ($backupSettings->is_enabled && $backupSettings->isConnected() && $backupSettings->drive_folder_id) {
-        Schedule::job(new BackupUploadJob(type: 'scheduled'))
+        Schedule::call(function () {
+            $run = \App\Models\BackupRun::create([
+                'type' => 'scheduled',
+                'status' => 'running',
+                'started_at' => now(),
+            ]);
+            BackupUploadJob::dispatch(backupRunId: $run->id);
+        })
             ->cron($backupSettings->getCronExpression())
             ->name('backup:scheduled')
             ->withoutOverlapping(120)
