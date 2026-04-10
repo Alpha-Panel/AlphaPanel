@@ -41,6 +41,11 @@
                     </div>
 
                     <div class="space-y-5">
+                        <!-- CAPTCHA Widget (v2/Turnstile visible, v3 invisible) -->
+                        <div v-if="props.captcha">
+                            <div v-if="!isRecaptchaV3" ref="captchaWidgetRef" class="flex justify-center"></div>
+                        </div>
+
                         <div
                             v-if="totp"
                             class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/3"
@@ -77,11 +82,6 @@
                             <i class="fa-solid fa-fingerprint text-base"></i>
                             {{ loading ? t('Waiting for device...') : t('Verify With Device') }}
                         </button>
-
-                        <!-- CAPTCHA Widget (v2/Turnstile visible, v3 invisible) -->
-                        <div v-if="props.captcha">
-                            <div v-if="!isRecaptchaV3" ref="captchaWidgetRef" class="flex justify-center"></div>
-                        </div>
 
                         <p v-if="errorMessage" class="text-sm text-error-500">
                             {{ errorMessage }}
