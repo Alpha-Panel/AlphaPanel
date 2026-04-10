@@ -78,6 +78,11 @@
                             {{ loading ? t('Waiting for device...') : t('Verify With Device') }}
                         </button>
 
+                        <!-- CAPTCHA Widget (v2/Turnstile visible, v3 invisible) -->
+                        <div v-if="props.captcha">
+                            <div v-if="!isRecaptchaV3" ref="captchaWidgetRef" class="flex justify-center"></div>
+                        </div>
+
                         <p v-if="errorMessage" class="text-sm text-error-500">
                             {{ errorMessage }}
                         </p>
@@ -97,13 +102,34 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import axios from 'axios';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
 import FullScreenLayout from '@/Components/Layout/FullScreenLayout.vue';
 import { useI18n } from '@/Composables/useI18n';
 import type { SharedProps } from '@/types/inertia';
+
+declare global {
+    interface Window {
+        turnstile?: {
+            render: (element: HTMLElement, options: Record<string, any>) => string;
+            reset: (widgetId?: string) => void;
+        };
+        grecaptcha?: {
+            render: (element: HTMLElement, options: Record<string, any>) => number;
+            reset: (widgetId?: number) => void;
+            ready: (callback: () => void) => void;
+            execute: (siteKey: string, options: Record<string, any>) => Promise<string>;
+        };
+    }
+}
+
+interface CaptchaConfig {
+    provider: 'turnstile' | 'recaptcha';
+    site_key: string;
+    recaptcha_version?: 'v2' | 'v3';
+}
 
 type PublicKeyCredentialRequestOptionsPayload = {
     [key: string]: any;
@@ -120,11 +146,111 @@ const props = defineProps<{
     name: string;
     email: string;
     gravatar_url: string;
+    captcha?: CaptchaConfig | null;
 }>();
 
 const code = ref('');
 const loading = ref(false);
 const errorMessage = ref('');
+const captchaToken = ref<string>('');
+const captchaWidgetRef = ref<HTMLDivElement | null>(null);
+const captchaScriptLoaded = ref(false);
+
+const isRecaptchaV3 = computed(() =>
+    props.captcha?.provider === 'recaptcha' && props.captcha?.recaptcha_version === 'v3',
+);
+
+const loadCaptchaScript = (): void => {
+    if (!props.captcha || captchaScriptLoaded.value) {
+        return;
+    }
+
+    let src: string;
+
+    if (props.captcha.provider === 'turnstile') {
+        src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    } else if (isRecaptchaV3.value) {
+        src = `https://www.google.com/recaptcha/api.js?render=${props.captcha.site_key}`;
+    } else {
+        src = 'https://www.google.com/recaptcha/api.js?render=explicit';
+    }
+
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+        captchaScriptLoaded.value = true;
+    };
+    document.head.appendChild(script);
+};
+
+const renderCaptchaWidget = (): void => {
+    if (!captchaWidgetRef.value || !props.captcha || isRecaptchaV3.value) {
+        return;
+    }
+
+    captchaWidgetRef.value.innerHTML = '';
+
+    if (props.captcha.provider === 'turnstile' && window.turnstile) {
+        window.turnstile.render(captchaWidgetRef.value, {
+            sitekey: props.captcha.site_key,
+            callback: (token: string) => { captchaToken.value = token; },
+            'expired-callback': () => { captchaToken.value = ''; },
+        });
+    } else if (props.captcha.provider === 'recaptcha' && window.grecaptcha) {
+        window.grecaptcha.render(captchaWidgetRef.value, {
+            sitekey: props.captcha.site_key,
+            callback: (token: string) => { captchaToken.value = token; },
+            'expired-callback': () => { captchaToken.value = ''; },
+        });
+    }
+};
+
+const executeRecaptchaV3 = async (): Promise<string> => {
+    if (!window.grecaptcha || !props.captcha) {
+        return '';
+    }
+
+    return new Promise((resolve) => {
+        window.grecaptcha!.ready(() => {
+            window.grecaptcha!.execute(props.captcha!.site_key, { action: 'login' })
+                .then(resolve)
+                .catch(() => resolve(''));
+        });
+    });
+};
+
+const ensureCaptchaToken = async (): Promise<boolean> => {
+    if (!props.captcha) {
+        return true;
+    }
+
+    if (isRecaptchaV3.value) {
+        captchaToken.value = await executeRecaptchaV3();
+    }
+
+    if (!captchaToken.value) {
+        errorMessage.value = t('Please complete the captcha verification first.');
+
+        return false;
+    }
+
+    return true;
+};
+
+onMounted(() => {
+    if (props.captcha) {
+        loadCaptchaScript();
+    }
+});
+
+watch(captchaScriptLoaded, async (loaded) => {
+    if (loaded && !isRecaptchaV3.value) {
+        await nextTick();
+        renderCaptchaWidget();
+    }
+});
 const { t } = useI18n();
 const page = usePage<SharedProps>();
 const locale = computed(() => page.props.locale ?? 'en');
@@ -236,17 +362,35 @@ const verifyCode = async () => {
         return;
     }
 
-    loading.value = true;
     errorMessage.value = '';
 
+    if (! await ensureCaptchaToken()) {
+        return;
+    }
+
+    loading.value = true;
+
     try {
-        await axios.post(route('two-factor.verify'), {
+        const response = await axios.post(route('two-factor.verify'), {
             code: code.value,
+            captcha_token: captchaToken.value,
         });
+
+        if (response.data?.status === 'error') {
+            errorMessage.value = response.data?.message ?? t('Invalid authentication code.');
+
+            return;
+        }
 
         router.visit(route('home'));
     } catch (error: any) {
         errorMessage.value = error?.response?.data?.message ?? t('Invalid authentication code.');
+
+        // Reset captcha widget on error so user can retry
+        if (props.captcha && !isRecaptchaV3.value) {
+            captchaToken.value = '';
+            renderCaptchaWidget();
+        }
     } finally {
         loading.value = false;
     }
@@ -259,12 +403,18 @@ const verifyDevice = async () => {
         return;
     }
 
-    loading.value = true;
     errorMessage.value = '';
+
+    if (! await ensureCaptchaToken()) {
+        return;
+    }
+
+    loading.value = true;
 
     try {
         const optionsResponse = await axios.post(route('webauthn.login.options'), {
             email: props.email,
+            captcha_token: captchaToken.value,
         });
 
         const publicKey = normalizeRequestOptions(optionsResponse.data as PublicKeyCredentialRequestOptionsPayload);
@@ -276,7 +426,10 @@ const verifyDevice = async () => {
             throw new Error(t('Authentication was cancelled.'));
         }
 
-        const payload = serializeCredential(credential as PublicKeyCredential);
+        const payload = {
+            ...serializeCredential(credential as PublicKeyCredential),
+            captcha_token: captchaToken.value,
+        };
         await axios.post(route('webauthn.login'), payload);
 
         router.visit(route('home'));
@@ -285,6 +438,12 @@ const verifyDevice = async () => {
             errorMessage.value = t('Device verification was cancelled or timed out.');
         } else {
             errorMessage.value = t('Device verification failed.');
+        }
+
+        // Reset captcha widget on error so user can retry
+        if (props.captcha && !isRecaptchaV3.value) {
+            captchaToken.value = '';
+            renderCaptchaWidget();
         }
     } finally {
         loading.value = false;

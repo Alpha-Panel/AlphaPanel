@@ -87,10 +87,10 @@ Route::post('login/methods', [LoginController::class, 'methods'])
 |--------------------------------------------------------------------------
 */
 Route::post('webauthn/login/options', [WebAuthnLoginController::class, 'options'])
-    ->middleware('throttle:webauthn')
+    ->middleware(['throttle:webauthn', \App\Http\Middleware\CheckLoginIp::class])
     ->name('webauthn.login.options');
 Route::post('webauthn/login', [WebAuthnLoginController::class, 'login'])
-    ->middleware('throttle:webauthn')
+    ->middleware(['throttle:webauthn', \App\Http\Middleware\CheckLoginIp::class])
     ->name('webauthn.login');
 
 Route::middleware('auth')->group(function (): void {

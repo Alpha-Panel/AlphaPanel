@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\SecuritySetting;
 use App\Models\WebAuthn;
+use App\Services\LoginSecurityService;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
@@ -23,6 +25,22 @@ class TwoFactorAuthController extends Controller
             return redirect()->route('home');
         }
 
+        $settings = SecuritySetting::instance();
+        $captcha = null;
+
+        if ($settings->isCaptchaEnabled()) {
+            $captcha = [
+                'provider' => $settings->captcha_provider,
+                'site_key' => $settings->captcha_provider === 'turnstile'
+                    ? $settings->turnstile_site_key
+                    : $settings->recaptcha_site_key,
+            ];
+
+            if ($settings->captcha_provider === 'recaptcha') {
+                $captcha['recaptcha_version'] = $settings->recaptcha_version ?? 'v2';
+            }
+        }
+
         return Inertia::render('Auth/OtpChallenge', [
             'webauthn' => WebAuthn::query()
                 ->where('authenticatable_id', $user->id)
@@ -34,6 +52,7 @@ class TwoFactorAuthController extends Controller
                 'https://www.gravatar.com/avatar/%s?d=https://www.gravatar.com/avatar&s=120',
                 md5(strtolower(trim((string) $user->email))),
             ),
+            'captcha' => $captcha,
         ]);
     }
 
@@ -54,6 +73,28 @@ class TwoFactorAuthController extends Controller
 
     public function verify(Request $request): JsonResponse
     {
+        $settings = SecuritySetting::instance();
+
+        if ($settings->isCaptchaEnabled()) {
+            $token = (string) $request->input('captcha_token', '');
+
+            if ($token === '') {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => __('Captcha verification failed. Please try again.'),
+                ], 422);
+            }
+
+            $service = app(LoginSecurityService::class);
+
+            if (! $service->verifyCaptcha($token, $request->ip())) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => __('Captcha verification failed. Please try again.'),
+                ], 422);
+            }
+        }
+
         $confirmed = $this->confirm_verify($request);
         if (! $confirmed) {
             return response()->json(['status' => 'error', 'message' => 'Invalid Two Factor Authentication code']);

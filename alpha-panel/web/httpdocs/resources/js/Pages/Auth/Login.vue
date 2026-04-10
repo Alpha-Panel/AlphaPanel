@@ -129,7 +129,7 @@
                             </div>
 
                             <!-- CAPTCHA Widget (v2/Turnstile visible, v3 invisible) -->
-                            <div v-if="captcha && stage === 'password'">
+                            <div v-if="captcha">
                                 <div v-if="!isRecaptchaV3" ref="captchaWidgetRef" class="flex justify-center"></div>
                                 <p v-if="form.errors.captcha_token" class="mt-1 text-center text-sm text-error-500">
                                     {{ form.errors.captcha_token }}
@@ -369,16 +369,16 @@ const executeRecaptchaV3 = async (): Promise<string> => {
     });
 };
 
-// Eagerly load captcha script on mount so it's ready when user reaches password stage
+// Eagerly load captcha script on mount so it's ready for all auth paths
 onMounted(() => {
     if (props.captcha) {
         loadCaptchaScript();
     }
 });
 
-// Watch for both stage and script loaded state - render widget when both ready
-watch([stage, captchaScriptLoaded], async ([newStage, scriptLoaded]) => {
-    if (newStage === 'password' && scriptLoaded && !isRecaptchaV3.value) {
+// Render widget as soon as script is loaded (widget is always visible for all auth flows)
+watch(captchaScriptLoaded, async (loaded) => {
+    if (loaded && !isRecaptchaV3.value) {
         await nextTick();
         renderCaptchaWidget();
     }
@@ -484,11 +484,25 @@ const loginWithDevice = async (email: string) => {
         return;
     }
 
+    // When captcha is required, ensure we have a token before proceeding
+    if (props.captcha) {
+        if (isRecaptchaV3.value) {
+            captchaToken.value = await executeRecaptchaV3();
+        }
+
+        if (!captchaToken.value) {
+            form.setError('login', t('Please complete the captcha verification first.'));
+
+            return;
+        }
+    }
+
     webauthnLoading.value = true;
 
     try {
         const optionsResponse = await axios.post(route('webauthn.login.options'), {
             email,
+            captcha_token: captchaToken.value,
         });
 
         const publicKey = normalizeRequestOptions(optionsResponse.data as PublicKeyCredentialRequestOptionsPayload);
@@ -500,7 +514,10 @@ const loginWithDevice = async (email: string) => {
             throw new Error(t('Authentication was cancelled.'));
         }
 
-        const payload = serializeCredential(credential as PublicKeyCredential);
+        const payload = {
+            ...serializeCredential(credential as PublicKeyCredential),
+            captcha_token: captchaToken.value,
+        };
         await axios.post(route('webauthn.login'), payload);
 
         router.visit(route('home'));

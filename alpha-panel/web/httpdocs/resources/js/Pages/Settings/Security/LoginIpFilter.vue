@@ -219,7 +219,7 @@ const modeOptions = [
 const updateMode = (newMode: 'off' | 'whitelist' | 'blacklist'): void => {
     currentMode.value = newMode;
     router.put(route('settings.security.login-ip-filter.update-mode'), {
-        mode: newMode,
+        ip_filter_mode: newMode,
     }, {
         preserveScroll: true,
     });

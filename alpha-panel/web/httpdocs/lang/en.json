@@ -1077,6 +1077,7 @@
     "Permissions": "Permissions",
     "Permissions changed": "Permissions changed",
     "Perms": "Perms",
+    "Please complete the captcha verification first.": "Please complete the captcha verification first.",
     "Please enter a valid IPv4 address or CIDR notation (e.g. 192.168.1.0/24).": "Please enter a valid IPv4 address or CIDR notation (e.g. 192.168.1.0/24).",
     "Please enter a valid authentication code.": "Please enter a valid authentication code.",
     "Please select a domain when targeting domain owners.": "Please select a domain when targeting domain owners.",
