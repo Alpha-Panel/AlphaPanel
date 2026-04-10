@@ -565,5 +565,6 @@ Route::middleware('auth')->group(function (): void {
     Route::middleware('permission:panel.alert-settings.manage')->prefix('settings/alerts')->name('settings.alerts.')->group(function (): void {
         Route::get('/', [\App\Http\Controllers\AlertSettingController::class, 'index'])->name('index');
         Route::put('/', [\App\Http\Controllers\AlertSettingController::class, 'update'])->name('update');
+        Route::post('/run-check', [\App\Http\Controllers\AlertSettingController::class, 'runCheck'])->name('run-check');
     });
 });

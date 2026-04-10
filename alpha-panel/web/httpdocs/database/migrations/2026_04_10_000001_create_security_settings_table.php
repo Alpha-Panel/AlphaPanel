@@ -14,6 +14,7 @@ return new class extends Migration
             $table->string('captcha_provider', 20)->default('none');
             $table->text('turnstile_site_key')->nullable();
             $table->text('turnstile_secret_key')->nullable();
+            $table->string('recaptcha_version', 5)->default('v2'); // v2 or v3
             $table->text('recaptcha_site_key')->nullable();
             $table->text('recaptcha_secret_key')->nullable();
             $table->boolean('honeypot_enabled')->default(true);

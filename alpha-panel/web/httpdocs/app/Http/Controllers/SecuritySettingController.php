@@ -18,6 +18,7 @@ class SecuritySettingController extends Controller
             'settings' => [
                 'captcha_provider' => $settings->captcha_provider,
                 'turnstile_site_key' => $settings->turnstile_site_key ?? '',
+                'recaptcha_version' => $settings->recaptcha_version ?? 'v2',
                 'recaptcha_site_key' => $settings->recaptcha_site_key ?? '',
                 'honeypot_enabled' => $settings->honeypot_enabled,
                 'has_turnstile_secret' => filled($settings->turnstile_secret_key),
@@ -45,6 +46,7 @@ class SecuritySettingController extends Controller
             $data['recaptcha_site_key'] = null;
             $data['recaptcha_secret_key'] = null;
         } elseif ($validated['captcha_provider'] === 'recaptcha') {
+            $data['recaptcha_version'] = $validated['recaptcha_version'];
             $data['recaptcha_site_key'] = $validated['recaptcha_site_key'];
             if (filled($validated['recaptcha_secret_key'] ?? null)) {
                 $data['recaptcha_secret_key'] = $validated['recaptcha_secret_key'];

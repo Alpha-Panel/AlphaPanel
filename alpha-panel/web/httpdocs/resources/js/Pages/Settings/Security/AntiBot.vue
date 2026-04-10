@@ -82,12 +82,44 @@
                             </div>
                         </div>
 
-                        <!-- reCAPTCHA Keys -->
+                        <!-- reCAPTCHA Settings -->
                         <div v-if="form.captcha_provider === 'recaptcha'" class="border-t border-gray-200 pt-5 dark:border-gray-800">
                             <h4 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-white/90">
                                 <i class="fa-solid fa-shield-halved text-base text-brand-500"></i>
-                                {{ t('Google reCAPTCHA Keys') }}
+                                {{ t('Google reCAPTCHA') }}
                             </h4>
+
+                            <!-- Version Selection -->
+                            <div class="mb-4">
+                                <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">{{ t('reCAPTCHA Version') }}</label>
+                                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    <label
+                                        v-for="ver in recaptchaVersionOptions"
+                                        :key="ver.value"
+                                        class="relative flex cursor-pointer items-start gap-3 rounded-xl border-2 p-3 transition-all duration-200"
+                                        :class="[
+                                            form.recaptcha_version === ver.value
+                                                ? 'border-brand-500 bg-brand-50/50 dark:border-brand-400 dark:bg-brand-500/5'
+                                                : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600',
+                                        ]"
+                                    >
+                                        <input
+                                            v-model="form.recaptcha_version"
+                                            type="radio"
+                                            name="recaptcha_version"
+                                            :value="ver.value"
+                                            class="mt-0.5 h-4 w-4 border-gray-300 text-brand-500 focus:ring-brand-500 dark:border-gray-600"
+                                        />
+                                        <div class="flex-1">
+                                            <span class="text-sm font-medium text-gray-800 dark:text-white/90">{{ ver.label }}</span>
+                                            <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ t(ver.description) }}</p>
+                                        </div>
+                                    </label>
+                                </div>
+                                <p v-if="form.errors.recaptcha_version" class="mt-1.5 text-sm text-error-500">{{ form.errors.recaptcha_version }}</p>
+                            </div>
+
+                            <!-- Keys -->
                             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <FormField :label="t('Site Key')" :error="form.errors.recaptcha_site_key" required>
                                     <input
@@ -110,31 +142,49 @@
                                     </p>
                                 </FormField>
                             </div>
+
+                            <div v-if="form.recaptcha_version === 'v3'" class="mt-3 rounded-lg border border-blue-200 bg-blue-50/50 px-3 py-2 text-xs text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+                                <i class="fa-solid fa-circle-info mr-1"></i>
+                                {{ t('reCAPTCHA v3 works invisibly in the background. Users will not see a checkbox.') }}
+                            </div>
                         </div>
 
                         <!-- Honeypot -->
                         <div class="border-t border-gray-200 pt-5 dark:border-gray-800">
                             <h4 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-white/90">
-                                <i class="fa-solid fa-honey-pot text-base text-brand-500"></i>
+                                <i class="fa-solid fa-jar text-base text-brand-500"></i>
                                 {{ t('Honeypot') }}
                             </h4>
-                            <FormField :label="t('Honeypot Protection')" :error="form.errors.honeypot_enabled">
-                                <label class="inline-flex items-center gap-3 cursor-pointer">
-                                    <span class="relative">
-                                        <input
-                                            v-model="form.honeypot_enabled"
-                                            type="checkbox"
-                                            class="sr-only peer"
-                                        />
-                                        <span class="block h-6 w-11 rounded-full bg-gray-300 transition-colors peer-checked:bg-brand-500 peer-focus:ring-3 peer-focus:ring-brand-500/10 dark:bg-gray-600"></span>
-                                        <span class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+                            <div class="rounded-xl border-2 p-4 transition-all duration-200" :class="form.honeypot_enabled ? 'border-success-500/30 bg-success-50/50 dark:border-success-500/20 dark:bg-success-500/5' : 'border-gray-200 dark:border-gray-700'">
+                                <label class="flex items-center justify-between cursor-pointer">
+                                    <div class="flex items-center gap-3">
+                                        <span class="relative">
+                                            <input
+                                                v-model="form.honeypot_enabled"
+                                                type="checkbox"
+                                                class="sr-only peer"
+                                            />
+                                            <span class="block h-6 w-11 rounded-full bg-gray-300 transition-colors peer-checked:bg-success-500 peer-focus:ring-3 peer-focus:ring-success-500/10 dark:bg-gray-600"></span>
+                                            <span class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+                                        </span>
+                                        <div>
+                                            <span class="text-sm font-medium text-gray-800 dark:text-white/90">{{ t('Honeypot Protection') }}</span>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                                {{ t('Adds hidden form fields to detect and block automated bots') }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <span
+                                        class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+                                        :class="form.honeypot_enabled
+                                            ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400'
+                                            : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'"
+                                    >
+                                        {{ form.honeypot_enabled ? t('Active') : t('Inactive') }}
                                     </span>
-                                    <span class="text-sm text-gray-700 dark:text-gray-300">{{ t('Enable Honeypot Protection') }}</span>
                                 </label>
-                                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                                    {{ t('Adds hidden form fields to detect and block automated bots') }}
-                                </p>
-                            </FormField>
+                            </div>
+                            <p v-if="form.errors.honeypot_enabled" class="mt-1.5 text-sm text-error-500">{{ form.errors.honeypot_enabled }}</p>
                         </div>
 
                         <div class="flex items-center gap-3 border-t border-gray-200 pt-5 dark:border-gray-800">
@@ -169,6 +219,7 @@ interface Props {
     settings: {
         captcha_provider: 'none' | 'turnstile' | 'recaptcha';
         turnstile_site_key: string;
+        recaptcha_version: 'v2' | 'v3';
         recaptcha_site_key: string;
         honeypot_enabled: boolean;
         has_turnstile_secret: boolean;
@@ -207,11 +258,25 @@ const captchaOptions = [
     },
 ] as const;
 
+const recaptchaVersionOptions = [
+    {
+        value: 'v2',
+        label: 'reCAPTCHA v2',
+        description: 'Checkbox verification - users click "I\'m not a robot"',
+    },
+    {
+        value: 'v3',
+        label: 'reCAPTCHA v3',
+        description: 'Invisible score-based verification - no user interaction needed',
+    },
+] as const;
+
 const form = useForm({
     _method: 'PUT' as const,
     captcha_provider: props.settings.captcha_provider,
     turnstile_site_key: props.settings.turnstile_site_key,
     turnstile_secret_key: '',
+    recaptcha_version: props.settings.recaptcha_version ?? 'v2',
     recaptcha_site_key: props.settings.recaptcha_site_key,
     recaptcha_secret_key: '',
     honeypot_enabled: props.settings.honeypot_enabled,

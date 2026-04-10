@@ -132,8 +132,8 @@
                                 </div>
                             </div>
 
-                            <!-- Save Button -->
-                            <div class="flex items-center gap-3 border-t border-gray-200 pt-5 dark:border-gray-800">
+                            <!-- Save & Run Now Buttons -->
+                            <div class="flex flex-wrap items-center gap-3 border-t border-gray-200 pt-5 dark:border-gray-800">
                                 <button
                                     type="submit"
                                     :disabled="form.processing"
@@ -141,6 +141,18 @@
                                 >
                                     <i v-if="form.processing" class="fa-solid fa-spinner animate-spin text-base"></i>
                                     {{ form.processing ? t('Saving...') : t('Save Settings') }}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    :disabled="runCheckForm.processing || !form.enabled"
+                                    @click="runHealthCheck"
+                                    class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+                                    :title="!form.enabled ? t('Enable monitoring first') : ''"
+                                >
+                                    <i v-if="runCheckForm.processing" class="fa-solid fa-spinner animate-spin text-base"></i>
+                                    <i v-else class="fa-solid fa-play text-base"></i>
+                                    {{ runCheckForm.processing ? t('Running...') : t('Run Check Now') }}
                                 </button>
                             </div>
                         </form>
@@ -306,8 +318,16 @@ const form = useForm({
     cooldown_minutes: props.settings.cooldown_minutes,
 });
 
+const runCheckForm = useForm({});
+
 const submit = (): void => {
     form.post(route('settings.alerts.update'), {
+        preserveScroll: true,
+    });
+};
+
+const runHealthCheck = (): void => {
+    runCheckForm.post(route('settings.alerts.run-check'), {
         preserveScroll: true,
     });
 };

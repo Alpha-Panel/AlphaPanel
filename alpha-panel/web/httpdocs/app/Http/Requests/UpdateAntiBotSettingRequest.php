@@ -21,6 +21,7 @@ class UpdateAntiBotSettingRequest extends FormRequest
             'captcha_provider' => ['required', 'string', Rule::in(['none', 'turnstile', 'recaptcha'])],
             'turnstile_site_key' => ['nullable', 'string', 'max:500', 'required_if:captcha_provider,turnstile'],
             'turnstile_secret_key' => ['nullable', 'string', 'max:500'],
+            'recaptcha_version' => ['nullable', 'string', Rule::in(['v2', 'v3']), 'required_if:captcha_provider,recaptcha'],
             'recaptcha_site_key' => ['nullable', 'string', 'max:500', 'required_if:captcha_provider,recaptcha'],
             'recaptcha_secret_key' => ['nullable', 'string', 'max:500'],
             'honeypot_enabled' => ['required', 'boolean'],

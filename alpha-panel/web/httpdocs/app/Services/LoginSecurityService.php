@@ -68,23 +68,42 @@ class LoginSecurityService
             'remoteip' => $ip,
         ]);
 
-        return $response->successful() && $response->json('success') === true;
+        if (! $response->successful() || $response->json('success') !== true) {
+            return false;
+        }
+
+        // reCAPTCHA v3 returns a score (0.0 - 1.0); require >= 0.5
+        if (($settings->recaptcha_version ?? 'v2') === 'v3') {
+            return ($response->json('score', 0) >= 0.5)
+                && $response->json('action') === 'login';
+        }
+
+        return true;
     }
 
     /**
-     * Check if an IP matches any of the given rules (supports CIDR notation).
+     * Check if an IP matches any of the given rules (supports IPv4/IPv6 and CIDR notation).
      *
      * @param  list<string>  $rules
      */
     private function ipMatchesAnyRule(string $ip, array $rules): bool
     {
+        $ipPacked = @inet_pton($ip);
+
+        if ($ipPacked === false) {
+            return false;
+        }
+
         foreach ($rules as $rule) {
             if (str_contains($rule, '/')) {
-                if ($this->ipInCidr($ip, $rule)) {
+                if ($this->ipInCidr($ipPacked, $rule)) {
                     return true;
                 }
-            } elseif ($ip === $rule) {
-                return true;
+            } else {
+                $rulePacked = @inet_pton($rule);
+                if ($rulePacked !== false && $rulePacked === $ipPacked) {
+                    return true;
+                }
             }
         }
 
@@ -92,22 +111,52 @@ class LoginSecurityService
     }
 
     /**
-     * Check if an IP address is within a CIDR range.
+     * Check if an IP (already inet_pton-packed) is within a CIDR range.
+     * Supports both IPv4 and IPv6 CIDR ranges.
      */
-    private function ipInCidr(string $ip, string $cidr): bool
+    private function ipInCidr(string $ipPacked, string $cidr): bool
     {
         [$subnet, $mask] = explode('/', $cidr, 2);
         $mask = (int) $mask;
 
-        $ipLong = ip2long($ip);
-        $subnetLong = ip2long($subnet);
+        $subnetPacked = @inet_pton($subnet);
 
-        if ($ipLong === false || $subnetLong === false) {
+        if ($subnetPacked === false) {
             return false;
         }
 
-        $maskLong = -1 << (32 - $mask);
+        // IP versions must match (both IPv4 or both IPv6)
+        if (strlen($ipPacked) !== strlen($subnetPacked)) {
+            return false;
+        }
 
-        return ($ipLong & $maskLong) === ($subnetLong & $maskLong);
+        $totalBits = strlen($ipPacked) * 8;
+
+        if ($mask < 0 || $mask > $totalBits) {
+            return false;
+        }
+
+        if ($mask === 0) {
+            return true;
+        }
+
+        $fullBytes = intdiv($mask, 8);
+        $remainingBits = $mask % 8;
+
+        // Compare full bytes
+        if ($fullBytes > 0 && substr($ipPacked, 0, $fullBytes) !== substr($subnetPacked, 0, $fullBytes)) {
+            return false;
+        }
+
+        // Compare remaining bits (if any)
+        if ($remainingBits > 0) {
+            $maskByte = ~((1 << (8 - $remainingBits)) - 1) & 0xFF;
+
+            if ((ord($ipPacked[$fullBytes]) & $maskByte) !== (ord($subnetPacked[$fullBytes]) & $maskByte)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

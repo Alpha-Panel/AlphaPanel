@@ -11,6 +11,7 @@ class SecuritySetting extends Model
         'captcha_provider',
         'turnstile_site_key',
         'turnstile_secret_key',
+        'recaptcha_version',
         'recaptcha_site_key',
         'recaptcha_secret_key',
         'honeypot_enabled',

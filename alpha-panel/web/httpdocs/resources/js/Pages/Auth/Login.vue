@@ -128,10 +128,10 @@
                                 {{ t('This account requires a 2FA verification code after password sign in.') }}
                             </div>
 
-                            <!-- CAPTCHA Widget -->
+                            <!-- CAPTCHA Widget (v2/Turnstile visible, v3 invisible) -->
                             <div v-if="captcha && stage === 'password'">
-                                <div ref="captchaWidgetRef" class="flex justify-center"></div>
-                                <p v-if="form.errors.captcha_token" class="mt-1 text-sm text-error-500">
+                                <div v-if="!isRecaptchaV3" ref="captchaWidgetRef" class="flex justify-center"></div>
+                                <p v-if="form.errors.captcha_token" class="mt-1 text-center text-sm text-error-500">
                                     {{ form.errors.captcha_token }}
                                 </p>
                             </div>
@@ -175,7 +175,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import axios from 'axios';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
@@ -192,6 +192,8 @@ declare global {
         grecaptcha?: {
             render: (element: HTMLElement, options: Record<string, any>) => number;
             reset: (widgetId?: number) => void;
+            ready: (callback: () => void) => void;
+            execute: (siteKey: string, options: Record<string, any>) => Promise<string>;
         };
     }
 }
@@ -199,6 +201,7 @@ declare global {
 interface CaptchaConfig {
     provider: 'turnstile' | 'recaptcha';
     site_key: string;
+    recaptcha_version?: 'v2' | 'v3';
 }
 
 interface HoneypotConfig {
@@ -299,14 +302,24 @@ const form = useForm({
     } : {}),
 });
 
+const isRecaptchaV3 = computed(() =>
+    props.captcha?.provider === 'recaptcha' && props.captcha?.recaptcha_version === 'v3',
+);
+
 const loadCaptchaScript = (): void => {
     if (!props.captcha || captchaScriptLoaded.value) {
         return;
     }
 
-    const src = props.captcha.provider === 'turnstile'
-        ? 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
-        : 'https://www.google.com/recaptcha/api.js?render=explicit';
+    let src: string;
+
+    if (props.captcha.provider === 'turnstile') {
+        src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    } else if (isRecaptchaV3.value) {
+        src = `https://www.google.com/recaptcha/api.js?render=${props.captcha.site_key}`;
+    } else {
+        src = 'https://www.google.com/recaptcha/api.js?render=explicit';
+    }
 
     const script = document.createElement('script');
     script.src = src;
@@ -314,13 +327,14 @@ const loadCaptchaScript = (): void => {
     script.defer = true;
     script.onload = () => {
         captchaScriptLoaded.value = true;
-        renderCaptchaWidget();
+        // The watcher on [stage, captchaScriptLoaded] will trigger renderCaptchaWidget()
+        // when the user reaches the password stage.
     };
     document.head.appendChild(script);
 };
 
 const renderCaptchaWidget = (): void => {
-    if (!captchaWidgetRef.value || !props.captcha) {
+    if (!captchaWidgetRef.value || !props.captcha || isRecaptchaV3.value) {
         return;
     }
 
@@ -340,6 +354,35 @@ const renderCaptchaWidget = (): void => {
         });
     }
 };
+
+const executeRecaptchaV3 = async (): Promise<string> => {
+    if (!window.grecaptcha || !props.captcha) {
+        return '';
+    }
+
+    return new Promise((resolve) => {
+        window.grecaptcha!.ready(() => {
+            window.grecaptcha!.execute(props.captcha!.site_key, { action: 'login' })
+                .then(resolve)
+                .catch(() => resolve(''));
+        });
+    });
+};
+
+// Eagerly load captcha script on mount so it's ready when user reaches password stage
+onMounted(() => {
+    if (props.captcha) {
+        loadCaptchaScript();
+    }
+});
+
+// Watch for both stage and script loaded state - render widget when both ready
+watch([stage, captchaScriptLoaded], async ([newStage, scriptLoaded]) => {
+    if (newStage === 'password' && scriptLoaded && !isRecaptchaV3.value) {
+        await nextTick();
+        renderCaptchaWidget();
+    }
+});
 
 const base64UrlToArrayBuffer = (value: string): ArrayBuffer => {
     const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
@@ -420,7 +463,6 @@ const continueWithIdentifier = async () => {
         }
 
         stage.value = 'password';
-        loadCaptchaScript();
         await nextTick();
         passwordInputRef.value?.focus();
     } catch (error: any) {
@@ -470,7 +512,6 @@ const loginWithDevice = async (email: string) => {
         }
 
         stage.value = 'password';
-        loadCaptchaScript();
         await nextTick();
         passwordInputRef.value?.focus();
     } finally {
@@ -478,7 +519,11 @@ const loginWithDevice = async (email: string) => {
     }
 };
 
-const submitPassword = () => {
+const submitPassword = async () => {
+    if (isRecaptchaV3.value && captchaScriptLoaded.value) {
+        captchaToken.value = await executeRecaptchaV3();
+    }
+
     form.captcha_token = captchaToken.value;
 
     form.post(route('login'), {
@@ -486,7 +531,7 @@ const submitPassword = () => {
             form.reset('password');
             captchaToken.value = '';
 
-            if (captchaScriptLoaded.value) {
+            if (captchaScriptLoaded.value && !isRecaptchaV3.value) {
                 nextTick(() => renderCaptchaWidget());
             }
         },

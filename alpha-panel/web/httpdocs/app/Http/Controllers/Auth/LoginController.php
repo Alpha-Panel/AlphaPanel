@@ -52,6 +52,10 @@ class LoginController extends Controller implements HasMiddleware
                     ? $settings->turnstile_site_key
                     : $settings->recaptcha_site_key,
             ];
+
+            if ($settings->captcha_provider === 'recaptcha') {
+                $captcha['recaptcha_version'] = $settings->recaptcha_version ?? 'v2';
+            }
         }
 
         $honeypotConfig = null;
@@ -60,7 +64,7 @@ class LoginController extends Controller implements HasMiddleware
             $honeypotConfig = [
                 'name_field' => config('honeypot.name_field_name', 'my_name'),
                 'valid_from_field' => config('honeypot.valid_from_field_name', 'my_time'),
-                'encrypted_valid_from' => app(\Spatie\Honeypot\EncryptedTime::class)->generate(),
+                'encrypted_valid_from' => (string) \Spatie\Honeypot\EncryptedTime::create(now()),
             ];
         }
 
