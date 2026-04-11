@@ -60,6 +60,53 @@
                         {{ t('Lock Screen') }}
                     </button>
                 </li>
+                <li>
+                    <button
+                        type="button"
+                        :aria-expanded="cbExpanded"
+                        aria-haspopup="menu"
+                        @click="cbExpanded = !cbExpanded"
+                        class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left font-medium text-gray-700 group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
+                    >
+                        <i class="bx bx-low-vision w-6 h-6 text-2xl text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300"></i>
+                        <span class="flex-1">
+                            {{ t('Color Blind Mode') }}
+                            <span
+                                v-if="cbActiveLabel && !cbExpanded"
+                                class="block text-theme-xs text-gray-500 dark:text-gray-500"
+                            >
+                                {{ cbActiveLabel }}
+                            </span>
+                        </span>
+                        <ChevronDownIcon
+                            class="transition-transform"
+                            :class="{ 'rotate-180': cbExpanded }"
+                        />
+                    </button>
+                    <ul
+                        v-if="cbExpanded"
+                        role="menu"
+                        class="mt-1 flex flex-col gap-0.5 pl-9"
+                    >
+                        <li v-for="opt in cbOptions" :key="opt.value">
+                            <button
+                                type="button"
+                                role="menuitemradio"
+                                :aria-checked="cbMode === opt.value"
+                                @click="setCbMode(opt.value)"
+                                class="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-left text-theme-sm hover:bg-gray-100 dark:hover:bg-white/5"
+                                :class="
+                                    cbMode === opt.value
+                                        ? 'font-medium text-brand-500 dark:text-brand-400'
+                                        : 'text-gray-600 dark:text-gray-400'
+                                "
+                            >
+                                <span>{{ t(opt.label) }}</span>
+                                <i v-if="cbMode === opt.value" class="bx bx-check text-lg"></i>
+                            </button>
+                        </li>
+                    </ul>
+                </li>
             </ul>
 
             <button
@@ -74,10 +121,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import { ChevronDownIcon, LogoutIcon, SettingsIcon } from '@/Components/Icons';
 import { useI18n } from '@/Composables/useI18n';
+import { useColorBlindMode, type ColorBlindMode } from '@/Composables/useColorBlindMode';
 import type { SharedProps } from '@/types/inertia';
 
 const page = usePage<SharedProps>();
@@ -97,6 +145,26 @@ const userInitials = computed(() => {
 
 const dropdownOpen = ref(false);
 const dropdownRef = ref<HTMLElement | null>(null);
+
+const { mode: cbMode, setMode: setCbMode } = useColorBlindMode();
+const cbExpanded = ref(false);
+
+const cbOptions: { value: ColorBlindMode; label: string }[] = [
+    { value: 'off', label: 'Off' },
+    { value: 'protanopia', label: 'Protanopia' },
+    { value: 'deuteranopia', label: 'Deuteranopia' },
+    { value: 'tritanopia', label: 'Tritanopia' },
+];
+
+const cbActiveLabel = computed(() => {
+    if (cbMode.value === 'off') return '';
+    const opt = cbOptions.find((o) => o.value === cbMode.value);
+    return opt ? t(opt.label) : '';
+});
+
+watch(dropdownOpen, (open) => {
+    if (!open) cbExpanded.value = false;
+});
 
 const toggleDropdown = () => {
     dropdownOpen.value = !dropdownOpen.value;

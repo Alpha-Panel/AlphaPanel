@@ -7,6 +7,9 @@ import { createInertiaApp, Link, router } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from 'ziggy-js';
 import tooltip from '@/Directives/tooltip';
+import { initializeColorBlindMode } from '@/Composables/useColorBlindMode';
+
+initializeColorBlindMode();
 
 function syncLocaleFromStorage(pageProps: Record<string, unknown>): void {
     const stored = localStorage.getItem('locale');

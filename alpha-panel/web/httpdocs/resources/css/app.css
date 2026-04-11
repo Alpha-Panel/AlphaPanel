@@ -440,3 +440,23 @@ layer(base);
 .dark .swal2-popup .swal2-actions .swal2-cancel:hover {
   background-color: #475467;
 }
+
+/* Color-blind daltonization filters. Filter <filter> defs live in
+   resources/js/Components/Layout/ColorBlindFilters.vue. The class is
+   applied to <html> (document.documentElement) by useColorBlindMode.ts
+   — only <html> keeps `position: fixed` descendants anchored to the
+   viewport when a filter creates a new containing block. */
+html.cb-protanopia,
+html.cb-deuteranopia,
+html.cb-tritanopia {
+  will-change: filter;
+}
+html.cb-protanopia {
+  filter: url('#cb-protanopia');
+}
+html.cb-deuteranopia {
+  filter: url('#cb-deuteranopia');
+}
+html.cb-tritanopia {
+  filter: url('#cb-tritanopia');
+}
