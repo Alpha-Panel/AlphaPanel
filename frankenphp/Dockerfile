@@ -40,12 +40,6 @@ FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-php8.5-bookworm
 
 COPY --from=builder /usr/local/bin/frankenphp /usr/local/bin/frankenphp
 
-# Pre-install libidn2 so pecl_http uses it instead of downloading idnkit from jprs.co.jp
-RUN apt-get update \
- && apt-get install -y --no-install-recommends \
-      libidn2-dev \
- && rm -rf /var/lib/apt/lists/*
-
 RUN install-php-extensions \
         pdo_mysql \
         gd \
