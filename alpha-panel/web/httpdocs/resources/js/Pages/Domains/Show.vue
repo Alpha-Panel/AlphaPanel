@@ -143,7 +143,7 @@
                             </button>
 
                             <button
-                                v-if="can('panel.terminal.access') && domain.ftp_user"
+                                v-if="can('domain.terminal.access') && domain.ftp_user"
                                 type="button"
                                 @click="openDomainTerminal"
                                 :disabled="domainTerminalLoading"

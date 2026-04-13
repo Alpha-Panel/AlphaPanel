@@ -95,6 +95,7 @@ return [
             'domain.logs.view' => 'View domain logs',
             'domain.modsecurity.view' => 'View ModSecurity settings',
             'domain.modsecurity.manage' => 'Manage ModSecurity rules',
+            'domain.terminal.access' => 'Open terminal for domain',
         ],
     ],
 

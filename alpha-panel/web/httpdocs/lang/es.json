@@ -1041,6 +1041,7 @@
     "Open": "Abrir",
     "Open in Editor": "Abrir en el editor",
     "Open in phpMyAdmin": "Abrir en phpMyAdmin",
+    "Open terminal for domain": "Abrir terminal para el dominio",
     "Operation failed.": "Operación fallida.",
     "Optional": "Opcional",
     "Optional container hostname": "Nombre de host del contenedor opcional",

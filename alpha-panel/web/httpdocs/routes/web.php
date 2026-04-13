@@ -348,9 +348,12 @@ Route::middleware('auth')->group(function (): void {
 
     Route::middleware('permission:panel.terminal.access')->group(function (): void {
         Route::post('terminal/start', [TerminalController::class, 'start'])->name('terminal.start');
-        Route::post('terminal/start-domain', [TerminalController::class, 'startDomain'])->name('terminal.start-domain');
         Route::post('terminal/start-ssh', [TerminalController::class, 'startSsh'])->name('terminal.start-ssh');
         Route::post('terminal/stop', [TerminalController::class, 'stop'])->name('terminal.stop');
+    });
+
+    Route::middleware('permission:domain.terminal.access')->group(function (): void {
+        Route::post('terminal/start-domain', [TerminalController::class, 'startDomain'])->name('terminal.start-domain');
     });
 
     Route::middleware('permission:panel.audit-logs.view')->group(function (): void {
