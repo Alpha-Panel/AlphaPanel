@@ -439,14 +439,6 @@ const menuGroups = computed(() => {
                     });
                 }
 
-                if (canAny('panel.mail.view', 'panel.mail.manage')) {
-                    items.push({
-                        iconClass: 'fa-solid fa-envelope',
-                        name: t('Mail Server'),
-                        href: route('mail.index'),
-                    });
-                }
-
                 if (can('panel.terminal.access')) {
                     items.push({
                         iconClass: 'fa-solid fa-terminal',

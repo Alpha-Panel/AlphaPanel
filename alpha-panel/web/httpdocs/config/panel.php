@@ -162,19 +162,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Mailcow Mail Server
-    |--------------------------------------------------------------------------
-    */
-    'mailcow' => [
-        'enabled' => (bool) env('MAILCOW_ENABLED', false),
-        'api_url' => env('MAILCOW_API_URL', 'http://mailcow-nginx:8080'),
-        'api_key' => env('MAILCOW_API_KEY'),
-        'hostname' => env('MAILCOW_HOSTNAME', 'mail.example.com'),
-        'webmail_domain' => env('MAILCOW_WEBMAIL_DOMAIN', 'webmail.example.com'),
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
     | System Reserved Domains
     |--------------------------------------------------------------------------
     | These domains are used by system services and cannot be registered
@@ -190,8 +177,6 @@ return [
             env('N8N_DOMAIN'),
             env('PORTAINER_DOMAIN'),
             env('JENKINS_DOMAIN'),
-            env('MAILCOW_HOSTNAME'),
-            env('MAILCOW_WEBMAIL_DOMAIN'),
         ],
     ))),
 ];

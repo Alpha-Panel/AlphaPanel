@@ -17,7 +17,7 @@ if [ -f /etc/users.env ]; then
 
       if ! id "$user" >/dev/null 2>&1; then
         groupadd -g "$uid" "$user" 2>/dev/null || true
-        useradd -u "$uid" -g "$user" -d "$home" -M -s /usr/sbin/nologin "$user" 2>/dev/null || true
+        useradd -u "$uid" -g "$user" -d "$home" -M -s /bin/bash "$user" 2>/dev/null || true
         usermod -aG www-data "$user" 2>/dev/null || true
         echo "FrankenPHP: created user $user (UID=$uid)"
       fi

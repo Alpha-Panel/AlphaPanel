@@ -155,11 +155,6 @@ class Domain extends Model
         return $this->hasMany(SslCertificate::class);
     }
 
-    public function mailDomain(): HasOne
-    {
-        return $this->hasOne(MailDomain::class);
-    }
-
     public function dnsZone(): HasOne
     {
         // `dns_zones` lives in the `powerdns` connection as PowerDNS's native

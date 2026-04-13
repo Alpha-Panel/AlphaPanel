@@ -80,6 +80,41 @@ export function useTerminal() {
         }
     }
 
+    async function openDomainTerminal(domainId: number, domainFqdn: string) {
+        const key = `domain-${domainId}`;
+        const existingSession = Array.from(sessions.values()).find(
+            (session) => session.containerName.startsWith(domainFqdn + ' ('),
+        );
+        if (existingSession) {
+            restoreSession(existingSession.sessionId);
+            activateSession(existingSession.sessionId);
+            return existingSession.sessionId;
+        }
+
+        if (pendingOpenRequests.has(key)) {
+            return null;
+        }
+
+        pendingOpenRequests.add(key);
+
+        try {
+            const res = await axios.post(route('terminal.start-domain'), {
+                domain_id: domainId,
+            });
+
+            if (!res.data.session_id || !res.data.ws_token) {
+                throw new Error(res.data.error || t('Failed to start terminal session'));
+            }
+
+            createSession(res.data.session_id, res.data.ws_token, res.data.container_name);
+            return res.data.session_id;
+        } catch (err: any) {
+            throw new Error(err.response?.data?.message || err.message || t('Failed to open terminal'));
+        } finally {
+            pendingOpenRequests.delete(key);
+        }
+    }
+
     async function openHostTerminal() {
         const existingSession = Array.from(sessions.values()).find(
             (session) => session.containerName === 'Host Terminal',
@@ -245,6 +280,7 @@ export function useTerminal() {
         sessions,
         minimizedSessions,
         openTerminal,
+        openDomainTerminal,
         openHostTerminal,
         createSession,
         activateSession,

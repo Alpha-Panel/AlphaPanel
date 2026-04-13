@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
+use App\Models\Domain;
 use App\Services\PortainerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -57,6 +58,64 @@ class TerminalController extends Controller
             'session_id' => $sessionId,
             'ws_token' => $wsToken,
             'container_name' => $containerName,
+        ]);
+    }
+
+    /**
+     * Create a terminal session for a domain's FTP user inside the frankenphp container.
+     */
+    public function startDomain(Request $request, PortainerService $portainer): JsonResponse
+    {
+        $request->validate([
+            'domain_id' => 'required|integer|exists:domains,id',
+        ]);
+
+        $domain = Domain::with('ftpUser')->findOrFail($request->input('domain_id'));
+        $ftpUser = $domain->ftpUser;
+
+        if (! $ftpUser) {
+            return response()->json(['message' => __('No FTP user found for this domain.')], 422);
+        }
+
+        $containerName = 'frankenphp';
+        $container = $portainer->findContainerByName($containerName);
+        $containerId = $container['Id'];
+        $sessionId = Str::uuid()->toString();
+        $displayName = "{$domain->fqdn} ({$ftpUser->username})";
+
+        $exec = $portainer->createInteractiveExec(
+            $containerId,
+            ['/bin/bash'],
+            $ftpUser->username,
+            $ftpUser->homedir,
+        );
+        $execId = $exec['Id'];
+
+        $wsToken = Str::random(40);
+
+        Cache::put(self::CACHE_PREFIX.'ws:'.$wsToken, [
+            'session_id' => $sessionId,
+            'exec_id' => $execId,
+            'ws_url' => $portainer->getExecWebSocketUrl($execId),
+            'api_key' => $portainer->getExecWebSocketHeaders()['X-API-Key'],
+            'container_name' => $displayName,
+            'user_id' => $request->user()->id,
+            'ip_address' => $request->ip(),
+            'port' => $request->server('REMOTE_PORT'),
+        ], now()->addSeconds(30));
+
+        Log::info("[Terminal] Created domain session {$sessionId} for {$domain->fqdn} as {$ftpUser->username} (exec={$execId})");
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'terminal_opened',
+            'summary' => "Domain: {$domain->fqdn} (user: {$ftpUser->username})",
+        ]);
+
+        return response()->json([
+            'session_id' => $sessionId,
+            'ws_token' => $wsToken,
+            'container_name' => $displayName,
         ]);
     }
 

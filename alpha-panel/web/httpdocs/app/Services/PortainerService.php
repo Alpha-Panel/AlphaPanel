@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\PortainerException;
 use App\Services\Portainer\ExecResult;
 use App\Services\Portainer\RunResult;
+use GuzzleHttp\Client;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -249,7 +250,7 @@ class PortainerService
 
         // Use docker-socket-proxy directly — bypasses Portainer's streaming proxy
         // which causes intermittent timeout issues on exec/start.
-        $client = new \GuzzleHttp\Client([
+        $client = new Client([
             'connect_timeout' => 10,
             'timeout' => $timeout,
         ]);
@@ -403,16 +404,30 @@ class PortainerService
      * @param  array<int, string>  $command
      * @return array{Id: string}
      */
-    public function createInteractiveExec(string $containerId, array $command = ['/bin/sh']): array
-    {
+    public function createInteractiveExec(
+        string $containerId,
+        array $command = ['/bin/sh'],
+        ?string $user = null,
+        ?string $workingDir = null,
+    ): array {
+        $payload = [
+            'AttachStdin' => true,
+            'AttachStdout' => true,
+            'AttachStderr' => true,
+            'Tty' => true,
+            'Cmd' => $command,
+        ];
+
+        if ($user !== null) {
+            $payload['User'] = $user;
+        }
+
+        if ($workingDir !== null) {
+            $payload['WorkingDir'] = $workingDir;
+        }
+
         $response = $this->request()
-            ->post($this->dockerApiUrl("/containers/{$containerId}/exec"), [
-                'AttachStdin' => true,
-                'AttachStdout' => true,
-                'AttachStderr' => true,
-                'Tty' => true,
-                'Cmd' => $command,
-            ]);
+            ->post($this->dockerApiUrl("/containers/{$containerId}/exec"), $payload);
 
         if (! $response->successful()) {
             throw new PortainerException("Failed to create interactive exec: {$response->status()} {$response->body()}");

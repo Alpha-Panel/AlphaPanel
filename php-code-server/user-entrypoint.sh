@@ -16,7 +16,7 @@ if [ -n "$USERS" ]; then
 
     if ! id "$user" &>/dev/null; then
       # Kullanıcı yoksa yarat ve www-data grubuna ekle
-      useradd -u "$uid" -d "$home" -m -s /usr/sbin/nologin -G www-data "$user"
+      useradd -u "$uid" -d "$home" -m -s /bin/bash -G www-data "$user"
       echo "$user:$pass" | chpasswd
       echo "Created PHP-FPM user: $user (UID=$uid, HOME=$home) and added to www-data group"
     else

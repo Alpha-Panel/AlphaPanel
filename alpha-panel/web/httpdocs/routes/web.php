@@ -29,11 +29,6 @@ use App\Http\Controllers\FirewallController;
 use App\Http\Controllers\FtpBanController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LoginIpFilterController;
-use App\Http\Controllers\MailAliasController;
-use App\Http\Controllers\MailController;
-use App\Http\Controllers\MailDomainController;
-use App\Http\Controllers\MailMailboxController;
-use App\Http\Controllers\MailSieveController;
 use App\Http\Controllers\ManifestController;
 use App\Http\Controllers\NotificationSettingsController;
 use App\Http\Controllers\PhpSettingsController;
@@ -353,6 +348,7 @@ Route::middleware('auth')->group(function (): void {
 
     Route::middleware('permission:panel.terminal.access')->group(function (): void {
         Route::post('terminal/start', [TerminalController::class, 'start'])->name('terminal.start');
+        Route::post('terminal/start-domain', [TerminalController::class, 'startDomain'])->name('terminal.start-domain');
         Route::post('terminal/start-ssh', [TerminalController::class, 'startSsh'])->name('terminal.start-ssh');
         Route::post('terminal/stop', [TerminalController::class, 'stop'])->name('terminal.stop');
     });
@@ -506,37 +502,6 @@ Route::middleware('auth')->group(function (): void {
         Route::get('domains/{domain}/docker-services', [DockerServiceDomainBindingController::class, 'index'])->name('domains.docker-services.index');
         Route::post('domains/{domain}/docker-services', [DockerServiceDomainBindingController::class, 'store'])->name('domains.docker-services.store');
         Route::delete('domains/{domain}/docker-services/{binding}', [DockerServiceDomainBindingController::class, 'destroy'])->name('domains.docker-services.destroy');
-    });
-
-    // ── Mail Management ────────────────────────────────────────
-    Route::prefix('mail')->name('mail.')->middleware('permission:panel.mail.view')->group(function (): void {
-        Route::get('/', [MailController::class, 'index'])->name('index');
-        Route::get('/settings', [MailController::class, 'settings'])->name('settings')
-            ->middleware('permission:panel.mail.manage');
-    });
-
-    Route::prefix('domains/{domain}/mail')->name('domains.mail.')->group(function (): void {
-        Route::get('/', [MailDomainController::class, 'show'])->name('index')
-            ->middleware('permission:domain.mail.view');
-        Route::post('/enable', [MailDomainController::class, 'enable'])->name('enable')
-            ->middleware('permission:domain.mail.manage');
-        Route::post('/disable', [MailDomainController::class, 'disable'])->name('disable')
-            ->middleware('permission:domain.mail.manage');
-
-        Route::middleware('permission:domain.mail.manage')->group(function (): void {
-            Route::post('/mailboxes', [MailMailboxController::class, 'store'])->name('mailboxes.store');
-            Route::put('/mailboxes/{mailbox}', [MailMailboxController::class, 'update'])->name('mailboxes.update');
-            Route::put('/mailboxes/{mailbox}/password', [MailMailboxController::class, 'updatePassword'])->name('mailboxes.password');
-            Route::get('/mailboxes/{mailbox}/quota', [MailMailboxController::class, 'quotaUsage'])->name('mailboxes.quota');
-            Route::delete('/mailboxes/{mailbox}', [MailMailboxController::class, 'destroy'])->name('mailboxes.destroy');
-
-            Route::post('/aliases', [MailAliasController::class, 'store'])->name('aliases.store');
-            Route::put('/aliases/{alias}', [MailAliasController::class, 'update'])->name('aliases.update');
-            Route::delete('/aliases/{alias}', [MailAliasController::class, 'destroy'])->name('aliases.destroy');
-
-            Route::get('/mailboxes/{mailbox}/sieve', [MailSieveController::class, 'index'])->name('sieve.index');
-            Route::put('/mailboxes/{mailbox}/sieve', [MailSieveController::class, 'update'])->name('sieve.update');
-        });
     });
 
     // Domain IP Access Control

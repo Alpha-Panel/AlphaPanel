@@ -34,6 +34,7 @@ class FtpUserService
             'password' => $this->hashPasswordForFtp($password),
             'uid' => $uid,
             'gid' => $uid,
+            'shell' => '/bin/bash',
         ]);
 
         $this->syncUsersEnv(targetUsername: $ftpUser->username, oldUsername: null);

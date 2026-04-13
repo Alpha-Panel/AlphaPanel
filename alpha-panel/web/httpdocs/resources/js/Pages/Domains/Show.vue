@@ -142,6 +142,19 @@
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </button>
 
+                            <button
+                                v-if="can('panel.terminal.access') && domain.ftp_user"
+                                type="button"
+                                @click="openDomainTerminal"
+                                :disabled="domainTerminalLoading"
+                                class="quick-link"
+                            >
+                                <i class="fa-solid fa-terminal quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('Terminal') }}</span>
+                                <i v-if="domainTerminalLoading" class="bx bx-loader-alt animate-spin text-sm"></i>
+                                <i v-else class="fa-solid fa-angle-right quick-link-arrow"></i>
+                            </button>
+
                             <Link
                                 v-if="can('domain.dns.view') && !isSubdomain"
                                 :href="route('domains.dns.index', domain.id)"
@@ -198,12 +211,6 @@
                             <Link v-if="can('panel.docker-services.manage')" :href="route('domains.docker-services.index', domain.id)" class="quick-link">
                                 <i class="fa-brands fa-docker quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('Docker Services') }}</span>
-                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
-                            </Link>
-
-                            <Link v-if="can('domain.mail.view') && domain.mail_domain" :href="route('domains.mail.index', domain.id)" class="quick-link">
-                                <i class="fa-solid fa-envelope quick-link-icon"></i>
-                                <span class="quick-link-label">{{ t('Mail') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
@@ -586,6 +593,7 @@ import DomainCreateModal from '@/Components/Domains/DomainCreateModal.vue';
 import { useToast } from '@/Composables/useToast';
 import { useI18n } from '@/Composables/useI18n';
 import { useCan } from '@/Composables/useCan';
+import { useTerminal } from '@/Composables/useTerminal';
 import { formatDateTime } from '@/utils/dateTime';
 import { loadSweetAlert } from '@/utils/sweetalert';
 
@@ -657,6 +665,7 @@ const props = defineProps<{
 const { addToast } = useToast();
 const { t } = useI18n();
 const { can } = useCan();
+const terminal = useTerminal();
 
 const domain = computed(() => props.domain);
 const parentDomainWebRootPath = computed(() => {
@@ -720,6 +729,7 @@ const ftpForm = ref({
     password: '',
 });
 const fixPermissionsLoading = ref(false);
+const domainTerminalLoading = ref(false);
 
 const showJenkinsModal = ref(false);
 const jenkinsFqdn = ref('');
@@ -1345,6 +1355,19 @@ const fixPermissions = async (): Promise<void> => {
         addToast('error', error.response?.data?.message ?? t('Operation failed.'));
     } finally {
         fixPermissionsLoading.value = false;
+    }
+};
+
+const openDomainTerminal = async (): Promise<void> => {
+    if (domainTerminalLoading.value) return;
+    domainTerminalLoading.value = true;
+
+    try {
+        await terminal.openDomainTerminal(domain.value.id, domain.value.fqdn);
+    } catch (error: any) {
+        addToast('error', error.message || t('Failed to open terminal.'));
+    } finally {
+        domainTerminalLoading.value = false;
     }
 };
 

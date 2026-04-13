@@ -60,8 +60,6 @@ return [
             'panel.php-versions.manage' => 'Enable and disable PHP versions',
             'panel.security-settings.manage' => 'Manage login security settings (IP filter, captcha, honeypot)',
             'panel.alert-settings.manage' => 'Manage system alert threshold settings',
-            'panel.mail.view' => 'View mail management',
-            'panel.mail.manage' => 'Manage global mail settings',
         ],
     ],
 
@@ -97,8 +95,6 @@ return [
             'domain.logs.view' => 'View domain logs',
             'domain.modsecurity.view' => 'View ModSecurity settings',
             'domain.modsecurity.manage' => 'Manage ModSecurity rules',
-            'domain.mail.view' => 'View domain mail settings',
-            'domain.mail.manage' => 'Manage mailboxes and aliases',
         ],
     ],
 
@@ -133,7 +129,6 @@ return [
                 'domain.files.view',
                 'domain.logs.view',
                 'domain.modsecurity.view',
-                'domain.mail.view',
             ],
         ],
     ],

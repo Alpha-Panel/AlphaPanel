@@ -766,6 +766,11 @@ function onKeyDown(e: KeyboardEvent) {
 
 // ==================== Lifecycle ====================
 
+watch(() => fm.isFullscreen.value, (fullscreen) => {
+    document.documentElement.style.overflow = fullscreen ? 'hidden' : '';
+    document.body.style.overflow = fullscreen ? 'hidden' : '';
+});
+
 onMounted(async () => {
     document.addEventListener('keydown', onKeyDown);
     window.addEventListener('resize', adjustContextMenuPosition);
@@ -777,6 +782,8 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
     document.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('resize', adjustContextMenuPosition);
     mobileQuery?.removeEventListener('change', onMobileChange);
@@ -817,6 +824,7 @@ watch(() => fm.contextMenu.visible, (visible) => {
     position: fixed;
     inset: 0;
     z-index: 120000;
+    width: 100vw;
     height: 100vh;
     border-radius: 0;
 }

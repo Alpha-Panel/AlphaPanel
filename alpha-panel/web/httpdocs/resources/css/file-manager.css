@@ -668,18 +668,4 @@
     transition: width 0.2s;
 }
 
-/* Fullscreen */
-.fm-fullscreen .fm-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 9999;
-    border-radius: 0;
-    height: 100vh !important;
-}
-
-.fm-fullscreen .fm-body {
-    height: calc(100vh - 95px) !important;
-}
+/* Fullscreen — handled by scoped styles in FileManager.vue */
