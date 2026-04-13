@@ -203,3 +203,5 @@ Thumbs.db
 .mcp.json
 boost.json
 tasks
+
+__pycache__
