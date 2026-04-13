@@ -54,6 +54,9 @@ mysql/data/
 postgres/
 redis/
 
+# Mailcow persistent data
+mailcow/data/
+
 
 # =============================================================================
 # SEARCH INDEX DATA

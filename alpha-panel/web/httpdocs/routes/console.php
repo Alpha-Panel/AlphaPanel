@@ -3,6 +3,7 @@
 use App\Jobs\BackupUploadJob;
 use App\Jobs\CheckForUpdatesJob;
 use App\Jobs\ExecuteDomainCronJob;
+use App\Models\BackupRun;
 use App\Models\BackupSetting;
 use App\Models\DomainCronJob;
 use Cron\CronExpression;
@@ -30,7 +31,7 @@ try {
 
     if ($backupSettings->is_enabled && $backupSettings->isConnected() && $backupSettings->drive_folder_id) {
         Schedule::call(function () {
-            $run = \App\Models\BackupRun::create([
+            $run = BackupRun::create([
                 'type' => 'scheduled',
                 'status' => 'running',
                 'started_at' => now(),
@@ -162,3 +163,26 @@ Schedule::command('system:check-health')
     ->everyFiveMinutes()
     ->name('system:check-health')
     ->withoutOverlapping();
+
+/*
+|--------------------------------------------------------------------------
+| Mail Sync (Mailcow)
+|--------------------------------------------------------------------------
+|
+| Synchronizes mailbox statistics (quota usage, message count, last login)
+| from the Mailcow API into the local database every 15 minutes.
+| Only runs when Mailcow integration is enabled.
+|
+*/
+
+try {
+    if (config('panel.mailcow.enabled')) {
+        Schedule::command('panel:mail:sync')
+            ->everyFifteenMinutes()
+            ->name('panel:mail:sync')
+            ->withoutOverlapping(30)
+            ->onFailure(fn () => Log::error('Mail sync with Mailcow failed'));
+    }
+} catch (Throwable) {
+    // Config may not be available yet
+}

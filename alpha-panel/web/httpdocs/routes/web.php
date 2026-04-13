@@ -1,7 +1,8 @@
 <?php
 
-use App\Http\Controllers\AdminPushNotificationController;
 use App\Http\Controllers\AcmeSettingController;
+use App\Http\Controllers\AdminPushNotificationController;
+use App\Http\Controllers\AlertSettingController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\BackupController;
@@ -27,6 +28,12 @@ use App\Http\Controllers\FileManagerController;
 use App\Http\Controllers\FirewallController;
 use App\Http\Controllers\FtpBanController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\LoginIpFilterController;
+use App\Http\Controllers\MailAliasController;
+use App\Http\Controllers\MailController;
+use App\Http\Controllers\MailDomainController;
+use App\Http\Controllers\MailMailboxController;
+use App\Http\Controllers\MailSieveController;
 use App\Http\Controllers\ManifestController;
 use App\Http\Controllers\NotificationSettingsController;
 use App\Http\Controllers\PhpSettingsController;
@@ -34,6 +41,7 @@ use App\Http\Controllers\PhpVersionController;
 use App\Http\Controllers\PmaSsoController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SecuritySettingController;
 use App\Http\Controllers\SslCertificateController;
 use App\Http\Controllers\SystemUpdateController;
 use App\Http\Controllers\TerminalController;
@@ -45,6 +53,7 @@ use App\Http\Controllers\WafGlobalRuleController;
 use App\Http\Controllers\WebAuthn\WebAuthnLoginController;
 use App\Http\Controllers\WebAuthn\WebAuthnRegisterController;
 use App\Http\Controllers\WebAuthnController;
+use App\Http\Middleware\CheckLoginIp;
 use App\Notifications\DomainNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -87,10 +96,10 @@ Route::post('login/methods', [LoginController::class, 'methods'])
 |--------------------------------------------------------------------------
 */
 Route::post('webauthn/login/options', [WebAuthnLoginController::class, 'options'])
-    ->middleware(['throttle:webauthn', \App\Http\Middleware\CheckLoginIp::class])
+    ->middleware(['throttle:webauthn', CheckLoginIp::class])
     ->name('webauthn.login.options');
 Route::post('webauthn/login', [WebAuthnLoginController::class, 'login'])
-    ->middleware(['throttle:webauthn', \App\Http\Middleware\CheckLoginIp::class])
+    ->middleware(['throttle:webauthn', CheckLoginIp::class])
     ->name('webauthn.login');
 
 Route::middleware('auth')->group(function (): void {
@@ -499,6 +508,37 @@ Route::middleware('auth')->group(function (): void {
         Route::delete('domains/{domain}/docker-services/{binding}', [DockerServiceDomainBindingController::class, 'destroy'])->name('domains.docker-services.destroy');
     });
 
+    // ── Mail Management ────────────────────────────────────────
+    Route::prefix('mail')->name('mail.')->middleware('permission:panel.mail.view')->group(function (): void {
+        Route::get('/', [MailController::class, 'index'])->name('index');
+        Route::get('/settings', [MailController::class, 'settings'])->name('settings')
+            ->middleware('permission:panel.mail.manage');
+    });
+
+    Route::prefix('domains/{domain}/mail')->name('domains.mail.')->group(function (): void {
+        Route::get('/', [MailDomainController::class, 'show'])->name('index')
+            ->middleware('permission:domain.mail.view');
+        Route::post('/enable', [MailDomainController::class, 'enable'])->name('enable')
+            ->middleware('permission:domain.mail.manage');
+        Route::post('/disable', [MailDomainController::class, 'disable'])->name('disable')
+            ->middleware('permission:domain.mail.manage');
+
+        Route::middleware('permission:domain.mail.manage')->group(function (): void {
+            Route::post('/mailboxes', [MailMailboxController::class, 'store'])->name('mailboxes.store');
+            Route::put('/mailboxes/{mailbox}', [MailMailboxController::class, 'update'])->name('mailboxes.update');
+            Route::put('/mailboxes/{mailbox}/password', [MailMailboxController::class, 'updatePassword'])->name('mailboxes.password');
+            Route::get('/mailboxes/{mailbox}/quota', [MailMailboxController::class, 'quotaUsage'])->name('mailboxes.quota');
+            Route::delete('/mailboxes/{mailbox}', [MailMailboxController::class, 'destroy'])->name('mailboxes.destroy');
+
+            Route::post('/aliases', [MailAliasController::class, 'store'])->name('aliases.store');
+            Route::put('/aliases/{alias}', [MailAliasController::class, 'update'])->name('aliases.update');
+            Route::delete('/aliases/{alias}', [MailAliasController::class, 'destroy'])->name('aliases.destroy');
+
+            Route::get('/mailboxes/{mailbox}/sieve', [MailSieveController::class, 'index'])->name('sieve.index');
+            Route::put('/mailboxes/{mailbox}/sieve', [MailSieveController::class, 'update'])->name('sieve.update');
+        });
+    });
+
     // Domain IP Access Control
     Route::get('domains/{domain}/ip-access', [DomainIpRuleController::class, 'index'])
         ->name('domains.ip-access.index');
@@ -553,18 +593,18 @@ Route::middleware('auth')->group(function (): void {
 
     // Login Security Settings (anti-bot + IP filter)
     Route::middleware('permission:panel.security-settings.manage')->prefix('settings/security')->name('settings.security.')->group(function (): void {
-        Route::get('anti-bot', [\App\Http\Controllers\SecuritySettingController::class, 'antiBot'])->name('anti-bot.index');
-        Route::put('anti-bot', [\App\Http\Controllers\SecuritySettingController::class, 'updateAntiBot'])->name('anti-bot.update');
-        Route::get('login-ip-filter', [\App\Http\Controllers\LoginIpFilterController::class, 'index'])->name('login-ip-filter.index');
-        Route::put('login-ip-filter/mode', [\App\Http\Controllers\LoginIpFilterController::class, 'updateMode'])->name('login-ip-filter.update-mode');
-        Route::post('login-ip-filter', [\App\Http\Controllers\LoginIpFilterController::class, 'store'])->name('login-ip-filter.store');
-        Route::delete('login-ip-filter/{loginIpRule}', [\App\Http\Controllers\LoginIpFilterController::class, 'destroy'])->name('login-ip-filter.destroy');
+        Route::get('anti-bot', [SecuritySettingController::class, 'antiBot'])->name('anti-bot.index');
+        Route::put('anti-bot', [SecuritySettingController::class, 'updateAntiBot'])->name('anti-bot.update');
+        Route::get('login-ip-filter', [LoginIpFilterController::class, 'index'])->name('login-ip-filter.index');
+        Route::put('login-ip-filter/mode', [LoginIpFilterController::class, 'updateMode'])->name('login-ip-filter.update-mode');
+        Route::post('login-ip-filter', [LoginIpFilterController::class, 'store'])->name('login-ip-filter.store');
+        Route::delete('login-ip-filter/{loginIpRule}', [LoginIpFilterController::class, 'destroy'])->name('login-ip-filter.destroy');
     });
 
     // System Alert Settings
     Route::middleware('permission:panel.alert-settings.manage')->prefix('settings/alerts')->name('settings.alerts.')->group(function (): void {
-        Route::get('/', [\App\Http\Controllers\AlertSettingController::class, 'index'])->name('index');
-        Route::put('/', [\App\Http\Controllers\AlertSettingController::class, 'update'])->name('update');
-        Route::post('/run-check', [\App\Http\Controllers\AlertSettingController::class, 'runCheck'])->name('run-check');
+        Route::get('/', [AlertSettingController::class, 'index'])->name('index');
+        Route::put('/', [AlertSettingController::class, 'update'])->name('update');
+        Route::post('/run-check', [AlertSettingController::class, 'runCheck'])->name('run-check');
     });
 });

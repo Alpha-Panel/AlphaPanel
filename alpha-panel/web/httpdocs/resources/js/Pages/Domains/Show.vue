@@ -201,6 +201,12 @@
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
+                            <Link v-if="can('domain.mail.view') && domain.mail_domain" :href="route('domains.mail.index', domain.id)" class="quick-link">
+                                <i class="fa-solid fa-envelope quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('Mail') }}</span>
+                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                            </Link>
+
                             <Link v-if="can('domain.logs.view')" :href="route('domains.logs.index', domain.id)" class="quick-link">
                                 <i class="fa-solid fa-file-lines quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('Logs') }}</span>

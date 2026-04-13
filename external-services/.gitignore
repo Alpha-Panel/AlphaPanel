@@ -5,3 +5,4 @@
 !empty.yaml
 !*.example.yaml
 !*.example.yml
+!mailcow.yaml

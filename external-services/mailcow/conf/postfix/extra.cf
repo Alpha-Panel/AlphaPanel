@@ -1,0 +1,6 @@
+# Postfix extra configuration
+# Add custom Postfix directives here.
+# These are appended to the auto-generated main.cf.
+
+# Message size limit (50MB)
+message_size_limit = 52428800
