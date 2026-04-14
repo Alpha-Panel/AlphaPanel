@@ -33,7 +33,7 @@ return [
      * The response the package sends when it detects spam.
      * By default it sends a blank 200 response.
      */
-    'respond_to_spam_with' => null,
+    'respond_to_spam_with' => Spatie\Honeypot\SpamResponder\BlankPageResponder::class,
 
     /*
      * When this is activated the package will log spam attempts.
