@@ -542,20 +542,38 @@ class DomainController extends Controller
             return response()->json(['data' => []]);
         }
 
-        $domains = Domain::query()
-            ->select(['id', 'fqdn', 'type', 'status', 'parent_domain_id'])
-            ->when(! $user->isAdmin(), fn ($builder) => $builder->where(function ($q) use ($user) {
-                $q->where('owner_user_id', $user->id)
-                    ->orWhereHas('authorizedUsers', fn ($q) => $q->where('user_id', $user->id));
-            }))
-            ->where('fqdn', 'like', "%{$query}%")
-            ->orderByRaw(
-                'CASE WHEN fqdn = ? THEN 0 WHEN fqdn LIKE ? THEN 1 ELSE 2 END',
-                [$query, "{$query}%"],
-            )
-            ->orderBy('fqdn')
-            ->limit($limit)
-            ->get();
+        $domains = null;
+
+        try {
+            $builder = Domain::search($query);
+
+            if (! $user->isAdmin()) {
+                $builder->where('owner_user_id', $user->id);
+            }
+
+            $domains = $builder->take($limit)->get();
+        } catch (\Throwable $e) {
+            Log::warning('Meilisearch search failed in top bar, falling back to SQL LIKE', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        if ($domains === null) {
+            $domains = Domain::query()
+                ->select(['id', 'fqdn', 'type', 'status', 'parent_domain_id'])
+                ->when(! $user->isAdmin(), fn ($builder) => $builder->where(function ($q) use ($user) {
+                    $q->where('owner_user_id', $user->id)
+                        ->orWhereHas('authorizedUsers', fn ($q) => $q->where('user_id', $user->id));
+                }))
+                ->where('fqdn', 'like', "%{$query}%")
+                ->orderByRaw(
+                    'CASE WHEN fqdn = ? THEN 0 WHEN fqdn LIKE ? THEN 1 ELSE 2 END',
+                    [$query, "{$query}%"],
+                )
+                ->orderBy('fqdn')
+                ->limit($limit)
+                ->get();
+        }
 
         $data = $domains->map(fn (Domain $domain) => [
             'id' => $domain->id,
@@ -652,8 +670,10 @@ class DomainController extends Controller
 
                 $searchResults = $builder->take(10000)->get();
                 $ids = $searchResults->pluck('id')->toArray();
-            } catch (\Throwable) {
-                // Meilisearch unavailable — fallback to SQL LIKE
+            } catch (\Throwable $e) {
+                Log::warning('Meilisearch search failed, falling back to SQL LIKE', [
+                    'error' => $e->getMessage(),
+                ]);
             }
 
             if ($ids !== null) {
