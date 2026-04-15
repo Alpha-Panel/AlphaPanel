@@ -12,6 +12,7 @@ use App\Notifications\DomainNotification;
 use App\Services\CloudflareDnsService;
 use App\Services\DomainConfigService;
 use App\Services\FtpUserService;
+use App\Services\LocalDnsService;
 use App\Services\PortainerService;
 use App\Services\ReloadService;
 use Illuminate\Bus\Queueable;
@@ -53,6 +54,7 @@ class DeleteDomainJob implements ShouldQueue
         ReloadService $reloadService,
         FtpUserService $ftpUserService,
         CloudflareDnsService $cloudflareDnsService,
+        LocalDnsService $localDnsService,
     ): void {
         $this->applyLocale();
         $domain = $this->domain;
@@ -65,7 +67,7 @@ class DeleteDomainJob implements ShouldQueue
             $requiresApacheReload = $this->deleteSubdomains($domain, $configService, $cloudflareDnsService);
             $requiresApacheReload = $requiresApacheReload || $domain->type === DomainType::ApacheReverseProxy;
 
-            $this->removeDomainResources($domain, $configService, $cloudflareDnsService);
+            $this->removeDomainResources($domain, $configService, $cloudflareDnsService, $localDnsService);
 
             $reloadService->reloadCaddy();
 
@@ -146,7 +148,7 @@ class DeleteDomainJob implements ShouldQueue
             }
 
             $subdomain->setRelation('parentDomain', $parent);
-            $this->removeDomainResources($subdomain, $configService, $cloudflareDnsService);
+            $this->removeDomainResources($subdomain, $configService, $cloudflareDnsService, app(LocalDnsService::class));
             $subdomain->delete();
 
             Log::info("Subdomain {$subdomain->fqdn} deleted as part of {$this->fqdn} deletion.");
@@ -159,6 +161,7 @@ class DeleteDomainJob implements ShouldQueue
         Domain $domain,
         DomainConfigService $configService,
         CloudflareDnsService $cloudflareDnsService,
+        LocalDnsService $localDnsService,
     ): void {
         if ($this->deleteDnsRecords && $domain->isSubdomain()) {
             $deletedCount = $cloudflareDnsService->deleteSubdomainARecords($domain->getApexDomain(), $domain->fqdn);
@@ -172,6 +175,14 @@ class DeleteDomainJob implements ShouldQueue
                     'ip_address' => $this->actorIpAddress,
                     'port' => $this->actorPort,
                 ]);
+            }
+        }
+
+        if ($domain->usesLocalDns() && ! $domain->isSubdomain()) {
+            try {
+                $localDnsService->deleteZone($domain);
+            } catch (\Throwable $e) {
+                Log::warning("Failed to delete local DNS zone for {$domain->fqdn}: {$e->getMessage()}");
             }
         }
 
