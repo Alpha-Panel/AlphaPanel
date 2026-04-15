@@ -72,7 +72,7 @@ services:
   alpha_panel_meilisearch:
     image: getmeili/meilisearch:v1.16
     container_name: alpha_panel_meilisearch
-    hostname: meilisearch
+    hostname: alpha_panel_meilisearch
     volumes:
       - ./alpha-panel/meilisearch/data:/meili_data
       - ./alpha-panel/meilisearch/tmp:/tmp
