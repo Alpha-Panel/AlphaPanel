@@ -350,14 +350,14 @@ services:
     ports:
       - "${PRIVATE_NETWORK_IP}:21:21"                        # komut kanalı (FTPS explicit)
       - "${PRIVATE_NETWORK_IP}:990:990"                      # FTPS implicit
-      - "${PRIVATE_NETWORK_IP}:21000-21010:21000-21010"       # pasif mod — public IP (MasqueradeAddress ile eşleşmeli)
+      - "${PRIVATE_NETWORK_IP}:21000-21099:21000-21099"       # pasif mod — 100 port (paralel transferler için yeterli)
     environment:
       FTP_MASQUERADE_ADDRESS: ${PRIVATE_NETWORK_IP}
       FTP_TLS_REQUIRED: "on"
       FTP_TLS_CERTIFICATE_FILE: /etc/letsencrypt/live/${BASE_DOMAIN}/fullchain.pem
       FTP_TLS_CERTIFICATE_KEY_FILE: /etc/letsencrypt/live/${BASE_DOMAIN}/privkey.pem
       FTP_PASSIVE_PORT_RANGE_START: 21000
-      FTP_PASSIVE_PORT_RANGE_END: 21010
+      FTP_PASSIVE_PORT_RANGE_END: 21099
       MYSQL_HOST: mysql
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ftp_reader
@@ -367,7 +367,7 @@ services:
     volumes:
       - ./vhosts:/var/www/vhosts:rw
       - ./letsencrypt:/etc/letsencrypt:ro
-      - ./ftp-config/proftpd.conf:/etc/proftpd/proftpd.conf
+      - ./ftp-config/proftpd.conf:/etc/proftpd/proftpd.conf:ro
       - ./ftp-logs:/var/log/proftpd
     networks:
       - vhost_network
