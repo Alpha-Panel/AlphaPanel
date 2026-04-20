@@ -87,6 +87,11 @@ class SupervisorConfigService
 
         $programName = $this->programName($domain, $type);
         $command = "/usr/local/bin/php {$httpdocs}/artisan {$type->artisanCommand()}";
+
+        if ($type === SupervisorType::Reverb && $supervisor->reverb_port !== null) {
+            $command .= " --host=127.0.0.1 --port={$supervisor->reverb_port}";
+        }
+
         $logFile = "{$httpdocs}/storage/logs/{$type->logFile()}";
         $numProcs = $type->supportsNumProcs() ? $supervisor->num_procs : 1;
 

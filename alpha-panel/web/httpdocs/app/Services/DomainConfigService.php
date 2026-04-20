@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\DomainType;
 use App\Enums\IpAccessMode;
+use App\Enums\SupervisorType;
 use App\Models\Domain;
 use App\Models\DomainIpRule;
 use App\Models\PhpVersion;
@@ -536,6 +537,14 @@ class DomainConfigService
         $lines = [];
         $isLegacy = $domain->type === DomainType::ApacheReverseProxy;
 
+        // Reverb WebSocket proxy — matchers for /app/* (WS) and /apps/* (HTTP API)
+        // emitted before docker/main handlers so path matchers win over php_server.
+        $reverbLines = $this->renderReverbProxyBlock($domain, $indent);
+        if (! empty($reverbLines)) {
+            $lines = array_merge($lines, $reverbLines);
+            $lines[] = '';
+        }
+
         // Docker service bindings (handle_path routes before main handler)
         $dockerBindingLines = $this->renderDockerServiceBindings($domain, $indent);
         $hasDockerBindings = ! empty($dockerBindingLines);
@@ -731,6 +740,54 @@ class DomainConfigService
         }
 
         return $lines;
+    }
+
+    /**
+     * Render Caddy reverse_proxy block that forwards /app/* (WebSocket) and
+     * /apps/* (HTTP broadcast API) to the per-site Reverb instance bound to
+     * 127.0.0.1:{port} inside the frankenphp container. Returns an empty
+     * array when the domain has never activated Reverb.
+     *
+     * @return array<int, string>
+     */
+    private function renderReverbProxyBlock(Domain $domain, string $indent): array
+    {
+        $domain->loadMissing('supervisors');
+
+        $reverb = $domain->supervisors->firstWhere('type', SupervisorType::Reverb);
+
+        if ($reverb === null || $reverb->reverb_port === null) {
+            return [];
+        }
+
+        $port = (int) $reverb->reverb_port;
+        $upstream = "http://127.0.0.1:{$port}";
+
+        return [
+            "{$indent}@reverb_ws {",
+            "{$indent}    path /app/*",
+            "{$indent}}",
+            "{$indent}reverse_proxy @reverb_ws {$upstream} {",
+            "{$indent}    header_up Host {http.request.host}",
+            "{$indent}    header_up X-Real-IP {http.request.remote.host}",
+            "{$indent}    header_up X-Forwarded-For {http.request.remote.host}",
+            "{$indent}    header_up X-Forwarded-Proto {http.request.scheme}",
+            "{$indent}    header_up Upgrade {http.request.header.Upgrade}",
+            "{$indent}    header_up Connection {http.request.header.Connection}",
+            "{$indent}    transport http {",
+            "{$indent}        versions 1.1",
+            "{$indent}    }",
+            "{$indent}}",
+            "{$indent}@reverb_api {",
+            "{$indent}    path /apps/*",
+            "{$indent}}",
+            "{$indent}reverse_proxy @reverb_api {$upstream} {",
+            "{$indent}    header_up Host {http.request.host}",
+            "{$indent}    header_up X-Real-IP {http.request.remote.host}",
+            "{$indent}    header_up X-Forwarded-For {http.request.remote.host}",
+            "{$indent}    header_up X-Forwarded-Proto {http.request.scheme}",
+            "{$indent}}",
+        ];
     }
 
     /**

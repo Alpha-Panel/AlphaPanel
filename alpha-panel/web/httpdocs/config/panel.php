@@ -119,6 +119,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Per-Site Reverb Port Range
+    |--------------------------------------------------------------------------
+    | Range of ports allocated to hosted sites when Reverb is enabled.
+    | Each site binds its own port inside the frankenphp container and the
+    | per-site Caddyfile proxies /app/* and /apps/* to 127.0.0.1:{port}.
+    */
+    'reverb_port_range' => [
+        'min' => (int) env('PANEL_REVERB_PORT_MIN', 8000),
+        'max' => (int) env('PANEL_REVERB_PORT_MAX', 8999),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | SSH Terminal (Host Machine Access)
     |--------------------------------------------------------------------------
     | SSH connection from the container to the host machine.

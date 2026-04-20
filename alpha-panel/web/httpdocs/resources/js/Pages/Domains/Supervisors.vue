@@ -170,6 +170,44 @@
                                     </button>
                                 </div>
                             </div>
+
+                            <div
+                                v-if="process.type === 'reverb' && process.reverb_port"
+                                class="mt-3 rounded-lg border border-brand-500/30 bg-brand-500/5 p-3 dark:border-brand-500/20 dark:bg-brand-500/5"
+                            >
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="inline-flex items-center gap-1.5 rounded-md bg-brand-500/15 px-2.5 py-1 text-xs font-semibold text-brand-700 dark:text-brand-300">
+                                        <i class="bx bx-plug text-sm"></i>
+                                        {{ t('Reverb Port') }}: {{ process.reverb_port }}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        @click="showReverbSecrets = !showReverbSecrets"
+                                        class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                                    >
+                                        <i :class="showReverbSecrets ? 'bx bx-hide' : 'bx bx-show'" class="text-sm"></i>
+                                        {{ showReverbSecrets ? t('Hide Credentials') : t('Show Credentials') }}
+                                    </button>
+                                </div>
+
+                                <div v-if="showReverbSecrets" class="mt-3 space-y-2">
+                                    <div v-for="field in [
+                                            { label: t('App ID'), value: process.reverb_app_id },
+                                            { label: t('App Key'), value: process.reverb_app_key },
+                                            { label: t('App Secret'), value: process.reverb_app_secret },
+                                        ]" :key="field.label" class="flex items-center gap-2">
+                                        <span class="w-24 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ field.label }}</span>
+                                        <code class="flex-1 overflow-x-auto rounded bg-white px-2 py-1 font-mono text-xs text-gray-800 dark:bg-gray-900 dark:text-gray-200">{{ field.value }}</code>
+                                        <button
+                                            type="button"
+                                            @click="copyToClipboard(field.value)"
+                                            class="shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                                        >
+                                            <i class="bx bx-copy"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -263,6 +301,10 @@ interface Process {
     supports_num_procs: boolean;
     is_available: boolean;
     missing_package: string | null;
+    reverb_port?: number | null;
+    reverb_app_id?: string | null;
+    reverb_app_key?: string | null;
+    reverb_app_secret?: string | null;
 }
 
 const props = defineProps<{
@@ -279,6 +321,18 @@ const workersRestartLoading = ref(false);
 const optimizeLoading = ref(false);
 
 const localProcesses = reactive<Process[]>(props.processes.map((p) => ({ ...p })));
+const showReverbSecrets = ref(false);
+
+const copyToClipboard = async (value: string | null | undefined): Promise<void> => {
+    if (!value) return;
+
+    try {
+        await navigator.clipboard.writeText(value);
+        addToast('success', t('Copied to clipboard.'));
+    } catch {
+        addToast('error', t('Operation failed.'));
+    }
+};
 
 // Artisan command runner state
 const artisanCommand = ref('php artisan ');
@@ -325,6 +379,14 @@ const toggleProcess = async (process: Process): Promise<void> => {
 
         process.enabled = response.data.enabled;
         process.num_procs = response.data.num_procs;
+
+        if (response.data.reverb) {
+            process.reverb_port = response.data.reverb.port;
+            process.reverb_app_id = response.data.reverb.app_id;
+            process.reverb_app_key = response.data.reverb.app_key;
+            process.reverb_app_secret = response.data.reverb.app_secret;
+        }
+
         addToast('success', response.data.message);
     } catch (error: any) {
         addToast('error', error.response?.data?.message ?? t('Operation failed.'));

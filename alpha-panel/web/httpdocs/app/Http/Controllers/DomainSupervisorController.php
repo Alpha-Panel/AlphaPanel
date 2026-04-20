@@ -8,12 +8,17 @@ use App\Http\Requests\RunArtisanCommandRequest;
 use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Models\DomainSupervisor;
+use App\Services\DomainConfigService;
 use App\Services\LaravelPackageDetector;
 use App\Services\PortainerService;
+use App\Services\ReloadService;
+use App\Services\ReverbPortAllocator;
+use App\Services\SiteEnvService;
 use App\Services\SupervisorConfigService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -43,7 +48,7 @@ class DomainSupervisorController extends Controller
             $available = $isLaravel && $req['available'];
             $missingPackage = ! $isLaravel ? 'laravel/framework' : ($req['available'] ? null : $req['package']);
 
-            $processes[] = [
+            $row = [
                 'type' => $type->value,
                 'label' => $type->label(),
                 'enabled' => $existing?->enabled ?? false,
@@ -52,6 +57,15 @@ class DomainSupervisorController extends Controller
                 'is_available' => $available,
                 'missing_package' => $missingPackage,
             ];
+
+            if ($type === SupervisorType::Reverb) {
+                $row['reverb_port'] = $existing?->reverb_port;
+                $row['reverb_app_id'] = $existing?->reverb_app_id;
+                $row['reverb_app_key'] = $existing?->reverb_app_key;
+                $row['reverb_app_secret'] = $existing?->reverb_app_secret;
+            }
+
+            $processes[] = $row;
         }
 
         return Inertia::render('Domains/Supervisors', [
@@ -111,6 +125,10 @@ class DomainSupervisorController extends Controller
         );
 
         try {
+            if ($type === SupervisorType::Reverb && $validated['enabled']) {
+                $this->provisionReverb($domain, $supervisor);
+            }
+
             $configService->syncSingle($supervisor);
 
             $action = $validated['enabled'] ? 'supervisor_enabled' : 'supervisor_disabled';
@@ -125,6 +143,12 @@ class DomainSupervisorController extends Controller
                     : __(':process disabled successfully.', ['process' => $type->label()]),
                 'enabled' => $supervisor->enabled,
                 'num_procs' => $supervisor->num_procs,
+                'reverb' => $type === SupervisorType::Reverb ? [
+                    'port' => $supervisor->reverb_port,
+                    'app_id' => $supervisor->reverb_app_id,
+                    'app_key' => $supervisor->reverb_app_key,
+                    'app_secret' => $supervisor->reverb_app_secret,
+                ] : null,
             ]);
         } catch (\Throwable $e) {
             Log::error("Supervisor update failed for {$domain->fqdn}/{$type->value}: {$e->getMessage()}");
@@ -372,6 +396,28 @@ export COLUMNS=220
 cd {$appDir}
 {$command}
 SH;
+    }
+
+    /**
+     * Allocate a per-site Reverb port, mint credentials if missing, write the
+     * hosted site's .env, and regenerate + reload the Caddyfile so the new
+     * /app/* proxy block is live before the supervisor starts the process.
+     */
+    private function provisionReverb(Domain $domain, DomainSupervisor $supervisor): void
+    {
+        app(ReverbPortAllocator::class)->allocate($supervisor);
+
+        if ($supervisor->reverb_app_id === null) {
+            $supervisor->forceFill([
+                'reverb_app_id' => (string) Str::random(16),
+                'reverb_app_key' => (string) Str::random(32),
+                'reverb_app_secret' => (string) Str::random(40),
+            ])->save();
+        }
+
+        app(SiteEnvService::class)->setReverbEnv($domain, $supervisor);
+        app(DomainConfigService::class)->regenerateCaddyConfig($domain);
+        app(ReloadService::class)->reloadCaddy();
     }
 
     private function createAuditLog(Request $request, Domain $domain, string $action, string $summary, ?string $details = null): void
