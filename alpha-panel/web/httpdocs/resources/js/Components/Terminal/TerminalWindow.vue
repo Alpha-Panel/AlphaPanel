@@ -20,6 +20,9 @@
                 {{ session.containerName }}
             </div>
             <div class="flex items-center gap-1">
+                <button @click.stop="reconnect" :disabled="reconnecting" class="rounded p-0.5 text-gray-400 hover:bg-gray-700 hover:text-white disabled:opacity-50" v-tooltip="t('Reconnect')">
+                    <svg :class="['h-3.5 w-3.5', { 'animate-spin': reconnecting }]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                </button>
                 <button @click.stop="$emit('minimize')" class="rounded p-0.5 text-gray-400 hover:bg-gray-700 hover:text-white" v-tooltip="t('Minimize')">
                     <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
                 </button>
@@ -69,7 +72,7 @@ const loadTerminalRuntime = async (): Promise<TerminalRuntime> => {
 
 const props = defineProps<{ session: TerminalSession }>();
 const { t } = useI18n();
-const { getPersistentTerminal, setPersistentTerminal, parkTerminal } = useTerminal();
+const { getPersistentTerminal, setPersistentTerminal, parkTerminal, reconnectSession } = useTerminal();
 
 const emit = defineEmits<{
     activate: [];
@@ -81,6 +84,7 @@ const emit = defineEmits<{
 const windowElement = ref<HTMLElement>();
 const terminalBody = ref<HTMLElement>();
 const connected = ref(false);
+const reconnecting = ref(false);
 
 let terminal: any = null;
 let fitAddon: any = null;
@@ -285,6 +289,26 @@ async function initTerminal() {
 
     setupResizeObserver();
     openWebSocket();
+}
+
+async function reconnect() {
+    if (reconnecting.value) return;
+    reconnecting.value = true;
+    try {
+        terminal?.write(`\r\n\x1b[33m[${t('Reconnecting...')}]\x1b[0m\r\n`);
+        await reconnectSession(props.session.sessionId);
+
+        if (ws && ws.readyState !== WebSocket.CLOSED) {
+            try { ws.close(); } catch { /* noop */ }
+        }
+        ws = null;
+        connected.value = false;
+        openWebSocket();
+    } catch (e: any) {
+        terminal?.write(`\r\n\x1b[31m[${e.message || t('Failed to reconnect terminal')}]\x1b[0m\r\n`);
+    } finally {
+        reconnecting.value = false;
+    }
 }
 
 function startDrag(e: MouseEvent) {

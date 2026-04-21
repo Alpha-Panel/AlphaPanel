@@ -2,10 +2,16 @@ import { ref, reactive } from 'vue';
 import axios from 'axios';
 import { useI18n } from '@/Composables/useI18n';
 
+export type TerminalOrigin =
+    | { type: 'container'; containerId: string; containerName: string }
+    | { type: 'domain'; domainId: number }
+    | { type: 'ssh' };
+
 export interface TerminalSession {
     sessionId: string;
     wsToken: string;
     containerName: string;
+    origin: TerminalOrigin;
     isMinimized: boolean;
     isMaximized: boolean;
     preMaximizeState: { top: string; left: string; width: string; height: string } | null;
@@ -71,7 +77,11 @@ export function useTerminal() {
                 throw new Error(res.data.error || t('Failed to start terminal session'));
             }
 
-            createSession(res.data.session_id, res.data.ws_token, res.data.container_name);
+            createSession(res.data.session_id, res.data.ws_token, res.data.container_name, {
+                type: 'container',
+                containerId,
+                containerName,
+            });
             return res.data.session_id;
         } catch (err: any) {
             throw new Error(err.response?.data?.message || err.message || t('Failed to open terminal'));
@@ -106,7 +116,10 @@ export function useTerminal() {
                 throw new Error(res.data.error || t('Failed to start terminal session'));
             }
 
-            createSession(res.data.session_id, res.data.ws_token, res.data.container_name);
+            createSession(res.data.session_id, res.data.ws_token, res.data.container_name, {
+                type: 'domain',
+                domainId,
+            });
             return res.data.session_id;
         } catch (err: any) {
             throw new Error(err.response?.data?.message || err.message || t('Failed to open terminal'));
@@ -138,7 +151,9 @@ export function useTerminal() {
                 throw new Error(res.data.error || t('Failed to start terminal session'));
             }
 
-            createSession(res.data.session_id, res.data.ws_token, res.data.container_name);
+            createSession(res.data.session_id, res.data.ws_token, res.data.container_name, {
+                type: 'ssh',
+            });
             return res.data.session_id;
         } catch (err: any) {
             throw new Error(err.response?.data?.message || err.message || t('Failed to open terminal'));
@@ -151,6 +166,7 @@ export function useTerminal() {
         sessionId: string,
         wsToken: string,
         containerName: string,
+        origin: TerminalOrigin,
         minimized = false,
     ): TerminalSession {
         if (sessions.has(sessionId)) {
@@ -163,6 +179,7 @@ export function useTerminal() {
             sessionId,
             wsToken,
             containerName,
+            origin,
             isMinimized: minimized,
             isMaximized: false,
             preMaximizeState: null,
@@ -238,6 +255,42 @@ export function useTerminal() {
         }
     }
 
+    async function reconnectSession(sessionId: string): Promise<string | null> {
+        const session = sessions.get(sessionId);
+        if (!session) return null;
+
+        let res;
+        try {
+            if (session.origin.type === 'container') {
+                res = await axios.post(route('terminal.start'), {
+                    container_id: session.origin.containerId,
+                    container_name: session.origin.containerName,
+                });
+            } else if (session.origin.type === 'domain') {
+                res = await axios.post(route('terminal.start-domain'), {
+                    domain_id: session.origin.domainId,
+                });
+            } else {
+                res = await axios.post(route('terminal.start-ssh'));
+            }
+        } catch (err: any) {
+            throw new Error(err.response?.data?.message || err.message || t('Failed to reconnect terminal'));
+        }
+
+        if (!res.data.ws_token) {
+            throw new Error(res.data.error || t('Failed to reconnect terminal'));
+        }
+
+        const pt = persistentTerminals.get(sessionId);
+        if (pt?.ws) {
+            try { pt.ws.close(); } catch { /* noop */ }
+            pt.ws = null;
+        }
+
+        session.wsToken = res.data.ws_token;
+        return res.data.ws_token;
+    }
+
     function stopAndRemove(sessionId: string) {
         sessions.delete(sessionId);
         updateMinimizedList();
@@ -287,6 +340,7 @@ export function useTerminal() {
         minimizeSession,
         restoreSession,
         toggleMaximize,
+        reconnectSession,
         stopAndRemove,
         getPersistentTerminal,
         setPersistentTerminal,
