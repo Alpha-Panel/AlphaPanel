@@ -283,6 +283,10 @@ export function useTerminal() {
 
         const pt = persistentTerminals.get(sessionId);
         if (pt?.ws) {
+            pt.ws.onopen = null;
+            pt.ws.onclose = null;
+            pt.ws.onerror = null;
+            pt.ws.onmessage = null;
             try { pt.ws.close(); } catch { /* noop */ }
             pt.ws = null;
         }

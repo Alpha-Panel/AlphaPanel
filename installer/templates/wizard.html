@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AlphaPanel Installer</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='wizard.css') }}">
+</head>
+<body>
+  <header>
+    <h1>AlphaPanel-Docker Installer</h1>
+  </header>
+
+  <main>
+    <section id="step-welcome" class="step">
+      <h2>Welcome</h2>
+      <p>This installer sets up AlphaPanel-Docker in 8 steps. Nothing is written until the final screen.</p>
+      <div id="resume-banner" hidden>
+        <p><strong>A previous installation did not finish.</strong></p>
+        <div id="resume-error"></div>
+        <button id="btn-resume">Resume</button>
+        <button id="btn-reset">Reset &amp; start fresh</button>
+      </div>
+      <button class="next">Next</button>
+    </section>
+
+    <section id="step-system" class="step" hidden>
+      <h2>System Detection</h2>
+      <dl id="system-info"></dl>
+      <button class="prev">Back</button>
+      <button class="next">Next</button>
+    </section>
+
+    <section id="step-domains" class="step" hidden>
+      <h2>Domains</h2>
+      <form id="form-domains">
+        <label>Base domain (apex) <input name="base_domain" required placeholder="example.com"></label>
+        <label>Panel <input name="panel_domain" required></label>
+        <label>phpMyAdmin <input name="pma_domain" required></label>
+        <label>File manager <input name="code_server_domain" required></label>
+        <label>Vaultwarden <input name="vaultwarden_domain" required></label>
+        <label>N8N <input name="n8n_domain" required></label>
+        <label>Portainer <input name="portainer_domain" required></label>
+        <label>Jenkins <input name="jenkins_domain" required></label>
+        <label>Jenkins admin IPs (optional, CIDRs comma-separated) <input name="jenkins_admin_ips"></label>
+      </form>
+      <button class="prev">Back</button>
+      <button class="next" data-form="form-domains">Next</button>
+    </section>
+
+    <section id="step-creds" class="step" hidden>
+      <h2>Credentials</h2>
+      <form id="form-creds">
+        <label>Cloudflare API token <input type="password" name="cf_api_token" required></label>
+        <label>Admin email (Let's Encrypt account) <input type="email" name="admin_email" required></label>
+        <hr>
+        <p>Portainer admin account — used to sign in at <code>https://&lt;portainer domain&gt;</code></p>
+        <label>Portainer admin username <input name="portainer_admin_user" value="admin" required></label>
+        <label>Portainer admin password (min 12 chars) <input type="password" name="portainer_admin_password" required minlength="12"></label>
+      </form>
+      <button class="prev">Back</button>
+      <button class="next" data-form="form-creds">Next</button>
+    </section>
+
+    <section id="step-admin" class="step" hidden>
+      <h2>Panel Admin Account</h2>
+      <form id="form-admin">
+        <label>Display name <input name="panel_admin_name" required></label>
+        <label>Username <input name="panel_admin_username" value="admin" required></label>
+        <label>Email <input type="email" name="panel_admin_email" required></label>
+        <label>Password <input type="password" name="panel_admin_password" required minlength="8"></label>
+      </form>
+      <button class="prev">Back</button>
+      <button class="next" data-form="form-admin">Next</button>
+    </section>
+
+    <section id="step-summary" class="step" hidden>
+      <h2>Confirm &amp; Start</h2>
+      <div id="summary-body"></div>
+      <button class="prev">Back</button>
+      <button id="btn-start">Start installation</button>
+    </section>
+
+    <section id="step-progress" class="step" hidden>
+      <h2>Installing...</h2>
+      <div id="current-phase"></div>
+      <pre id="log"></pre>
+      <div id="progress-error" hidden></div>
+    </section>
+
+    <section id="step-done" class="step" hidden>
+      <h2>All set.</h2>
+      <p>Opening the panel in a new tab... installer will shut down in 2 seconds.</p>
+      <ul id="service-urls"></ul>
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='wizard.js') }}"></script>
+</body>
+</html>

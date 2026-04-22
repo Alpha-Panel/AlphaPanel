@@ -291,18 +291,29 @@ async function initTerminal() {
     openWebSocket();
 }
 
+function detachWsHandlers(socket: WebSocket | null) {
+    if (!socket) return;
+    socket.onopen = null;
+    socket.onclose = null;
+    socket.onerror = null;
+    socket.onmessage = null;
+}
+
 async function reconnect() {
     if (reconnecting.value) return;
     reconnecting.value = true;
     try {
         terminal?.write(`\r\n\x1b[33m[${t('Reconnecting...')}]\x1b[0m\r\n`);
-        await reconnectSession(props.session.sessionId);
 
+        // Detach stale handlers FIRST so old ws cannot write "[Connection closed]" after the new one opens
+        detachWsHandlers(ws);
         if (ws && ws.readyState !== WebSocket.CLOSED) {
             try { ws.close(); } catch { /* noop */ }
         }
         ws = null;
         connected.value = false;
+
+        await reconnectSession(props.session.sessionId);
         openWebSocket();
     } catch (e: any) {
         terminal?.write(`\r\n\x1b[31m[${e.message || t('Failed to reconnect terminal')}]\x1b[0m\r\n`);

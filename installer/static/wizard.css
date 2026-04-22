@@ -1,0 +1,16 @@
+:root { font-family: system-ui, sans-serif; color-scheme: light dark; }
+body { max-width: 960px; margin: 2rem auto; padding: 0 1rem; }
+header h1 { margin: 0 0 1rem; font-size: 1.3rem; }
+.step { border: 1px solid currentColor; padding: 1.5rem; border-radius: 8px; }
+.step h2 { margin-top: 0; }
+form label { display: block; margin-bottom: 0.75rem; }
+form label input { display: block; width: 100%; padding: 0.4rem; box-sizing: border-box; font: inherit; }
+button { padding: 0.5rem 1rem; margin-right: 0.5rem; cursor: pointer; font: inherit; }
+table { border-collapse: collapse; width: 100%; }
+td { padding: 0.25rem 0.5rem; border-bottom: 1px solid #8884; }
+pre#log { background: #0002; padding: 1rem; max-height: 400px; overflow: auto; font-size: 0.85rem; white-space: pre-wrap; }
+#progress-error { background: #f882; border: 1px solid #f00a; padding: 0.75rem; border-radius: 4px; }
+#resume-banner { background: #fe82; padding: 0.75rem; border-radius: 4px; margin: 1rem 0; color: #000; }
+dl { display: grid; grid-template-columns: 120px 1fr; gap: 0.25rem 1rem; }
+dt { font-weight: 600; }
+#current-phase { font-weight: 600; margin-bottom: 0.5rem; }
