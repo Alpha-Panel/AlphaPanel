@@ -1619,6 +1619,7 @@ yarn.lock
                   npm install --no-audit --no-fund
                 fi
                 npm run theme:install || true
+                npm audit fix --force
                 npm run build
               fi
 

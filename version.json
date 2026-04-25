@@ -3,7 +3,7 @@
   "channel": "stable",
   "min_php": "8.4",
   "services": {
-    "mysql": "9.3.0",
+    "mysql": "9.7.0",
     "redis": "7.4.8",
     "vaultwarden": "1.35.4",
     "meilisearch": "1.16",
