@@ -49,7 +49,7 @@ enum NotificationType: string
             self::BackupFailed => 'bx bx-error-circle',
             self::SystemUpdates => 'bx bx-revision',
             self::SystemAlert => 'bx bx-error',
-            self::AdminAnnouncements => 'bx bx-megaphone',
+            self::AdminAnnouncements => 'bx bxs-megaphone',
         };
     }
 

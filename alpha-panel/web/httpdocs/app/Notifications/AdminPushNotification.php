@@ -33,7 +33,7 @@ class AdminPushNotification extends Notification
             'title' => $this->title,
             'body' => $this->body,
             'url' => $this->url,
-            'icon' => 'bx bx-megaphone',
+            'icon' => 'bx bxs-megaphone',
         ];
     }
 

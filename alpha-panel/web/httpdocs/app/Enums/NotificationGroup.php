@@ -43,7 +43,7 @@ enum NotificationGroup: string
             self::Ssl => 'bx bx-lock-alt',
             self::Backups => 'bx bx-cloud-upload',
             self::System => 'bx bx-server',
-            self::Announcements => 'bx bx-megaphone',
+            self::Announcements => 'bx bxs-megaphone',
         };
     }
 }
