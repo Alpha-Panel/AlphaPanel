@@ -163,8 +163,8 @@
                         </div>
 
                         <!-- Save bar -->
-                        <div class="sticky bottom-4 flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm dark:border-gray-800 dark:bg-white/3">
-                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                        <div class="sticky bottom-4 flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-lg backdrop-blur-md dark:border-gray-700 dark:bg-gray-900">
+                            <p class="text-xs text-gray-600 dark:text-gray-300">
                                 <i class="bx bx-info-circle mr-1"></i>
                                 {{ t('In-App must be enabled to use Push and E-mail channels.') }}
                             </p>
