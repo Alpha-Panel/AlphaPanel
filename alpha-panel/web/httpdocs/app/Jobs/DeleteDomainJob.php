@@ -99,6 +99,7 @@ class DeleteDomainJob implements ShouldQueue
                     body: __('Domain :fqdn has been deleted successfully.', ['fqdn' => $fqdn]),
                     icon: 'bx bx-trash',
                     notificationType: NotificationType::DomainDeleted,
+                    actorUserId: $this->triggeredBy,
                 ));
             }
 
@@ -120,6 +121,7 @@ class DeleteDomainJob implements ShouldQueue
                     domainId: $domain->exists ? $domain->id : null,
                     icon: 'bx bx-error-circle',
                     notificationType: NotificationType::DomainDeleted,
+                    actorUserId: $this->triggeredBy,
                 ));
             }
 

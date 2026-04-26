@@ -24,6 +24,7 @@ class UpdateNotificationPreferencesRequest extends FormRequest
             'preferences.*.database' => ['required', 'boolean'],
             'preferences.*.push' => ['required', 'boolean'],
             'preferences.*.mail' => ['required', 'boolean'],
+            'skip_self_push' => ['sometimes', 'boolean'],
         ];
     }
 }

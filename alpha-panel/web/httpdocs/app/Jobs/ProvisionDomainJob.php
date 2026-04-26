@@ -111,6 +111,7 @@ class ProvisionDomainJob implements ShouldQueue
                     domainId: $domain->id,
                     url: route('domains.show', $domain),
                     notificationType: NotificationType::DomainProvisioned,
+                    actorUserId: $this->triggeredBy,
                 ));
 
                 AuditLog::create([
@@ -194,6 +195,7 @@ class ProvisionDomainJob implements ShouldQueue
                     domainId: $domain->id,
                     url: route('domains.show', $domain),
                     notificationType: NotificationType::DomainProvisioned,
+                    actorUserId: $this->triggeredBy,
                 ));
 
                 AuditLog::create([
@@ -240,6 +242,7 @@ class ProvisionDomainJob implements ShouldQueue
             url: route('domains.show', $domain),
             icon: 'bx bx-error-circle',
             notificationType: NotificationType::DomainProvisioned,
+            actorUserId: $this->triggeredBy,
         ));
 
         AuditLog::create([

@@ -23,11 +23,13 @@ class BackupNotification extends Notification
         public string $body,
         public ?string $url = null,
         public string $icon = 'bx bx-cloud-upload',
+        public NotificationType $notificationType = NotificationType::BackupCompleted,
+        public ?int $actorUserId = null,
     ) {}
 
     public function preferenceType(): NotificationType
     {
-        return NotificationType::BackupStatus;
+        return $this->notificationType;
     }
 
     /** @return array<string, mixed> */

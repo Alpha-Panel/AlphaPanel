@@ -406,6 +406,7 @@ class DomainController extends Controller
             url: route('domains.show', $domain),
             icon: 'bx bx-user-check',
             notificationType: NotificationType::FtpChanges,
+            actorUserId: $request->user()->id,
         ));
 
         return redirect()

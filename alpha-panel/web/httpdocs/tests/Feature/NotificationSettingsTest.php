@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Notifications\BackupNotification;
 use App\Notifications\DomainNotification;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use NotificationChannels\WebPush\WebPushChannel;
 use Tests\TestCase;
 
 class NotificationSettingsTest extends TestCase
@@ -26,6 +27,9 @@ class NotificationSettingsTest extends TestCase
             ->where('tab', 'preferences')
             ->has('preferences', count(NotificationType::cases()))
             ->has('types', count(NotificationType::cases()))
+            ->has('groups')
+            ->has('behavior')
+            ->where('behavior.skip_self_push', false)
             ->has('subscriptions')
         );
     }
@@ -51,7 +55,8 @@ class NotificationSettingsTest extends TestCase
         $response = $this->actingAs($user)->putJson(route('user.notification-settings.update'), [
             'preferences' => [
                 ['type' => 'domain_provisioned', 'database' => true, 'push' => false, 'mail' => true],
-                ['type' => 'backup_status', 'database' => true, 'push' => true, 'mail' => false],
+                ['type' => 'backup_started', 'database' => true, 'push' => true, 'mail' => false],
+                ['type' => 'ssl_renewal', 'database' => true, 'push' => false, 'mail' => true],
             ],
         ]);
 
@@ -68,10 +73,18 @@ class NotificationSettingsTest extends TestCase
 
         $this->assertDatabaseHas('notification_preferences', [
             'user_id' => $user->id,
-            'type' => 'backup_status',
+            'type' => 'backup_started',
             'database' => true,
             'push' => true,
             'mail' => false,
+        ]);
+
+        $this->assertDatabaseHas('notification_preferences', [
+            'user_id' => $user->id,
+            'type' => 'ssl_renewal',
+            'database' => true,
+            'push' => false,
+            'mail' => true,
         ]);
     }
 
@@ -226,21 +239,115 @@ class NotificationSettingsTest extends TestCase
         $this->assertDatabaseCount('notification_preferences', 1);
     }
 
-    public function test_backup_notification_respects_preferences(): void
+    public function test_backup_notification_respects_split_preferences(): void
     {
         $user = User::factory()->create();
 
         NotificationPreference::query()->create([
             'user_id' => $user->id,
-            'type' => NotificationType::BackupStatus,
+            'type' => NotificationType::BackupFailed,
             'database' => false,
             'push' => false,
             'mail' => false,
         ]);
 
-        $notification = new BackupNotification('info', 'Backup done', 'Backup completed');
+        $notification = new BackupNotification(
+            level: 'error',
+            title: 'Backup failed',
+            body: 'Something went wrong',
+            notificationType: NotificationType::BackupFailed,
+        );
+
+        $this->assertEquals(['broadcast'], $notification->via($user));
+    }
+
+    public function test_backup_started_and_failed_use_independent_preferences(): void
+    {
+        $user = User::factory()->create();
+
+        NotificationPreference::query()->create([
+            'user_id' => $user->id,
+            'type' => NotificationType::BackupStarted,
+            'database' => false,
+            'push' => false,
+            'mail' => false,
+        ]);
+
+        $started = new BackupNotification('info', 'Started', 'body', notificationType: NotificationType::BackupStarted);
+        $failed = new BackupNotification('error', 'Failed', 'body', notificationType: NotificationType::BackupFailed);
+
+        $this->assertEquals(['broadcast'], $started->via($user));
+        $this->assertContains('database', $failed->via($user));
+    }
+
+    public function test_user_can_toggle_skip_self_push(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->putJson(route('user.notification-settings.update'), [
+            'preferences' => [
+                ['type' => 'domain_provisioned', 'database' => true, 'push' => true, 'mail' => false],
+            ],
+            'skip_self_push' => true,
+        ]);
+
+        $response->assertOk();
+        $this->assertTrue((bool) $user->fresh()->skip_self_push);
+    }
+
+    public function test_self_actor_with_skip_self_push_drops_webpush(): void
+    {
+        $user = User::factory()->create(['skip_self_push' => true]);
+        $user->updatePushSubscription('https://example.test/endpoint', 'key', 'auth', 'aesgcm');
+
+        $notification = new DomainNotification(
+            level: 'info',
+            title: 'Self FTP change',
+            body: 'body',
+            notificationType: NotificationType::FtpChanges,
+            actorUserId: $user->id,
+        );
+
         $channels = $notification->via($user);
 
-        $this->assertEquals(['broadcast'], $channels);
+        $this->assertContains('database', $channels);
+        $this->assertNotContains(WebPushChannel::class, $channels);
+    }
+
+    public function test_other_actor_still_receives_webpush_when_skip_self_push_enabled(): void
+    {
+        $user = User::factory()->create(['skip_self_push' => true]);
+        $otherUserId = User::factory()->create()->id;
+        $user->updatePushSubscription('https://example.test/endpoint', 'key', 'auth', 'aesgcm');
+
+        $notification = new DomainNotification(
+            level: 'info',
+            title: 'Other actor',
+            body: 'body',
+            notificationType: NotificationType::FtpChanges,
+            actorUserId: $otherUserId,
+        );
+
+        $channels = $notification->via($user);
+
+        $this->assertContains(WebPushChannel::class, $channels);
+    }
+
+    public function test_self_actor_without_skip_self_push_still_receives_webpush(): void
+    {
+        $user = User::factory()->create(['skip_self_push' => false]);
+        $user->updatePushSubscription('https://example.test/endpoint', 'key', 'auth', 'aesgcm');
+
+        $notification = new DomainNotification(
+            level: 'info',
+            title: 'Self change',
+            body: 'body',
+            notificationType: NotificationType::FtpChanges,
+            actorUserId: $user->id,
+        );
+
+        $channels = $notification->via($user);
+
+        $this->assertContains(WebPushChannel::class, $channels);
     }
 }

@@ -26,6 +26,7 @@ class User extends Authenticatable implements WebAuthnAuthenticatable
         'username',
         'email',
         'password',
+        'skip_self_push',
     ];
 
     /** @var list<string> */
@@ -45,6 +46,7 @@ class User extends Authenticatable implements WebAuthnAuthenticatable
             'admin' => 'boolean',
             'otp' => 'boolean',
             'two_factor_confirmed' => 'boolean',
+            'skip_self_push' => 'boolean',
         ];
     }
 

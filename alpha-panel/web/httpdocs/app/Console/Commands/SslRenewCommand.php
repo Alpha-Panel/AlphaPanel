@@ -68,6 +68,7 @@ class SslRenewCommand extends Command
                     domain: $domain,
                     triggeredBy: null,
                     locale: config('app.locale', 'en'),
+                    isRenewal: true,
                 );
 
                 $this->info("  Queued renewal for {$domain->fqdn} (expires in {$daysLeft} days).");

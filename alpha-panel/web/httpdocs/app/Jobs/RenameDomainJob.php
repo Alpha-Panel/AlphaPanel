@@ -124,6 +124,7 @@ class RenameDomainJob implements ShouldQueue
                 url: route('domains.show', $domain),
                 icon: 'bx bx-error-circle',
                 notificationType: NotificationType::DomainRenamed,
+                actorUserId: $this->triggeredBy,
             ));
 
             throw $e;

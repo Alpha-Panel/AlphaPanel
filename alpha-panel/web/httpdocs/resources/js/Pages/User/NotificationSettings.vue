@@ -35,48 +35,97 @@
 
                     <!-- Tab: Notification Preferences -->
                     <template v-if="tab === 'preferences'">
+                        <!-- Notification Behavior -->
                         <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/3">
-                            <!-- Table -->
+                            <div class="flex items-center gap-3 border-b border-gray-200 px-5 py-4 dark:border-gray-800">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+                                    <i class="bx bx-user-voice text-lg"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-base font-semibold text-gray-800 dark:text-white/90">
+                                        {{ t('Notification Behavior') }}
+                                    </h3>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        {{ t('Fine-tune when push notifications reach you across your own actions.') }}
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between gap-4 px-5 py-4">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-medium text-gray-800 dark:text-white/90">
+                                        {{ t('Skip push notifications for actions I performed') }}
+                                    </p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        {{ t('When enabled, actions you trigger while signed in will not send a push notification to your devices. In-app and e-mail are unaffected.') }}
+                                    </p>
+                                </div>
+                                <ToggleSwitch
+                                    :modelValue="skipSelfPush"
+                                    @update:modelValue="skipSelfPush = $event"
+                                />
+                            </div>
+                        </div>
+
+                        <!-- Grouped category cards -->
+                        <div
+                            v-for="group in groups"
+                            :key="group.value"
+                            class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/3"
+                        >
+                            <div class="flex items-center gap-3 border-b border-gray-200 px-5 py-4 dark:border-gray-800">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                                    <i :class="group.icon" class="text-lg"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <h3 class="text-base font-semibold text-gray-800 dark:text-white/90">
+                                        {{ group.label }}
+                                    </h3>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        {{ group.description }}
+                                    </p>
+                                </div>
+                            </div>
+
                             <div class="overflow-x-auto">
                                 <table class="w-full">
                                     <thead>
                                         <tr class="border-b border-gray-200 dark:border-gray-800">
-                                            <th class="px-5 py-3.5 text-left text-sm font-semibold text-gray-800 dark:text-white/90">
+                                            <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                                                 {{ t('Notification Type') }}
                                             </th>
-                                            <th class="px-5 py-3.5 text-center text-sm font-semibold text-gray-800 dark:text-white/90 w-28">
+                                            <th class="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 w-24">
                                                 <div class="flex flex-col items-center gap-0.5">
-                                                    <i class="bx bx-bell text-lg"></i>
+                                                    <i class="bx bx-bell text-base"></i>
                                                     <span>{{ t('In-App') }}</span>
                                                 </div>
                                             </th>
-                                            <th class="px-5 py-3.5 text-center text-sm font-semibold text-gray-800 dark:text-white/90 w-28">
+                                            <th class="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 w-24">
                                                 <div class="flex flex-col items-center gap-0.5">
-                                                    <i class="bx bx-mobile-alt text-lg"></i>
+                                                    <i class="bx bx-mobile-alt text-base"></i>
                                                     <span>Push</span>
                                                 </div>
                                             </th>
-                                            <th class="px-5 py-3.5 text-center text-sm font-semibold text-gray-800 dark:text-white/90 w-28">
+                                            <th class="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 w-24">
                                                 <div class="flex flex-col items-center gap-0.5">
-                                                    <i class="bx bx-envelope text-lg"></i>
+                                                    <i class="bx bx-envelope text-base"></i>
                                                     <span>{{ t('E-mail') }}</span>
                                                 </div>
                                             </th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
-                                        <tr v-for="(pref, idx) in localPreferences" :key="pref.type">
+                                        <tr v-for="row in groupedRows(group.value)" :key="row.pref.type">
                                             <td class="px-5 py-4">
                                                 <div class="flex items-center gap-3">
                                                     <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
-                                                        <i :class="typeInfo(pref.type)?.icon" class="text-lg text-gray-500 dark:text-gray-400"></i>
+                                                        <i :class="row.info?.icon" class="text-lg text-gray-500 dark:text-gray-400"></i>
                                                     </div>
                                                     <div>
                                                         <p class="text-sm font-medium text-gray-800 dark:text-white/90">
-                                                            {{ typeInfo(pref.type)?.label }}
+                                                            {{ row.info?.label }}
                                                         </p>
                                                         <p class="text-xs text-gray-500 dark:text-gray-400">
-                                                            {{ typeInfo(pref.type)?.description }}
+                                                            {{ row.info?.description }}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -84,26 +133,26 @@
                                             <td class="px-5 py-4">
                                                 <div class="flex justify-center">
                                                     <ToggleSwitch
-                                                        :modelValue="pref.database"
-                                                        @update:modelValue="toggleDatabase(idx, $event)"
+                                                        :modelValue="row.pref.database"
+                                                        @update:modelValue="toggleDatabase(row.idx, $event)"
                                                     />
                                                 </div>
                                             </td>
                                             <td class="px-5 py-4">
-                                                <div class="flex justify-center" :class="{ 'opacity-40 pointer-events-none': !pref.database }">
+                                                <div class="flex justify-center" :class="{ 'opacity-40 pointer-events-none': !row.pref.database }">
                                                     <ToggleSwitch
-                                                        :modelValue="pref.push"
-                                                        :disabled="!pref.database"
-                                                        @update:modelValue="localPreferences[idx].push = $event"
+                                                        :modelValue="row.pref.push"
+                                                        :disabled="!row.pref.database"
+                                                        @update:modelValue="localPreferences[row.idx].push = $event"
                                                     />
                                                 </div>
                                             </td>
                                             <td class="px-5 py-4">
-                                                <div class="flex justify-center" :class="{ 'opacity-40 pointer-events-none': !pref.database }">
+                                                <div class="flex justify-center" :class="{ 'opacity-40 pointer-events-none': !row.pref.database }">
                                                     <ToggleSwitch
-                                                        :modelValue="pref.mail"
-                                                        :disabled="!pref.database"
-                                                        @update:modelValue="localPreferences[idx].mail = $event"
+                                                        :modelValue="row.pref.mail"
+                                                        :disabled="!row.pref.database"
+                                                        @update:modelValue="localPreferences[row.idx].mail = $event"
                                                     />
                                                 </div>
                                             </td>
@@ -111,21 +160,21 @@
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
 
-                            <!-- Info + Save -->
-                            <div class="flex items-center justify-between border-t border-gray-200 px-5 py-4 dark:border-gray-800">
-                                <p class="text-xs text-gray-500 dark:text-gray-400">
-                                    <i class="bx bx-info-circle mr-1"></i>
-                                    {{ t('In-App must be enabled to use Push and E-mail channels.') }}
-                                </p>
-                                <button
-                                    @click="savePreferences"
-                                    :disabled="saving"
-                                    class="rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
-                                >
-                                    {{ saving ? t('Saving...') : t('Save Preferences') }}
-                                </button>
-                            </div>
+                        <!-- Save bar -->
+                        <div class="sticky bottom-4 flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm dark:border-gray-800 dark:bg-white/3">
+                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                <i class="bx bx-info-circle mr-1"></i>
+                                {{ t('In-App must be enabled to use Push and E-mail channels.') }}
+                            </p>
+                            <button
+                                @click="savePreferences"
+                                :disabled="saving"
+                                class="rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
+                            >
+                                {{ saving ? t('Saving...') : t('Save Preferences') }}
+                            </button>
                         </div>
                     </template>
 
@@ -239,6 +288,14 @@ interface NotificationTypeInfo {
     label: string;
     icon: string;
     description: string;
+    group: string;
+}
+
+interface NotificationGroupInfo {
+    value: string;
+    label: string;
+    description: string;
+    icon: string;
 }
 
 interface PushDevice {
@@ -252,10 +309,16 @@ interface PushDevice {
     is_current?: boolean;
 }
 
+interface BehaviorState {
+    skip_self_push: boolean;
+}
+
 const props = defineProps<{
     tab: 'preferences' | 'devices';
     preferences: NotificationPref[];
     types: NotificationTypeInfo[];
+    groups: NotificationGroupInfo[];
+    behavior: BehaviorState;
     subscriptions: PushDevice[];
 }>();
 
@@ -272,6 +335,7 @@ const {
 
 // Preferences tab state
 const localPreferences = ref<NotificationPref[]>(JSON.parse(JSON.stringify(props.preferences)));
+const skipSelfPush = ref<boolean>(!!props.behavior?.skip_self_push);
 const saving = ref(false);
 
 // Devices tab state
@@ -279,7 +343,24 @@ const devices = ref<PushDevice[]>([...props.subscriptions]);
 const removing = ref<number | null>(null);
 
 function typeInfo(typeValue: string): NotificationTypeInfo | undefined {
-    return props.types.find((t) => t.value === typeValue);
+    return props.types.find((ti) => ti.value === typeValue);
+}
+
+interface GroupedRow {
+    idx: number;
+    pref: NotificationPref;
+    info: NotificationTypeInfo | undefined;
+}
+
+function groupedRows(groupValue: string): GroupedRow[] {
+    const rows: GroupedRow[] = [];
+    localPreferences.value.forEach((pref, idx) => {
+        const info = typeInfo(pref.type);
+        if (info?.group === groupValue) {
+            rows.push({ idx, pref, info });
+        }
+    });
+    return rows;
 }
 
 function toggleDatabase(idx: number, value: boolean): void {
@@ -295,6 +376,7 @@ async function savePreferences(): Promise<void> {
     try {
         await axios.put(route('user.notification-settings.update'), {
             preferences: localPreferences.value,
+            skip_self_push: skipSelfPush.value,
         });
         addToast('success', t('Preferences saved.'));
     } catch (e: any) {

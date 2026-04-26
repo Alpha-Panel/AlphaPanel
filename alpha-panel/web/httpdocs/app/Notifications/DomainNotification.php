@@ -25,6 +25,7 @@ class DomainNotification extends Notification
         public ?string $url = null,
         public string $icon = 'bx bx-globe',
         public NotificationType $notificationType = NotificationType::DomainProvisioned,
+        public ?int $actorUserId = null,
     ) {}
 
     public function preferenceType(): NotificationType

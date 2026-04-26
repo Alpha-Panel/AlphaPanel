@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\NotificationGroup;
 use App\Enums\NotificationType;
 use App\Http\Requests\UpdateNotificationPreferencesRequest;
 use App\Models\NotificationPreference;
@@ -16,29 +17,20 @@ class NotificationSettingsController extends Controller
 {
     public function index(Request $request): Response
     {
-        return Inertia::render('User/NotificationSettings', [
-            'tab' => 'preferences',
-            'preferences' => $this->buildPreferences($request),
-            'types' => $this->buildTypes(),
-            'subscriptions' => $this->buildSubscriptions($request),
-        ]);
+        return Inertia::render('User/NotificationSettings', $this->payload($request, 'preferences'));
     }
 
     public function devices(Request $request): Response
     {
-        return Inertia::render('User/NotificationSettings', [
-            'tab' => 'devices',
-            'preferences' => $this->buildPreferences($request),
-            'types' => $this->buildTypes(),
-            'subscriptions' => $this->buildSubscriptions($request),
-        ]);
+        return Inertia::render('User/NotificationSettings', $this->payload($request, 'devices'));
     }
 
     public function update(UpdateNotificationPreferencesRequest $request): JsonResponse
     {
         $user = $request->user();
+        $validated = $request->validated();
 
-        foreach ($request->validated()['preferences'] as $pref) {
+        foreach ($validated['preferences'] as $pref) {
             $dbEnabled = (bool) $pref['database'];
 
             NotificationPreference::query()->updateOrCreate(
@@ -49,6 +41,10 @@ class NotificationSettingsController extends Controller
                     'mail' => $dbEnabled ? (bool) $pref['mail'] : false,
                 ],
             );
+        }
+
+        if (array_key_exists('skip_self_push', $validated)) {
+            $user->forceFill(['skip_self_push' => (bool) $validated['skip_self_push']])->save();
         }
 
         return response()->json(['status' => 'saved']);
@@ -63,6 +59,21 @@ class NotificationSettingsController extends Controller
         $pushSubscription->delete();
 
         return response()->json(['status' => 'removed']);
+    }
+
+    /** @return array<string, mixed> */
+    private function payload(Request $request, string $tab): array
+    {
+        return [
+            'tab' => $tab,
+            'preferences' => $this->buildPreferences($request),
+            'types' => $this->buildTypes(),
+            'groups' => $this->buildGroups(),
+            'subscriptions' => $this->buildSubscriptions($request),
+            'behavior' => [
+                'skip_self_push' => (bool) $request->user()->skip_self_push,
+            ],
+        ];
     }
 
     /** @return array<int, array<string, mixed>> */
@@ -93,6 +104,21 @@ class NotificationSettingsController extends Controller
                 'label' => $type->label(),
                 'icon' => $type->icon(),
                 'description' => $type->description(),
+                'group' => $type->group()->value,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /** @return array<int, array<string, string>> */
+    private function buildGroups(): array
+    {
+        return collect(NotificationGroup::cases())
+            ->map(fn (NotificationGroup $g): array => [
+                'value' => $g->value,
+                'label' => $g->label(),
+                'description' => $g->description(),
+                'icon' => $g->icon(),
             ])
             ->values()
             ->all();

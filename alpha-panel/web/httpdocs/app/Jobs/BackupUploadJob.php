@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\NotificationType;
 use App\Events\BackupProgress;
 use App\Models\AuditLog;
 use App\Models\BackupRun;
@@ -72,11 +73,15 @@ class BackupUploadJob implements ShouldQueue
 
         // Notify admins: backup started
         $admins = User::where('admin', true)->get();
+        $actorUserId = $run->triggered_by;
         Notification::send($admins, new BackupNotification(
-            'info',
-            __('Backup Started'),
-            __('A backup operation has started.'),
-            $backupsUrl,
+            level: 'info',
+            title: __('Backup Started'),
+            body: __('A backup operation has started.'),
+            url: $backupsUrl,
+            icon: 'bx bx-cloud-upload',
+            notificationType: NotificationType::BackupStarted,
+            actorUserId: $actorUserId,
         ));
 
         try {
@@ -157,10 +162,13 @@ class BackupUploadJob implements ShouldQueue
 
             // Notify admins: backup completed
             Notification::send($admins, new BackupNotification(
-                'success',
-                __('Backup Completed'),
-                __('Backup completed successfully. :count files uploaded.', ['count' => $this->totalFiles]),
-                $backupsUrl,
+                level: 'success',
+                title: __('Backup Completed'),
+                body: __('Backup completed successfully. :count files uploaded.', ['count' => $this->totalFiles]),
+                url: $backupsUrl,
+                icon: 'bx bx-check-circle',
+                notificationType: NotificationType::BackupCompleted,
+                actorUserId: $actorUserId,
             ));
         } catch (\Throwable $e) {
             Log::error('BackupUploadJob failed', [
@@ -184,10 +192,13 @@ class BackupUploadJob implements ShouldQueue
 
             // Notify admins: backup failed
             Notification::send($admins, new BackupNotification(
-                'error',
-                __('Backup Failed'),
-                __('Backup failed: :error', ['error' => $e->getMessage()]),
-                $backupsUrl,
+                level: 'error',
+                title: __('Backup Failed'),
+                body: __('Backup failed: :error', ['error' => $e->getMessage()]),
+                url: $backupsUrl,
+                icon: 'bx bx-error-circle',
+                notificationType: NotificationType::BackupFailed,
+                actorUserId: $actorUserId,
             ));
         } finally {
             // Cleanup temp directory

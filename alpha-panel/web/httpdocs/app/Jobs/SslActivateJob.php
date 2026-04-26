@@ -40,7 +40,15 @@ class SslActivateJob implements ShouldQueue
         public string $locale = 'en',
         public ?string $actorIpAddress = null,
         public ?int $actorPort = null,
+        public bool $isRenewal = false,
     ) {}
+
+    private function sslNotificationType(): NotificationType
+    {
+        return $this->isRenewal
+            ? NotificationType::SslRenewal
+            : NotificationType::SslIssuance;
+    }
 
     public function handle(
         AcmeService $acmeService,
@@ -139,12 +147,13 @@ class SslActivateJob implements ShouldQueue
 
                 $domain->owner->notify(new DomainNotification(
                     level: 'error',
-                    title: __('SSL Activation Failed'),
+                    title: $this->isRenewal ? __('SSL Renewal Failed') : __('SSL Activation Failed'),
                     body: __('SSL certificate activation failed for :fqdn. Check the logs for details.', ['fqdn' => $fqdn]),
                     domainId: $domain->id,
                     url: route('domains.show', $domain),
                     icon: 'bx bx-error-circle',
-                    notificationType: NotificationType::SslCertificate,
+                    notificationType: $this->sslNotificationType(),
+                    actorUserId: $this->triggeredBy,
                 ));
 
                 AuditLog::create([
@@ -167,12 +176,15 @@ class SslActivateJob implements ShouldQueue
 
             $domain->owner->notify(new DomainNotification(
                 level: 'success',
-                title: __('SSL Certificate Activated'),
-                body: __('SSL certificate activated successfully for :fqdn.', ['fqdn' => $fqdn]),
+                title: $this->isRenewal ? __('SSL Certificate Renewed') : __('SSL Certificate Activated'),
+                body: $this->isRenewal
+                    ? __('SSL certificate renewed successfully for :fqdn.', ['fqdn' => $fqdn])
+                    : __('SSL certificate activated successfully for :fqdn.', ['fqdn' => $fqdn]),
                 domainId: $domain->id,
                 url: route('domains.show', $domain),
-                icon: 'bx bx-lock-alt',
-                notificationType: NotificationType::SslCertificate,
+                icon: $this->isRenewal ? 'bx bx-refresh' : 'bx bx-lock-alt',
+                notificationType: $this->sslNotificationType(),
+                actorUserId: $this->triggeredBy,
             ));
 
             AuditLog::create([
@@ -191,7 +203,7 @@ class SslActivateJob implements ShouldQueue
 
             $domain->owner->notify(new DomainNotification(
                 level: 'error',
-                title: __('SSL Activation Failed'),
+                title: $this->isRenewal ? __('SSL Renewal Failed') : __('SSL Activation Failed'),
                 body: __('SSL certificate operation failed for :fqdn: :error', [
                     'fqdn' => $fqdn,
                     'error' => $e->getMessage(),
@@ -199,7 +211,8 @@ class SslActivateJob implements ShouldQueue
                 domainId: $domain->id,
                 url: route('domains.show', $domain),
                 icon: 'bx bx-error-circle',
-                notificationType: NotificationType::SslCertificate,
+                notificationType: $this->sslNotificationType(),
+                actorUserId: $this->triggeredBy,
             ));
 
             AuditLog::create([
