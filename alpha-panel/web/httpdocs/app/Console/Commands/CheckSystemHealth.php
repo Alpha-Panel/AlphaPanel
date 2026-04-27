@@ -117,7 +117,12 @@ class CheckSystemHealth extends Command
 
     private function notifyAdmins(SystemAlertNotification $notification): void
     {
-        $admins = User::where('admin', true)->get();
-        Notification::send($admins, $notification);
+        $recipients = User::permission('panel.notifications.system-alerts.receive')->get();
+
+        if ($recipients->isEmpty()) {
+            return;
+        }
+
+        Notification::send($recipients, $notification);
     }
 }

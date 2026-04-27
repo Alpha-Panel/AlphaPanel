@@ -47,7 +47,7 @@ class AdminPushNotificationController extends Controller
     private function resolveRecipients(string $target, ?int $domainId): Collection
     {
         return match ($target) {
-            'admins' => User::where('admin', true)->get(),
+            'admins' => User::permission('panel.notifications.admin-announcements.receive')->get(),
             'domain' => $this->domainRelatedUsers($domainId),
             default => User::all(),
         };

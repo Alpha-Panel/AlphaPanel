@@ -45,7 +45,11 @@ class CheckForUpdatesJob implements ShouldQueue
 
         $body = $this->buildNotificationBody($result);
 
-        $admins = User::whereHas('roles', fn ($q) => $q->where('name', 'admin'))->get();
+        $recipients = User::permission('panel.notifications.system-updates.receive')->get();
+
+        if ($recipients->isEmpty()) {
+            return;
+        }
 
         $notification = new SystemUpdateNotification(
             level: 'info',
@@ -53,8 +57,8 @@ class CheckForUpdatesJob implements ShouldQueue
             body: $body,
         );
 
-        foreach ($admins as $admin) {
-            $admin->notify($notification);
+        foreach ($recipients as $recipient) {
+            $recipient->notify($notification);
         }
     }
 

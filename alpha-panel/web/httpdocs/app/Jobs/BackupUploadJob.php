@@ -71,8 +71,8 @@ class BackupUploadJob implements ShouldQueue
         $this->totalBytes = 0;
         $backupsUrl = route('backups.index');
 
-        // Notify admins: backup started
-        $admins = User::where('admin', true)->get();
+        // Notify users with backup notification permission
+        $admins = User::permission('panel.notifications.backups.receive')->get();
         $actorUserId = $run->triggered_by;
         Notification::send($admins, new BackupNotification(
             level: 'info',

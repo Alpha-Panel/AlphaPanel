@@ -61,6 +61,10 @@ return [
             'panel.php-versions.manage' => 'Enable and disable PHP versions',
             'panel.security-settings.manage' => 'Manage login security settings (IP filter, captcha, honeypot)',
             'panel.alert-settings.manage' => 'Manage system alert threshold settings',
+            'panel.notifications.system-updates.receive' => 'Receive system update notifications',
+            'panel.notifications.system-alerts.receive' => 'Receive system health alerts (CPU, RAM, disk usage)',
+            'panel.notifications.backups.receive' => 'Receive backup notifications (started, completed, failed)',
+            'panel.notifications.admin-announcements.receive' => 'Receive admin announcements targeted to admins',
         ],
     ],
 
