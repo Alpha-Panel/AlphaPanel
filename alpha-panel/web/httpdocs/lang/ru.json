@@ -1646,5 +1646,19 @@
   "upload_max_filesize": "upload_max_filesize",
   "user": "пользователь",
   "users": "пользователи",
-  "value": "znachenie"
+  "value": "znachenie",
+  "Login as": "Войти как",
+  "Login as this user": "Войти как этот пользователь",
+  "Login as :name?": "Войти как :name?",
+  "Stop impersonation": "Остановить вход за пользователя",
+  "Stopping...": "Остановка...",
+  "You are viewing the panel as :target. Click here to return to your :impersonator account.": "Вы просматриваете панель от имени :target. Нажмите здесь, чтобы вернуться в свою учётную запись :impersonator.",
+  "You cannot impersonate yourself.": "Нельзя войти за самого себя.",
+  "You are already impersonating another user.": "Вы уже вошли за другого пользователя.",
+  "You do not have permission to impersonate this user.": "У вас нет прав входить за этого пользователя.",
+  "Only super admins can impersonate other admins.": "Только суперадминистраторы могут входить за других администраторов.",
+  "Impersonation started.": "Вход за пользователя начат.",
+  "Impersonation ended.": "Вход за пользователя завершён.",
+  "Impersonation expired and was automatically ended.": "Срок действия входа за пользователя истёк и был автоматически прекращён.",
+  "Log in as another user (impersonation)": "Войти как другой пользователь (имперсонация)"
 }

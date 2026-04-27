@@ -1641,5 +1641,19 @@
   "upload_max_filesize": "upload_max_filesize",
   "user": "Benutzer",
   "users": "Benutzer",
-  "value": "Wert"
+  "value": "Wert",
+  "Login as": "Anmelden als",
+  "Login as this user": "Als dieser Benutzer anmelden",
+  "Login as :name?": "Als :name anmelden?",
+  "Stop impersonation": "Identitätswechsel beenden",
+  "Stopping...": "Wird beendet...",
+  "You are viewing the panel as :target. Click here to return to your :impersonator account.": "Sie sehen das Panel als :target. Klicken Sie hier, um zu Ihrem :impersonator-Konto zurückzukehren.",
+  "You cannot impersonate yourself.": "Sie können sich nicht selbst übernehmen.",
+  "You are already impersonating another user.": "Sie übernehmen bereits einen anderen Benutzer.",
+  "You do not have permission to impersonate this user.": "Sie haben keine Berechtigung, diesen Benutzer zu übernehmen.",
+  "Only super admins can impersonate other admins.": "Nur Super-Admins können andere Admins übernehmen.",
+  "Impersonation started.": "Identitätswechsel gestartet.",
+  "Impersonation ended.": "Identitätswechsel beendet.",
+  "Impersonation expired and was automatically ended.": "Der Identitätswechsel ist abgelaufen und wurde automatisch beendet.",
+  "Log in as another user (impersonation)": "Als anderer Benutzer anmelden (Identitätswechsel)"
 }

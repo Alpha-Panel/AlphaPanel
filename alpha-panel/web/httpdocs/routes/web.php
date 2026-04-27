@@ -28,6 +28,7 @@ use App\Http\Controllers\FileManagerController;
 use App\Http\Controllers\FirewallController;
 use App\Http\Controllers\FtpBanController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\LoginIpFilterController;
 use App\Http\Controllers\ManifestController;
 use App\Http\Controllers\NotificationSettingsController;
@@ -331,6 +332,11 @@ Route::middleware('auth')->group(function (): void {
         Route::post('/dashboard/docker-action', [HomeController::class, 'dockerAction'])
             ->name('dashboard.docker.action');
     });
+
+    // Impersonation — authorization handled inside ImpersonationService::start()
+    // (super admin bypass + cannot express via single permission middleware).
+    Route::post('impersonate/{user}', [ImpersonationController::class, 'store'])->name('impersonation.start');
+    Route::post('impersonate/stop', [ImpersonationController::class, 'destroy'])->name('impersonation.stop');
 
     Route::middleware('permission:panel.users.manage')->group(function (): void {
         Route::get('users', [UserAccountsController::class, 'index'])->name('users.list');

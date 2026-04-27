@@ -1655,5 +1655,19 @@
   "used": "kullanıldı",
   "user": "kullanıcı",
   "users": "kullanıcı",
-  "value": "değer"
+  "value": "değer",
+  "Login as": "Şu kullanıcıyla giriş yap",
+  "Login as this user": "Bu kullanıcıyla giriş yap",
+  "Login as :name?": ":name kullanıcısına giriş yapılsın mı?",
+  "Stop impersonation": "Gizli girişi sonlandır",
+  "Stopping...": "Sonlandırılıyor...",
+  "You are viewing the panel as :target. Click here to return to your :impersonator account.": ":target kullanıcısının gözünden görüyorsunuz. :impersonator hesabınıza geri dönmek için tıklayın.",
+  "You cannot impersonate yourself.": "Kendi hesabınıza gizli giriş yapamazsınız.",
+  "You are already impersonating another user.": "Zaten başka bir kullanıcıya gizli giriş yapmış durumdasınız.",
+  "You do not have permission to impersonate this user.": "Bu kullanıcıya gizli giriş yapma yetkiniz yok.",
+  "Only super admins can impersonate other admins.": "Yalnızca süper yöneticiler diğer yöneticilere gizli giriş yapabilir.",
+  "Impersonation started.": "Gizli giriş başlatıldı.",
+  "Impersonation ended.": "Gizli giriş sonlandırıldı.",
+  "Impersonation expired and was automatically ended.": "Gizli giriş süresi doldu ve otomatik olarak sonlandırıldı.",
+  "Log in as another user (impersonation)": "Başka bir kullanıcı olarak oturum aç (gizli giriş)"
 }

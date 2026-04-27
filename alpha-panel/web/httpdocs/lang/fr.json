@@ -1646,5 +1646,19 @@
   "upload_max_filesize": "upload_max_filesize",
   "user": "utilisateur",
   "users": "utilisateurs",
-  "value": "valeur"
+  "value": "valeur",
+  "Login as": "Se connecter en tant que",
+  "Login as this user": "Se connecter en tant que cet utilisateur",
+  "Login as :name?": "Se connecter en tant que :name ?",
+  "Stop impersonation": "Arrêter l'usurpation",
+  "Stopping...": "Arrêt en cours...",
+  "You are viewing the panel as :target. Click here to return to your :impersonator account.": "Vous consultez le panneau en tant que :target. Cliquez ici pour revenir à votre compte :impersonator.",
+  "You cannot impersonate yourself.": "Vous ne pouvez pas vous usurper vous-même.",
+  "You are already impersonating another user.": "Vous usurpez déjà un autre utilisateur.",
+  "You do not have permission to impersonate this user.": "Vous n'avez pas l'autorisation d'usurper cet utilisateur.",
+  "Only super admins can impersonate other admins.": "Seuls les super administrateurs peuvent usurper d'autres administrateurs.",
+  "Impersonation started.": "Usurpation démarrée.",
+  "Impersonation ended.": "Usurpation terminée.",
+  "Impersonation expired and was automatically ended.": "L'usurpation a expiré et a été automatiquement terminée.",
+  "Log in as another user (impersonation)": "Se connecter en tant qu'un autre utilisateur (usurpation)"
 }

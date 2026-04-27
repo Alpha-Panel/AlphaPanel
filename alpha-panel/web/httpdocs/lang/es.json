@@ -1646,5 +1646,19 @@
   "upload_max_filesize": "upload_max_filesize",
   "user": "usuario",
   "users": "usuarios",
-  "value": "valor"
+  "value": "valor",
+  "Login as": "Iniciar sesión como",
+  "Login as this user": "Iniciar sesión como este usuario",
+  "Login as :name?": "¿Iniciar sesión como :name?",
+  "Stop impersonation": "Detener suplantación",
+  "Stopping...": "Deteniendo...",
+  "You are viewing the panel as :target. Click here to return to your :impersonator account.": "Estás viendo el panel como :target. Haz clic aquí para volver a tu cuenta :impersonator.",
+  "You cannot impersonate yourself.": "No puedes suplantarte a ti mismo.",
+  "You are already impersonating another user.": "Ya estás suplantando a otro usuario.",
+  "You do not have permission to impersonate this user.": "No tienes permiso para suplantar a este usuario.",
+  "Only super admins can impersonate other admins.": "Solo los superadministradores pueden suplantar a otros administradores.",
+  "Impersonation started.": "Suplantación iniciada.",
+  "Impersonation ended.": "Suplantación finalizada.",
+  "Impersonation expired and was automatically ended.": "La suplantación expiró y fue finalizada automáticamente.",
+  "Log in as another user (impersonation)": "Iniciar sesión como otro usuario (suplantación)"
 }

@@ -1646,5 +1646,19 @@
   "upload_max_filesize": "upload_max_filesize",
   "user": "kişi",
   "users": "kişiler",
-  "value": "değer"
+  "value": "değer",
+  "Login as": "Anıŋ kibi kirgil",
+  "Login as this user": "Bu boduncı kibi kirgil",
+  "Login as :name?": ":name kibi kirgilmü?",
+  "Stop impersonation": "Yaşurun kirigni töktür",
+  "Stopping...": "Töktürür...",
+  "You are viewing the panel as :target. Click here to return to your :impersonator account.": ":target közi birle körürsen. :impersonator etiŋke yangı yanmaq üçün bunda baskıl.",
+  "You cannot impersonate yourself.": "Özüŋke yaşurun kirip bolmazsen.",
+  "You are already impersonating another user.": "Adın boduncıka yaşurun kirip turursen.",
+  "You do not have permission to impersonate this user.": "Bu boduncıka yaşurun kirmek erkiŋ yoq.",
+  "Only super admins can impersonate other admins.": "Yalŋuz uluğ erkligler adın erkliglerke yaşurun kirip bolur.",
+  "Impersonation started.": "Yaşurun kirig başlandı.",
+  "Impersonation ended.": "Yaşurun kirig tükedi.",
+  "Impersonation expired and was automatically ended.": "Yaşurun kirig öd tükeldi taqı özi tükedildi.",
+  "Log in as another user (impersonation)": "Adın boduncı kibi kirgil (yaşurun kirig)"
 }

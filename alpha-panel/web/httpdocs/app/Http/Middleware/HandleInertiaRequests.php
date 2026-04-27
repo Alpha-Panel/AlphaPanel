@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\ImpersonationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
@@ -58,6 +59,34 @@ class HandleInertiaRequests extends Middleware
                 'permissions' => rescue(fn () => $user->getAllPermissions()->pluck('name')->toArray(), [], false),
                 'roles' => rescue(fn () => $user->getRoleNames()->toArray(), [], false),
             ] : null,
+            'impersonation' => function () {
+                $service = app(ImpersonationService::class);
+                if (! $service->isActive()) {
+                    return null;
+                }
+
+                $impersonator = $service->impersonator();
+                $target = $service->target();
+                if ($impersonator === null || $target === null) {
+                    return null;
+                }
+
+                return [
+                    'active' => true,
+                    'impersonator' => [
+                        'id' => $impersonator->id,
+                        'name' => $impersonator->name,
+                        'username' => $impersonator->username,
+                    ],
+                    'target' => [
+                        'id' => $target->id,
+                        'name' => $target->name,
+                        'username' => $target->username,
+                    ],
+                    'started_at' => $service->startedAt()?->toIso8601String(),
+                    'stop_url' => route('impersonation.stop'),
+                ];
+            },
             'flash' => fn () => [
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),

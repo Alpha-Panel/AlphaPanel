@@ -1,5 +1,6 @@
 <template>
-    <div class="min-h-screen bg-gray-50 dark:bg-gray-950 xl:flex">
+    <div class="min-h-screen bg-gray-50 dark:bg-gray-950 xl:flex" :class="{ 'pt-12': impersonationActive }">
+        <ImpersonationBar />
         <AppSidebar />
         <Backdrop />
         <div
@@ -28,6 +29,7 @@ import { usePage } from '@inertiajs/vue3';
 import AppSidebar from './AppSidebar.vue';
 import AppHeader from './AppHeader.vue';
 import Backdrop from './Backdrop.vue';
+import ImpersonationBar from './ImpersonationBar.vue';
 import TerminalManager from '@/Components/Terminal/TerminalManager.vue';
 import ProvisionProgressToast from '@/Components/UI/ProvisionProgressToast.vue';
 import DockerDeployProgressToast from '@/Components/UI/DockerDeployProgressToast.vue';
@@ -38,4 +40,7 @@ import type { SharedProps } from '@/types/inertia';
 const { isExpanded, isHovered } = useSidebar();
 const page = usePage<SharedProps>();
 const isRtl = computed(() => page.props.text_direction === 'rtl');
+const impersonationActive = computed(
+    () => !!(page.props as Record<string, unknown> & { impersonation?: { active?: boolean } }).impersonation?.active
+);
 </script>

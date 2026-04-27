@@ -1646,5 +1646,19 @@
   "upload_max_filesize": "upload_max_filesize",
   "user": "istifadəçi",
   "users": "istifadəçi",
-  "value": "deyer"
+  "value": "deyer",
+  "Login as": "Bu istifadəçi kimi gir",
+  "Login as this user": "Bu istifadəçi kimi giriş et",
+  "Login as :name?": ":name istifadəçisi kimi giriş edilsin?",
+  "Stop impersonation": "Gizli girişi dayandır",
+  "Stopping...": "Dayandırılır...",
+  "You are viewing the panel as :target. Click here to return to your :impersonator account.": ":target istifadəçisinin gözündən görürsünüz. :impersonator hesabınıza qayıtmaq üçün buraya klikləyin.",
+  "You cannot impersonate yourself.": "Öz hesabınıza gizli giriş edə bilməzsiniz.",
+  "You are already impersonating another user.": "Artıq başqa istifadəçinin hesabına gizli daxil olmusunuz.",
+  "You do not have permission to impersonate this user.": "Bu istifadəçinin hesabına gizli daxil olmaq icazəniz yoxdur.",
+  "Only super admins can impersonate other admins.": "Yalnız super adminlər digər adminlərə gizli giriş edə bilər.",
+  "Impersonation started.": "Gizli giriş başladı.",
+  "Impersonation ended.": "Gizli giriş bitdi.",
+  "Impersonation expired and was automatically ended.": "Gizli giriş müddəti bitdi və avtomatik dayandırıldı.",
+  "Log in as another user (impersonation)": "Başqa istifadəçi kimi giriş et (gizli giriş)"
 }

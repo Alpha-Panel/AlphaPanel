@@ -36,6 +36,7 @@ return [
         'permissions' => [
             'panel.users.view' => 'View user list',
             'panel.users.manage' => 'Create, edit and delete users',
+            'panel.users.impersonate' => 'Log in as another user (impersonation)',
             'panel.terminal.access' => 'Access web terminal',
             'panel.audit-logs.view' => 'View audit logs',
             'panel.terminal-logs.view' => 'View terminal session logs',

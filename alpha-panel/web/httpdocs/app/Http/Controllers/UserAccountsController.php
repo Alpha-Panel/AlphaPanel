@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\ImpersonationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -57,6 +58,9 @@ class UserAccountsController extends Controller
 
         $users = $query->withCount('ownedDomains')->skip($start)->take($length)->get();
 
+        $service = app(ImpersonationService::class);
+        $actor = $request->user();
+
         $data = $users->map(fn (User $user) => [
             'id' => $user->id,
             'name' => $user->name,
@@ -71,6 +75,8 @@ class UserAccountsController extends Controller
             'created_at' => $user->created_at?->format(config('app.display_datetime_format', 'd.m.Y H:i:s')) ?? '-',
             'update_url' => route('users.update', $user),
             'destroy_url' => route('users.destroy', $user),
+            'impersonate_url' => route('impersonation.start', $user),
+            'can_impersonate' => $service->canImpersonate($actor, $user),
         ]);
 
         return response()->json([

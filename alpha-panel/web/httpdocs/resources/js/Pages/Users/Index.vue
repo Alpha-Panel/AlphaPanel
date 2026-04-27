@@ -61,9 +61,38 @@
                                     </td>
                                     <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-400">{{ user.owned_domains_count }}</td>
                                     <td class="px-5 py-4 text-right">
-                                        <div class="flex items-center justify-end gap-2">
-                                            <button @click="editUser(user)" class="text-sm text-brand-500 hover:text-brand-600">{{ t('Edit') }}</button>
-                                            <button @click="deleteUser(user)" class="text-sm text-error-500 hover:text-error-600">{{ t('Delete') }}</button>
+                                        <div class="flex items-center justify-end gap-1.5">
+                                            <button
+                                                v-if="user.can_impersonate"
+                                                @click="impersonate(user)"
+                                                :title="t('Login as this user')"
+                                                class="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-700 shadow-theme-xs transition hover:bg-amber-100 hover:text-amber-800 focus:outline-none focus:ring-2 focus:ring-amber-500/30 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                    <path fill-rule="evenodd" d="M10 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm-7 9a7 7 0 0 1 14 0H3Z" clip-rule="evenodd" />
+                                                </svg>
+                                                <span>{{ t('Login as') }}</span>
+                                            </button>
+                                            <button
+                                                @click="editUser(user)"
+                                                :title="t('Edit')"
+                                                class="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1.5 text-xs font-medium text-brand-600 shadow-theme-xs transition hover:bg-brand-100 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300 dark:hover:bg-brand-500/20"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                    <path d="M2.695 14.763l-1.262 3.154a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.885L17.5 5.5a2.121 2.121 0 0 0-3-3L3.58 13.42a4 4 0 0 0-.885 1.343Z" />
+                                                </svg>
+                                                <span>{{ t('Edit') }}</span>
+                                            </button>
+                                            <button
+                                                @click="deleteUser(user)"
+                                                :title="t('Delete')"
+                                                class="inline-flex items-center gap-1.5 rounded-lg border border-error-200 bg-error-50 px-2.5 py-1.5 text-xs font-medium text-error-600 shadow-theme-xs transition hover:bg-error-100 hover:text-error-700 focus:outline-none focus:ring-2 focus:ring-error-500/30 dark:border-error-500/30 dark:bg-error-500/10 dark:text-error-300 dark:hover:bg-error-500/20"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                    <path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z" clip-rule="evenodd" />
+                                                </svg>
+                                                <span>{{ t('Delete') }}</span>
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -136,7 +165,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
 import SidebarProvider from '@/Components/Layout/SidebarProvider.vue';
@@ -207,6 +236,11 @@ const submitUser = async () => {
     } finally {
         submitting.value = false;
     }
+};
+
+const impersonate = (user: any) => {
+    if (!confirm(t('Login as :name?', { name: String(user.name) }))) return;
+    router.post(user.impersonate_url as string);
 };
 
 const deleteUser = async (user: any) => {

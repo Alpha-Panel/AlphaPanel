@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\ImpersonationService;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -53,6 +54,13 @@ class User extends Authenticatable implements WebAuthnAuthenticatable
     public function isAdmin(): bool
     {
         return $this->admin;
+    }
+
+    public function isImpersonating(): bool
+    {
+        $service = app(ImpersonationService::class);
+
+        return $service->isActive() && $service->impersonator()?->id === $this->id;
     }
 
     public function confirmTwoFactorAuth(string $code): bool

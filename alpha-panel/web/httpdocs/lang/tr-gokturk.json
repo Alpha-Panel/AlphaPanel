@@ -1657,5 +1657,19 @@
   "used": "𐰚𐰆𐰞𐰞𐰀𐰤𐰃𐰡𐰃",
   "user": "𐰚𐰃𐱁𐰃",
   "users": "𐰚𐰃𐱁𐰃𐰞𐰁𐰺",
-  "value": "𐰓𐰀ğ𐰀𐰼"
+  "value": "𐰓𐰀ğ𐰀𐰼",
+  "Login as": "𐰀𐰣𐰃𐰭 𐰚𐰋𐰃 𐰚𐰃𐰼𐰏𐰃𐰠",
+  "Login as this user": "𐰉𐰆 𐰉𐰆𐰑𐰆𐰣𐰲𐰃 𐰚𐰋𐰃 𐰚𐰃𐰼𐰏𐰃𐰠",
+  "Login as :name?": ":name 𐰚𐰋𐰃 𐰚𐰃𐰼𐰏𐰃𐰠𐰢𐰇?",
+  "Stop impersonation": "𐰖𐰀𐱁𐰆𐰺𐰆𐰣 𐰚𐰃𐰼𐰃𐰏𐰤𐰃 𐱅𐰇𐰚𐱅𐰇𐰼",
+  "Stopping...": "𐱅𐰇𐰚𐱅𐰇𐰼𐰇𐰼...",
+  "You are viewing the panel as :target. Click here to return to your :impersonator account.": ":target 𐰚𐰇𐰔𐰃 𐰋𐰃𐰼𐰠𐰅 𐰚𐰇𐰼𐰇𐰼𐰾𐰅𐰤. :impersonator 𐰅𐱅𐰃𐰭𐰚𐰅 𐰖𐰀𐰭𐰃 𐰖𐰀𐰣𐰢𐰀𐰸 𐰇𐰲𐰇𐰤 𐰉𐰆𐰣𐰑𐰀 𐰉𐰀𐰽𐰴𐰃𐰞.",
+  "You cannot impersonate yourself.": "𐰇𐰔𐰇𐰭𐰚𐰅 𐰖𐰀𐱁𐰆𐰺𐰆𐰣 𐰚𐰃𐰼𐰃𐰯 𐰉𐰆𐰞𐰢𐰀𐰔𐰾𐰅𐰤.",
+  "You are already impersonating another user.": "𐰀𐰑𐰃𐰣 𐰉𐰆𐰑𐰆𐰣𐰲𐰃𐰴𐰀 𐰖𐰀𐱁𐰆𐰺𐰆𐰣 𐰚𐰃𐰼𐰃𐰯 𐱃𐰆𐰺𐰆𐰺𐰾𐰅𐰤.",
+  "You do not have permission to impersonate this user.": "𐰉𐰆 𐰉𐰆𐰑𐰆𐰣𐰲𐰃𐰴𐰀 𐰖𐰀𐱁𐰆𐰺𐰆𐰣 𐰚𐰃𐰼𐰢𐰅𐰚 𐰅𐰼𐰚𐰃𐰭 𐰖𐰆𐰸.",
+  "Only super admins can impersonate other admins.": "𐰖𐰀𐰞𐰭𐰆𐰔 𐰆𐰞𐰆𐰍 𐰅𐰼𐰚𐰠𐰃𐰏𐰠𐰅𐰼 𐰀𐰑𐰃𐰣 𐰅𐰼𐰚𐰠𐰃𐰏𐰠𐰅𐰼𐰚𐰅 𐰖𐰀𐱁𐰆𐰺𐰆𐰣 𐰚𐰃𐰼𐰃𐰯 𐰉𐰆𐰞𐰆𐰺.",
+  "Impersonation started.": "𐰖𐰀𐱁𐰆𐰺𐰆𐰣 𐰚𐰃𐰼𐰃𐰏 𐰉𐰀𐱁𐰞𐰀𐰣𐰑𐰃.",
+  "Impersonation ended.": "𐰖𐰀𐱁𐰆𐰺𐰆𐰣 𐰚𐰃𐰼𐰃𐰏 𐱅𐰇𐰚𐰅𐰓𐰃.",
+  "Impersonation expired and was automatically ended.": "𐰖𐰀𐱁𐰆𐰺𐰆𐰣 𐰚𐰃𐰼𐰃𐰏 𐰇𐰓 𐱅𐰇𐰚𐰅𐰠𐰓𐰃 𐱃𐰀𐰸𐰃 𐰇𐰔𐰃 𐱅𐰇𐰚𐰅𐰓𐰃𐰠𐰓𐰃.",
+  "Log in as another user (impersonation)": "𐰀𐰑𐰃𐰣 𐰉𐰆𐰑𐰆𐰣𐰲𐰃 𐰚𐰋𐰃 𐰚𐰃𐰼𐰏𐰃𐰠 (𐰖𐰀𐱁𐰆𐰺𐰆𐰣 𐰚𐰃𐰼𐰃𐰏)"
 }

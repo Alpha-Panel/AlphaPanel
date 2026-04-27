@@ -1646,5 +1646,19 @@
   "upload_max_filesize": "upload_max_filesize",
   "user": "user",
   "users": "users",
-  "value": "value"
+  "value": "value",
+  "Login as": "Login as",
+  "Login as this user": "Login as this user",
+  "Login as :name?": "Login as :name?",
+  "Stop impersonation": "Stop impersonation",
+  "Stopping...": "Stopping...",
+  "You are viewing the panel as :target. Click here to return to your :impersonator account.": "You are viewing the panel as :target. Click here to return to your :impersonator account.",
+  "You cannot impersonate yourself.": "You cannot impersonate yourself.",
+  "You are already impersonating another user.": "You are already impersonating another user.",
+  "You do not have permission to impersonate this user.": "You do not have permission to impersonate this user.",
+  "Only super admins can impersonate other admins.": "Only super admins can impersonate other admins.",
+  "Impersonation started.": "Impersonation started.",
+  "Impersonation ended.": "Impersonation ended.",
+  "Impersonation expired and was automatically ended.": "Impersonation expired and was automatically ended.",
+  "Log in as another user (impersonation)": "Log in as another user (impersonation)"
 }

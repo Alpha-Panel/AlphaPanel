@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AddCspHeaders;
 use App\Http\Middleware\AddEarlyHints;
+use App\Http\Middleware\EnforceImpersonationTtl;
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SetLocale;
@@ -32,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->appendToGroup('web', SetLocale::class);
         $middleware->appendToGroup('web', HandleInertiaRequests::class);
         $middleware->appendToGroup('web', VerifyOTP::class);
+        $middleware->appendToGroup('web', EnforceImpersonationTtl::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {})
     ->create();
