@@ -335,8 +335,10 @@ Route::middleware('auth')->group(function (): void {
 
     // Impersonation — authorization handled inside ImpersonationService::start()
     // (super admin bypass + cannot express via single permission middleware).
-    Route::post('impersonate/{user}', [ImpersonationController::class, 'store'])->name('impersonation.start');
+    // NOTE: `stop` MUST be declared before `{user}` or Laravel will treat "stop"
+    // as a user slug and the stop endpoint returns 404.
     Route::post('impersonate/stop', [ImpersonationController::class, 'destroy'])->name('impersonation.stop');
+    Route::post('impersonate/{user}', [ImpersonationController::class, 'store'])->name('impersonation.start');
 
     Route::middleware('permission:panel.users.manage')->group(function (): void {
         Route::get('users', [UserAccountsController::class, 'index'])->name('users.list');

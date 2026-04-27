@@ -1,7 +1,10 @@
 <template>
     <aside
         :class="[
-            'fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 h-[calc(100dvh-4rem)] lg:h-dvh transition-all duration-300 ease-in-out z-99999 border-gray-200',
+            'fixed flex flex-col px-5 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 transition-all duration-300 ease-in-out z-99999 border-gray-200',
+            impersonationActive
+                ? 'top-12 mt-16 lg:mt-0 h-[calc(100dvh-7rem)] lg:h-[calc(100dvh-3rem)]'
+                : 'top-0 mt-16 lg:mt-0 h-[calc(100dvh-4rem)] lg:h-dvh',
             {
                 'lg:w-72.5': isExpanded || isMobileOpen || isHovered,
                 'lg:w-22.5': !isExpanded && !isHovered,
@@ -357,6 +360,9 @@ const isRtl = computed(() => page.props.text_direction === 'rtl');
 const appName = computed(() => page.props.app?.name ?? 'AlphaPanel');
 const logoUrl = computed(() => page.props.app?.logo_url ?? '/img/AlphaPanel-dark.svg');
 const externalLinks = computed(() => page.props.app?.links ?? {});
+const impersonationActive = computed(
+    () => !!(page.props as Record<string, unknown> & { impersonation?: { active?: boolean } }).impersonation?.active
+);
 
 interface SidebarSubLeaf {
     name: string;

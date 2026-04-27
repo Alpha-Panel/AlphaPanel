@@ -1,7 +1,7 @@
 <template>
     <div
         v-if="impersonation && impersonation.active"
-        class="fixed inset-x-0 top-0 z-[100] flex items-center justify-between gap-3 border-b-2 border-amber-700 bg-amber-500 px-4 py-2.5 text-amber-950 shadow-lg dark:border-amber-700 dark:bg-amber-600 dark:text-amber-50"
+        class="fixed inset-x-0 top-0 z-[1500000] flex items-center justify-between gap-3 border-b-2 border-amber-700 bg-amber-500 px-4 py-2.5 text-amber-950 shadow-lg dark:border-amber-700 dark:bg-amber-600 dark:text-amber-50"
         role="alert"
     >
         <div class="flex items-center gap-3">
