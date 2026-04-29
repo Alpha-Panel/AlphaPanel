@@ -67,14 +67,35 @@
                         </div>
 
                         <div v-else class="divide-y divide-gray-200 dark:divide-gray-800">
-                            <div v-for="key in keys" :key="key.id" class="flex items-center justify-between py-3">
-                                <div>
-                                    <p class="text-sm font-medium text-gray-800 dark:text-white/90">{{ key.name || t('Unnamed Key') }}</p>
-                                    <p class="text-xs text-gray-500">{{ t('Added') }} {{ formatDateTime(key.created_at) }}</p>
+                            <div v-for="key in keys" :key="key.id" class="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div class="flex items-center gap-3">
+                                    <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-500 dark:bg-brand-500/10 dark:text-brand-400">
+                                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a3 3 0 013 3m0 0a3 3 0 01-3 3m3-3h6M6 21l3-3m0 0a3 3 0 11-4.243-4.243L9 9.515 14.485 15 9 21z" /></svg>
+                                    </span>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-800 dark:text-white/90">{{ key.name || t('Unnamed Key') }}</p>
+                                        <p class="text-xs text-gray-500">{{ t('Added') }} {{ formatDateTime(key.created_at) }}</p>
+                                    </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button @click="renameKey(key)" class="text-sm text-brand-500 hover:text-brand-600">{{ t('Rename') }}</button>
-                                    <button @click="deleteKey(key)" class="text-sm text-error-500 hover:text-error-600">{{ t('Delete') }}</button>
+                                    <button
+                                        @click="renameKey(key)"
+                                        type="button"
+                                        :title="t('Rename')"
+                                        class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-theme-xs transition hover:bg-gray-50 hover:text-brand-600 dark:border-gray-700 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-brand-400"
+                                    >
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                        <span>{{ t('Rename') }}</span>
+                                    </button>
+                                    <button
+                                        @click="deleteKey(key)"
+                                        type="button"
+                                        :title="t('Delete')"
+                                        class="inline-flex items-center gap-1.5 rounded-lg border border-error-200 bg-white px-3 py-2 text-sm font-medium text-error-600 shadow-theme-xs transition hover:bg-error-50 dark:border-error-500/40 dark:bg-error-500/5 dark:text-error-400 dark:hover:bg-error-500/10"
+                                    >
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" /></svg>
+                                        <span>{{ t('Delete') }}</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -97,6 +118,7 @@ import Toast from '@/Components/UI/Toast.vue';
 import { useToast } from '@/Composables/useToast';
 import { useI18n } from '@/Composables/useI18n';
 import { formatDateTime } from '@/utils/dateTime';
+import { loadSweetAlert } from '@/utils/sweetalert';
 
 const props = defineProps<{
     webauthn: Array<Record<string, any>>;
@@ -161,7 +183,41 @@ const disableTwoFactor = async () => {
     }
 };
 
+const promptKeyName = async (titleKey: string, defaultValue = ''): Promise<string | null> => {
+    const swal = await loadSweetAlert();
+    if (!swal) {
+        const fallback = window.prompt(t(titleKey), defaultValue);
+        return fallback === null ? null : fallback.trim();
+    }
+
+    const result = await swal.fire({
+        title: t(titleKey),
+        input: 'text',
+        inputValue: defaultValue,
+        inputLabel: t('Device name'),
+        inputPlaceholder: t('e.g. YubiKey 5C, MacBook Touch ID'),
+        inputAttributes: { maxlength: '120', autocapitalize: 'off', autocorrect: 'off' },
+        showCancelButton: true,
+        confirmButtonText: t('Save'),
+        cancelButtonText: t('Cancel'),
+        confirmButtonColor: '#465fff',
+        inputValidator: (value: unknown) => {
+            const str = typeof value === 'string' ? value.trim() : '';
+            if (str.length === 0) return t('Name is required');
+            if (str.length > 120) return t('Name is too long');
+            return null;
+        },
+    });
+
+    if (!result.isConfirmed) return null;
+    const value = typeof result.value === 'string' ? result.value.trim() : '';
+    return value.length > 0 ? value : null;
+};
+
 const registerWebAuthn = async () => {
+    const name = await promptKeyName('Give this key a name:', t('Security Key'));
+    if (!name) return;
+
     loading.value = true;
     try {
         const optionsRes = await axios.post(route('webauthn.register.options'));
@@ -179,8 +235,6 @@ const registerWebAuthn = async () => {
 
         const credential = await navigator.credentials.create({ publicKey }) as PublicKeyCredential;
         const attestation = credential.response as AuthenticatorAttestationResponse;
-
-        const name = prompt(t('Give this key a name:')) || t('Security Key');
 
         await axios.post(route('webauthn.register'), {
             id: credential.id,
@@ -205,7 +259,7 @@ const registerWebAuthn = async () => {
 };
 
 const renameKey = async (key: any) => {
-    const newName = prompt(t('Enter a new name:'), key.name);
+    const newName = await promptKeyName('Enter a new name:', key.name || '');
     if (!newName || newName === key.name) return;
     try {
         await axios.post(route('user.security.webauthn.rename'), { id: key.id, name: newName });
@@ -217,7 +271,27 @@ const renameKey = async (key: any) => {
 };
 
 const deleteKey = async (key: any) => {
-    if (!confirm(t('Delete key ":name"?', { name: key.name || t('Unnamed') }))) return;
+    const label = key.name || t('Unnamed Key');
+    const swal = await loadSweetAlert();
+
+    let confirmed = false;
+    if (swal) {
+        const result = await swal.fire({
+            title: t('Delete security key?'),
+            text: t('":name" will be removed and can no longer be used to sign in.', { name: label }),
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#f04438',
+            confirmButtonText: t('Yes, delete it'),
+            cancelButtonText: t('Cancel'),
+        });
+        confirmed = !!result.isConfirmed;
+    } else {
+        confirmed = window.confirm(t('Delete key ":name"?', { name: label }));
+    }
+
+    if (!confirmed) return;
+
     try {
         await axios.post(route('user.security.webauthn.delete'), { id: key.id });
         keys.value = keys.value.filter((k) => k.id !== key.id);

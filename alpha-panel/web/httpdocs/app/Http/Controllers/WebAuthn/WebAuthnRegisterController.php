@@ -28,7 +28,9 @@ class WebAuthnRegisterController
      */
     public function register(AttestedRequest $request): Response
     {
-        $request->save();
+        $name = trim((string) $request->input('name', ''));
+
+        $request->save($name !== '' ? ['name' => $name] : []);
 
         $user = $request->user();
         $user->otp = true;

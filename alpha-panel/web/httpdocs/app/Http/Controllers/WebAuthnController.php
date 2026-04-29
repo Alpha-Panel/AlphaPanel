@@ -18,8 +18,12 @@ class WebAuthnController extends Controller
 
     public function delete(Request $request): JsonResponse
     {
+        $validated = $request->validate([
+            'id' => 'required|string',
+        ]);
+
         $credential = WebAuthn::where('authenticatable_id', auth()->id())
-            ->where('id', $request->post('webauthn_id'))
+            ->where('id', $validated['id'])
             ->first();
 
         if ($credential) {
@@ -41,12 +45,17 @@ class WebAuthnController extends Controller
 
     public function rename(Request $request): JsonResponse
     {
+        $validated = $request->validate([
+            'id' => 'required|string',
+            'name' => 'required|string|max:120',
+        ]);
+
         $credential = WebAuthn::where('authenticatable_id', auth()->id())
-            ->where('id', $request->post('webauthn_id'))
+            ->where('id', $validated['id'])
             ->first();
 
         if ($credential) {
-            $credential->name = $request->post('device_name');
+            $credential->name = trim($validated['name']);
             $credential->save();
         }
 
