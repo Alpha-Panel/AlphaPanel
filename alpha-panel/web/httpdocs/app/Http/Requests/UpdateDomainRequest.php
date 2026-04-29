@@ -45,6 +45,19 @@ class UpdateDomainRequest extends FormRequest
                 Rule::excludeIf(fn () => ! $this->boolean('enable_worker')),
                 'boolean',
             ],
+            'worker_max_requests' => [
+                Rule::excludeIf(fn () => ! $this->boolean('enable_worker')),
+                'nullable',
+                'integer',
+                'min:50',
+                'max:10000',
+            ],
+            'forwarded_port' => [
+                Rule::excludeIf(fn () => $this->input('type') !== 'apache_reverse_proxy'),
+                'nullable',
+                'integer',
+                'in:80,443',
+            ],
             'php_version_id' => [
                 'nullable',
                 'exists:php_versions,id',

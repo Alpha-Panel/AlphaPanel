@@ -717,6 +717,7 @@ class DomainConfigService
                 $lines[] = "{$indent}    worker {";
                 $lines[] = "{$indent}        file frankenphp-worker.php";
                 $lines[] = "{$indent}        num ".($domain->worker_num ?? 5);
+                $lines[] = "{$indent}        max_requests ".($domain->worker_max_requests ?? 500);
                 if ($domain->worker_watch) {
                     $lines[] = "{$indent}        watch {$rootPath}";
                 }
@@ -726,10 +727,11 @@ class DomainConfigService
                 $lines[] = "{$indent}php_server";
             }
         } elseif ($domain->type === DomainType::ApacheReverseProxy) {
+            $forwardedPort = (int) ($domain->forwarded_port ?? 443);
             $lines[] = "{$indent}reverse_proxy http://php-code-server:80 {";
             $lines[] = "{$indent}    header_up Host {$fqdn}";
             $lines[] = "{$indent}    header_up X-Forwarded-Host {$fqdn}";
-            $lines[] = "{$indent}    header_up X-Forwarded-Port 80";
+            $lines[] = "{$indent}    header_up X-Forwarded-Port {$forwardedPort}";
             $lines[] = "{$indent}    header_up X-Forwarded-Proto https";
             $lines[] = '';
             $lines[] = "{$indent}    header_up X-Forwarded-For  {client_ip}";
@@ -910,10 +912,11 @@ class DomainConfigService
         $lines = [];
         $lines[] = "[{$fqdn}]";
         $lines[] = "user = {$poolUser}";
-        $lines[] = "group = {$poolUser}";
+        $lines[] = 'group = www-data';
         $lines[] = "listen = /run/php/{$fqdn}.sock";
         $lines[] = 'listen.owner = www-data';
         $lines[] = 'listen.group = www-data';
+        $lines[] = 'process.umask = 0022';
         $lines[] = 'pm = dynamic';
         $lines[] = 'pm.max_children = 5';
         $lines[] = 'pm.start_servers = 2';
@@ -968,12 +971,20 @@ class DomainConfigService
             'mkdir', '-p', $webRoot, $logsPath,
         ]);
 
-        // Set ownership to the pool/FTP user
+        // Owner: pool/FTP user. Group: www-data so Apache can read static
+        // assets and traverse directories without per-file chown after every
+        // PHP-generated upload.
         $portainer->execInContainer('php-code-server', [
-            'chown', '-R', "{$poolUser}:{$poolUser}", $basePath,
+            'chown', '-R', "{$poolUser}:www-data", $basePath,
         ]);
 
-        Log::info("Ensured directories for {$domain->fqdn}: {$webRoot}, {$logsPath} (owner: {$poolUser})");
+        // Ensure group has read+execute on every file/dir so Apache www-data
+        // can serve static content the FPM pool generates.
+        $portainer->execInContainer('php-code-server', [
+            'chmod', '-R', 'g+rX', $basePath,
+        ]);
+
+        Log::info("Ensured directories for {$domain->fqdn}: {$webRoot}, {$logsPath} (owner: {$poolUser}:www-data)");
 
         $this->writeUserIni($domain);
     }

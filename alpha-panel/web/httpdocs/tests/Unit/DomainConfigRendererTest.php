@@ -369,6 +369,159 @@ class DomainConfigRendererTest extends TestCase
         $this->assertStringContainsString("api.{$fqdn}:443", $capturedContent);
     }
 
+    public function test_apache_reverse_proxy_defaults_x_forwarded_port_to_443(): void
+    {
+        $owner = User::factory()->create();
+        $domain = Domain::factory()->make([
+            'fqdn' => 'fwdport-default.test',
+            'owner_user_id' => $owner->id,
+            'type' => DomainType::ApacheReverseProxy,
+            'enable_www_redirect' => false,
+            'additional_hostnames' => [],
+            'forwarded_port' => null,
+        ]);
+
+        $capturedContent = null;
+
+        File::shouldReceive('put')
+            ->once()
+            ->with(Mockery::any(), Mockery::capture($capturedContent))
+            ->andReturn(true);
+        File::shouldReceive('move')->twice();
+
+        $this->service->renderWithTls($domain);
+
+        $this->assertNotNull($capturedContent);
+        $this->assertStringContainsString('header_up X-Forwarded-Port 443', $capturedContent);
+        $this->assertStringNotContainsString('header_up X-Forwarded-Port 80', $capturedContent);
+    }
+
+    public function test_apache_reverse_proxy_can_override_x_forwarded_port_to_80(): void
+    {
+        $owner = User::factory()->create();
+        $domain = Domain::factory()->make([
+            'fqdn' => 'fwdport-80.test',
+            'owner_user_id' => $owner->id,
+            'type' => DomainType::ApacheReverseProxy,
+            'enable_www_redirect' => false,
+            'additional_hostnames' => [],
+            'forwarded_port' => 80,
+        ]);
+
+        $capturedContent = null;
+
+        File::shouldReceive('put')
+            ->once()
+            ->with(Mockery::any(), Mockery::capture($capturedContent))
+            ->andReturn(true);
+        File::shouldReceive('move')->twice();
+
+        $this->service->renderWithTls($domain);
+
+        $this->assertNotNull($capturedContent);
+        $this->assertStringContainsString('header_up X-Forwarded-Port 80', $capturedContent);
+    }
+
+    public function test_worker_block_includes_default_max_requests_directive(): void
+    {
+        $owner = User::factory()->create();
+        $domain = Domain::factory()->make([
+            'fqdn' => 'workerrecycle.com',
+            'owner_user_id' => $owner->id,
+            'type' => DomainType::CaddyWebServer,
+            'root_path' => null,
+            'enable_www_redirect' => false,
+            'additional_hostnames' => [],
+            'enable_worker' => true,
+            'worker_num' => 4,
+            'worker_watch' => false,
+            'worker_max_requests' => null,
+        ]);
+
+        $capturedContent = null;
+
+        File::shouldReceive('put')
+            ->once()
+            ->with(Mockery::any(), Mockery::capture($capturedContent));
+        File::shouldReceive('move')->once();
+
+        $this->service->renderWithoutTls($domain);
+
+        $this->assertStringContainsString('worker {', $capturedContent);
+        $this->assertStringContainsString('num 4', $capturedContent);
+        $this->assertStringContainsString('max_requests 500', $capturedContent);
+    }
+
+    public function test_worker_block_uses_custom_max_requests_value(): void
+    {
+        $owner = User::factory()->create();
+        $domain = Domain::factory()->make([
+            'fqdn' => 'workerrecycle-custom.com',
+            'owner_user_id' => $owner->id,
+            'type' => DomainType::CaddyWebServer,
+            'root_path' => null,
+            'enable_www_redirect' => false,
+            'additional_hostnames' => [],
+            'enable_worker' => true,
+            'worker_num' => 2,
+            'worker_watch' => false,
+            'worker_max_requests' => 1000,
+        ]);
+
+        $capturedContent = null;
+
+        File::shouldReceive('put')
+            ->once()
+            ->with(Mockery::any(), Mockery::capture($capturedContent));
+        File::shouldReceive('move')->once();
+
+        $this->service->renderWithoutTls($domain);
+
+        $this->assertStringContainsString('max_requests 1000', $capturedContent);
+    }
+
+    public function test_php_fpm_pool_uses_www_data_group_and_umask(): void
+    {
+        $owner = User::factory()->create();
+        $phpVersion = \App\Models\PhpVersion::factory()->create([
+            'fpm_pool_dir' => '/tmp/test-fpm-pools',
+        ]);
+
+        $domain = Domain::factory()->create([
+            'fqdn' => 'pool-perms.test',
+            'owner_user_id' => $owner->id,
+            'type' => DomainType::ApacheReverseProxy,
+            'php_version_id' => $phpVersion->id,
+        ]);
+
+        \App\Models\FtpUser::create([
+            'domain_id' => $domain->id,
+            'username' => 'testpooluser',
+            'homedir' => '/var/www/vhosts/pool-perms.test',
+            'uid' => 33,
+            'gid' => 33,
+            'shell' => '/sbin/nologin',
+        ]);
+
+        $domain->load('phpVersion', 'ftpUser');
+
+        $capturedContent = null;
+
+        File::shouldReceive('put')
+            ->once()
+            ->with(Mockery::on(fn (string $path): bool => str_contains($path, 'pool-perms.test.conf')), Mockery::capture($capturedContent))
+            ->andReturn(true);
+        File::shouldReceive('move')->once();
+
+        $this->service->writePhpFpmConfig($domain);
+
+        $this->assertNotNull($capturedContent);
+        $this->assertStringContainsString('user = testpooluser', $capturedContent);
+        $this->assertStringContainsString('group = www-data', $capturedContent);
+        $this->assertStringNotContainsString('group = testpooluser', $capturedContent);
+        $this->assertStringContainsString('process.umask = 0022', $capturedContent);
+    }
+
     public function test_www_redirect_blocks_generated_with_tls(): void
     {
         $owner = User::factory()->create();

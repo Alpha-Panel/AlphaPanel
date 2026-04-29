@@ -156,6 +156,34 @@
                             <FormField v-if="form.enable_worker" :label="t('Worker Count')" :error="form.errors.worker_num">
                                 <input v-model.number="form.worker_num" type="number" min="1" max="100" class="form-input w-24" />
                             </FormField>
+                            <FormField
+                                v-if="form.enable_worker"
+                                :label="t('Worker Max Requests (recycle)')"
+                                :error="form.errors.worker_max_requests"
+                            >
+                                <input v-model.number="form.worker_max_requests" type="number" min="50" max="10000" class="form-input w-32" />
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    {{ t('Worker process is recycled after this many requests. Prevents memory leaks and stale state. Default: 500.') }}
+                                </p>
+                            </FormField>
+                        </div>
+
+                        <!-- Apache Reverse Proxy: X-Forwarded-Port -->
+                        <div v-if="form.type === 'apache_reverse_proxy'" class="pt-5 border-t border-gray-200 dark:border-gray-800">
+                            <h4 class="mb-3 text-sm font-medium text-gray-800 dark:text-white/90">{{ t('Reverse Proxy Headers') }}</h4>
+
+                            <FormField
+                                :label="t('X-Forwarded-Port')"
+                                :error="form.errors.forwarded_port"
+                            >
+                                <select v-model.number="form.forwarded_port" class="form-input w-32">
+                                    <option :value="443">443</option>
+                                    <option :value="80">80</option>
+                                </select>
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    {{ t('Port reported to the upstream Apache/Laravel application. Use 443 (default) when site is served over HTTPS. Older Laravel versions that mishandle this header may need 80.') }}
+                                </p>
+                            </FormField>
                         </div>
 
                         <div class="flex items-center gap-3 pt-5">
@@ -223,6 +251,8 @@ const form = useForm({
     enable_worker: props.domain.enable_worker,
     worker_num: props.domain.worker_num ?? 2,
     worker_watch: props.domain.worker_watch,
+    worker_max_requests: props.domain.worker_max_requests ?? 500,
+    forwarded_port: props.domain.forwarded_port ?? 443,
 });
 
 const exampleDirectives = `reverse_proxy http://10.0.0.5:3000 {
