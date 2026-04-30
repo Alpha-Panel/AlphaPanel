@@ -118,6 +118,18 @@ class AuditLogController extends Controller
             'role_created',
             'role_updated',
             'role_deleted',
+            'webauthn_registered',
+            'webauthn_renamed',
+            'webauthn_deleted',
+            'password_changed',
+            'profile_updated',
+            'two_factor_enabled',
+            'two_factor_confirmed',
+            'two_factor_disabled',
+            'two_factor_recovery_codes_generated',
+            'two_factor_recovery_code_used',
+            'impersonation.start',
+            'impersonation.stop',
         ]);
 
         $actions = AuditLog::query()
@@ -146,7 +158,7 @@ class AuditLogController extends Controller
 
         $data = $actions->map(fn (string $action): array => [
             'value' => $action,
-            'label' => ucwords(str_replace('_', ' ', $action)),
+            'label' => $this->translateAction($action),
         ]);
 
         return response()->json([
@@ -337,9 +349,21 @@ class AuditLogController extends Controller
         return $resolved;
     }
 
+    private function translateAction(string $action): string
+    {
+        $key = 'audit_actions.'.$action;
+        $translated = __($key);
+
+        if (is_string($translated) && $translated !== $key) {
+            return $translated;
+        }
+
+        return ucwords(str_replace(['_', '.'], ' ', $action));
+    }
+
     private function actionBadge(string $action): string
     {
-        $label = ucwords(str_replace('_', ' ', $action));
+        $label = e($this->translateAction($action));
 
         if (str_contains($action, 'failed')) {
             return '<span class="inline-flex rounded-full bg-error-500/15 px-2 py-0.5 text-xs font-semibold text-error-700 dark:text-error-300">'.$label.'</span>';
@@ -369,8 +393,12 @@ class AuditLogController extends Controller
             return '<span class="inline-flex rounded-full bg-purple-500/15 px-2 py-0.5 text-xs font-semibold text-purple-700 dark:text-purple-300">'.$label.'</span>';
         }
 
-        if (in_array($action, ['deleted', 'renamed'], true)) {
+        if (in_array($action, ['deleted', 'renamed', 'webauthn_deleted', 'password_changed'], true)) {
             return '<span class="inline-flex rounded-full bg-error-500/15 px-2 py-0.5 text-xs font-semibold text-error-700 dark:text-error-300">'.$label.'</span>';
+        }
+
+        if (str_starts_with($action, 'webauthn_') || str_starts_with($action, 'two_factor_') || str_starts_with($action, 'impersonation') || $action === 'profile_updated') {
+            return '<span class="inline-flex rounded-full bg-purple-500/15 px-2 py-0.5 text-xs font-semibold text-purple-700 dark:text-purple-300">'.$label.'</span>';
         }
 
         return '<span class="inline-flex rounded-full bg-success-500/15 px-2 py-0.5 text-xs font-semibold text-success-700 dark:text-success-300">'.$label.'</span>';

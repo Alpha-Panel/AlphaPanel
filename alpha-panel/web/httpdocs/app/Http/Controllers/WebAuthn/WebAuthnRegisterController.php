@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\WebAuthn;
 
+use App\Models\AuditLog;
 use Illuminate\Contracts\Support\Responsable;
 use Illuminate\Http\Response;
 use Laragear\WebAuthn\Http\Requests\AttestationRequest;
@@ -35,6 +36,14 @@ class WebAuthnRegisterController
         $user = $request->user();
         $user->otp = true;
         $user->save();
+
+        AuditLog::create([
+            'user_id' => $user->id,
+            'action' => 'webauthn_registered',
+            'summary' => $name !== ''
+                ? sprintf('Registered security key "%s"', $name)
+                : 'Registered security key',
+        ]);
 
         return response()->noContent();
     }

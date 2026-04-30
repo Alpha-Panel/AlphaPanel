@@ -2,6 +2,7 @@
 
 namespace App\Actions\Fortify;
 
+use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Support\Facades\Validator;
@@ -29,6 +30,14 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
             ],
         ])->validateWithBag('updateProfileInformation');
 
+        $changed = [];
+        if ($input['name'] !== $user->name) {
+            $changed[] = 'name';
+        }
+        if ($input['email'] !== $user->email) {
+            $changed[] = 'email';
+        }
+
         if ($input['email'] !== $user->email &&
             $user instanceof MustVerifyEmail) {
             $this->updateVerifiedUser($user, $input);
@@ -37,6 +46,14 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
                 'name' => $input['name'],
                 'email' => $input['email'],
             ])->save();
+        }
+
+        if ($changed !== []) {
+            AuditLog::create([
+                'user_id' => $user->id,
+                'action' => 'profile_updated',
+                'summary' => sprintf('Profile updated (%s)', implode(', ', $changed)),
+            ]);
         }
     }
 

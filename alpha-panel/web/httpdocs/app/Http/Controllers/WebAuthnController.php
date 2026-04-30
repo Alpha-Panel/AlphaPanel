@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\User;
 use App\Models\WebAuthn;
 use Illuminate\Http\JsonResponse;
@@ -27,7 +28,16 @@ class WebAuthnController extends Controller
             ->first();
 
         if ($credential) {
+            $deletedName = (string) ($credential->name ?? '');
             $credential->delete();
+
+            AuditLog::create([
+                'user_id' => auth()->id(),
+                'action' => 'webauthn_deleted',
+                'summary' => $deletedName !== ''
+                    ? sprintf('Deleted security key "%s"', $deletedName)
+                    : 'Deleted security key',
+            ]);
         }
 
         $remainingCount = WebAuthn::where('authenticatable_id', auth()->id())->count();
@@ -55,8 +65,18 @@ class WebAuthnController extends Controller
             ->first();
 
         if ($credential) {
-            $credential->name = trim($validated['name']);
+            $oldName = (string) ($credential->name ?? '');
+            $newName = trim($validated['name']);
+            $credential->name = $newName;
             $credential->save();
+
+            AuditLog::create([
+                'user_id' => auth()->id(),
+                'action' => 'webauthn_renamed',
+                'summary' => $oldName !== ''
+                    ? sprintf('Renamed security key "%s" → "%s"', $oldName, $newName)
+                    : sprintf('Named security key "%s"', $newName),
+            ]);
         }
 
         return response()->json(['status' => true]);
