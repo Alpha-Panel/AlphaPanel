@@ -1791,5 +1791,16 @@
   "used": "𐰚𐰆𐰞𐰞𐰀𐰤𐰃𐰡𐰃",
   "user": "𐰚𐰃𐱁𐰃",
   "users": "𐰚𐰃𐱁𐰃𐰞𐰁𐰺",
-  "value": "𐰓𐰀ğ𐰀𐰼"
+  "value": "𐰓𐰀ğ𐰀𐰼",
+  "API Tokens": "𐰯𐰃 𐱃𐰆𐰴𐰤𐰃",
+  "Create Token": "𐱃𐰆𐰴𐰤 𐰔𐰃𐰤𐰃𐱃",
+  "Webhooks": "𐰺𐰍𐱃𐰃𐰼𐰃𐰴𐰃𐰘",
+  "Done": "𐱃𐰃𐰞𐰼𐰃",
+  "Test": "𐰽𐰃𐰤𐰀𐰖",
+  "Never": "𐰴𐰃𐰧𐰀",
+  "Events": "𐰆𐰖𐱁𐰞𐰀𐰼",
+  "Secret": "𐰖𐰃𐰽𐰃𐰼𐰞𐰃𐰴",
+  "IP not allowed": "𐰃𐰯 𐰃𐰔𐰤𐰞𐰃",
+  "Token Name": "𐱃𐰆𐰴𐰤 𐰃𐰱𐰃",
+  "Admin access required.": "𐰖𐰦𐰤𐰢𐱁𐰃 𐰏𐰼𐰤𐱁𐰃 𐰏𐰼𐰴𐰃𐰞𐰃."
 }

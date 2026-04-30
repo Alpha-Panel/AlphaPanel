@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AddCspHeaders;
 use App\Http\Middleware\AddEarlyHints;
+use App\Http\Middleware\ApiTokenIpMiddleware;
 use App\Http\Middleware\EnforceImpersonationTtl;
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -10,6 +11,8 @@ use App\Http\Middleware\VerifyOTP;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Laravel\Sanctum\Http\Middleware\CheckAbilities;
+use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
 
@@ -26,6 +29,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => EnsureAdmin::class,
             'permission' => PermissionMiddleware::class,
             'role' => RoleMiddleware::class,
+            'abilities' => CheckAbilities::class,
+            'ability' => CheckForAnyAbility::class,
+            'api.token.ip' => ApiTokenIpMiddleware::class,
         ]);
 
         $middleware->prependToGroup('web', AddCspHeaders::class);

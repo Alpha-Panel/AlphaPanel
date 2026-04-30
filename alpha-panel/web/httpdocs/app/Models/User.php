@@ -13,13 +13,14 @@ use Laragear\WebAuthn\Contracts\WebAuthnAuthenticatable;
 use Laragear\WebAuthn\WebAuthnAuthentication;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticationProvider;
+use Laravel\Sanctum\HasApiTokens;
 use NotificationChannels\WebPush\HasPushSubscriptions;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements WebAuthnAuthenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasPushSubscriptions, HasRoles, Notifiable, TwoFactorAuthenticatable, WebAuthnAuthentication;
+    use HasApiTokens, HasFactory, HasPushSubscriptions, HasRoles, Notifiable, TwoFactorAuthenticatable, WebAuthnAuthentication;
 
     /** @var list<string> */
     protected $fillable = [

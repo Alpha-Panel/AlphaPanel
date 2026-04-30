@@ -3,7 +3,17 @@
 namespace App\Providers;
 
 use App\Listeners\SuppressNotificationsDuringImpersonation;
+use App\Models\BackupRun;
+use App\Models\DockerService;
+use App\Models\Domain;
+use App\Models\DomainCronJobLog;
 use App\Models\SecuritySetting;
+use App\Models\SslCertificate;
+use App\Observers\BackupRunObserver;
+use App\Observers\DockerServiceObserver;
+use App\Observers\DomainCronJobObserver;
+use App\Observers\DomainObserver;
+use App\Observers\SslObserver;
 use App\Services\ImpersonationService;
 use Illuminate\Notifications\Events\NotificationSending;
 use Illuminate\Support\Facades\Event;
@@ -30,6 +40,12 @@ class AppServiceProvider extends ServiceProvider
         Gate::before(fn ($user, $ability) => $user->isAdmin() ? true : null);
 
         Event::listen(NotificationSending::class, SuppressNotificationsDuringImpersonation::class);
+
+        Domain::observe(DomainObserver::class);
+        SslCertificate::observe(SslObserver::class);
+        BackupRun::observe(BackupRunObserver::class);
+        DockerService::observe(DockerServiceObserver::class);
+        DomainCronJobLog::observe(DomainCronJobObserver::class);
 
         if (! $this->app->isLocal()) {
             $hotFile = public_path('hot');

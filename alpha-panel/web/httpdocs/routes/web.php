@@ -583,4 +583,19 @@ Route::middleware('auth')->group(function (): void {
         Route::put('/', [AlertSettingController::class, 'update'])->name('update');
         Route::post('/run-check', [AlertSettingController::class, 'runCheck'])->name('run-check');
     });
+
+    // API Tokens (admin)
+    Route::middleware('admin')->prefix('settings/api-tokens')->name('settings.api-tokens.')->group(function (): void {
+        Route::get('/', [\App\Http\Controllers\Settings\ApiTokenWebController::class, 'index'])->name('index');
+    });
+
+    // Webhooks (admin)
+    Route::middleware('admin')->prefix('settings/webhooks')->name('settings.webhooks.')->group(function (): void {
+        Route::get('/', [\App\Http\Controllers\Settings\WebhookWebController::class, 'index'])->name('index');
+        Route::post('/', [\App\Http\Controllers\Settings\WebhookWebController::class, 'store'])->name('store');
+        Route::put('/{endpoint}', [\App\Http\Controllers\Settings\WebhookWebController::class, 'update'])->name('update');
+        Route::delete('/{endpoint}', [\App\Http\Controllers\Settings\WebhookWebController::class, 'destroy'])->name('destroy');
+        Route::post('/{endpoint}/test', [\App\Http\Controllers\Settings\WebhookWebController::class, 'sendTest'])->name('test');
+        Route::post('/{endpoint}/regenerate-secret', [\App\Http\Controllers\Settings\WebhookWebController::class, 'regenerateSecret'])->name('regenerate');
+    });
 });

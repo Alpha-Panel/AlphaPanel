@@ -1780,5 +1780,18 @@
   "upload_max_filesize": "upload_max_filesize",
   "user": "kişi",
   "users": "kişiler",
-  "value": "değer"
+  "value": "değer",
+  "API Tokens": "API Töngüleri",
+  "Create Token": "Töngü Yarat",
+  "Webhooks": "Tor Bağlamaları",
+  "Done": "Tükendi",
+  "Test": "Sına",
+  "Never": "Qaçan da",
+  "Events": "Uğraşlar",
+  "Secret": "Yashırın",
+  "IP not allowed": "IP İzinsiz",
+  "Last used": "Son İşletim",
+  "Token Name": "Töngü Adı",
+  "Token Created": "Töngü Yarattı",
+  "Admin access required.": "Beğ Girişi Gerek."
 }

@@ -63,6 +63,8 @@ class FtpBanService
 
         Log::info('FtpBanService: banned host', ['ip' => $ip, 'exitCode' => $result->exitCode]);
 
+        app(\App\Services\WebhookService::class)->dispatch('ftp.banned', ['ip' => $ip]);
+
         return $result;
     }
 
