@@ -38,6 +38,8 @@ use App\Http\Controllers\PmaSsoController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SecuritySettingController;
+use App\Http\Controllers\Settings\ApiTokenWebController;
+use App\Http\Controllers\Settings\WebhookWebController;
 use App\Http\Controllers\SslCertificateController;
 use App\Http\Controllers\SystemUpdateController;
 use App\Http\Controllers\TerminalController;
@@ -300,6 +302,8 @@ Route::middleware('auth')->group(function (): void {
     Route::post('user/security/webauthn', [WebAuthnController::class, 'list'])->name('user.security.webauthn');
     Route::post('user/security/webauthn/delete', [WebAuthnController::class, 'delete'])->name('user.security.webauthn.delete');
     Route::post('user/security/webauthn/rename', [WebAuthnController::class, 'rename'])->name('user.security.webauthn.rename');
+    Route::post('user/security/update-email', [UserController::class, 'updateEmail'])->name('user.security.update-email');
+    Route::post('user/security/update-password', [UserController::class, 'updatePassword'])->name('user.security.update-password');
 
     // Push Subscription Management
     Route::get('user/push-subscription/status', [PushSubscriptionController::class, 'status'])
@@ -586,16 +590,16 @@ Route::middleware('auth')->group(function (): void {
 
     // API Tokens (admin)
     Route::middleware('admin')->prefix('settings/api-tokens')->name('settings.api-tokens.')->group(function (): void {
-        Route::get('/', [\App\Http\Controllers\Settings\ApiTokenWebController::class, 'index'])->name('index');
+        Route::get('/', [ApiTokenWebController::class, 'index'])->name('index');
     });
 
     // Webhooks (admin)
     Route::middleware('admin')->prefix('settings/webhooks')->name('settings.webhooks.')->group(function (): void {
-        Route::get('/', [\App\Http\Controllers\Settings\WebhookWebController::class, 'index'])->name('index');
-        Route::post('/', [\App\Http\Controllers\Settings\WebhookWebController::class, 'store'])->name('store');
-        Route::put('/{endpoint}', [\App\Http\Controllers\Settings\WebhookWebController::class, 'update'])->name('update');
-        Route::delete('/{endpoint}', [\App\Http\Controllers\Settings\WebhookWebController::class, 'destroy'])->name('destroy');
-        Route::post('/{endpoint}/test', [\App\Http\Controllers\Settings\WebhookWebController::class, 'sendTest'])->name('test');
-        Route::post('/{endpoint}/regenerate-secret', [\App\Http\Controllers\Settings\WebhookWebController::class, 'regenerateSecret'])->name('regenerate');
+        Route::get('/', [WebhookWebController::class, 'index'])->name('index');
+        Route::post('/', [WebhookWebController::class, 'store'])->name('store');
+        Route::put('/{endpoint}', [WebhookWebController::class, 'update'])->name('update');
+        Route::delete('/{endpoint}', [WebhookWebController::class, 'destroy'])->name('destroy');
+        Route::post('/{endpoint}/test', [WebhookWebController::class, 'sendTest'])->name('test');
+        Route::post('/{endpoint}/regenerate-secret', [WebhookWebController::class, 'regenerateSecret'])->name('regenerate');
     });
 });

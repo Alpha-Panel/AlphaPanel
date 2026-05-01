@@ -6,7 +6,7 @@
                 <PageBreadcrumb
                     :pageTitle="t('API Tokens')"
                     :items="breadcrumbs"
-                    :backHref="route('settings.index')"
+                    :backHref="route('settings.api-tokens.index')"
                 />
                 <Toast />
 
@@ -139,21 +139,34 @@
                                 </div>
                                 <div>
                                     <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">{{ t('Abilities') }}</label>
-                                    <div class="grid grid-cols-2 gap-1.5">
-                                        <label
-                                            v-for="ability in availableAbilities"
-                                            :key="ability"
-                                            class="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs dark:border-gray-700"
-                                            :class="createForm.abilities.includes(ability) ? 'border-brand-500/60 bg-brand-50 dark:bg-brand-500/10' : ''"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                :value="ability"
-                                                v-model="createForm.abilities"
-                                                class="accent-brand-500"
-                                            />
-                                            {{ ability }}
-                                        </label>
+                                    <div class="mb-2">
+                                        <input
+                                            v-model="abilitySearch"
+                                            type="text"
+                                            class="form-input"
+                                            :placeholder="t('Search abilities...')"
+                                        />
+                                    </div>
+                                    <div class="max-h-52 overflow-y-auto rounded-lg border border-gray-200 p-2 dark:border-gray-700">
+                                        <div class="grid grid-cols-2 gap-1.5">
+                                            <label
+                                                v-for="ability in filteredAbilities"
+                                                :key="ability"
+                                                class="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs dark:border-gray-700"
+                                                :class="createForm.abilities.includes(ability) ? 'border-brand-500/60 bg-brand-50 dark:bg-brand-500/10' : ''"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    :value="ability"
+                                                    v-model="createForm.abilities"
+                                                    class="accent-brand-500"
+                                                />
+                                                {{ ability }}
+                                            </label>
+                                            <p v-if="filteredAbilities.length === 0" class="col-span-2 py-2 text-center text-xs text-gray-400">
+                                                {{ t('No abilities match your search.') }}
+                                            </p>
+                                        </div>
                                     </div>
                                     <p class="mt-1 text-xs text-gray-400">{{ t('Select * to grant all permissions.') }}</p>
                                 </div>
@@ -294,7 +307,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import axios from 'axios';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
@@ -310,7 +323,7 @@ const { t } = useI18n();
 const { addToast } = useToast();
 
 const breadcrumbs = [
-    { label: t('Settings'), href: route('settings.index') },
+    { label: t('Settings'), href: route('settings.api-tokens.index') },
     { label: t('API Tokens') },
 ];
 
@@ -355,6 +368,12 @@ const tokens = ref<ApiToken[]>([]);
 const showCreateModal = ref(false);
 const creating = ref(false);
 const createForm = ref({ name: '', abilities: [] as string[], expires_at: '' });
+const abilitySearch = ref('');
+const filteredAbilities = computed(() =>
+    abilitySearch.value.trim()
+        ? availableAbilities.filter((a) => a.includes(abilitySearch.value.trim().toLowerCase()))
+        : availableAbilities,
+);
 
 const newTokenPlaintext = ref<string | null>(null);
 const tokenCopied = ref(false);
@@ -376,6 +395,7 @@ async function fetchTokens(): Promise<void> {
 
 function openCreateModal(): void {
     createForm.value = { name: '', abilities: [], expires_at: '' };
+    abilitySearch.value = '';
     showCreateModal.value = true;
 }
 
@@ -392,9 +412,9 @@ async function createToken(): Promise<void> {
         showCreateModal.value = false;
         newTokenPlaintext.value = res.data.data.token;
         tokenCopied.value = false;
-        addToast({ type: 'success', message: t('Token created.') });
+        addToast('success', t('Token created.'));
     } catch {
-        addToast({ type: 'error', message: t('Failed to create token.') });
+        addToast('error', t('Failed to create token.'));
     } finally {
         creating.value = false;
     }
@@ -405,9 +425,9 @@ async function deleteToken(token: ApiToken): Promise<void> {
     try {
         await axios.delete(`/api/v1/api-tokens/${token.id}`);
         tokens.value = tokens.value.filter((t) => t.id !== token.id);
-        addToast({ type: 'success', message: t('Token deleted.') });
+        addToast('success', t('Token deleted.'));
     } catch {
-        addToast({ type: 'error', message: t('Failed to delete token.') });
+        addToast('error', t('Failed to delete token.'));
     }
 }
 
@@ -436,9 +456,9 @@ async function addIpRule(): Promise<void> {
         const idx = tokens.value.findIndex((t) => t.id === activeToken.value!.id);
         if (idx !== -1) tokens.value[idx].ip_rule_count++;
         ipRuleForm.value = { ip_cidr: '', description: '' };
-        addToast({ type: 'success', message: t('IP rule added.') });
+        addToast('success', t('IP rule added.'));
     } catch {
-        addToast({ type: 'error', message: t('Failed to add IP rule.') });
+        addToast('error', t('Failed to add IP rule.'));
     } finally {
         addingRule.value = false;
     }
@@ -452,11 +472,19 @@ async function deleteIpRule(rule: IpRule): Promise<void> {
         activeToken.value.ip_rule_count--;
         const idx = tokens.value.findIndex((t) => t.id === activeToken.value!.id);
         if (idx !== -1) tokens.value[idx].ip_rule_count = Math.max(0, tokens.value[idx].ip_rule_count - 1);
-        addToast({ type: 'success', message: t('IP rule deleted.') });
+        addToast('success', t('IP rule deleted.'));
     } catch {
-        addToast({ type: 'error', message: t('Failed to delete IP rule.') });
+        addToast('error', t('Failed to delete IP rule.'));
     }
 }
 
 onMounted(fetchTokens);
 </script>
+
+<style scoped>
+@reference "../../../css/app.css";
+
+.form-input {
+    @apply h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800;
+}
+</style>

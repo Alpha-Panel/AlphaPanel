@@ -7,6 +7,50 @@
                 <Toast />
 
                 <div class="space-y-6">
+                    <!-- Email Address -->
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
+                        <h3 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white/90">{{ t('Email Address') }}</h3>
+                        <form @submit.prevent="submitEmail" class="space-y-4 max-w-md">
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-400">{{ t('New Email') }}</label>
+                                <input v-model="emailForm.email" type="email" class="form-input" :placeholder="page.props.auth.user.email" required />
+                                <p v-if="emailErrors.email" class="mt-1 text-xs text-error-500">{{ emailErrors.email }}</p>
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-400">{{ t('Current Password') }}</label>
+                                <input v-model="emailForm.current_password" type="password" class="form-input" :placeholder="t('Enter your password')" required />
+                                <p v-if="emailErrors.current_password" class="mt-1 text-xs text-error-500">{{ emailErrors.current_password }}</p>
+                            </div>
+                            <button type="submit" :disabled="emailSaving" class="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50">
+                                {{ emailSaving ? t('Saving...') : t('Update Email') }}
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Password -->
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
+                        <h3 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white/90">{{ t('Change Password') }}</h3>
+                        <form @submit.prevent="submitPassword" class="space-y-4 max-w-md">
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-400">{{ t('Current Password') }}</label>
+                                <input v-model="passwordForm.current_password" type="password" class="form-input" :placeholder="t('Enter your password')" required />
+                                <p v-if="passwordErrors.current_password" class="mt-1 text-xs text-error-500">{{ passwordErrors.current_password }}</p>
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-400">{{ t('New Password') }}</label>
+                                <input v-model="passwordForm.password" type="password" class="form-input" :placeholder="t('Min 8 characters')" required />
+                                <p v-if="passwordErrors.password" class="mt-1 text-xs text-error-500">{{ passwordErrors.password }}</p>
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-400">{{ t('Confirm Password') }}</label>
+                                <input v-model="passwordForm.password_confirmation" type="password" class="form-input" :placeholder="t('Repeat password')" required />
+                            </div>
+                            <button type="submit" :disabled="passwordSaving" class="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50">
+                                {{ passwordSaving ? t('Saving...') : t('Update Password') }}
+                            </button>
+                        </form>
+                    </div>
+
                     <!-- Two-Factor Authentication -->
                     <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <h3 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white/90">{{ t('Two-Factor Authentication') }}</h3>
@@ -107,7 +151,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { Head, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
@@ -134,6 +178,53 @@ const keys = ref([...props.webauthn]);
 
 const twoFactorEnabled = ref(!!page.props.auth.user.two_factor_secret);
 const twoFactorConfirmed = ref(!!page.props.auth.user.two_factor_confirmed);
+
+const emailForm = reactive({ email: '', current_password: '' });
+const emailErrors = reactive<Record<string, string>>({});
+const emailSaving = ref(false);
+
+const passwordForm = reactive({ current_password: '', password: '', password_confirmation: '' });
+const passwordErrors = reactive<Record<string, string>>({});
+const passwordSaving = ref(false);
+
+const submitEmail = async () => {
+    emailSaving.value = true;
+    Object.keys(emailErrors).forEach((k) => delete emailErrors[k]);
+    try {
+        await axios.post(route('user.security.update-email'), emailForm);
+        emailForm.email = '';
+        emailForm.current_password = '';
+        addToast('success', t('Email updated successfully.'));
+    } catch (e: any) {
+        const errors = e.response?.data?.errors ?? {};
+        Object.entries(errors).forEach(([k, v]) => { emailErrors[k] = Array.isArray(v) ? v[0] : String(v); });
+        if (!Object.keys(errors).length) {
+            addToast('error', e.response?.data?.message || t('Failed to update email.'));
+        }
+    } finally {
+        emailSaving.value = false;
+    }
+};
+
+const submitPassword = async () => {
+    passwordSaving.value = true;
+    Object.keys(passwordErrors).forEach((k) => delete passwordErrors[k]);
+    try {
+        await axios.post(route('user.security.update-password'), passwordForm);
+        passwordForm.current_password = '';
+        passwordForm.password = '';
+        passwordForm.password_confirmation = '';
+        addToast('success', t('Password updated.'));
+    } catch (e: any) {
+        const errors = e.response?.data?.errors ?? {};
+        Object.entries(errors).forEach(([k, v]) => { passwordErrors[k] = Array.isArray(v) ? v[0] : String(v); });
+        if (!Object.keys(errors).length) {
+            addToast('error', e.response?.data?.message || t('Failed to update password'));
+        }
+    } finally {
+        passwordSaving.value = false;
+    }
+};
 
 const enableTwoFactor = async () => {
     loading.value = true;

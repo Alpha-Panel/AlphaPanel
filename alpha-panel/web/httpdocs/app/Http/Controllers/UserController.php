@@ -4,8 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\WebAuthn;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -16,6 +20,49 @@ class UserController extends Controller
         $webauthn = WebAuthn::where('authenticatable_id', auth()->id())->get();
 
         return Inertia::render('User/Security', compact('webauthn'));
+    }
+
+    public function updateEmail(Request $request): RedirectResponse|JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255', 'unique:users,email,'.$user->id],
+            'current_password' => ['required', 'string'],
+        ]);
+
+        if (! Hash::check($validated['current_password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => [__('The provided password does not match your current password.')],
+            ]);
+        }
+
+        $user->email = $validated['email'];
+        $user->email_verified_at = null;
+        $user->save();
+
+        return back()->with('status', 'email-updated');
+    }
+
+    public function updatePassword(Request $request): RedirectResponse|JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'confirmed', Password::defaults()],
+        ]);
+
+        if (! Hash::check($validated['current_password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => [__('The provided password does not match your current password.')],
+            ]);
+        }
+
+        $user->password = Hash::make($validated['password']);
+        $user->save();
+
+        return back()->with('status', 'password-updated');
     }
 
     public function notificationsPage(Request $request): Response

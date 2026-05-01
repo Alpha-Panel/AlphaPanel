@@ -568,6 +568,19 @@ const menuGroups = computed(() => {
                     });
                 }
 
+                if (isAdmin.value) {
+                    settingsSubItems.push({
+                        name: t('API Tokens'),
+                        href: route('settings.api-tokens.index'),
+                        iconClass: 'bx bx-key',
+                    });
+                    settingsSubItems.push({
+                        name: t('Webhooks'),
+                        href: route('settings.webhooks.index'),
+                        iconClass: 'bx bx-broadcast',
+                    });
+                }
+
                 if (settingsSubItems.length > 0) {
                     items.push({
                         iconClass: 'fa-solid fa-gear',

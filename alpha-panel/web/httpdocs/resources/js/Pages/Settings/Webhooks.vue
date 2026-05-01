@@ -6,7 +6,7 @@
                 <PageBreadcrumb
                     :pageTitle="t('Webhooks')"
                     :items="breadcrumbs"
-                    :backHref="route('settings.index')"
+                    :backHref="route('settings.webhooks.index')"
                 />
                 <Toast />
 
@@ -213,7 +213,7 @@ const { t } = useI18n();
 const { addToast } = useToast();
 
 const breadcrumbs = [
-    { label: t('Settings'), href: route('settings.index') },
+    { label: t('Settings'), href: route('settings.webhooks.index') },
     { label: t('Webhooks') },
 ];
 
@@ -275,11 +275,11 @@ async function saveEndpoint(): Promise<void> {
             const res = await axios.put(`/settings/webhooks/${editingEndpoint.value.id}`, payload);
             const idx = endpoints.value.findIndex((e) => e.id === editingEndpoint.value!.id);
             if (idx !== -1) endpoints.value[idx] = { ...endpoints.value[idx], ...res.data.data };
-            addToast({ type: 'success', message: t('Endpoint updated.') });
+            addToast('success', t('Endpoint updated.'));
         } else {
             const res = await axios.post('/settings/webhooks', payload);
             endpoints.value.push(res.data.data);
-            addToast({ type: 'success', message: t('Endpoint created.') });
+            addToast('success', t('Endpoint created.'));
         }
         closeModal();
     } catch (e: unknown) {
@@ -293,9 +293,9 @@ async function saveEndpoint(): Promise<void> {
 async function sendTest(ep: Endpoint): Promise<void> {
     try {
         await axios.post(`/settings/webhooks/${ep.id}/test`);
-        addToast({ type: 'success', message: t('Test payload dispatched.') });
+        addToast('success', t('Test payload dispatched.'));
     } catch {
-        addToast({ type: 'error', message: t('Failed to send test.') });
+        addToast('error', t('Failed to send test.'));
     }
 }
 
@@ -305,7 +305,7 @@ async function toggleActive(ep: Endpoint): Promise<void> {
         const idx = endpoints.value.findIndex((e) => e.id === ep.id);
         if (idx !== -1) endpoints.value[idx].active = !ep.active;
     } catch {
-        addToast({ type: 'error', message: t('Failed to update endpoint.') });
+        addToast('error', t('Failed to update endpoint.'));
     }
 }
 
@@ -314,9 +314,17 @@ async function deleteEndpoint(ep: Endpoint): Promise<void> {
     try {
         await axios.delete(`/settings/webhooks/${ep.id}`);
         endpoints.value = endpoints.value.filter((e) => e.id !== ep.id);
-        addToast({ type: 'success', message: t('Endpoint deleted.') });
+        addToast('success', t('Endpoint deleted.'));
     } catch {
-        addToast({ type: 'error', message: t('Failed to delete endpoint.') });
+        addToast('error', t('Failed to delete endpoint.'));
     }
 }
 </script>
+
+<style scoped>
+@reference "../../../css/app.css";
+
+.form-input {
+    @apply h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800;
+}
+</style>
