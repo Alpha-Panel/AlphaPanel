@@ -63,7 +63,8 @@ Route::get('/manifest.json', [ManifestController::class, 'index'])->name('manife
 
 // OAuth authorization code flow (no auth middleware — guest-facing)
 Route::get('/oauth/authorize', [OAuthController::class, 'show'])->name('oauth.authorize');
-Route::post('/oauth/authorize', [OAuthController::class, 'authorize'])->name('oauth.authorize.submit');
+Route::post('/oauth/authorize', [OAuthController::class, 'submit'])->name('oauth.authorize.submit');
+Route::post('/oauth/check-user', [OAuthController::class, 'checkUser'])->name('oauth.check-user');
 Route::post('/locale', function (Request $request) {
     $supportedLocales = config('app.supported_locales', ['tr', 'tr-gokturk', 'gokturk-latin', 'az', 'en', 'de', 'es', 'fr', 'ru']);
 

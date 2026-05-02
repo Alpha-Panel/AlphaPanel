@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OAuthAuthorizationCode extends Model
 {
+    protected $table = 'oauth_authorization_codes';
+
     protected $fillable = ['code', 'user_id', 'redirect_uri', 'expires_at', 'used_at'];
 
     protected function casts(): array

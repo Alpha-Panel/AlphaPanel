@@ -158,7 +158,8 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'api.token.ip'])->group(functio
             // Supervisor
             Route::prefix('supervisor')->group(function (): void {
                 Route::get('/', [SupervisorController::class, 'index'])->middleware('ability:domains:read');
-                Route::post('/', [SupervisorController::class, 'store'])->middleware('ability:domains:write');
+                Route::post('/toggle', [SupervisorController::class, 'updateProcess'])->middleware('ability:domains:write');
+                Route::post('/update', [SupervisorController::class, 'updateProcess'])->middleware('ability:domains:write');
                 Route::post('/restart', [SupervisorController::class, 'restart'])->middleware('ability:domains:write');
                 Route::post('/workers/restart', [SupervisorController::class, 'restartWorkers'])->middleware('ability:domains:write');
                 Route::post('/optimize', [SupervisorController::class, 'optimize'])->middleware('ability:domains:write');
