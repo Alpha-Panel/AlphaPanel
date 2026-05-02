@@ -16,6 +16,18 @@ class FirewallController extends ApiController
         return response()->json(['data' => $service->getDbRules($request->ip())]);
     }
 
+    public function data(Request $request, FirewallService $service): JsonResponse
+    {
+        return response()->json(['rules' => $service->getDbRules($request->ip())]);
+    }
+
+    public function toggle(FirewallRule $rule, FirewallService $service): JsonResponse
+    {
+        $updated = $service->updateDbRule($rule->id, ['enabled' => ! $rule->enabled]);
+
+        return response()->json(['data' => $updated]);
+    }
+
     public function store(StoreFirewallRuleRequest $request, FirewallService $service): JsonResponse
     {
         $count = $service->addDbRules($request->validated(), $request->user()->id);

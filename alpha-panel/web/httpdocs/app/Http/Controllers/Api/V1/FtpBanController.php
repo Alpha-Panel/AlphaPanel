@@ -16,6 +16,24 @@ class FtpBanController extends ApiController
         return response()->json(['data' => $this->ftpBan->getActiveBans()]);
     }
 
+    public function data(): JsonResponse
+    {
+        return response()->json(['bans' => $this->ftpBan->getActiveBans()]);
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        return $this->ban($request);
+    }
+
+    public function destroyAll(Request $request): Response
+    {
+        $request->validate(['ip' => 'required|string']);
+        $this->ftpBan->permitHost($request->input('ip'));
+
+        return response()->noContent();
+    }
+
     public function log(): JsonResponse
     {
         return response()->json(['data' => $this->ftpBan->getBanLog()]);

@@ -12,7 +12,7 @@ services:
     image: alphapanel/frankenphp:local
     pull_policy: never
     container_name: alpha_panel_web
-    hostname: alpha_panel_web
+    hostname: ${PANEL_DOMAIN}
     working_dir: /var/www/AlphaPanel/httpdocs
     restart: always
     volumes:
@@ -67,7 +67,9 @@ services:
     ports:
       - "${PRIVATE_NETWORK_IP}:8443:443"
     networks:
-      - vhost_network
+      vhost_network:
+        aliases:
+          - ${PANEL_DOMAIN}
 
   alpha_panel_meilisearch:
     image: getmeili/meilisearch:v1.16

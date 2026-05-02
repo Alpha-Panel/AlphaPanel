@@ -19,13 +19,14 @@ class DomainController extends ApiController
     {
         $user = $request->user();
         $query = Domain::query()
-            ->with(['owner:id,name,email', 'phpVersion:id,version'])
+            ->with(['owner:id,name,email', 'phpVersion:id,slug'])
             ->when(! $user->isAdmin(), function ($q) use ($user): void {
                 $q->where(function ($q) use ($user): void {
                     $q->where('owner_user_id', $user->id)
                         ->orWhereHas('authorizedUsers', fn ($q) => $q->where('user_id', $user->id));
                 });
             })
+            ->when($request->boolean('root_only'), fn ($q) => $q->whereNull('parent_domain_id'))
             ->orderBy('fqdn');
 
         return response()->json($this->paginate($query));
@@ -76,7 +77,7 @@ class DomainController extends ApiController
     {
         $this->ensureCanViewDomain($request, $domain);
 
-        $domain->load(['owner:id,name,email', 'phpVersion:id,version', 'ftpUser:id,username,domain_id', 'activeSslCertificate']);
+        $domain->load(['owner:id,name,email', 'phpVersion:id,version', 'ftpUser:id,username,domain_id', 'activeSslCertificate', 'subdomains:id,fqdn,type,status,parent_domain_id,php_version_id']);
 
         return response()->json(['data' => $domain]);
     }

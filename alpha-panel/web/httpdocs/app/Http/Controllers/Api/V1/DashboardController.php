@@ -12,14 +12,29 @@ use Illuminate\Http\Request;
 
 class DashboardController extends ApiController
 {
-    public function index(HostMetricsService $metrics, DockerServiceManager $docker): JsonResponse
+    public function index(HostMetricsService $metrics): JsonResponse
     {
+        $m = $metrics->getHostMetrics();
+
         return response()->json([
             'data' => [
-                'domains_count' => Domain::query()->count(),
-                'users_count' => User::query()->count(),
-                'metrics' => $metrics->getAll(),
-                'docker_services' => $docker->getSummary(),
+                'host' => [
+                    'cpu' => ['usage_percent' => $m['cpu_percent']],
+                    'memory' => [
+                        'used_mb' => $m['mem_used_mb'],
+                        'total_mb' => $m['mem_total_mb'],
+                    ],
+                    'disk' => [
+                        'used_gb' => $m['disk_used_gb'],
+                        'total_gb' => $m['disk_total_gb'],
+                    ],
+                    'uptime_seconds' => $m['uptime_seconds'],
+                    'load_average' => [$m['load_1'], $m['load_5'], $m['load_15']],
+                ],
+                'counts' => [
+                    'domains' => Domain::query()->whereNull('parent_domain_id')->count(),
+                    'users' => User::query()->count(),
+                ],
             ],
         ]);
     }
