@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Models\OAuthAuthorizationCode;
 use App\Models\RefreshToken;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -84,6 +85,38 @@ class AuthController extends ApiController
             'token_hash' => hash('sha256', $rawRefresh),
             'alpha_center_webhook_url' => $tokenRow->alpha_center_webhook_url,
             'alpha_center_webhook_secret' => $tokenRow->alpha_center_webhook_secret,
+            'expires_at' => now()->addDays(self::REFRESH_TOKEN_TTL_DAYS),
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return response()->json([
+            'access_token' => $sanctumToken->plainTextToken,
+            'refresh_token' => $rawRefresh,
+            'expires_at' => $expiresAt->toIso8601String(),
+        ]);
+    }
+
+    public function token(Request $request): JsonResponse
+    {
+        $request->validate(['code' => 'required|string']);
+
+        $authCode = OAuthAuthorizationCode::where('code', $request->input('code'))->first();
+
+        if (! $authCode || ! $authCode->isValid()) {
+            return response()->json(['message' => 'Invalid or expired authorization code.'], 401);
+        }
+
+        $authCode->update(['used_at' => now()]);
+
+        $user = $authCode->user;
+        $expiresAt = now()->addMinutes(self::ACCESS_TOKEN_TTL_MINUTES);
+        $sanctumToken = $user->createToken('alphacenter-oauth', ['*'], $expiresAt);
+
+        $rawRefresh = Str::random(64);
+        RefreshToken::create([
+            'user_id' => $user->id,
+            'token_hash' => hash('sha256', $rawRefresh),
             'expires_at' => now()->addDays(self::REFRESH_TOKEN_TTL_DAYS),
             'ip' => $request->ip(),
             'user_agent' => $request->userAgent(),

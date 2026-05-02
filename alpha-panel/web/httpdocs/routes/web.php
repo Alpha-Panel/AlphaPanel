@@ -32,6 +32,7 @@ use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\LoginIpFilterController;
 use App\Http\Controllers\ManifestController;
 use App\Http\Controllers\NotificationSettingsController;
+use App\Http\Controllers\OAuthController;
 use App\Http\Controllers\PhpSettingsController;
 use App\Http\Controllers\PhpVersionController;
 use App\Http\Controllers\PmaSsoController;
@@ -59,6 +60,10 @@ use Illuminate\Validation\Rule;
 use Laravel\Fortify\Http\Controllers\TwoFactorAuthenticationController;
 
 Route::get('/manifest.json', [ManifestController::class, 'index'])->name('manifest');
+
+// OAuth authorization code flow (no auth middleware — guest-facing)
+Route::get('/oauth/authorize', [OAuthController::class, 'show'])->name('oauth.authorize');
+Route::post('/oauth/authorize', [OAuthController::class, 'authorize'])->name('oauth.authorize.submit');
 Route::post('/locale', function (Request $request) {
     $supportedLocales = config('app.supported_locales', ['tr', 'tr-gokturk', 'gokturk-latin', 'az', 'en', 'de', 'es', 'fr', 'ru']);
 

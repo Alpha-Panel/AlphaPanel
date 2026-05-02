@@ -44,6 +44,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1/auth')->group(function (): void {
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/refresh', [AuthController::class, 'refresh']);
+    Route::post('/token', [AuthController::class, 'token']);
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 });
 
