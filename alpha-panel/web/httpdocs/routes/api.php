@@ -2,8 +2,10 @@
 
 use App\Http\Controllers\Api\V1\ApiTokenController;
 use App\Http\Controllers\Api\V1\AuditLogController;
+use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BackupController;
 use App\Http\Controllers\Api\V1\CloudflareController;
+use App\Http\Controllers\Api\V1\ContainerController;
 use App\Http\Controllers\Api\V1\CronJobController;
 use App\Http\Controllers\Api\V1\CrowdSecController;
 use App\Http\Controllers\Api\V1\DashboardController;
@@ -19,12 +21,14 @@ use App\Http\Controllers\Api\V1\DomainUserController;
 use App\Http\Controllers\Api\V1\FileManagerController;
 use App\Http\Controllers\Api\V1\FirewallController;
 use App\Http\Controllers\Api\V1\FtpBanController;
+use App\Http\Controllers\Api\V1\HandshakeController;
 use App\Http\Controllers\Api\V1\ImpersonationController;
 use App\Http\Controllers\Api\V1\ModSecurityController;
 use App\Http\Controllers\Api\V1\PackageManagerController;
 use App\Http\Controllers\Api\V1\PhpSettingsController;
 use App\Http\Controllers\Api\V1\PhpVersionController;
 use App\Http\Controllers\Api\V1\PingController;
+use App\Http\Controllers\Api\V1\PmaSsoApiController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\SslController;
@@ -36,7 +40,21 @@ use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\WafRuleController;
 use Illuminate\Support\Facades\Route;
 
+// ── Auth (no token required) ─────────────────────────────────────────────
+Route::prefix('v1/auth')->group(function (): void {
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/refresh', [AuthController::class, 'refresh']);
+    Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+});
+
 Route::prefix('v1')->middleware(['auth:sanctum', 'api.token.ip'])->group(function (): void {
+
+    // ── Handshake ──────────────────────────────────────────────────────────
+    Route::post('/handshake/webhook', [HandshakeController::class, 'registerWebhook']);
+
+    // ── PMA SSO ────────────────────────────────────────────────────────────
+    Route::get('/pma/sso/admin', [PmaSsoApiController::class, 'admin'])->middleware('ability:*');
+    Route::get('/pma/domains/{domain}/databases/{database}/pma-sso', [PmaSsoApiController::class, 'database'])->middleware('ability:databases:read');
 
     // ── Ping ────────────────────────────────────────────────────────────────
     Route::get('/ping', PingController::class);
@@ -204,7 +222,16 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'api.token.ip'])->group(functio
                 Route::post('/', [DockerBindingController::class, 'store'])->middleware('ability:docker:write');
                 Route::delete('/{binding}', [DockerBindingController::class, 'destroy'])->middleware('ability:docker:write');
             });
+
+            // Domain Terminal
+            Route::post('/terminal/start', [TerminalController::class, 'startDomain'])->middleware('ability:terminal:access');
         });
+    });
+
+    // ── Containers (live, via Portainer) ────────────────────────────────────
+    Route::prefix('containers')->group(function (): void {
+        Route::get('/', [ContainerController::class, 'index'])->middleware('ability:docker:read');
+        Route::get('/{id}', [ContainerController::class, 'show'])->middleware('ability:docker:read');
     });
 
     // ── Docker Services ──────────────────────────────────────────────────────

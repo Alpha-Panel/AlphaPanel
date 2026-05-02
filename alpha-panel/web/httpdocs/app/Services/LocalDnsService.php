@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Contracts\DnsProvider as DnsProviderContract;
 use App\Models\DnsRecord;
 use App\Models\DnsSetting;
 use App\Models\DnsTemplate;
@@ -13,8 +14,55 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-class LocalDnsService
+class LocalDnsService implements DnsProviderContract
 {
+    // ---------------------------------------------------------------
+    // DnsProvider contract — domain-level wrappers
+    // ---------------------------------------------------------------
+
+    public function getRecords(Domain $domain, ?string $search = null): array
+    {
+        $zone = $domain->dnsZone;
+        if (! $zone) {
+            return [];
+        }
+
+        return $this->listRecords($zone, $search)->toArray();
+    }
+
+    public function createRecord(Domain $domain, array $data): mixed
+    {
+        $zone = $domain->dnsZone;
+        abort_unless($zone !== null, 422, 'DNS zone not found for domain');
+
+        return $this->addRecord($zone, $data);
+    }
+
+    public function deleteRecordById(Domain $domain, int|string $recordId): void
+    {
+        $zone = $domain->dnsZone;
+        $record = DnsRecord::on('powerdns')->where('domain_id', $zone?->id)->find((int) $recordId);
+        abort_unless($record !== null, 404, 'DNS record not found');
+        $this->deleteRecord($record);
+    }
+
+    public function bulkDeleteRecords(Domain $domain, array $recordIds): int
+    {
+        $deleted = 0;
+        foreach ($recordIds as $id) {
+            try {
+                $this->deleteRecordById($domain, $id);
+                $deleted++;
+            } catch (\Throwable) {
+                // skip missing records
+            }
+        }
+
+        return $deleted;
+    }
+
+    // ---------------------------------------------------------------
+
     /**
      * Create a DNS zone for a domain with SOA/NS records and optional template.
      *

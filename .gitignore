@@ -213,3 +213,5 @@ __pycache__
 .installer_state.json
 
 docs
+AlphaPanel-API.postman_collection.json
+API-DOCUMENTATION.md

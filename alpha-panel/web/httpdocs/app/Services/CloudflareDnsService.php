@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use App\Contracts\DnsProvider as DnsProviderContract;
 use App\Exceptions\CloudflareException;
+use App\Models\Domain;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
-class CloudflareDnsService
+class CloudflareDnsService implements DnsProviderContract
 {
     private ?CloudflareClient $client = null;
 
@@ -18,6 +20,53 @@ class CloudflareDnsService
 
         $this->client = app(CloudflareClient::class);
     }
+
+    // ---------------------------------------------------------------
+    // DnsProvider contract — domain-level wrappers
+    // ---------------------------------------------------------------
+
+    public function getRecords(Domain $domain, ?string $search = null): array
+    {
+        try {
+            $zoneId = $this->getZoneId($domain->fqdn);
+
+            return $this->listRecords($zoneId, $search ?? '');
+        } catch (CloudflareException $e) {
+            Log::warning("CloudflareDnsService::getRecords failed for {$domain->fqdn}: {$e->getMessage()}");
+
+            return [];
+        }
+    }
+
+    public function createRecord(Domain $domain, array $data): mixed
+    {
+        $zoneId = $this->getZoneId($domain->fqdn);
+
+        return $this->addRecord($zoneId, $data);
+    }
+
+    public function deleteRecordById(Domain $domain, int|string $recordId): void
+    {
+        $zoneId = $this->getZoneId($domain->fqdn);
+        $this->deleteRecord($zoneId, (string) $recordId);
+    }
+
+    public function bulkDeleteRecords(Domain $domain, array $recordIds): int
+    {
+        $deleted = 0;
+        foreach ($recordIds as $id) {
+            try {
+                $this->deleteRecordById($domain, $id);
+                $deleted++;
+            } catch (Throwable) {
+                // skip failures
+            }
+        }
+
+        return $deleted;
+    }
+
+    // ---------------------------------------------------------------
 
     /**
      * Find the Cloudflare Zone ID for a domain.

@@ -56,11 +56,14 @@ class TerminalController extends ApiController
         ]);
     }
 
-    public function startDomain(Request $request, PortainerService $portainer): JsonResponse
+    public function startDomain(Request $request, PortainerService $portainer, ?Domain $domain = null): JsonResponse
     {
-        $request->validate(['domain_id' => 'required|integer|exists:domains,id']);
-
-        $domain = Domain::with('ftpUser')->findOrFail($request->input('domain_id'));
+        if ($domain === null || ! $domain->exists) {
+            $request->validate(['domain_id' => 'required|integer|exists:domains,id']);
+            $domain = Domain::with('ftpUser')->findOrFail($request->input('domain_id'));
+        } else {
+            $domain->load('ftpUser');
+        }
         $ftpUser = $domain->ftpUser;
 
         if (! $ftpUser) {
