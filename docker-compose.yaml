@@ -66,6 +66,8 @@ services:
       CROWDSEC_DASHBOARD_API_KEY: ${CROWDSEC_DASHBOARD_API_KEY}
     ports:
       - "${PRIVATE_NETWORK_IP}:8443:443"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       vhost_network:
         aliases:
