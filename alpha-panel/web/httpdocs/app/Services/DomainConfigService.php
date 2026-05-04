@@ -717,7 +717,8 @@ class DomainConfigService
                 $lines[] = "{$indent}    worker {";
                 $lines[] = "{$indent}        file frankenphp-worker.php";
                 $lines[] = "{$indent}        num ".($domain->worker_num ?? 5);
-                $lines[] = "{$indent}        max_requests ".($domain->worker_max_requests ?? 500);
+                $lines[] = "{$indent}        env MAX_REQUESTS ".($domain->worker_max_requests ?? 500);
+                $lines[] = "{$indent}        max_consecutive_failures 10";
                 if ($domain->worker_watch) {
                     $lines[] = "{$indent}        watch {$rootPath}";
                 }

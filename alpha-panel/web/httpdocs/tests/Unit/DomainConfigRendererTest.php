@@ -422,7 +422,7 @@ class DomainConfigRendererTest extends TestCase
         $this->assertStringContainsString('header_up X-Forwarded-Port 80', $capturedContent);
     }
 
-    public function test_worker_block_includes_default_max_requests_directive(): void
+    public function test_worker_block_includes_num_and_file_directives(): void
     {
         $owner = User::factory()->create();
         $domain = Domain::factory()->make([
@@ -449,10 +449,12 @@ class DomainConfigRendererTest extends TestCase
 
         $this->assertStringContainsString('worker {', $capturedContent);
         $this->assertStringContainsString('num 4', $capturedContent);
-        $this->assertStringContainsString('max_requests 500', $capturedContent);
+        $this->assertStringContainsString('file frankenphp-worker.php', $capturedContent);
+        $this->assertStringContainsString('env MAX_REQUESTS 500', $capturedContent);
+        $this->assertStringContainsString('max_consecutive_failures 10', $capturedContent);
     }
 
-    public function test_worker_block_uses_custom_max_requests_value(): void
+    public function test_worker_block_uses_custom_max_requests_env_value(): void
     {
         $owner = User::factory()->create();
         $domain = Domain::factory()->make([
@@ -477,7 +479,8 @@ class DomainConfigRendererTest extends TestCase
 
         $this->service->renderWithoutTls($domain);
 
-        $this->assertStringContainsString('max_requests 1000', $capturedContent);
+        $this->assertStringContainsString('num 2', $capturedContent);
+        $this->assertStringContainsString('env MAX_REQUESTS 1000', $capturedContent);
     }
 
     public function test_php_fpm_pool_uses_www_data_group_and_umask(): void
