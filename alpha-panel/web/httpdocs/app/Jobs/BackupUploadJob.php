@@ -26,7 +26,7 @@ class BackupUploadJob implements ShouldQueue
 
     public int $tries = 1;
 
-    public int $timeout = 3600;
+    public int $timeout = 0;
 
     private int $totalFiles = 0;
 
@@ -232,7 +232,7 @@ class BackupUploadJob implements ShouldQueue
             $this->broadcastProgress($run, __('Preparing :name...', ['name' => "{$siteName}.tar.gz"]));
 
             // Create tar.gz
-            $result = Process::timeout(300)->run(
+            $result = Process::timeout(0)->run(
                 sprintf('tar -czf %s -C %s %s', escapeshellarg($archivePath), escapeshellarg($vhostsPath), escapeshellarg($siteName))
             );
 
@@ -301,7 +301,7 @@ class BackupUploadJob implements ShouldQueue
                 escapeshellarg($sqlPath)
             );
 
-            $result = Process::timeout(300)->run($dumpCmd);
+            $result = Process::timeout(0)->run($dumpCmd);
 
             if ($result->failed() || ! file_exists($sqlPath) || filesize($sqlPath) === 0) {
                 Log::warning("Failed to dump {$dbName}: {$result->errorOutput()}");
