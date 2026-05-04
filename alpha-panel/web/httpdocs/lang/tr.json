@@ -1878,5 +1878,17 @@
   "used": "kullanıldı",
   "user": "kullanıcı",
   "users": "kullanıcı",
-  "value": "değer"
+  "value": "değer",
+  "Failed to recreate supervisor config: :error": "Supervisor yapılandırması yeniden oluşturulamadı: :error",
+  "Failed to restart PHP-FPM: :error": "PHP-FPM yeniden başlatılamadı: :error",
+  "PHP :version FPM restarted.": "PHP :version FPM yeniden başlatıldı.",
+  "PHP :version supervisor config recreated.": "PHP :version supervisor yapılandırması yeniden oluşturuldu.",
+  "PHP version is not enabled.": "PHP sürümü etkin değil.",
+  "Recreate Config": "Yapılandırmayı Yeniden Oluştur",
+  "Refresh Status": "Durumu Yenile",
+  "Restart FPM": "FPM Yeniden Başlat",
+  "audit_actions.php_fpm_conf_recreated": "PHP FPM Yapılandırması Yeniden Oluşturuldu",
+  "audit_actions.php_fpm_conf_recreate_failed": "PHP FPM Yapılandırması Yeniden Oluşturulamadı",
+  "audit_actions.php_fpm_restarted": "PHP FPM Yeniden Başlatıldı",
+  "audit_actions.php_fpm_restart_failed": "PHP FPM Yeniden Başlatılamadı"
 }

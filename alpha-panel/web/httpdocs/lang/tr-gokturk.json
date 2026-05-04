@@ -1809,5 +1809,17 @@
   "used": "𐰚𐰆𐰞𐰞𐰀𐰤𐰃𐰡𐰃",
   "user": "𐰚𐰃𐱁𐰃",
   "users": "𐰚𐰃𐱁𐰃𐰞𐰁𐰺",
-  "value": "𐰓𐰀ğ𐰀𐰼"
+  "value": "𐰓𐰀ğ𐰀𐰼",
+  "Failed to recreate supervisor config: :error": "Supervisor 𐰑𐰇𐰔𐰇𐰢𐰞𐰇𐰍𐰇 𐰸𐰀𐰖𐱃𐰀 𐰖𐰀𐰺𐰀𐱃𐰃𐰞𐰀𐰢𐰀𐰑𐰃: :error",
+  "Failed to restart PHP-FPM: :error": "PHP-FPM 𐰸𐰀𐰖𐱃𐰀 𐰉𐰀𐱁𐰞𐰀𐱃𐰃𐰞𐰀𐰢𐰀𐰑𐰃: :error",
+  "PHP :version FPM restarted.": "PHP :version FPM 𐰸𐰀𐰖𐱃𐰀 𐰉𐰀𐱁𐰞𐰀𐱃𐰃𐰞𐰑𐰃.",
+  "PHP :version supervisor config recreated.": "PHP :version supervisor 𐰑𐰇𐰔𐰇𐰢𐰞𐰇𐰍𐰇 𐰸𐰀𐰖𐱃𐰀 𐰖𐰀𐰺𐰀𐱃𐰃𐰞𐰑𐰃.",
+  "PHP version is not enabled.": "PHP 𐱃𐰇𐰺𐰇𐰢𐰃 𐰃𐱁𐰞𐰁𐱃𐰃𐰏𐰾𐰃𐰔.",
+  "Recreate Config": "𐰑𐰇𐰔𐰇𐰢𐰞𐰇𐰍 𐰸𐰀𐰖𐱃𐰀 𐰖𐰀𐰺𐰀𐱃",
+  "Refresh Status": "𐱃𐰇𐰺𐰇 𐰖𐰀𐰭𐰃𐰞𐰀",
+  "Restart FPM": "FPM 𐰸𐰀𐰖𐱃𐰀 𐰉𐰀𐱁𐰞𐰀𐱃",
+  "audit_actions.php_fpm_conf_recreated": "PHP FPM 𐰑𐰇𐰔𐰇𐰢𐰞𐰇𐰍𐰇 𐰸𐰀𐰖𐱃𐰀 𐰖𐰀𐰺𐰀𐱃𐰃𐰞𐰑𐰃",
+  "audit_actions.php_fpm_conf_recreate_failed": "PHP FPM 𐰑𐰇𐰔𐰇𐰢𐰞𐰇𐰍𐰇 𐰸𐰀𐰖𐱃𐰀 𐰖𐰀𐰺𐰀𐱃𐰃𐰞𐰀𐰢𐰀𐰑𐰃",
+  "audit_actions.php_fpm_restarted": "PHP FPM 𐰸𐰀𐰖𐱃𐰀 𐰉𐰀𐱁𐰞𐰀𐱃𐰃𐰞𐰑𐰃",
+  "audit_actions.php_fpm_restart_failed": "PHP FPM 𐰸𐰀𐰖𐱃𐰀 𐰉𐰀𐱁𐰞𐰀𐱃𐰃𐰞𐰀𐰢𐰀𐰑𐰃"
 }

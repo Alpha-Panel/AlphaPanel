@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\PhpVersion;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 
@@ -42,6 +43,76 @@ class PhpFpmSupervisorService
         $this->reloadSupervisord();
 
         Log::info("PHP-FPM {$phpVersion->slug} disabled via supervisor");
+    }
+
+    /**
+     * Get supervisor process statuses for all enabled PHP versions.
+     *
+     * @param  Collection<int, PhpVersion>  $versions
+     * @return array<string, array{conf_exists: bool, status: string}>
+     */
+    public function getSupervisorStatuses(Collection $versions): array
+    {
+        $statuses = [];
+
+        foreach ($versions as $version) {
+            if (! $version->is_enabled) {
+                continue;
+            }
+            $statuses[$version->slug] = [
+                'conf_exists' => File::exists($this->confPath($version)),
+                'status' => 'UNKNOWN',
+            ];
+        }
+
+        if (empty($statuses)) {
+            return $statuses;
+        }
+
+        try {
+            $container = config('panel.php_code_server_container', 'php-code-server');
+            $result = $this->portainer->execInContainer($container, ['supervisorctl', 'status'], 15);
+            $output = $result->output."\n".$result->errorOutput;
+
+            foreach (explode("\n", $output) as $line) {
+                if (preg_match('/^(php([\d.]+)-fpm)\s+(\w+)/i', trim($line), $matches)) {
+                    $slug = $matches[2];
+                    if (isset($statuses[$slug])) {
+                        $statuses[$slug]['status'] = strtoupper($matches[3]);
+                    }
+                }
+            }
+        } catch (\Throwable) {
+            foreach ($statuses as &$s) {
+                $s['status'] = 'UNREACHABLE';
+            }
+        }
+
+        foreach ($statuses as &$s) {
+            if (! $s['conf_exists']) {
+                $s['status'] = 'CONF_MISSING';
+            }
+        }
+
+        return $statuses;
+    }
+
+    /**
+     * Recreate a PHP-FPM supervisor config from its stub file.
+     */
+    public function recreateConf(PhpVersion $phpVersion): void
+    {
+        $stub = $this->stubPath($phpVersion);
+        $conf = $this->confPath($phpVersion);
+
+        if (! File::exists($stub)) {
+            throw new \RuntimeException("Supervisor stub not found for PHP {$phpVersion->slug}");
+        }
+
+        File::copy($stub, $conf);
+        $this->reloadSupervisord();
+
+        Log::info("PHP-FPM {$phpVersion->slug} supervisor config recreated from stub");
     }
 
     /**

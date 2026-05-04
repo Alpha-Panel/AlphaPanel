@@ -103,6 +103,9 @@ n8n/files/
 # Code Server user data
 code-server/data/
 
+# FrankenPHP root home (claude/codex credentials, bash history)
+frankenphp/home/
+
 # Jenkins (build history, credentials, secret keys)
 jenkins/data/
 jenkins/keys

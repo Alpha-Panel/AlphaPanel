@@ -51,11 +51,19 @@
 
                 <!-- PHP-FPM Versions -->
                 <div class="min-w-0 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
-                    <div class="mb-5 flex items-center">
+                    <div class="mb-5 flex items-center gap-3">
                         <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">
                             <i class="fa-brands fa-php mr-2 text-brand-500"></i>
                             {{ t('PHP Versions') }}
                         </h3>
+                        <button
+                            @click="refreshStatuses"
+                            :disabled="refreshingStatuses"
+                            class="ml-auto inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-300 px-3 text-xs font-medium text-gray-600 shadow-theme-xs transition-colors hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
+                        >
+                            <i :class="refreshingStatuses ? 'bx bx-loader-alt animate-spin' : 'bx bx-refresh'" class="text-base"></i>
+                            {{ t('Refresh Status') }}
+                        </button>
                     </div>
 
                     <p class="mb-6 text-sm text-gray-500 dark:text-gray-400">
@@ -82,7 +90,7 @@
                                     </div>
 
                                     <div class="min-w-0 flex-1">
-                                        <div class="flex items-center gap-2">
+                                        <div class="flex flex-wrap items-center gap-2">
                                             <h4 class="font-semibold text-gray-800 dark:text-white/90">PHP {{ version.slug }}</h4>
                                             <span
                                                 class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold"
@@ -92,6 +100,20 @@
                                             >
                                                 {{ version.is_enabled ? t('Active') : t('Inactive') }}
                                             </span>
+                                            <!-- Supervisor status badge (enabled versions only) -->
+                                            <template v-if="version.is_enabled">
+                                                <span
+                                                    v-if="supervisorStatuses === undefined"
+                                                    class="inline-block h-3.5 w-14 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700"
+                                                ></span>
+                                                <span
+                                                    v-else-if="supervisorStatuses[version.slug]"
+                                                    class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                                    :class="supervisorStatusClass(supervisorStatuses[version.slug].status)"
+                                                >
+                                                    {{ supervisorStatuses[version.slug].status.replace('_', ' ') }}
+                                                </span>
+                                            </template>
                                         </div>
                                         <p class="text-xs text-gray-500 dark:text-gray-400">
                                             {{ version.domains_count > 0
@@ -101,7 +123,38 @@
                                     </div>
                                 </div>
 
-                                <div class="flex shrink-0 items-center gap-2">
+                                <div class="flex shrink-0 flex-wrap items-center gap-2">
+                                    <!-- Supervisor action buttons (enabled versions only) -->
+                                    <template v-if="version.is_enabled">
+                                        <!-- Loading skeleton while statuses fetch -->
+                                        <div
+                                            v-if="supervisorStatuses === undefined"
+                                            class="h-9 w-28 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700"
+                                        ></div>
+                                        <!-- Recreate Config when conf is missing -->
+                                        <button
+                                            v-else-if="supervisorStatuses[version.slug]?.status === 'CONF_MISSING'"
+                                            @click="recreateConf(version)"
+                                            :disabled="recreateLoading === version.id"
+                                            class="inline-flex h-9 items-center gap-2 rounded-lg border border-error-500/40 px-3 text-sm font-medium text-error-600 shadow-theme-xs transition-colors hover:bg-error-500/10 disabled:opacity-50 dark:text-error-400"
+                                        >
+                                            <i v-if="recreateLoading === version.id" class="bx bx-loader-alt animate-spin text-base"></i>
+                                            <i v-else class="bx bx-file text-base"></i>
+                                            {{ t('Recreate Config') }}
+                                        </button>
+                                        <!-- Restart FPM when conf exists -->
+                                        <button
+                                            v-else
+                                            @click="restartFpm(version)"
+                                            :disabled="restartLoading === version.id"
+                                            class="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-300 px-3 text-sm font-medium text-gray-600 shadow-theme-xs transition-colors hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
+                                        >
+                                            <i v-if="restartLoading === version.id" class="bx bx-loader-alt animate-spin text-base"></i>
+                                            <i v-else class="bx bx-reset text-base"></i>
+                                            {{ t('Restart FPM') }}
+                                        </button>
+                                    </template>
+
                                     <button
                                         @click="openPhpIni(version)"
                                         class="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-300 px-3 text-sm font-medium text-gray-600 shadow-theme-xs transition-colors hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
@@ -109,9 +162,10 @@
                                         <i class="bx bx-cog text-base"></i>
                                         {{ t('PHP Settings') }}
                                     </button>
+
                                     <span
                                         v-if="version.is_enabled && version.domains_count > 0"
-                                        class="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-300 bg-gray-100 px-4 text-sm font-medium text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+                                        class="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-300 bg-gray-100 px-4 text-sm font-medium text-gray-500 shadow-theme-xs dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
                                     >
                                         <i class="bx bx-lock-alt text-base"></i>
                                         {{ t('In Use') }}
@@ -142,7 +196,7 @@
 </template>
 
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
@@ -161,8 +215,14 @@ interface PhpVersion {
     domains_count: number;
 }
 
+interface SupervisorStatus {
+    conf_exists: boolean;
+    status: string;
+}
+
 const props = defineProps<{
     versions: PhpVersion[];
+    supervisorStatuses: Record<string, SupervisorStatus> | undefined;
 }>();
 
 const { t } = useI18n();
@@ -170,6 +230,9 @@ const { addToast } = useToast();
 
 const localVersions = ref<PhpVersion[]>([]);
 const actionLoading = ref<number | null>(null);
+const restartLoading = ref<number | null>(null);
+const recreateLoading = ref<number | null>(null);
+const refreshingStatuses = ref(false);
 const showPhpIniModal = ref(false);
 const selectedVersion = ref<PhpVersion | null>(null);
 const isFrankenPhpMode = ref(false);
@@ -177,6 +240,21 @@ const isFrankenPhpMode = ref(false);
 onMounted(() => {
     localVersions.value = JSON.parse(JSON.stringify(props.versions));
 });
+
+const supervisorStatusClass = (status: string): string => {
+    const map: Record<string, string> = {
+        RUNNING: 'bg-success-500/20 text-success-600 dark:text-success-300',
+        STOPPED: 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
+        STARTING: 'bg-warning-500/20 text-warning-600 dark:text-warning-300',
+        FATAL: 'bg-error-500/20 text-error-600 dark:text-error-300',
+        EXITED: 'bg-warning-500/20 text-warning-600 dark:text-warning-300',
+        BACKOFF: 'bg-warning-500/20 text-warning-600 dark:text-warning-300',
+        CONF_MISSING: 'bg-error-500/20 text-error-600 dark:text-error-300',
+        UNREACHABLE: 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
+        UNKNOWN: 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
+    };
+    return map[status] ?? 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400';
+};
 
 const openPhpIni = (version: PhpVersion) => {
     selectedVersion.value = version;
@@ -194,6 +272,14 @@ const onPhpIniSaved = () => {
     // Toast already shown by the modal on save success
 };
 
+const refreshStatuses = () => {
+    refreshingStatuses.value = true;
+    router.reload({
+        only: ['supervisorStatuses'],
+        onFinish: () => { refreshingStatuses.value = false; },
+    });
+};
+
 const toggleVersion = async (version: PhpVersion) => {
     actionLoading.value = version.id;
 
@@ -202,11 +288,42 @@ const toggleVersion = async (version: PhpVersion) => {
 
         version.is_enabled = response.data.is_enabled;
         addToast('success', response.data.message);
+        refreshStatuses();
     } catch (error: any) {
         const message = error.response?.data?.message ?? t('Failed to update PHP version: :error', { error: 'Unknown error' });
         addToast('error', message);
     } finally {
         actionLoading.value = null;
+    }
+};
+
+const restartFpm = async (version: PhpVersion) => {
+    restartLoading.value = version.id;
+
+    try {
+        const response = await axios.post(route('php-versions.restart', version.id));
+        addToast('success', response.data.message);
+        refreshStatuses();
+    } catch (error: any) {
+        const message = error.response?.data?.message ?? t('Failed to restart PHP-FPM: :error', { error: 'Unknown error' });
+        addToast('error', message);
+    } finally {
+        restartLoading.value = null;
+    }
+};
+
+const recreateConf = async (version: PhpVersion) => {
+    recreateLoading.value = version.id;
+
+    try {
+        const response = await axios.post(route('php-versions.recreate-conf', version.id));
+        addToast('success', response.data.message);
+        refreshStatuses();
+    } catch (error: any) {
+        const message = error.response?.data?.message ?? t('Failed to recreate supervisor config: :error', { error: 'Unknown error' });
+        addToast('error', message);
+    } finally {
+        recreateLoading.value = null;
     }
 };
 </script>

@@ -1815,5 +1815,17 @@
   "upload_max_filesize": "upload_max_filesize",
   "user": "Benutzer",
   "users": "Benutzer",
-  "value": "Wert"
+  "value": "Wert",
+  "Failed to recreate supervisor config: :error": "Supervisor-Konfiguration konnte nicht neu erstellt werden: :error",
+  "Failed to restart PHP-FPM: :error": "PHP-FPM konnte nicht neu gestartet werden: :error",
+  "PHP :version FPM restarted.": "PHP :version FPM neu gestartet.",
+  "PHP :version supervisor config recreated.": "PHP :version Supervisor-Konfiguration neu erstellt.",
+  "PHP version is not enabled.": "PHP-Version ist nicht aktiviert.",
+  "Recreate Config": "Konfiguration neu erstellen",
+  "Refresh Status": "Status aktualisieren",
+  "Restart FPM": "FPM neu starten",
+  "audit_actions.php_fpm_conf_recreated": "PHP FPM Konfiguration Neu Erstellt",
+  "audit_actions.php_fpm_conf_recreate_failed": "PHP FPM Konfiguration Erstellen Fehlgeschlagen",
+  "audit_actions.php_fpm_restarted": "PHP FPM Neu Gestartet",
+  "audit_actions.php_fpm_restart_failed": "PHP FPM Neustart Fehlgeschlagen"
 }

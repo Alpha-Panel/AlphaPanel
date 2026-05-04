@@ -13,7 +13,7 @@ use Inertia\Response;
 
 class PhpVersionController extends Controller
 {
-    public function index(): Response
+    public function index(PhpFpmSupervisorService $service): Response
     {
         $versions = PhpVersion::query()
             ->withCount('apacheDomains as domains_count')
@@ -22,7 +22,92 @@ class PhpVersionController extends Controller
 
         return Inertia::render('PhpVersions/Index', [
             'versions' => $versions,
+            'supervisorStatuses' => Inertia::defer(fn () => $service->getSupervisorStatuses($versions)),
         ]);
+    }
+
+    public function restart(Request $request, PhpVersion $phpVersion, PhpFpmSupervisorService $service): JsonResponse
+    {
+        if (! $phpVersion->is_enabled) {
+            return response()->json([
+                'status' => 'error',
+                'message' => __('PHP version is not enabled.'),
+            ], 422);
+        }
+
+        try {
+            $service->restartFpm($phpVersion);
+
+            AuditLog::create([
+                'user_id' => $request->user()?->id,
+                'action' => 'php_fpm_restarted',
+                'summary' => "PHP {$phpVersion->slug} FPM restarted manually",
+                'ip_address' => $request->ip(),
+                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+            ]);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => __('PHP :version FPM restarted.', ['version' => $phpVersion->slug]),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("PHP FPM restart failed for {$phpVersion->slug}: {$e->getMessage()}");
+
+            AuditLog::create([
+                'user_id' => $request->user()?->id,
+                'action' => 'php_fpm_restart_failed',
+                'summary' => "PHP {$phpVersion->slug}: {$e->getMessage()}",
+                'ip_address' => $request->ip(),
+                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => __('Failed to restart PHP-FPM: :error', ['error' => $e->getMessage()]),
+            ], 500);
+        }
+    }
+
+    public function recreateConf(Request $request, PhpVersion $phpVersion, PhpFpmSupervisorService $service): JsonResponse
+    {
+        if (! $phpVersion->is_enabled) {
+            return response()->json([
+                'status' => 'error',
+                'message' => __('PHP version is not enabled.'),
+            ], 422);
+        }
+
+        try {
+            $service->recreateConf($phpVersion);
+
+            AuditLog::create([
+                'user_id' => $request->user()?->id,
+                'action' => 'php_fpm_conf_recreated',
+                'summary' => "PHP {$phpVersion->slug} supervisor config recreated from stub",
+                'ip_address' => $request->ip(),
+                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+            ]);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => __('PHP :version supervisor config recreated.', ['version' => $phpVersion->slug]),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("PHP supervisor conf recreate failed for {$phpVersion->slug}: {$e->getMessage()}");
+
+            AuditLog::create([
+                'user_id' => $request->user()?->id,
+                'action' => 'php_fpm_conf_recreate_failed',
+                'summary' => "PHP {$phpVersion->slug}: {$e->getMessage()}",
+                'ip_address' => $request->ip(),
+                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => __('Failed to recreate supervisor config: :error', ['error' => $e->getMessage()]),
+            ], 500);
+        }
     }
 
     public function getPhpIni(PhpVersion $phpVersion, PhpFpmSupervisorService $service): JsonResponse

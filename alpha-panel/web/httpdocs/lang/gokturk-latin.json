@@ -1800,5 +1800,17 @@
   "upload_max_filesize": "upload_max_filesize",
   "user": "kişi",
   "users": "kişiler",
-  "value": "değer"
+  "value": "değer",
+  "Failed to recreate supervisor config: :error": "Supervisor düzümlügü qayta yaratılamadı: :error",
+  "Failed to restart PHP-FPM: :error": "PHP-FPM qayta başlatılamadı: :error",
+  "PHP :version FPM restarted.": "PHP :version FPM qayta başlatıldı.",
+  "PHP :version supervisor config recreated.": "PHP :version supervisor düzümlügü qayta yaratıldı.",
+  "PHP version is not enabled.": "PHP türümi işletigsiz.",
+  "Recreate Config": "Düzümlüg qayta yarat",
+  "Refresh Status": "Törü yañıla",
+  "Restart FPM": "FPM qayta başlat",
+  "audit_actions.php_fpm_conf_recreated": "PHP FPM Düzümlügü Qayta Yaratıldı",
+  "audit_actions.php_fpm_conf_recreate_failed": "PHP FPM Düzümlügü Qayta Yaratılamadı",
+  "audit_actions.php_fpm_restarted": "PHP FPM Qayta Başlatıldı",
+  "audit_actions.php_fpm_restart_failed": "PHP FPM Qayta Başlatılamadı"
 }

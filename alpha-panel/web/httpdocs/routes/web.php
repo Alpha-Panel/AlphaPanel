@@ -495,6 +495,12 @@ Route::middleware('auth')->group(function (): void {
     Route::put('php-versions/{phpVersion}/php-ini', [PhpVersionController::class, 'updatePhpIni'])
         ->middleware('permission:panel.php-versions.manage')
         ->name('php-versions.php-ini.update');
+    Route::post('php-versions/{phpVersion}/restart', [PhpVersionController::class, 'restart'])
+        ->middleware('permission:panel.php-versions.manage')
+        ->name('php-versions.restart');
+    Route::post('php-versions/{phpVersion}/recreate-conf', [PhpVersionController::class, 'recreateConf'])
+        ->middleware('permission:panel.php-versions.manage')
+        ->name('php-versions.recreate-conf');
 
     // Docker Services
     Route::middleware('permission:panel.docker-services.view')->group(function (): void {

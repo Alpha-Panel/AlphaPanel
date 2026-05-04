@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1
 
-ARG FRANKENPHP_VERSION=1.12.1
+ARG FRANKENPHP_VERSION=1.12.2
 FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-builder-php8.5-bookworm AS builder
+ARG FRANKENPHP_VERSION
 
 # xcaddy
 COPY --from=caddy:builder /usr/bin/xcaddy /usr/bin/xcaddy
@@ -14,9 +15,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # FrankenPHP kaynaklarını sabitlenmiş sürümden çek (supply chain güvenliği)
-RUN git clone --depth=1 --branch v1.12.1 https://github.com/php/frankenphp.git /src/frankenphp
+RUN git clone --depth=1 --branch v${FRANKENPHP_VERSION} https://github.com/php/frankenphp.git /src/frankenphp
 
-# Build: Caddy + FrankenPHP v1.12.1
+# Build: Caddy + FrankenPHP
 RUN CGO_ENABLED=1 \
     XCADDY_SETCAP=1 \
     XCADDY_GO_BUILD_FLAGS="-ldflags='-w -s' -tags=nobadger,nomysql,nopgx" \
@@ -35,7 +36,6 @@ RUN CGO_ENABLED=1 \
         --with github.com/lanrat/caddy-dynamic-remoteip \
         --with github.com/corazawaf/coraza-caddy/v2
 
-ARG FRANKENPHP_VERSION=1.12.1
 FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-php8.5-bookworm
 
 COPY --from=builder /usr/local/bin/frankenphp /usr/local/bin/frankenphp
@@ -70,9 +70,9 @@ RUN apt-get update \
       libnghttp2-14 \
  && rm -rf /var/lib/apt/lists/*
 
-# ---- Supervisor + e2fsprogs (chattr for .user.ini immutable lock) ----
+# ---- Supervisor + e2fsprogs (chattr for .user.ini immutable lock) + tzdata ----
 RUN apt-get update \
- && apt-get install -y --no-install-recommends supervisor e2fsprogs \
+ && apt-get install -y --no-install-recommends supervisor e2fsprogs tzdata \
  && rm -rf /var/lib/apt/lists/*
 
 # Docker CLI (Docker resmi repo)
@@ -118,5 +118,7 @@ EOF
 
 COPY docker-entrypoint-with-supervisor.sh /usr/local/bin/docker-entrypoint-with-supervisor.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint-with-supervisor.sh
+
+RUN npm install -g @anthropic-ai/claude-code @openai/codex
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint-with-supervisor.sh"]

@@ -1820,5 +1820,17 @@
   "upload_max_filesize": "upload_max_filesize",
   "user": "istifadəçi",
   "users": "istifadəçi",
-  "value": "deyer"
+  "value": "deyer",
+  "Failed to recreate supervisor config: :error": "Supervisor konfiqurasiyası yenidən yaradıla bilmədi: :error",
+  "Failed to restart PHP-FPM: :error": "PHP-FPM yenidən başladıla bilmədi: :error",
+  "PHP :version FPM restarted.": "PHP :version FPM yenidən başladıldı.",
+  "PHP :version supervisor config recreated.": "PHP :version supervisor konfiqurasiyası yenidən yaradıldı.",
+  "PHP version is not enabled.": "PHP versiyası aktiv deyil.",
+  "Recreate Config": "Konfiqurasiyanı Yenidən Yarat",
+  "Refresh Status": "Statusu Yenilə",
+  "Restart FPM": "FPM-i Yenidən Başlat",
+  "audit_actions.php_fpm_conf_recreated": "PHP FPM Konfiqurasiyası Yenidən Yaradıldı",
+  "audit_actions.php_fpm_conf_recreate_failed": "PHP FPM Konfiqurasiyası Yenidən Yaradıla Bilmədi",
+  "audit_actions.php_fpm_restarted": "PHP FPM Yenidən Başladıldı",
+  "audit_actions.php_fpm_restart_failed": "PHP FPM Yenidən Başladıla Bilmədi"
 }

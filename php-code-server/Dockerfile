@@ -1,13 +1,13 @@
-FROM ubuntu:24.04
+FROM debian:bookworm
 
-# 1) Tüm kurulumları interaktif olmayan moda al, timezone'u ayarla
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Istanbul
 
-RUN apt-get update \
+# apt retry + sury.org PHP repo (launchpad dependency yok)
+RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
+ && apt-get update \
  && apt-get install -y --no-install-recommends \
       tzdata \
-      software-properties-common \
       ca-certificates \
       apt-transport-https \
       gnupg \
@@ -16,26 +16,30 @@ RUN apt-get update \
       unzip \
       supervisor \
       pkg-config \
-      curl \
       wget \
       apache2 \
       apache2-utils \
       ssl-cert \
       vim \
       e2fsprogs \
- && add-apt-repository ppa:ondrej/php -y \
- && apt-get update
+      lsb-release \
+ && curl -fsSL https://packages.sury.org/php/apt.gpg \
+    | gpg --dearmor -o /usr/share/keyrings/sury-php.gpg \
+ && echo "deb [signed-by=/usr/share/keyrings/sury-php.gpg] https://packages.sury.org/php/ bookworm main" \
+    > /etc/apt/sources.list.d/sury-php.list \
+ && apt-get update \
+ && rm -rf /var/lib/apt/lists/*
 
 # 2) PHP 7.0–7.4 + core extensions
-RUN apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
       php7.0-fpm php7.0-cli php7.0-common php7.0-json php7.0-zip php7.0-mysql php7.0-mbstring php7.0-tokenizer php7.0-xml php7.0-gd php7.0-curl php7.0-intl php7.0-bcmath php7.0-gmp php7.0-memcached php7.0-redis php7.0-imagick \
       php7.1-fpm php7.1-cli php7.1-common php7.1-json php7.1-zip php7.1-mysql php7.1-mbstring php7.1-tokenizer php7.1-xml php7.1-gd php7.1-curl php7.1-intl php7.1-bcmath php7.1-gmp php7.1-memcached php7.1-redis php7.1-imagick \
       php7.2-fpm php7.2-cli php7.2-common php7.2-json php7.2-zip php7.2-mysql php7.2-mbstring php7.2-tokenizer php7.2-xml php7.2-gd php7.2-curl php7.2-intl php7.2-bcmath php7.2-gmp php7.2-memcached php7.2-redis php7.2-imagick \
       php7.3-fpm php7.3-cli php7.3-common php7.3-json php7.3-zip php7.3-mysql php7.3-mbstring php7.3-tokenizer php7.3-xml php7.3-gd php7.3-curl php7.3-intl php7.3-bcmath php7.3-gmp php7.3-memcached php7.3-redis php7.3-imagick \
-      php7.4-fpm php7.4-cli php7.4-common php7.4-json php7.4-zip php7.4-mysql php7.4-mbstring php7.4-tokenizer php7.4-xml php7.4-gd php7.4-curl php7.4-intl php7.4-bcmath php7.4-gmp php7.4-memcached php7.4-redis php7.4-imagick \
+      php7.4-fpm php7.4-cli php7.4-common php7.4-zip php7.4-mysql php7.4-mbstring php7.4-tokenizer php7.4-xml php7.4-gd php7.4-curl php7.4-intl php7.4-bcmath php7.4-gmp php7.4-memcached php7.4-redis php7.4-imagick \
     && rm -rf /var/lib/apt/lists/*
 
-# Optional 7.x extensions (may not exist for all versions)
+# Optional 7.x extensions (some may not exist for all versions — tolerate failure)
 RUN apt-get update && apt-get install -y --no-install-recommends \
       php7.0-mongodb php7.0-raphf php7.0-http php7.0-ftp \
       php7.1-mongodb php7.1-raphf php7.1-http php7.1-ftp \
@@ -44,7 +48,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       php7.4-mongodb php7.4-raphf php7.4-http php7.4-ftp \
     ; rm -rf /var/lib/apt/lists/*
 
-# 3) PHP 8.0–8.5 ve modüller
+# 3) PHP 8.0–8.5
 RUN apt-get update && apt-get install -y --no-install-recommends \
       php8.0-fpm php8.0-cli php8.0-common php8.0-zip php8.0-mysql php8.0-mbstring php8.0-tokenizer php8.0-xml php8.0-gd php8.0-curl php8.0-intl php8.0-bcmath php8.0-gmp php8.0-memcached php8.0-redis php8.0-imagick php8.0-mongodb php8.0-raphf php8.0-http php8.0-ftp \
       php8.1-fpm php8.1-cli php8.1-common php8.1-zip php8.1-mysql php8.1-mbstring php8.1-tokenizer php8.1-xml php8.1-gd php8.1-curl php8.1-intl php8.1-bcmath php8.1-gmp php8.1-memcached php8.1-redis php8.1-imagick php8.1-mongodb php8.1-raphf php8.1-http php8.1-ftp \
@@ -53,15 +57,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       php8.4-fpm php8.4-cli php8.4-common php8.4-zip php8.4-mysql php8.4-mbstring php8.4-tokenizer php8.4-xml php8.4-gd php8.4-curl php8.4-intl php8.4-bcmath php8.4-gmp php8.4-memcached php8.4-redis php8.4-imagick php8.4-mongodb php8.4-raphf php8.4-http php8.4-ftp \
       php8.5-fpm php8.5-cli php8.5-common php8.5-zip php8.5-mysql php8.5-mbstring php8.5-tokenizer php8.5-xml php8.5-gd php8.5-curl php8.5-intl php8.5-bcmath php8.5-gmp php8.5-memcached php8.5-redis php8.5-imagick php8.5-mongodb php8.5-raphf php8.5-http php8.5-ftp \
     python3 \
-    mysql-client \
+    default-mysql-client \
     rsync \
     && rm -rf /var/lib/apt/lists/*
 
-# 3) Supervisor konfigürasyonu ve Composer
+# Supervisor konfigürasyonu ve Composer
 COPY supervisor.d/ /etc/supervisor/conf.d/
 COPY --from=composer:2.8 /usr/bin/composer /usr/local/bin/composer
 
-# Provide 'python' alias for python3
 RUN ln -sf /usr/bin/python3 /usr/bin/python
 
 # Install Go from official binary
@@ -72,10 +75,9 @@ RUN curl -fsSL https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz | tar -C /us
 
 ENV PATH=$PATH:/usr/local/go/bin
 
-
 RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
- && apt-get install -y nodejs
-
+ && apt-get install -y nodejs \
+ && rm -rf /var/lib/apt/lists/*
 
 # Install code-server
 ARG CODE_SERVER_VERSION=4.108.1
@@ -83,13 +85,14 @@ RUN curl -fsSL https://github.com/coder/code-server/releases/download/v${CODE_SE
  && dpkg -i code-server.deb \
  && rm code-server.deb
 
-# --- suppress Supervisor root warning by specifying a user ---
 RUN sed -i '/^\[supervisord\]/a user=root' /etc/supervisor/supervisord.conf
 
 ENV APACHE_RUN_DIR=/run/apache2 \
     APACHE_LOCK_DIR=/var/lock/apache2 \
     APACHE_LOG_DIR=/var/log/apache2 \
     APACHE_PID_FILE=/run/apache2/apache2.pid
+
+RUN npm install -g @anthropic-ai/claude-code @openai/codex
 
 # Apache runtime dirs (systemd yok, elle oluştur)
 RUN mkdir -p /run/apache2 /var/lock/apache2 /var/log/apache2 \

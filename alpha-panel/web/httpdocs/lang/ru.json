@@ -1820,5 +1820,17 @@
   "upload_max_filesize": "upload_max_filesize",
   "user": "пользователь",
   "users": "пользователи",
-  "value": "znachenie"
+  "value": "znachenie",
+  "Failed to recreate supervisor config: :error": "Ne udalos' peresozdat' konfiguratsiyu supervisor: :error",
+  "Failed to restart PHP-FPM: :error": "Ne udalos' perezapustit' PHP-FPM: :error",
+  "PHP :version FPM restarted.": "PHP :version FPM perezapushchen.",
+  "PHP :version supervisor config recreated.": "Konfiguratsiya supervisor PHP :version peresozadana.",
+  "PHP version is not enabled.": "Versiya PHP ne aktivirovana.",
+  "Recreate Config": "Peresozdat' konfiguratsiyu",
+  "Refresh Status": "Obnovit' status",
+  "Restart FPM": "Perezapustit' FPM",
+  "audit_actions.php_fpm_conf_recreated": "Konfiguratsiya PHP FPM Peresozadana",
+  "audit_actions.php_fpm_conf_recreate_failed": "Oshibka Peresozadaniya Konfiguracii PHP FPM",
+  "audit_actions.php_fpm_restarted": "PHP FPM Perezapushchen",
+  "audit_actions.php_fpm_restart_failed": "Oshibka Perezapuska PHP FPM"
 }

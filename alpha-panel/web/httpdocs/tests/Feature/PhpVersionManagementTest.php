@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\AuditLog;
+use App\Enums\DomainType;
 use App\Models\Domain;
 use App\Models\PhpVersion;
 use App\Models\User;
@@ -56,12 +56,12 @@ class PhpVersionManagementTest extends TestCase
 
         Domain::factory()->create([
             'owner_user_id' => $admin->id,
-            'type' => \App\Enums\DomainType::ApacheReverseProxy,
+            'type' => DomainType::ApacheReverseProxy,
             'php_version_id' => $phpA->id,
         ]);
         Domain::factory()->create([
             'owner_user_id' => $admin->id,
-            'type' => \App\Enums\DomainType::ApacheReverseProxy,
+            'type' => DomainType::ApacheReverseProxy,
             'php_version_id' => $phpA->id,
         ]);
 
@@ -147,7 +147,7 @@ class PhpVersionManagementTest extends TestCase
 
         Domain::factory()->create([
             'owner_user_id' => $admin->id,
-            'type' => \App\Enums\DomainType::ApacheReverseProxy,
+            'type' => DomainType::ApacheReverseProxy,
             'php_version_id' => $phpVersion->id,
         ]);
 
@@ -228,6 +228,164 @@ class PhpVersionManagementTest extends TestCase
         $this->assertDatabaseHas('audit_logs', [
             'user_id' => $admin->id,
             'action' => 'php_version_toggle_failed',
+        ]);
+    }
+
+    // ─── Restart Tests ──────────────────────────────────────────
+
+    public function test_non_admin_cannot_restart_php_fpm(): void
+    {
+        $user = User::factory()->create();
+        $phpVersion = PhpVersion::factory()->create(['is_enabled' => true]);
+
+        $response = $this->actingAs($user)->postJson(route('php-versions.restart', $phpVersion));
+
+        $response->assertForbidden();
+    }
+
+    public function test_admin_can_restart_enabled_php_fpm(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $phpVersion = PhpVersion::factory()->create(['is_enabled' => true]);
+
+        $this->mock(PhpFpmSupervisorService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('restartFpm')->once();
+        });
+
+        $response = $this->actingAs($admin)->postJson(route('php-versions.restart', $phpVersion));
+
+        $response->assertOk();
+        $response->assertJson(['status' => 'success']);
+    }
+
+    public function test_cannot_restart_disabled_php_version(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $phpVersion = PhpVersion::factory()->create(['is_enabled' => false]);
+
+        $this->mock(PhpFpmSupervisorService::class, function (MockInterface $mock): void {
+            $mock->shouldNotReceive('restartFpm');
+        });
+
+        $response = $this->actingAs($admin)->postJson(route('php-versions.restart', $phpVersion));
+
+        $response->assertStatus(422);
+        $response->assertJson(['status' => 'error']);
+    }
+
+    public function test_restart_creates_audit_log(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $phpVersion = PhpVersion::factory()->create(['is_enabled' => true]);
+
+        $this->mock(PhpFpmSupervisorService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('restartFpm')->once();
+        });
+
+        $this->actingAs($admin)->postJson(route('php-versions.restart', $phpVersion));
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'action' => 'php_fpm_restarted',
+        ]);
+    }
+
+    public function test_restart_handles_service_exception(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $phpVersion = PhpVersion::factory()->create(['is_enabled' => true]);
+
+        $this->mock(PhpFpmSupervisorService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('restartFpm')->once()->andThrow(new \RuntimeException('Connection refused'));
+        });
+
+        $response = $this->actingAs($admin)->postJson(route('php-versions.restart', $phpVersion));
+
+        $response->assertStatus(500);
+        $response->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'action' => 'php_fpm_restart_failed',
+        ]);
+    }
+
+    // ─── Recreate Config Tests ──────────────────────────────────
+
+    public function test_non_admin_cannot_recreate_supervisor_conf(): void
+    {
+        $user = User::factory()->create();
+        $phpVersion = PhpVersion::factory()->create(['is_enabled' => true]);
+
+        $response = $this->actingAs($user)->postJson(route('php-versions.recreate-conf', $phpVersion));
+
+        $response->assertForbidden();
+    }
+
+    public function test_admin_can_recreate_supervisor_conf(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $phpVersion = PhpVersion::factory()->create(['is_enabled' => true]);
+
+        $this->mock(PhpFpmSupervisorService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('recreateConf')->once();
+        });
+
+        $response = $this->actingAs($admin)->postJson(route('php-versions.recreate-conf', $phpVersion));
+
+        $response->assertOk();
+        $response->assertJson(['status' => 'success']);
+    }
+
+    public function test_cannot_recreate_conf_for_disabled_version(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $phpVersion = PhpVersion::factory()->create(['is_enabled' => false]);
+
+        $this->mock(PhpFpmSupervisorService::class, function (MockInterface $mock): void {
+            $mock->shouldNotReceive('recreateConf');
+        });
+
+        $response = $this->actingAs($admin)->postJson(route('php-versions.recreate-conf', $phpVersion));
+
+        $response->assertStatus(422);
+        $response->assertJson(['status' => 'error']);
+    }
+
+    public function test_recreate_conf_creates_audit_log(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $phpVersion = PhpVersion::factory()->create(['is_enabled' => true]);
+
+        $this->mock(PhpFpmSupervisorService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('recreateConf')->once();
+        });
+
+        $this->actingAs($admin)->postJson(route('php-versions.recreate-conf', $phpVersion));
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'action' => 'php_fpm_conf_recreated',
+        ]);
+    }
+
+    public function test_recreate_conf_handles_service_exception(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $phpVersion = PhpVersion::factory()->create(['is_enabled' => true]);
+
+        $this->mock(PhpFpmSupervisorService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('recreateConf')->once()->andThrow(new \RuntimeException('Stub not found'));
+        });
+
+        $response = $this->actingAs($admin)->postJson(route('php-versions.recreate-conf', $phpVersion));
+
+        $response->assertStatus(500);
+        $response->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'action' => 'php_fpm_conf_recreate_failed',
         ]);
     }
 }

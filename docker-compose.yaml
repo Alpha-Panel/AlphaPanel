@@ -103,7 +103,9 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       PUBLIC_NETWORK_IP: ${PUBLIC_NETWORK_IP}
       PRIVATE_NETWORK_IP: ${PRIVATE_NETWORK_IP}
+      TZ: ${APP_TIMEZONE:-Europe/Istanbul}
     volumes:
+        - ./frankenphp/home:/root
         - ./frankenphp/Caddyfile:/etc/frankenphp/Caddyfile
         - ./frankenphp/sites-enabled:/etc/frankenphp/sites-enabled
         - ./frankenphp/php.ini:/usr/local/etc/php/php.ini
@@ -183,7 +185,7 @@ services:
       - SUDO_PASSWORD=${CODE_SERVER_SUDO_PASSWORD}
       - PROXY_DOMAIN=${CODE_SERVER_DOMAIN}:7443
       - DEFAULT_WORKSPACE=/var/www/vhosts
-      - TZ=Etc/UTC
+      - TZ=${APP_TIMEZONE:-Europe/Istanbul}
       - ALLOW_ROOT=true
     volumes:
       - ./php-code-server/run/:/run/php/
