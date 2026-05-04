@@ -39,6 +39,7 @@ use App\Http\Controllers\PmaSsoController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SecuritySettingController;
+use App\Http\Controllers\ServerStatsController;
 use App\Http\Controllers\Settings\ApiTokenWebController;
 use App\Http\Controllers\Settings\WebhookWebController;
 use App\Http\Controllers\SslCertificateController;
@@ -133,6 +134,9 @@ Route::middleware('auth')->group(function (): void {
     // Dashboard
     Route::get('/', [HomeController::class, 'index'])->name('home');
     Route::get('/dashboard/data', [HomeController::class, 'data'])->name('dashboard.data');
+
+    // Server stats (sidebar widget, admin-only)
+    Route::get('/server-stats', [ServerStatsController::class, 'index'])->name('server-stats.index');
 
     // Test notification (geçici - test sonrası silinecek)
     Route::get('test-notification', function () {

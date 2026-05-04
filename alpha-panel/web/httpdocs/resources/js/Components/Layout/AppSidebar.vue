@@ -35,6 +35,8 @@
                 </span>
             </Link>
         </div>
+        <ServerStats v-if="isAdmin" />
+
         <div class="flex min-h-0 flex-1 flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
             <nav class="mb-6">
                 <div class="flex flex-col gap-4">
@@ -350,6 +352,7 @@ import {
     TableIcon,
 } from '@/Components/Icons';
 import { useI18n } from '@/Composables/useI18n';
+import ServerStats from '@/Components/Layout/ServerStats.vue';
 import type { SharedProps } from '@/types/inertia';
 
 const page = usePage<SharedProps>();
