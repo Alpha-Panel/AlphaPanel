@@ -64,6 +64,7 @@ services:
       DOCKER_HOST: tcp://docker-socket-proxy:2375
       CROWDSEC_LAPI_URL: ${CROWDSEC_LAPI_URL}
       CROWDSEC_DASHBOARD_API_KEY: ${CROWDSEC_DASHBOARD_API_KEY}
+      TZ: ${APP_TIMEZONE:-Europe/Istanbul}
     ports:
       - "${PRIVATE_NETWORK_IP}:8443:443"
     extra_hosts:
@@ -262,6 +263,7 @@ services:
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      TZ: ${APP_TIMEZONE:-Europe/Istanbul}
     ports:
       - "${PRIVATE_NETWORK_IP}:3306:3306"
     networks:

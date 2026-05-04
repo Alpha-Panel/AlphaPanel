@@ -1,4 +1,5 @@
 [mysqld]
+default-time-zone = '+03:00'
 # Buffer pool: RAM’in %35–50 bandı (MySQL tek başına değilse)
 innodb_buffer_pool_size = 5G
 innodb_buffer_pool_instances = 5   # (1G başına 1 instance gibi düşün)

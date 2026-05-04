@@ -314,7 +314,7 @@ class BackupUploadJob implements ShouldQueue
             // Compress to tar.gz
             $this->broadcastProgress($run, __('Compressing :name...', ['name' => "{$dbName}.tar.gz"]));
 
-            $tarResult = Process::timeout(120)->run(
+            $tarResult = Process::timeout(0)->run(
                 sprintf('tar -czf %s -C %s %s', escapeshellarg($archivePath), escapeshellarg($tempDir), escapeshellarg("{$dbName}.sql"))
             );
 
