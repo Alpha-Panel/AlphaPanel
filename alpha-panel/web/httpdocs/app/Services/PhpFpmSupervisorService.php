@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\PhpVersion;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 
 class PhpFpmSupervisorService
@@ -11,15 +12,36 @@ class PhpFpmSupervisorService
         private PortainerService $portainer,
     ) {}
 
-    /**
-     * Enable a PHP-FPM version by uncommenting its supervisor config and reloading.
-     */
     public function enable(PhpVersion $phpVersion): void
     {
-        $this->uncommentConf($phpVersion);
+        $conf = $this->confPath($phpVersion);
+
+        if (! File::exists($conf)) {
+            File::copy($this->stubPath($phpVersion), $conf);
+        }
+
+        $ini = $this->phpIniPath($phpVersion);
+
+        if (! File::exists($ini)) {
+            File::copy($this->phpIniStubPath($phpVersion), $ini);
+        }
+
         $this->reloadSupervisord();
 
         Log::info("PHP-FPM {$phpVersion->slug} enabled via supervisor");
+    }
+
+    public function disable(PhpVersion $phpVersion): void
+    {
+        $conf = $this->confPath($phpVersion);
+
+        if (File::exists($conf)) {
+            File::delete($conf);
+        }
+
+        $this->reloadSupervisord();
+
+        Log::info("PHP-FPM {$phpVersion->slug} disabled via supervisor");
     }
 
     /**
@@ -79,17 +101,6 @@ class PhpFpmSupervisorService
         }
     }
 
-    /**
-     * Disable a PHP-FPM version by commenting out its supervisor config and reloading.
-     */
-    public function disable(PhpVersion $phpVersion): void
-    {
-        $this->commentConf($phpVersion);
-        $this->reloadSupervisord();
-
-        Log::info("PHP-FPM {$phpVersion->slug} disabled via supervisor");
-    }
-
     private function confPath(PhpVersion $phpVersion): string
     {
         $root = config('panel.compose_project_root');
@@ -97,30 +108,18 @@ class PhpFpmSupervisorService
         return "{$root}/php-code-server/supervisor.d/php-fpm-{$phpVersion->slug}.conf";
     }
 
-    /**
-     * Remove leading ; from each line to activate the supervisor program.
-     */
-    private function uncommentConf(PhpVersion $phpVersion): void
+    private function stubPath(PhpVersion $phpVersion): string
     {
-        $path = $this->confPath($phpVersion);
-        $content = file_get_contents($path);
-        $content = preg_replace('/^;/m', '', $content);
-        file_put_contents($path, $content);
+        $root = config('panel.compose_project_root');
 
-        Log::info("PHP-FPM supervisor conf uncommented: php-fpm-{$phpVersion->slug}.conf");
+        return "{$root}/php-code-server/supervisor.d/php-fpm-{$phpVersion->slug}.conf.stub";
     }
 
-    /**
-     * Add leading ; to each non-empty line to deactivate the supervisor program.
-     */
-    private function commentConf(PhpVersion $phpVersion): void
+    private function phpIniStubPath(PhpVersion $phpVersion): string
     {
-        $path = $this->confPath($phpVersion);
-        $content = file_get_contents($path);
-        $content = preg_replace('/^(?!;)(.+)$/m', ';$1', $content);
-        file_put_contents($path, $content);
+        $root = config('panel.compose_project_root');
 
-        Log::info("PHP-FPM supervisor conf commented: php-fpm-{$phpVersion->slug}.conf");
+        return "{$root}/php-code-server/{$phpVersion->slug}/php.ini.stub";
     }
 
     private function reloadSupervisord(): void

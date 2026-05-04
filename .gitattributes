@@ -2,5 +2,3 @@
 # AlphaPanel-Docker — .gitattributes
 # =============================================================================
 
-php-code-server/*/php.ini merge=union
-php-code-server/supervisor.d/php-fpm-* merge=union
