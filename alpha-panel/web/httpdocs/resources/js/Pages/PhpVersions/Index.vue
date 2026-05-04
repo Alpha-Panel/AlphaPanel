@@ -126,33 +126,34 @@
                                 <div class="flex shrink-0 flex-wrap items-center gap-2">
                                     <!-- Supervisor action buttons (enabled versions only) -->
                                     <template v-if="version.is_enabled">
-                                        <!-- Loading skeleton while statuses fetch -->
-                                        <div
-                                            v-if="supervisorStatuses === undefined"
-                                            class="h-9 w-28 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700"
-                                        ></div>
-                                        <!-- Recreate Config when conf is missing -->
-                                        <button
-                                            v-else-if="supervisorStatuses[version.slug]?.status === 'CONF_MISSING'"
-                                            @click="recreateConf(version)"
-                                            :disabled="recreateLoading === version.id"
-                                            class="inline-flex h-9 items-center gap-2 rounded-lg border border-error-500/40 px-3 text-sm font-medium text-error-600 shadow-theme-xs transition-colors hover:bg-error-500/10 disabled:opacity-50 dark:text-error-400"
-                                        >
-                                            <i v-if="recreateLoading === version.id" class="bx bx-loader-alt animate-spin text-base"></i>
-                                            <i v-else class="bx bx-file text-base"></i>
-                                            {{ t('Recreate Config') }}
-                                        </button>
-                                        <!-- Restart FPM when conf exists -->
-                                        <button
-                                            v-else
-                                            @click="restartFpm(version)"
-                                            :disabled="restartLoading === version.id"
-                                            class="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-300 px-3 text-sm font-medium text-gray-600 shadow-theme-xs transition-colors hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
-                                        >
-                                            <i v-if="restartLoading === version.id" class="bx bx-loader-alt animate-spin text-base"></i>
-                                            <i v-else class="bx bx-reset text-base"></i>
-                                            {{ t('Restart FPM') }}
-                                        </button>
+                                        <!-- Loading skeletons while statuses fetch -->
+                                        <template v-if="supervisorStatuses === undefined">
+                                            <div class="h-9 w-28 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700"></div>
+                                            <div class="h-9 w-28 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700"></div>
+                                        </template>
+                                        <template v-else>
+                                            <button
+                                                @click="restartFpm(version)"
+                                                :disabled="restartLoading === version.id"
+                                                class="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-300 px-3 text-sm font-medium text-gray-600 shadow-theme-xs transition-colors hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
+                                            >
+                                                <i v-if="restartLoading === version.id" class="bx bx-loader-alt animate-spin text-base"></i>
+                                                <i v-else class="bx bx-reset text-base"></i>
+                                                {{ t('Restart FPM') }}
+                                            </button>
+                                            <button
+                                                @click="recreateConf(version)"
+                                                :disabled="recreateLoading === version.id"
+                                                class="inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium shadow-theme-xs transition-colors disabled:opacity-50"
+                                                :class="supervisorStatuses[version.slug]?.status === 'CONF_MISSING'
+                                                    ? 'border-error-500/40 text-error-600 hover:bg-error-500/10 dark:text-error-400'
+                                                    : 'border-gray-300 text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5'"
+                                            >
+                                                <i v-if="recreateLoading === version.id" class="bx bx-loader-alt animate-spin text-base"></i>
+                                                <i v-else class="bx bx-file text-base"></i>
+                                                {{ t('Recreate Config') }}
+                                            </button>
+                                        </template>
                                     </template>
 
                                     <button
@@ -163,18 +164,20 @@
                                         {{ t('PHP Settings') }}
                                     </button>
 
-                                    <span
+                                    <button
                                         v-if="version.is_enabled && version.domains_count > 0"
-                                        class="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-300 bg-gray-100 px-4 text-sm font-medium text-gray-500 shadow-theme-xs dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+                                        type="button"
+                                        class="inline-flex h-9 w-36 cursor-default items-center justify-center gap-2 rounded-lg border border-gray-300 bg-gray-100 text-sm font-medium text-gray-500 shadow-theme-xs pointer-events-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
                                     >
                                         <i class="bx bx-lock-alt text-base"></i>
                                         {{ t('In Use') }}
-                                    </span>
+                                    </button>
                                     <button
                                         v-else
+                                        type="button"
                                         @click="toggleVersion(version)"
                                         :disabled="actionLoading === version.id"
-                                        class="inline-flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium shadow-theme-xs transition-colors disabled:opacity-50"
+                                        class="inline-flex h-9 w-36 items-center justify-center gap-2 rounded-lg text-sm font-medium shadow-theme-xs transition-colors disabled:opacity-50"
                                         :class="version.is_enabled
                                             ? 'border border-error-500/40 text-error-600 hover:bg-error-500/10 dark:text-error-400'
                                             : 'bg-brand-500 text-white hover:bg-brand-600'"
