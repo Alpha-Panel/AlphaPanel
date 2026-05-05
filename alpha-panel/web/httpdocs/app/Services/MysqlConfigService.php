@@ -12,7 +12,7 @@ class MysqlConfigService
     ) {}
 
     /**
-     * @return array<int, array{key: string, file: string, type: string, label: string, description: string, set_global: bool, restart_required: bool, options: array<string>, global_var: string}>
+     * @return array<int, array{key: string, file: string, type: string, label: string, description: string, set_global: bool, restart_required: bool, options: array<string>, global_var: string, suffix?: string}>
      */
     public function schema(): array
     {
@@ -28,7 +28,7 @@ class MysqlConfigService
             // ── 99-tuning.cnf ────────────────────────────────────────
             ['key' => 'default-time-zone', 'file' => '99-tuning.cnf', 'type' => 'string', 'label' => 'Default Timezone', 'description' => 'Server timezone offset, e.g. +03:00.', 'set_global' => false, 'restart_required' => true, 'options' => [], 'global_var' => ''],
             ['key' => 'innodb_buffer_pool_size', 'file' => '99-tuning.cnf', 'type' => 'size', 'label' => 'InnoDB Buffer Pool Size', 'description' => '35–50% of total RAM. Biggest single performance setting.', 'set_global' => true, 'restart_required' => false, 'options' => [], 'global_var' => 'innodb_buffer_pool_size'],
-            ['key' => 'innodb_buffer_pool_instances', 'file' => '99-tuning.cnf', 'type' => 'int', 'label' => 'InnoDB Buffer Pool Instances', 'description' => '1 instance per 1 GB of buffer pool size.', 'set_global' => false, 'restart_required' => true, 'options' => [], 'global_var' => ''],
+            ['key' => 'innodb_buffer_pool_instances', 'file' => '99-tuning.cnf', 'type' => 'int', 'label' => 'InnoDB Buffer Pool Instances', 'description' => '1 instance per 1 GB of buffer pool size.', 'set_global' => false, 'restart_required' => true, 'options' => [], 'global_var' => '', 'suffix' => 'adet'],
             ['key' => 'tmp_table_size', 'file' => '99-tuning.cnf', 'type' => 'size', 'label' => 'Tmp Table Size', 'description' => 'Max size for internal in-memory temp tables (per-connection).', 'set_global' => true, 'restart_required' => false, 'options' => [], 'global_var' => 'tmp_table_size'],
             ['key' => 'max_heap_table_size', 'file' => '99-tuning.cnf', 'type' => 'size', 'label' => 'Max Heap Table Size', 'description' => 'Max size for user-created MEMORY tables.', 'set_global' => true, 'restart_required' => false, 'options' => [], 'global_var' => 'max_heap_table_size'],
             ['key' => 'sort_buffer_size', 'file' => '99-tuning.cnf', 'type' => 'size', 'label' => 'Sort Buffer Size', 'description' => 'Per-connection buffer for ORDER BY operations.', 'set_global' => true, 'restart_required' => false, 'options' => [], 'global_var' => 'sort_buffer_size'],

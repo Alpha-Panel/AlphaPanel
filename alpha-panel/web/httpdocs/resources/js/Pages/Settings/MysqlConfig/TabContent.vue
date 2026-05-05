@@ -46,50 +46,72 @@
                     <!-- bool -->
                     <div v-if="param.type === 'bool'" class="flex items-center gap-2 pt-1">
                         <ToggleSwitch
-                            :modelValue="structuredForm[param.key] === '1' || structuredForm[param.key] === 'ON'"
+                            :modelValue="structuredForm.values[param.key] === '1' || structuredForm.values[param.key] === 'ON'"
                             @update:modelValue="(val) => setToggle(param.key, val)"
                         />
                         <span class="text-xs text-gray-500 dark:text-gray-400">
-                            {{ structuredForm[param.key] === '1' || structuredForm[param.key] === 'ON' ? t('Enabled') : t('Disabled') }}
+                            {{ structuredForm.values[param.key] === '1' || structuredForm.values[param.key] === 'ON' ? t('Enabled') : t('Disabled') }}
                         </span>
                     </div>
 
                     <!-- select -->
                     <select
                         v-else-if="param.type === 'select'"
-                        v-model="structuredForm[param.key]"
+                        v-model="structuredForm.values[param.key]"
                         class="form-input mt-1"
                     >
                         <option v-for="opt in param.options" :key="opt" :value="opt">{{ opt }}</option>
                     </select>
 
-                    <!-- int -->
-                    <input
-                        v-else-if="param.type === 'int'"
-                        v-model="structuredForm[param.key]"
-                        type="number"
-                        class="form-input mt-1"
-                    />
+                    <!-- int: plain or with static suffix label -->
+                    <div v-else-if="param.type === 'int'" class="mt-1 flex gap-2">
+                        <input
+                            v-model="structuredForm.values[param.key]"
+                            type="text"
+                            inputmode="numeric"
+                            pattern="[0-9]*"
+                            class="input-field min-w-0 flex-1"
+                        />
+                        <span
+                            v-if="param.suffix"
+                            class="inline-flex h-11 shrink-0 items-center rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+                        >
+                            {{ param.suffix }}
+                        </span>
+                    </div>
 
-                    <!-- size -->
-                    <input
-                        v-else-if="param.type === 'size'"
-                        v-model="structuredForm[param.key]"
-                        type="text"
-                        class="form-input mt-1"
-                        placeholder="128M / 5G"
-                    />
+                    <!-- size: number input + K/M/G unit select -->
+                    <div v-else-if="param.type === 'size'" class="mt-1 flex gap-2">
+                        <input
+                            type="text"
+                            inputmode="numeric"
+                            pattern="[0-9]*"
+                            :value="parseSizeNum(structuredForm.values[param.key])"
+                            @input="(e) => setSizeNum(param.key, (e.target as HTMLInputElement).value)"
+                            class="input-field min-w-0 flex-1"
+                            placeholder="512"
+                        />
+                        <select
+                            :value="parseSizeUnit(structuredForm.values[param.key])"
+                            @change="(e) => setSizeUnit(param.key, (e.target as HTMLSelectElement).value)"
+                            class="input-field w-20 shrink-0"
+                        >
+                            <option value="K">K</option>
+                            <option value="M">M</option>
+                            <option value="G">G</option>
+                        </select>
+                    </div>
 
                     <!-- string (default) -->
                     <input
                         v-else
-                        v-model="structuredForm[param.key]"
+                        v-model="structuredForm.values[param.key]"
                         type="text"
                         class="form-input mt-1"
                     />
 
-                    <p v-if="structuredForm.errors[param.key]" class="mt-1 text-xs text-error-500">
-                        {{ structuredForm.errors[param.key] }}
+                    <p v-if="structuredForm.errors[`values.${param.key}`]" class="mt-1 text-xs text-error-500">
+                        {{ structuredForm.errors[`values.${param.key}`] }}
                     </p>
                 </div>
             </div>
@@ -154,6 +176,7 @@ interface SchemaParam {
     restart_required: boolean;
     options: string[];
     global_var: string;
+    suffix?: string;
 }
 
 const props = defineProps<{
@@ -172,24 +195,44 @@ const { t } = useI18n();
 const advancedMode = ref(false);
 
 // ---- Structured mode ----
-const initialValues = Object.fromEntries(
-    props.schema.map((param) => [param.key, props.parsedValues[param.key] ?? '']),
-);
+const makeInitialValues = (): Record<string, string> =>
+    Object.fromEntries(props.schema.map((param) => [param.key, props.parsedValues[param.key] ?? '']));
 
-const structuredForm = useForm<Record<string, string>>(initialValues);
+const structuredForm = useForm<{ values: Record<string, string> }>({ values: makeInitialValues() });
 
 watch(
     () => props.parsedValues,
     (newValues) => {
         props.schema.forEach((param) => {
-            structuredForm[param.key] = newValues[param.key] ?? '';
+            structuredForm.values[param.key] = newValues[param.key] ?? '';
         });
     },
     { deep: true },
 );
 
 const setToggle = (key: string, val: boolean): void => {
-    structuredForm[key] = val ? '1' : '0';
+    structuredForm.values[key] = val ? '1' : '0';
+};
+
+// ---- Size field helpers (split number + unit, recombine as e.g. "512M") ----
+const parseSizeNum = (val: string): string => {
+    const m = (val ?? '').match(/^(\d+(?:\.\d+)?)\s*([KMG])$/i);
+    return m ? m[1] : (val ?? '').replace(/[^0-9]/g, '');
+};
+
+const parseSizeUnit = (val: string): string => {
+    const m = (val ?? '').match(/^(\d+(?:\.\d+)?)\s*([KMG])$/i);
+    return m ? m[2].toUpperCase() : 'M';
+};
+
+const setSizeNum = (key: string, num: string): void => {
+    const unit = parseSizeUnit(structuredForm.values[key]);
+    structuredForm.values[key] = num ? `${num}${unit}` : '';
+};
+
+const setSizeUnit = (key: string, unit: string): void => {
+    const num = parseSizeNum(structuredForm.values[key]);
+    structuredForm.values[key] = num ? `${num}${unit}` : '';
 };
 
 const submitStructured = (): void => {
@@ -197,7 +240,7 @@ const submitStructured = (): void => {
         preserveScroll: true,
         onSuccess: () => {
             const needsRestart = props.schema.some(
-                (p) => p.restart_required && structuredForm[p.key] !== (props.parsedValues[p.key] ?? ''),
+                (p) => p.restart_required && structuredForm.values[p.key] !== (props.parsedValues[p.key] ?? ''),
             );
             emit('saved', needsRestart);
         },
@@ -211,7 +254,9 @@ const rawError = ref('');
 watch(
     () => props.rawContent,
     (newContent) => {
-        rawForm.content = newContent;
+        if (!rawForm.processing) {
+            rawForm.content = newContent;
+        }
     },
 );
 
@@ -245,6 +290,11 @@ const submitRaw = (): void => {
 
 .form-input {
     @apply h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800;
+}
+
+/* Same as form-input but without w-full so flex sizing works in combos */
+.input-field {
+    @apply h-11 rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800;
 }
 
 .raw-textarea {
