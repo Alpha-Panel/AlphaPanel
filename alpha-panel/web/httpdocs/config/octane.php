@@ -135,7 +135,7 @@ return [
     ],
 
     'flush' => [
-        //
+        \Illuminate\Foundation\Vite::class,
     ],
 
     /*

@@ -27,15 +27,13 @@ class AddCspHeaders
             return $response;
         }
 
-        $debugbarActive = class_exists(\Barryvdh\Debugbar\Facades\Debugbar::class)
-            && app()->bound('debugbar')
-            && app('debugbar')->isEnabled();
+        $debugbarActive = (bool) config('app.debug');
 
         $captchaDomains = $this->getCaptchaCspDomains();
 
         $csp = implode('; ', [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-eval' 'nonce-{$nonce}'" . $captchaDomains['script'],
+            "script-src 'strict-dynamic' 'unsafe-eval' 'nonce-{$nonce}'" . $captchaDomains['script'],
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' data: https://fonts.gstatic.com",
             "img-src 'self' data: blob: https://www.gravatar.com",
