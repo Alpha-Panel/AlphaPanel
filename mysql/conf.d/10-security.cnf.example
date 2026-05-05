@@ -1,0 +1,16 @@
+[mysqld]
+# ── Security Hardening ─────────────────────────────────────────
+
+# DNS lookup yapmadan direkt IP ile auth (performans + güvenlik)
+skip-name-resolve
+
+# LOAD DATA / SELECT INTO OUTFILE kısıtlaması
+secure_file_priv=/var/lib/mysql-files
+
+# Strict SQL mode
+sql-mode=STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
+
+# ── Slow Query Logging ─────────────────────────────────────────
+slow_query_log=1
+slow_query_log_file=/var/lib/mysql/slow.log
+long_query_time=2

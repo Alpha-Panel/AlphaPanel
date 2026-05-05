@@ -1,0 +1,20 @@
+[mysqld]
+default-time-zone = '+00:00'
+# Buffer pool: RAM'in %35–50 bandı (MySQL tek başına değilse)
+innodb_buffer_pool_size = 512M
+innodb_buffer_pool_instances = 1   # (1G başına 1 instance gibi düşün)
+
+# Geçici tablolar / sort (per-connection RAM tüketir!)
+tmp_table_size = 64M
+max_heap_table_size = 64M
+sort_buffer_size = 1M
+join_buffer_size = 1M
+
+# Bağlantı yönetimi
+max_connections = 100
+wait_timeout = 28800
+interactive_timeout = 28800
+
+# Dayanıklılık / performans dengesi
+innodb_flush_log_at_trx_commit = 1
+innodb_flush_method = O_DIRECT

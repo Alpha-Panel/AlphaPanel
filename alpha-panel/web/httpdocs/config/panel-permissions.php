@@ -59,6 +59,7 @@ return [
             'panel.docker-services.manage' => 'Create, edit and delete Docker services',
             'panel.php-versions.view' => 'View PHP versions',
             'panel.php-versions.manage' => 'Enable and disable PHP versions',
+            'panel.mysql-config.manage' => 'Manage MySQL configuration (conf.d files, SET GLOBAL, restart)',
             'panel.security-settings.manage' => 'Manage login security settings (IP filter, captcha, honeypot)',
             'panel.alert-settings.manage' => 'Manage system alert threshold settings',
             'panel.notifications.system-updates.receive' => 'Receive system update notifications',

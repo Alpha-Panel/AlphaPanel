@@ -569,8 +569,8 @@ Route::middleware('auth')->group(function (): void {
     // MySQL Configuration (admin)
     Route::middleware('permission:panel.mysql-config.manage')->prefix('settings/mysql-config')->name('settings.mysql-config.')->group(function (): void {
         Route::get('/', [MysqlConfigController::class, 'index'])->name('index');
-        Route::put('{file}', [MysqlConfigController::class, 'update'])->name('update');
-        Route::put('{file}/raw', [MysqlConfigController::class, 'updateRaw'])->name('update-raw');
+        Route::put('{file}', [MysqlConfigController::class, 'update'])->where('file', '.+')->name('update');
+        Route::put('{file}/raw', [MysqlConfigController::class, 'updateRaw'])->where('file', '.+')->name('update-raw');
         Route::post('restart', [MysqlConfigController::class, 'restart'])->name('restart');
         Route::post('purge-binlogs', [MysqlConfigController::class, 'purgeBinlogs'])->name('purge-binlogs');
     });

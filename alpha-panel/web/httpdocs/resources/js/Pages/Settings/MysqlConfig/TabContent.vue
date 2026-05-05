@@ -140,7 +140,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import ToggleSwitch from '@/Components/UI/ToggleSwitch.vue';
 import { useI18n } from '@/Composables/useI18n';
@@ -178,6 +178,16 @@ const initialValues = Object.fromEntries(
 
 const structuredForm = useForm<Record<string, string>>(initialValues);
 
+watch(
+    () => props.parsedValues,
+    (newValues) => {
+        props.schema.forEach((param) => {
+            structuredForm[param.key] = newValues[param.key] ?? '';
+        });
+    },
+    { deep: true },
+);
+
 const setToggle = (key: string, val: boolean): void => {
     structuredForm[key] = val ? '1' : '0';
 };
@@ -197,6 +207,13 @@ const submitStructured = (): void => {
 // ---- Raw / Advanced mode ----
 const rawForm = useForm({ content: props.rawContent });
 const rawError = ref('');
+
+watch(
+    () => props.rawContent,
+    (newContent) => {
+        rawForm.content = newContent;
+    },
+);
 
 const toggleMode = (): void => {
     rawError.value = '';

@@ -51,6 +51,12 @@ frankenphp/waf
 # =============================================================================
 
 mysql/data/
+
+# MySQL conf.d — user-customizable at runtime via panel.
+# Stubs tracked as *.cnf.example; actual .cnf files are gitignored so that
+# git pull never overwrites per-server tuning changes made through the panel.
+mysql/conf.d/*.cnf
+!mysql/conf.d/*.cnf.example
 postgres/
 redis/
 

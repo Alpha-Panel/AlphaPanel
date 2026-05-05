@@ -403,9 +403,9 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'api.token.ip'])->group(functio
     // ── MySQL Configuration ───────────────────────────────────────────────────
     Route::prefix('mysql-config')->group(function (): void {
         Route::get('/', [MysqlConfigApiController::class, 'index'])->middleware('ability:settings:read');
-        Route::get('/{file}', [MysqlConfigApiController::class, 'show'])->middleware('ability:settings:read');
-        Route::put('/{file}', [MysqlConfigApiController::class, 'update'])->middleware('ability:settings:write');
-        Route::put('/{file}/raw', [MysqlConfigApiController::class, 'updateRaw'])->middleware('ability:settings:write');
+        Route::get('/{file}', [MysqlConfigApiController::class, 'show'])->where('file', '.+')->middleware('ability:settings:read');
+        Route::put('/{file}', [MysqlConfigApiController::class, 'update'])->where('file', '.+')->middleware('ability:settings:write');
+        Route::put('/{file}/raw', [MysqlConfigApiController::class, 'updateRaw'])->where('file', '.+')->middleware('ability:settings:write');
         Route::post('/restart', [MysqlConfigApiController::class, 'restart'])->middleware('ability:settings:write');
         Route::post('/purge-binlogs', [MysqlConfigApiController::class, 'purgeBinlogs'])->middleware('ability:settings:write');
     });
