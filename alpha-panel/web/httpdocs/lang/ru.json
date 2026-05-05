@@ -1832,5 +1832,10 @@
   "audit_actions.php_fpm_conf_recreated": "Konfiguratsiya PHP FPM Peresozadana",
   "audit_actions.php_fpm_conf_recreate_failed": "Oshibka Peresozadaniya Konfiguracii PHP FPM",
   "audit_actions.php_fpm_restarted": "PHP FPM Perezapushchen",
-  "audit_actions.php_fpm_restart_failed": "Oshibka Perezapuska PHP FPM"
+  "audit_actions.php_fpm_restart_failed": "Oshibka Perezapuska PHP FPM",
+  "Starting": "Запускается",
+  "Fatal": "Критическая ошибка",
+  "Backoff": "Повтор попытки",
+  "Unreachable": "Недоступен",
+  "Conf Missing": "Конфиг отсутствует"
 }

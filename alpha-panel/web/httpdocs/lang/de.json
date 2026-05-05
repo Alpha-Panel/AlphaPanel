@@ -1827,5 +1827,10 @@
   "audit_actions.php_fpm_conf_recreated": "PHP FPM Konfiguration Neu Erstellt",
   "audit_actions.php_fpm_conf_recreate_failed": "PHP FPM Konfiguration Erstellen Fehlgeschlagen",
   "audit_actions.php_fpm_restarted": "PHP FPM Neu Gestartet",
-  "audit_actions.php_fpm_restart_failed": "PHP FPM Neustart Fehlgeschlagen"
+  "audit_actions.php_fpm_restart_failed": "PHP FPM Neustart Fehlgeschlagen",
+  "Starting": "Startet",
+  "Fatal": "Kritischer Fehler",
+  "Backoff": "Wiederholung",
+  "Unreachable": "Nicht erreichbar",
+  "Conf Missing": "Konfig fehlt"
 }

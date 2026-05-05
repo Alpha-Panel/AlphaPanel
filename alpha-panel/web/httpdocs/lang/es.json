@@ -1832,5 +1832,10 @@
   "audit_actions.php_fpm_conf_recreated": "Configuracion PHP FPM Recreada",
   "audit_actions.php_fpm_conf_recreate_failed": "Fallo al Recrear Configuracion PHP FPM",
   "audit_actions.php_fpm_restarted": "PHP FPM Reiniciado",
-  "audit_actions.php_fpm_restart_failed": "Fallo al Reiniciar PHP FPM"
+  "audit_actions.php_fpm_restart_failed": "Fallo al Reiniciar PHP FPM",
+  "Starting": "Iniciando",
+  "Fatal": "Fatal",
+  "Backoff": "Reintentando",
+  "Unreachable": "Inalcanzable",
+  "Conf Missing": "Conf. ausente"
 }

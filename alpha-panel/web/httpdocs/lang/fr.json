@@ -1832,5 +1832,10 @@
   "audit_actions.php_fpm_conf_recreated": "Configuration PHP FPM Recreee",
   "audit_actions.php_fpm_conf_recreate_failed": "Echec Recreation Configuration PHP FPM",
   "audit_actions.php_fpm_restarted": "PHP FPM Redemarre",
-  "audit_actions.php_fpm_restart_failed": "Echec Redemarrage PHP FPM"
+  "audit_actions.php_fpm_restart_failed": "Echec Redemarrage PHP FPM",
+  "Starting": "Démarrage",
+  "Fatal": "Erreur fatale",
+  "Backoff": "Nouvelle tentative",
+  "Unreachable": "Inaccessible",
+  "Conf Missing": "Config manquante"
 }

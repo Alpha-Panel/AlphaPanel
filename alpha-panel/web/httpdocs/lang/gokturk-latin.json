@@ -1812,5 +1812,10 @@
   "audit_actions.php_fpm_conf_recreated": "PHP FPM Düzümlügü Qayta Yaratıldı",
   "audit_actions.php_fpm_conf_recreate_failed": "PHP FPM Düzümlügü Qayta Yaratılamadı",
   "audit_actions.php_fpm_restarted": "PHP FPM Qayta Başlatıldı",
-  "audit_actions.php_fpm_restart_failed": "PHP FPM Qayta Başlatılamadı"
+  "audit_actions.php_fpm_restart_failed": "PHP FPM Qayta Başlatılamadı",
+  "Starting": "Başlıyor",
+  "Fatal": "Ölüm Yarası",
+  "Backoff": "Yeniden Urunur",
+  "Unreachable": "Uzaqta",
+  "Conf Missing": "Yazı Yoq"
 }

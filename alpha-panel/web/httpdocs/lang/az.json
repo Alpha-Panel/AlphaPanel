@@ -1832,5 +1832,10 @@
   "audit_actions.php_fpm_conf_recreated": "PHP FPM Konfiqurasiyası Yenidən Yaradıldı",
   "audit_actions.php_fpm_conf_recreate_failed": "PHP FPM Konfiqurasiyası Yenidən Yaradıla Bilmədi",
   "audit_actions.php_fpm_restarted": "PHP FPM Yenidən Başladıldı",
-  "audit_actions.php_fpm_restart_failed": "PHP FPM Yenidən Başladıla Bilmədi"
+  "audit_actions.php_fpm_restart_failed": "PHP FPM Yenidən Başladıla Bilmədi",
+  "Starting": "Başlayır",
+  "Fatal": "Kritik Xəta",
+  "Backoff": "Yenidən Cəhd",
+  "Unreachable": "Əlçatmaz",
+  "Conf Missing": "Konfiqurasiya Yoxdur"
 }

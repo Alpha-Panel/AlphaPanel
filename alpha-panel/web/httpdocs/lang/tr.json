@@ -1890,5 +1890,10 @@
   "audit_actions.php_fpm_conf_recreated": "PHP FPM Yapılandırması Yeniden Oluşturuldu",
   "audit_actions.php_fpm_conf_recreate_failed": "PHP FPM Yapılandırması Yeniden Oluşturulamadı",
   "audit_actions.php_fpm_restarted": "PHP FPM Yeniden Başlatıldı",
-  "audit_actions.php_fpm_restart_failed": "PHP FPM Yeniden Başlatılamadı"
+  "audit_actions.php_fpm_restart_failed": "PHP FPM Yeniden Başlatılamadı",
+  "Starting": "Başlıyor",
+  "Fatal": "Kritik Hata",
+  "Backoff": "Yeniden Deneniyor",
+  "Unreachable": "Erişilemiyor",
+  "Conf Missing": "Yapılandırma Eksik"
 }

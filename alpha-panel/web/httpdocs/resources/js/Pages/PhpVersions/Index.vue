@@ -111,7 +111,7 @@
                                                     class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold"
                                                     :class="supervisorStatusClass(supervisorStatuses[version.slug].status)"
                                                 >
-                                                    {{ supervisorStatuses[version.slug].status.replace('_', ' ') }}
+                                                    {{ statusLabel(supervisorStatuses[version.slug].status) }}
                                                 </span>
                                             </template>
                                         </div>
@@ -243,6 +243,11 @@ const isFrankenPhpMode = ref(false);
 onMounted(() => {
     localVersions.value = JSON.parse(JSON.stringify(props.versions));
 });
+
+const statusLabel = (status: string): string => {
+    const key = status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+    return t(key);
+};
 
 const supervisorStatusClass = (status: string): string => {
     const map: Record<string, string> = {
