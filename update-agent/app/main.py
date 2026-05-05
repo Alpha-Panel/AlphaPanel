@@ -4,7 +4,7 @@ import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import check, health, mysql, panel, status
+from app.routers import check, health, mysql, mysql_config, panel, status
 
 
 @asynccontextmanager
@@ -37,4 +37,5 @@ app.include_router(health.router)
 app.include_router(check.router)
 app.include_router(panel.router)
 app.include_router(mysql.router)
+app.include_router(mysql_config.router)
 app.include_router(status.router)

@@ -135,4 +135,31 @@ class MysqlAdminService
         $db->exec('FLUSH PRIVILEGES');
         Log::info("Changed password for MySQL user: {$safe}");
     }
+
+    /**
+     * Set a MySQL global variable at runtime (no restart required).
+     *
+     * @throws PDOException
+     */
+    public function setGlobal(string $variable, string $value): void
+    {
+        $db = $this->connect();
+        $safe = preg_replace('/[^a-zA-Z0-9_]/', '', $variable);
+        $stmt = $db->prepare("SET GLOBAL `{$safe}` = ?");
+        $stmt->execute([$value]);
+        Log::info("SET GLOBAL {$safe} applied");
+    }
+
+    /**
+     * Purge binary logs older than the given number of days.
+     *
+     * @throws PDOException
+     */
+    public function purgeBinaryLogs(int $days): void
+    {
+        $db = $this->connect();
+        $stmt = $db->prepare('PURGE BINARY LOGS BEFORE DATE_SUB(NOW(), INTERVAL ? DAY)');
+        $stmt->execute([$days]);
+        Log::info("Purged binary logs older than {$days} day(s)");
+    }
 }

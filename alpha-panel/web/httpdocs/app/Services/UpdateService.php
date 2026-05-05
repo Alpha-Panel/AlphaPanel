@@ -180,4 +180,32 @@ class UpdateService
 
         return $response->json();
     }
+
+    /**
+     * Read a mysql/conf.d file via the update agent.
+     */
+    public function getMysqlConfigFile(string $filename): string
+    {
+        $response = $this->request(10)->get("/mysql/config/{$filename}");
+
+        return $response->json('content', '');
+    }
+
+    /**
+     * Write a mysql/conf.d file via the update agent.
+     */
+    public function putMysqlConfigFile(string $filename, string $content): void
+    {
+        $this->request(10)->put("/mysql/config/{$filename}", ['content' => $content]);
+    }
+
+    /**
+     * Restart the MySQL container via the update agent. Returns task_id.
+     */
+    public function restartMysql(): string
+    {
+        $response = $this->request(10)->post('/mysql/config/restart');
+
+        return $response->json('task_id');
+    }
 }

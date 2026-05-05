@@ -31,6 +31,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\LoginIpFilterController;
 use App\Http\Controllers\ManifestController;
+use App\Http\Controllers\MysqlConfigController;
 use App\Http\Controllers\NotificationSettingsController;
 use App\Http\Controllers\OAuthController;
 use App\Http\Controllers\PhpSettingsController;
@@ -564,6 +565,15 @@ Route::middleware('auth')->group(function (): void {
     // Genel (admin) SSO
     Route::get('/pma/admin/sso', [PmaSsoController::class, 'admin'])
         ->name('pma.admin.sso');
+
+    // MySQL Configuration (admin)
+    Route::middleware('permission:panel.mysql-config.manage')->prefix('settings/mysql-config')->name('settings.mysql-config.')->group(function (): void {
+        Route::get('/', [MysqlConfigController::class, 'index'])->name('index');
+        Route::put('{file}', [MysqlConfigController::class, 'update'])->name('update');
+        Route::put('{file}/raw', [MysqlConfigController::class, 'updateRaw'])->name('update-raw');
+        Route::post('restart', [MysqlConfigController::class, 'restart'])->name('restart');
+        Route::post('purge-binlogs', [MysqlConfigController::class, 'purgeBinlogs'])->name('purge-binlogs');
+    });
 
     // DNS Server Settings (admin)
     Route::middleware('permission:panel.dns-settings.manage')->prefix('settings/dns')->name('settings.dns.')->group(function (): void {

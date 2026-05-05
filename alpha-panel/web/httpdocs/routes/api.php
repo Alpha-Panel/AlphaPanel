@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\V1\FtpBanController;
 use App\Http\Controllers\Api\V1\HandshakeController;
 use App\Http\Controllers\Api\V1\ImpersonationController;
 use App\Http\Controllers\Api\V1\ModSecurityController;
+use App\Http\Controllers\Api\V1\MysqlConfigController as MysqlConfigApiController;
 use App\Http\Controllers\Api\V1\PackageManagerController;
 use App\Http\Controllers\Api\V1\PhpSettingsController;
 use App\Http\Controllers\Api\V1\PhpVersionController;
@@ -397,6 +398,16 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'api.token.ip'])->group(functio
         Route::get('/alerts', [SettingsController::class, 'alerts'])->middleware('ability:settings:read');
         Route::put('/alerts', [SettingsController::class, 'updateAlerts'])->middleware('ability:settings:write');
         Route::post('/alerts/run-check', [SettingsController::class, 'runAlertCheck'])->middleware('ability:settings:write');
+    });
+
+    // ── MySQL Configuration ───────────────────────────────────────────────────
+    Route::prefix('mysql-config')->group(function (): void {
+        Route::get('/', [MysqlConfigApiController::class, 'index'])->middleware('ability:settings:read');
+        Route::get('/{file}', [MysqlConfigApiController::class, 'show'])->middleware('ability:settings:read');
+        Route::put('/{file}', [MysqlConfigApiController::class, 'update'])->middleware('ability:settings:write');
+        Route::put('/{file}/raw', [MysqlConfigApiController::class, 'updateRaw'])->middleware('ability:settings:write');
+        Route::post('/restart', [MysqlConfigApiController::class, 'restart'])->middleware('ability:settings:write');
+        Route::post('/purge-binlogs', [MysqlConfigApiController::class, 'purgeBinlogs'])->middleware('ability:settings:write');
     });
 
     // ── API Token Management ──────────────────────────────────────────────────

@@ -547,6 +547,14 @@ const menuGroups = computed(() => {
                     });
                 }
 
+                if (can('panel.mysql-config.manage')) {
+                    settingsSubItems.push({
+                        name: t('MySQL Config'),
+                        href: route('settings.mysql-config.index'),
+                        iconClass: 'lni lni-mysql',
+                    });
+                }
+
                 if (can('panel.php-versions.view')) {
                     settingsSubItems.push({
                         name: t('PHP Versions'),
