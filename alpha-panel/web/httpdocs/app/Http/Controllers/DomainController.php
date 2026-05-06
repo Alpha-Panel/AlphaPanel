@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\DomainMode;
 use App\Enums\DomainType;
 use App\Enums\NotificationType;
 use App\Http\Requests\StoreDomainRequest;
@@ -45,6 +46,16 @@ class DomainController extends Controller
             'phpVersions' => $phpVersions,
             'users' => $users,
             'server_network_ips' => $serverNetworkIps,
+            'wildcardCatchallExists' => Domain::where('fqdn', '*')->exists(),
+            'canCreateCatchall' => $request->user()->isAdmin(),
+            'linkableDomains' => $request->user()->isAdmin()
+                ? Domain::whereIn('mode', [DomainMode::Main->value, DomainMode::Addon->value])
+                    ->orderBy('fqdn')
+                    ->get(['id', 'fqdn', 'mode', 'root_path'])
+                : Domain::where('owner_user_id', $request->user()->id)
+                    ->whereIn('mode', [DomainMode::Main->value, DomainMode::Addon->value])
+                    ->orderBy('fqdn')
+                    ->get(['id', 'fqdn', 'mode', 'root_path']),
         ]);
     }
 
@@ -70,6 +81,16 @@ class DomainController extends Controller
             'parentDomains' => $parentDomains,
             'users' => $users,
             'server_network_ips' => $serverNetworkIps,
+            'wildcardCatchallExists' => Domain::where('fqdn', '*')->exists(),
+            'canCreateCatchall' => $request->user()->isAdmin(),
+            'linkableDomains' => $request->user()->isAdmin()
+                ? Domain::whereIn('mode', [DomainMode::Main->value, DomainMode::Addon->value])
+                    ->orderBy('fqdn')
+                    ->get(['id', 'fqdn', 'mode', 'root_path'])
+                : Domain::where('owner_user_id', $request->user()->id)
+                    ->whereIn('mode', [DomainMode::Main->value, DomainMode::Addon->value])
+                    ->orderBy('fqdn')
+                    ->get(['id', 'fqdn', 'mode', 'root_path']),
         ]);
     }
 
@@ -94,6 +115,11 @@ class DomainController extends Controller
             : null;
         $createDnsRecord = false;
         $dnsRecordShouldBeProxied = false;
+
+        // Force fqdn for wildcard catch-all regardless of what was submitted
+        if (($data['mode'] ?? null) === DomainMode::WildcardCatchall->value) {
+            $data['fqdn'] = '*';
+        }
 
         if ($parentDomainId > 0) {
             $parentDomain = Domain::query()
@@ -136,6 +162,17 @@ class DomainController extends Controller
         if ($parentDomainId === 0) {
             $requestedRootPath = trim((string) ($data['root_path'] ?? ''));
             $data['root_path'] = $requestedRootPath === '' ? null : $requestedRootPath;
+        }
+
+        // Addon domains: inherit root_path from linked domain when not explicitly provided
+        if (($data['mode'] ?? null) === DomainMode::Addon->value) {
+            $linkedDomainId = $data['linked_domain_id'] ?? null;
+            if ($linkedDomainId && ! $request->filled('root_path')) {
+                $linkedDomain = Domain::with('linkedDomain')->find($linkedDomainId);
+                if ($linkedDomain) {
+                    $data['root_path'] = $linkedDomain->getWebRootPath();
+                }
+            }
         }
 
         $isCloudflare = $dnsProvider === 'cloudflare';
@@ -752,6 +789,7 @@ class DomainController extends Controller
         $data = $domains->map(fn (Domain $domain) => [
             'id' => $domain->id,
             'fqdn' => $domain->fqdn,
+            'mode' => $domain->mode->value,
             'type' => $domain->type->value,
             'type_label' => $domain->type->label(),
             'status' => $domain->status->value,

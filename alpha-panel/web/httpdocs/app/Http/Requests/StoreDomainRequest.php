@@ -2,11 +2,16 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\DomainMode;
 use App\Enums\DomainType;
+use App\Models\Domain;
+use App\Rules\NoExistingCatchall;
 use App\Rules\NotReservedDomain;
+use App\Rules\RequiresAdmin;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
+use Illuminate\Validation\Validator;
 
 class StoreDomainRequest extends FormRequest
 {
@@ -24,8 +29,49 @@ class StoreDomainRequest extends FormRequest
                 'nullable',
                 'exists:users,id',
             ],
-            'fqdn' => ['required', 'string', 'max:255', 'unique:domains,fqdn', new NotReservedDomain],
-            'parent_domain_id' => ['nullable', 'exists:domains,id'],
+            'mode' => ['required', new Enum(DomainMode::class)],
+            'fqdn' => array_filter([
+                'required',
+                'string',
+                'max:255',
+                'unique:domains,fqdn',
+                new NotReservedDomain,
+                // FQDN regex for regular domain modes
+                in_array($this->input('mode'), [
+                    DomainMode::Main->value,
+                    DomainMode::Subdomain->value,
+                    DomainMode::Addon->value,
+                ], true)
+                    ? 'regex:/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i'
+                    : null,
+                // Wildcard subdomain: must be *.something.tld
+                $this->input('mode') === DomainMode::WildcardSubdomain->value
+                    ? 'regex:/^\*\.(?=.{1,251}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i'
+                    : null,
+                // Catch-all: must be literal *, admin only, no existing one
+                $this->input('mode') === DomainMode::WildcardCatchall->value
+                    ? Rule::in(['*'])
+                    : null,
+                $this->input('mode') === DomainMode::WildcardCatchall->value
+                    ? new NoExistingCatchall
+                    : null,
+                $this->input('mode') === DomainMode::WildcardCatchall->value
+                    ? new RequiresAdmin
+                    : null,
+            ]),
+            'parent_domain_id' => [
+                Rule::requiredIf(fn () => in_array($this->input('mode'), [
+                    DomainMode::Subdomain->value,
+                    DomainMode::WildcardSubdomain->value,
+                ], true)),
+                'nullable',
+                'exists:domains,id',
+            ],
+            'linked_domain_id' => [
+                Rule::requiredIf(fn () => $this->input('mode') === DomainMode::Addon->value),
+                'nullable',
+                'exists:domains,id',
+            ],
             'type' => ['required', new Enum(DomainType::class)],
             'root_path' => ['nullable', 'string', 'max:500'],
             'inherit_parent_root_path' => [
@@ -91,6 +137,39 @@ class StoreDomainRequest extends FormRequest
                 Rule::requiredIf(fn () => $this->isApacheParentDomain()),
             ],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            if ($this->input('mode') !== DomainMode::WildcardSubdomain->value) {
+                return;
+            }
+
+            $fqdn = $this->input('fqdn', '');
+            $parentId = $this->input('parent_domain_id');
+
+            if (! $parentId) {
+                return;
+            }
+
+            $parent = Domain::find($parentId);
+            if (! $parent) {
+                return;
+            }
+
+            // *.example.com must have apex = example.com (the parent's fqdn)
+            $dotPos = strpos($fqdn, '.');
+            if ($dotPos === false) {
+                $validator->errors()->add('fqdn', __('Wildcard subdomain must match the apex of the selected parent.'));
+
+                return;
+            }
+            $expectedApex = substr($fqdn, $dotPos + 1);
+            if ($expectedApex !== $parent->fqdn) {
+                $validator->errors()->add('fqdn', __('Wildcard subdomain must match the apex of the selected parent.'));
+            }
+        });
     }
 
     /**

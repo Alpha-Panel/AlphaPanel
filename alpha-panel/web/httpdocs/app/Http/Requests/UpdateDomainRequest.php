@@ -63,6 +63,7 @@ class UpdateDomainRequest extends FormRequest
                 'exists:php_versions,id',
                 Rule::requiredIf(fn () => $this->input('type') === 'apache_reverse_proxy'),
             ],
+            'linked_domain_id' => ['nullable', 'exists:domains,id'],
             'ssl_method' => ['sometimes', new Enum(SslMethod::class)],
             'cors_enabled' => ['boolean'],
             'cors_allowed_origins' => [

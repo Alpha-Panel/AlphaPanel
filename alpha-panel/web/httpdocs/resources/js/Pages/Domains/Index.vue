@@ -100,6 +100,18 @@
                                         >
                                             {{ domain.fqdn }}
                                         </Link>
+                                        <span
+                                            v-if="domain.mode && domain.mode !== 'main'"
+                                            class="ml-1 inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium"
+                                            :class="{
+                                                'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300': domain.mode === 'subdomain',
+                                                'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300': domain.mode === 'addon',
+                                                'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300': domain.mode === 'wildcard_subdomain',
+                                                'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300': domain.mode === 'wildcard_catchall',
+                                            }"
+                                        >
+                                            {{ t(domainModeLabel(domain.mode as string)) }}
+                                        </span>
                                     </td>
                                     <td class="px-5 py-4" v-html="domain.type_badge"></td>
                                     <td class="px-5 py-4" v-html="domain.status_badge"></td>
@@ -219,6 +231,9 @@
                     :php-versions="phpVersions"
                     :users="users"
                     :server-network-ips="server_network_ips"
+                    :wildcard-catchall-exists="wildcardCatchallExists ?? false"
+                    :can-create-catchall="canCreateCatchall ?? false"
+                    :linkable-domains="linkableDomains ?? []"
                 />
             </AdminLayout>
         </SidebarProvider>
@@ -238,6 +253,7 @@ import { useDataTable } from '@/Composables/useDataTable';
 import DomainCreateModal from '@/Components/Domains/DomainCreateModal.vue';
 import { useI18n } from '@/Composables/useI18n';
 import { useToast } from '@/Composables/useToast';
+import { useDomainMode } from '@/Composables/useDomainMode';
 
 defineProps<{
     phpVersions: Array<Record<string, any>>;
@@ -246,12 +262,16 @@ defineProps<{
         public: string[];
         private: string[];
     };
+    wildcardCatchallExists?: boolean;
+    canCreateCatchall?: boolean;
+    linkableDomains?: Array<{id: number, fqdn: string, mode: string, root_path: string|null}>;
 }>();
 
 const searchInput = ref('');
 const showCreateDomainModal = ref(false);
 const { t } = useI18n();
 const { addToast } = useToast();
+const { domainModeLabel } = useDomainMode();
 
 onMounted(() => {
     const query = new URLSearchParams(window.location.search);
@@ -364,4 +384,5 @@ const deleteDomain = (domain: Record<string, unknown>) => {
         router.delete(domain.destroy_url as string);
     }
 };
+
 </script>

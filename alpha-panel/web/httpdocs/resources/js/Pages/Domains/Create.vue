@@ -11,8 +11,41 @@
                     </h3>
 
                     <form @submit.prevent="submit" class="space-y-5">
-                        <FormField :label="t('Domain Name (FQDN)')" :error="form.errors.fqdn" required>
-                            <input v-model="form.fqdn" type="text" :placeholder="t('example.com')" class="form-input" />
+                        <FormField :label="t('Domain Mode')" required>
+                            <select v-model="form.mode" class="form-input">
+                                <option value="main">{{ t('Main Domain') }}</option>
+                                <option value="subdomain">{{ t('Subdomain') }}</option>
+                                <option value="addon">{{ t('Addon Domain') }}</option>
+                                <option value="wildcard_subdomain">{{ t('Wildcard Subdomain') }}</option>
+                                <option
+                                    v-if="canCreateCatchall"
+                                    value="wildcard_catchall"
+                                    :disabled="wildcardCatchallExists"
+                                    :title="wildcardCatchallExists ? t('Wildcard catch-all already defined on this server') : ''"
+                                >
+                                    {{ t('Wildcard Catch-All') }}
+                                </option>
+                            </select>
+                        </FormField>
+
+                        <FormField v-if="needsParent" :label="t('Parent Domain')" :error="form.errors.parent_domain_id" required>
+                            <select v-model="form.parent_domain_id" class="form-input">
+                                <option :value="null">{{ t('-- Select --') }}</option>
+                                <option v-for="d in parentDomains" :key="d.id" :value="d.id">
+                                    {{ d.fqdn }}
+                                </option>
+                            </select>
+                        </FormField>
+
+                        <FormField v-if="!isModeCatchall" :label="t('Domain Name (FQDN)')" :error="form.errors.fqdn" required>
+                            <input
+                                v-model="form.fqdn"
+                                type="text"
+                                :placeholder="t('example.com')"
+                                :readonly="isModeWildcardSub"
+                                class="form-input"
+                                :class="{ 'opacity-70 cursor-not-allowed': isModeWildcardSub }"
+                            />
                         </FormField>
 
                         <FormField :label="t('Type')" :error="form.errors.type" required>
@@ -35,7 +68,7 @@
                             </select>
                         </FormField>
 
-                        <div v-if="users.length > 0 && !form.parent_domain_id">
+                        <div v-if="users.length > 0 && !needsParent">
                             <FormField :label="t('Owner')" :error="form.errors.owner_user_id">
                                 <select v-model="form.owner_user_id" class="form-input">
                                     <option :value="null">{{ t('-- Current User --') }}</option>
@@ -46,7 +79,7 @@
                             </FormField>
                         </div>
 
-                        <div v-if="isSubdomainCreate" class="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-white/5">
+                        <div v-if="needsParent" class="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-white/5">
                             <label class="flex items-center gap-2">
                                 <input v-model="form.inherit_parent_root_path" type="checkbox" class="form-checkbox" />
                                 <span class="text-sm text-gray-700 dark:text-gray-400">{{ t('Inherit main domain path') }}</span>
@@ -55,7 +88,7 @@
                                 {{ t('Main domain path: :path', { path: selectedParentDomainWebRootPath }) }}
                             </p>
                             <FormField
-                                v-if="!form.inherit_parent_root_path"
+                                v-if="!form.inherit_parent_root_path && (!needsLinkedDomain || !form.inherit_linked_root_path)"
                                 :label="t('Root Path (Optional)')"
                                 :error="form.errors.root_path"
                             >
@@ -68,6 +101,45 @@
                             </FormField>
                         </div>
 
+                        <FormField v-if="needsLinkedDomain" :label="t('Linked Domain')" :error="form.errors.linked_domain_id" :required="isModeAddon">
+                            <select v-model="form.linked_domain_id" class="form-input">
+                                <option :value="null">{{ t('-- Select --') }}</option>
+                                <option v-for="d in linkableDomains" :key="d.id" :value="d.id">
+                                    {{ d.fqdn }}
+                                </option>
+                            </select>
+                        </FormField>
+
+                        <template v-if="needsLinkedDomain && form.linked_domain_id">
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" v-model="form.inherit_linked_root_path" id="inherit_linked" class="form-checkbox" />
+                                <label for="inherit_linked" class="text-sm text-gray-700 dark:text-gray-400">{{ t('Inherit linked domain path') }}</label>
+                            </div>
+                            <div v-if="form.inherit_linked_root_path" class="text-sm text-gray-500 dark:text-gray-400">
+                                {{ t('Linked domain path: :path', { path: selectedLinkedDomain?.root_path ?? '' }) }}
+                            </div>
+                        </template>
+
+                        <FormField
+                            v-if="!needsParent && (!needsLinkedDomain || !form.inherit_linked_root_path)"
+                            :label="t('Root Path (Optional)')"
+                            :error="form.errors.root_path"
+                        >
+                            <input
+                                v-model="form.root_path"
+                                type="text"
+                                :placeholder="t('/var/www/vhosts/example.com/httpdocs/public')"
+                                class="form-input"
+                            />
+                        </FormField>
+
+                        <div v-if="isModeCatchall" class="flex items-center gap-2">
+                            <input type="checkbox" v-model="form.catchall_confirmed" id="catchall_confirm" class="form-checkbox" />
+                            <label for="catchall_confirm" class="text-sm text-yellow-600 dark:text-yellow-400">
+                                {{ t('I understand this will receive all unknown hosts on the server.') }}
+                            </label>
+                        </div>
+
                         <div class="flex items-center gap-3">
                             <label class="flex items-center gap-2">
                                 <input v-model="form.enable_www_redirect" type="checkbox" class="form-checkbox" />
@@ -76,7 +148,7 @@
                         </div>
 
                         <FormField
-                            v-if="!isSubdomainCreate"
+                            v-if="!isModeSubdomain && !isModeWildcardSub && !isModeCatchall"
                             :label="t('DNS Provider')"
                             :error="form.errors.dns_provider"
                             required
@@ -88,7 +160,7 @@
                         </FormField>
 
                         <FormField
-                            v-if="!isSubdomainCreate && form.dns_provider === 'cloudflare'"
+                            v-if="!isModeSubdomain && !isModeWildcardSub && !isModeCatchall && form.dns_provider === 'cloudflare'"
                             :label="t('Cloudflare Status')"
                             :error="form.errors.cloudflare_mode"
                             required
@@ -127,7 +199,7 @@
                         </FormField>
 
                         <!-- FTP Section -->
-                        <div v-if="form.type === 'apache_reverse_proxy' && !form.parent_domain_id" class="pt-5 border-t border-gray-200 dark:border-gray-800">
+                        <div v-if="form.type === 'apache_reverse_proxy' && !isModeSubdomain && !isModeWildcardSub && !isModeCatchall" class="pt-5 border-t border-gray-200 dark:border-gray-800">
                             <h4 class="mb-3 text-sm font-medium text-gray-800 dark:text-white/90">{{ t('FTP Access') }}</h4>
                             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <FormField :label="t('FTP Username')" :error="form.errors.ftp_username">
@@ -142,7 +214,7 @@
                         <div class="flex items-center gap-3 pt-5">
                             <button
                                 type="submit"
-                                :disabled="form.processing"
+                                :disabled="form.processing || (isModeCatchall && !form.catchall_confirmed)"
                                 class="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white shadow-theme-xs hover:bg-brand-600 disabled:opacity-50"
                             >
                                 {{ form.processing ? t('Creating...') : t('Create Domain') }}
@@ -179,13 +251,20 @@ const props = defineProps<{
         public: string[];
         private: string[];
     };
+    wildcardCatchallExists: boolean;
+    canCreateCatchall: boolean;
+    linkableDomains: Array<{id: number, fqdn: string, mode: string, root_path: string|null}>;
 }>();
 const { t } = useI18n();
 
 const form = useForm({
     fqdn: '',
     type: 'caddy_web_server',
+    mode: 'main' as string,
     parent_domain_id: null as number | null,
+    linked_domain_id: null as number | null,
+    inherit_linked_root_path: true,
+    catchall_confirmed: false,
     php_version_id: null as number | null,
     owner_user_id: null as number | null,
     root_path: '',
@@ -199,7 +278,16 @@ const form = useForm({
     ftp_password: '',
 });
 
-const isSubdomainCreate = computed(() => form.parent_domain_id !== null);
+const isModeSubdomain = computed(() => form.mode === 'subdomain');
+const isModeWildcardSub = computed(() => form.mode === 'wildcard_subdomain');
+const isModeAddon = computed(() => form.mode === 'addon');
+const isModeCatchall = computed(() => form.mode === 'wildcard_catchall');
+const needsParent = computed(() => isModeSubdomain.value || isModeWildcardSub.value);
+const needsLinkedDomain = computed(() => isModeAddon.value || isModeWildcardSub.value || isModeCatchall.value);
+
+const selectedLinkedDomain = computed(() =>
+    props.linkableDomains.find((d) => d.id === form.linked_domain_id) ?? null,
+);
 const selectedParentDomain = computed(() => props.parentDomains.find((domain) => Number(domain.id) === Number(form.parent_domain_id)) ?? null);
 const selectedParentDomainWebRootPath = computed(() => {
     if (!selectedParentDomain.value) {
@@ -223,7 +311,7 @@ const selectedParentDomainWebRootPath = computed(() => {
     return `/var/www/vhosts/${fqdn}/httpdocs/public`;
 });
 const shouldShowSubdomainDnsOption = computed(() => {
-    if (!isSubdomainCreate.value) {
+    if (!isModeSubdomain.value) {
         return false;
     }
 
@@ -237,7 +325,7 @@ const shouldShowSubdomainDnsOption = computed(() => {
 const publicIps = computed(() => Array.isArray(props.server_network_ips?.public) ? props.server_network_ips.public : []);
 const privateIps = computed(() => Array.isArray(props.server_network_ips?.private) ? props.server_network_ips.private : []);
 const shouldShowDnsTargetIpSelect = computed(() => {
-    if (isSubdomainCreate.value) {
+    if (isModeSubdomain.value) {
         return shouldShowSubdomainDnsOption.value && form.create_dns_record;
     }
 
@@ -249,13 +337,18 @@ const shouldShowDnsTargetIpSelect = computed(() => {
 });
 
 const submit = () => {
-    if (isSubdomainCreate.value) {
+    if (isModeCatchall.value) {
+        form.fqdn = '*';
+    }
+
+    if (isModeSubdomain.value || isModeWildcardSub.value) {
         form.cloudflare_mode = 'skip';
         form.dns_provider = 'local';
     } else {
         form.create_dns_record = false;
-        form.root_path = '';
-        form.inherit_parent_root_path = false;
+        if (!needsParent.value && !needsLinkedDomain.value) {
+            form.inherit_parent_root_path = false;
+        }
     }
 
     if (!shouldShowSubdomainDnsOption.value) {
@@ -264,6 +357,11 @@ const submit = () => {
 
     if (!shouldShowDnsTargetIpSelect.value) {
         form.dns_target_ip = '';
+    }
+
+    if (needsLinkedDomain.value && form.inherit_linked_root_path) {
+        form.root_path = '';
+        form.inherit_parent_root_path = false;
     }
 
     form.post(route('domains.store'));
@@ -279,11 +377,42 @@ watch(() => form.parent_domain_id, (parentDomainId) => {
     if (parentDomainId) {
         form.owner_user_id = null;
         form.cloudflare_mode = 'skip';
+
+        if (isModeWildcardSub.value) {
+            const parent = props.parentDomains.find((d) => Number(d.id) === Number(parentDomainId));
+            if (parent) {
+                form.fqdn = `*.${parent.fqdn}`;
+            }
+        }
     } else {
         form.create_dns_record = false;
         form.root_path = '';
         form.inherit_parent_root_path = false;
     }
+});
+
+watch(() => form.mode, (newMode) => {
+    if (newMode !== 'subdomain' && newMode !== 'wildcard_subdomain') {
+        form.parent_domain_id = null;
+        form.inherit_parent_root_path = false;
+    }
+
+    if (newMode !== 'addon' && newMode !== 'wildcard_subdomain' && newMode !== 'wildcard_catchall') {
+        form.linked_domain_id = null;
+        form.inherit_linked_root_path = true;
+    }
+
+    if (newMode !== 'wildcard_subdomain') {
+        if (form.fqdn.startsWith('*.')) {
+            form.fqdn = '';
+        }
+    }
+
+    if (newMode === 'wildcard_catchall') {
+        form.fqdn = '*';
+    }
+
+    form.catchall_confirmed = false;
 });
 
 watch(shouldShowSubdomainDnsOption, (canCreateDnsRecord) => {
@@ -299,13 +428,13 @@ watch(() => form.dns_provider, (dnsProvider) => {
 });
 
 watch(() => form.cloudflare_mode, (cloudflareMode) => {
-    if (cloudflareMode !== 'add' && !isSubdomainCreate.value && form.dns_provider === 'cloudflare') {
+    if (cloudflareMode !== 'add' && !isModeSubdomain.value && !isModeWildcardSub.value && form.dns_provider === 'cloudflare') {
         form.dns_target_ip = '';
     }
 });
 
 watch(() => form.create_dns_record, (createDnsRecord) => {
-    if (!createDnsRecord && isSubdomainCreate.value) {
+    if (!createDnsRecord && isModeSubdomain.value) {
         form.dns_target_ip = '';
     }
 });
@@ -329,6 +458,7 @@ onMounted(() => {
         return;
     }
 
+    form.mode = 'subdomain';
     form.parent_domain_id = parentDomainId;
 });
 </script>

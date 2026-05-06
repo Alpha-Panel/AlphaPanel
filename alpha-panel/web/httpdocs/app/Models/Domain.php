@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\DnsProvider;
+use App\Enums\DomainMode;
 use App\Enums\DomainStatus;
 use App\Enums\DomainType;
 use App\Enums\IpAccessMode;
@@ -48,6 +49,8 @@ class Domain extends Model
         'cors_allowed_origins',
         'ip_access_mode',
         'active_ssl_certificate_id',
+        'mode',
+        'linked_domain_id',
     ];
 
     /** @return array<string, string> */
@@ -71,6 +74,7 @@ class Domain extends Model
             'modsecurity_ip_blocklist' => 'array',
             'modsecurity_disabled_rule_ids' => 'array',
             'cors_enabled' => 'boolean',
+            'mode' => DomainMode::class,
         ];
     }
 
@@ -82,6 +86,11 @@ class Domain extends Model
     public function parentDomain(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_domain_id');
+    }
+
+    public function linkedDomain(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'linked_domain_id');
     }
 
     public function subdomains(): HasMany
@@ -217,6 +226,35 @@ class Domain extends Model
         return $this->parent_domain_id !== null;
     }
 
+    public function isAddon(): bool
+    {
+        return $this->mode === DomainMode::Addon;
+    }
+
+    public function isWildcardSubdomain(): bool
+    {
+        return $this->mode === DomainMode::WildcardSubdomain;
+    }
+
+    public function isCatchall(): bool
+    {
+        return $this->mode === DomainMode::WildcardCatchall;
+    }
+
+    public function isWildcard(): bool
+    {
+        return $this->isWildcardSubdomain() || $this->isCatchall();
+    }
+
+    /**
+     * True for modes that inherit apex cert/path (subdomain + wildcard_subdomain).
+     * Used in DomainConfigService instead of isSubdomain() for cert resolution.
+     */
+    public function hasParentLikeBehavior(): bool
+    {
+        return $this->mode === DomainMode::Subdomain || $this->mode === DomainMode::WildcardSubdomain;
+    }
+
     public function sharesWebRootWithParent(): bool
     {
         if (! $this->isSubdomain()) {
@@ -293,6 +331,10 @@ class Domain extends Model
      */
     public function getWebRootPath(): string
     {
+        if ($this->linked_domain_id && $this->linkedDomain) {
+            return $this->linkedDomain->getWebRootPath();
+        }
+
         if ($this->root_path) {
             return $this->root_path;
         }

@@ -115,8 +115,8 @@ class DomainConfigService
             }
         }
 
-        // Priority 2: For subdomains, check parent domain's active cert
-        if ($domain->isSubdomain()) {
+        // Priority 2: For subdomains/wildcard-subdomains, check parent domain's active cert
+        if ($domain->hasParentLikeBehavior()) {
             $parentDomain = Domain::where('fqdn', $domain->getApexDomain())->first();
             if ($parentDomain?->activeSslCertificate) {
                 $cert = $parentDomain->activeSslCertificate;
@@ -182,6 +182,26 @@ class DomainConfigService
             return;
         }
         $rootPath = $domain->getWebRootPath();
+
+        // Special rendering for wildcard and catch-all modes
+        if ($domain->isWildcardSubdomain()) {
+            $certPaths = $withTls ? $this->resolveCertPaths($domain) : null;
+            $lines = $this->renderWildcardSubdomainConfig($domain, $fqdn, $rootPath, $certPaths);
+            $content = implode("\n", $lines)."\n";
+            $this->writeConfigFile("{$this->caddySitesBasePath}/{$fqdn}/Caddyfile", $content);
+
+            return;
+        }
+
+        if ($domain->isCatchall()) {
+            $certPaths = $withTls ? $this->resolveCertPaths($domain) : null;
+            $lines = $this->renderCatchallConfig($domain, $rootPath, $certPaths);
+            $content = implode("\n", $lines)."\n";
+            $this->writeConfigFile("{$this->caddySitesBasePath}/_catchall/Caddyfile", $content);
+
+            return;
+        }
+
         $slug = str_replace('.', '-', $fqdn);
 
         $certPaths = $withTls ? $this->resolveCertPaths($domain) : null;
@@ -847,6 +867,68 @@ class DomainConfigService
     }
 
     /**
+     * @return array<int, string>
+     */
+    private function renderWildcardSubdomainConfig(Domain $domain, string $fqdn, string $rootPath, ?array $certPaths): array
+    {
+        $slug = str_replace(['.', '*'], ['-', 'wildcard'], $fqdn);
+        $lines = [];
+
+        if ($certPaths !== null) {
+            // Single HTTPS block — wildcards can't use HTTP-01 so no :80 ACME challenge block
+            $lines[] = "{$fqdn}:443 {";
+            $this->appendCommonHeaderImports($lines, '    ', $domain);
+            $lines[] = "    tls {$certPaths['cert']} {$certPaths['key']}";
+            $lines[] = '    encode zstd br gzip';
+            $serverDirectives = $this->renderServerDirectives($domain, $fqdn, $rootPath, '    ');
+            $lines = array_merge($lines, $this->wrapWithIpAccessControl($domain, $serverDirectives, '    '));
+            $lines[] = '    log {';
+            $lines[] = "        output file /var/log/caddy/{$slug}.log";
+            $lines[] = '        format console';
+            $lines[] = '    }';
+            $lines[] = '}';
+        } else {
+            // No cert — serve HTTP only
+            $lines[] = "{$fqdn}:80 {";
+            $serverDirectives = $this->renderServerDirectives($domain, $fqdn, $rootPath, '    ');
+            $lines = array_merge($lines, $serverDirectives);
+            $lines[] = '}';
+        }
+
+        return $lines;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function renderCatchallConfig(Domain $domain, string $rootPath, ?array $certPaths): array
+    {
+        $lines = [];
+
+        if ($certPaths !== null) {
+            // https:// catches all HTTPS traffic not matched by a more specific site label
+            $lines[] = 'https:// {';
+            $this->appendCommonHeaderImports($lines, '    ', $domain);
+            $lines[] = "    tls {$certPaths['cert']} {$certPaths['key']}";
+            $lines[] = '    encode zstd br gzip';
+            $serverDirectives = $this->renderServerDirectives($domain, 'catchall', $rootPath, '    ');
+            $lines = array_merge($lines, $this->wrapWithIpAccessControl($domain, $serverDirectives, '    '));
+            $lines[] = '    log {';
+            $lines[] = '        output file /var/log/caddy/_catchall.log';
+            $lines[] = '        format console';
+            $lines[] = '    }';
+            $lines[] = '}';
+        } else {
+            $lines[] = 'http:// {';
+            $serverDirectives = $this->renderServerDirectives($domain, 'catchall', $rootPath, '    ');
+            $lines = array_merge($lines, $serverDirectives);
+            $lines[] = '}';
+        }
+
+        return $lines;
+    }
+
+    /**
      * Generate Apache vhost for a legacy domain.
      */
     protected function writeApacheConfig(Domain $domain): void
@@ -1099,6 +1181,15 @@ class DomainConfigService
     {
         if (in_array(strtolower($fqdn), array_map('strtolower', config('panel.system_reserved_domains', [])), true)) {
             Log::warning("Refusing to remove system-reserved domain configs: {$fqdn}");
+
+            return;
+        }
+
+        if ($fqdn === '*') {
+            $catchallDir = "{$this->caddySitesBasePath}/_catchall";
+            if (File::isDirectory($catchallDir)) {
+                File::deleteDirectory($catchallDir);
+            }
 
             return;
         }

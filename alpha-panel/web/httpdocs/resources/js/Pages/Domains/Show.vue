@@ -9,9 +9,23 @@
                 <div class="space-y-4 md:space-y-6">
                     <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <div class="mb-5 flex items-center">
-                            <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">
-                                {{ domain.fqdn }}
-                            </h3>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">
+                                    {{ domain.fqdn }}
+                                </h3>
+                                <span
+                                    v-if="domain.mode && domain.mode !== 'main'"
+                                    class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium"
+                                    :class="{
+                                        'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300': domain.mode === 'subdomain',
+                                        'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300': domain.mode === 'addon',
+                                        'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300': domain.mode === 'wildcard_subdomain',
+                                        'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300': domain.mode === 'wildcard_catchall',
+                                    }"
+                                >
+                                    {{ t(domainModeLabel(domain.mode)) }}
+                                </span>
+                            </div>
                             <div class="ml-auto flex items-center gap-2">
                                 <a
                                     :href="previewUrl"
@@ -421,6 +435,9 @@
                     :parent-domain-root-path="parentDomainWebRootPath"
                     :parent-cloudflare-managed="isCloudflareManagedForDns"
                     :server-network-ips="server_network_ips"
+                    :can-create-catchall="false"
+                    :wildcard-catchall-exists="false"
+                    :linkable-domains="[]"
                 />
 
                 <!-- FTP Modal -->
@@ -592,6 +609,7 @@ import Toast from '@/Components/UI/Toast.vue';
 import DomainCreateModal from '@/Components/Domains/DomainCreateModal.vue';
 import { useToast } from '@/Composables/useToast';
 import { useI18n } from '@/Composables/useI18n';
+import { useDomainMode } from '@/Composables/useDomainMode';
 import { useCan } from '@/Composables/useCan';
 import { useTerminal } from '@/Composables/useTerminal';
 import { formatDateTime } from '@/utils/dateTime';
@@ -665,6 +683,7 @@ const props = defineProps<{
 const { addToast } = useToast();
 const { t } = useI18n();
 const { can } = useCan();
+const { domainModeLabel } = useDomainMode();
 const terminal = useTerminal();
 
 const domain = computed(() => props.domain);

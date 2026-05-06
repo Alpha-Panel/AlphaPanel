@@ -206,6 +206,7 @@ alpha-panel/web/httpdocs/bootstrap/cache/*.php
 # OS / EDITOR NOISE
 # =============================================================================
 
+.worktrees/
 .DS_Store
 Thumbs.db
 .idea/
