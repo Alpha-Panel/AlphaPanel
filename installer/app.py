@@ -38,6 +38,7 @@ from installer.steps.portainer import (
     wait_for_portainer,
 )
 from installer.steps.composer import composer_install
+from installer.steps.mysql_setup import setup_mysql_users
 from installer.steps.reset import reset_installation
 from installer.steps.ssh_key import ensure_ssh_key
 from installer.steps.ssl import issue_panel_certificate
@@ -228,6 +229,7 @@ def _run_install(
         ),
         ("portainer_token", lambda: _portainer_token_phase(form, project_dir)),
         ("mysql_wait", lambda: wait_for_mysql(secrets["mysql_root_password"])),
+        ("mysql_setup", lambda: setup_mysql_users(secrets)),
         ("composer_install", lambda: composer_install(q)),
         ("migrate", lambda: run_migrations(q)),
         ("seed", lambda: seed_php_versions(q)),
