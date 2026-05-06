@@ -71,6 +71,18 @@ if [ ! -f "${INSTALL_DIR}/external-services/local-services.yaml" ]; then
     ok "external-services/local-services.yaml created."
 fi
 
+say "Materializing stub files (php.ini, supervisor confs)..."
+for ver in 7.0 7.1 7.2 7.3 7.4 8.0 8.1 8.2 8.3 8.4 8.5; do
+    stub="${INSTALL_DIR}/php-code-server/${ver}/php.ini.stub"
+    target="${INSTALL_DIR}/php-code-server/${ver}/php.ini"
+    [ -f "$stub" ] && [ ! -f "$target" ] && cp "$stub" "$target"
+
+    stub="${INSTALL_DIR}/php-code-server/supervisor.d/php-fpm-${ver}.conf.stub"
+    target="${INSTALL_DIR}/php-code-server/supervisor.d/php-fpm-${ver}.conf"
+    [ -f "$stub" ] && [ ! -f "$target" ] && cp "$stub" "$target"
+done
+ok "Stub files materialized."
+
 HOST_IP=$(ip route get 1.1.1.1 2>/dev/null \
     | awk '/src/ {for(i=1;i<=NF;i++) if($i=="src") print $(i+1); exit}' \
     || echo "localhost")

@@ -41,6 +41,7 @@ from installer.steps.reset import reset_installation
 from installer.steps.ssh_key import ensure_ssh_key
 from installer.steps.ssl import issue_panel_certificate
 from installer.steps.ssl_bootstrap import generate_self_signed
+from installer.steps.stubs import materialize_stubs
 from installer.steps.system import detect_os, detect_private_ip, detect_public_ip
 
 
@@ -154,6 +155,7 @@ def _run_install(
 
     phases = [
         ("directories", lambda: ensure_data_directories(project_dir, form["base_domain"])),
+        ("stubs", lambda: materialize_stubs(project_dir)),
         ("root_env", lambda: write_root_env(project_dir / ".env", form=form, secrets=secrets)),
         (
             "laravel_env",
