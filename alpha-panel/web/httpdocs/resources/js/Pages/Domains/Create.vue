@@ -18,7 +18,7 @@
                                 <option value="addon">{{ t('Addon Domain') }}</option>
                                 <option value="wildcard_subdomain">{{ t('Wildcard Subdomain') }}</option>
                                 <option
-                                    v-if="canCreateCatchall"
+                                    v-if="isAdmin"
                                     value="wildcard_catchall"
                                     :disabled="wildcardCatchallExists"
                                     :title="wildcardCatchallExists ? t('Wildcard catch-all already defined on this server') : ''"
@@ -101,27 +101,8 @@
                             </FormField>
                         </div>
 
-                        <FormField v-if="needsLinkedDomain" :label="t('Linked Domain')" :error="form.errors.linked_domain_id" :required="isModeAddon">
-                            <select v-model="form.linked_domain_id" class="form-input">
-                                <option :value="null">{{ t('-- Select --') }}</option>
-                                <option v-for="d in linkableDomains" :key="d.id" :value="d.id">
-                                    {{ d.fqdn }}
-                                </option>
-                            </select>
-                        </FormField>
-
-                        <template v-if="needsLinkedDomain && form.linked_domain_id">
-                            <div class="flex items-center gap-2">
-                                <input type="checkbox" v-model="form.inherit_linked_root_path" id="inherit_linked" class="form-checkbox" />
-                                <label for="inherit_linked" class="text-sm text-gray-700 dark:text-gray-400">{{ t('Inherit linked domain path') }}</label>
-                            </div>
-                            <div v-if="form.inherit_linked_root_path" class="text-sm text-gray-500 dark:text-gray-400">
-                                {{ t('Linked domain path: :path', { path: selectedLinkedDomain?.root_path ?? '' }) }}
-                            </div>
-                        </template>
-
                         <FormField
-                            v-if="!needsParent && (!needsLinkedDomain || !form.inherit_linked_root_path)"
+                            v-if="!needsParent"
                             :label="t('Root Path (Optional)')"
                             :error="form.errors.root_path"
                         >
@@ -242,6 +223,7 @@ import AdminLayout from '@/Components/Layout/AdminLayout.vue';
 import PageBreadcrumb from '@/Components/Common/PageBreadcrumb.vue';
 import FormField from '@/Components/UI/FormField.vue';
 import { useI18n } from '@/Composables/useI18n';
+import { useCan } from '@/Composables/useCan';
 
 const props = defineProps<{
     phpVersions: Array<Record<string, any>>;
@@ -256,6 +238,7 @@ const props = defineProps<{
     linkableDomains: Array<{id: number, fqdn: string, mode: string, root_path: string|null}>;
 }>();
 const { t } = useI18n();
+const { isAdmin } = useCan();
 
 const form = useForm({
     fqdn: '',
@@ -283,7 +266,7 @@ const isModeWildcardSub = computed(() => form.mode === 'wildcard_subdomain');
 const isModeAddon = computed(() => form.mode === 'addon');
 const isModeCatchall = computed(() => form.mode === 'wildcard_catchall');
 const needsParent = computed(() => isModeSubdomain.value || isModeWildcardSub.value);
-const needsLinkedDomain = computed(() => isModeAddon.value || isModeWildcardSub.value || isModeCatchall.value);
+const needsLinkedDomain = computed(() => isModeWildcardSub.value || isModeCatchall.value);
 
 const selectedLinkedDomain = computed(() =>
     props.linkableDomains.find((d) => d.id === form.linked_domain_id) ?? null,

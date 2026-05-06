@@ -68,7 +68,6 @@ class StoreDomainRequest extends FormRequest
                 'exists:domains,id',
             ],
             'linked_domain_id' => [
-                Rule::requiredIf(fn () => $this->input('mode') === DomainMode::Addon->value),
                 'nullable',
                 'exists:domains,id',
             ],
