@@ -40,6 +40,7 @@ from installer.steps.portainer import (
 from installer.steps.reset import reset_installation
 from installer.steps.ssh_key import ensure_ssh_key
 from installer.steps.ssl import issue_panel_certificate
+from installer.steps.ssl_bootstrap import generate_self_signed
 from installer.steps.system import detect_os, detect_private_ip, detect_public_ip
 
 
@@ -200,6 +201,13 @@ def _run_install(
                 key_dir=project_dir / "alpha-panel" / "web" / "ssh-keys",
                 authorized_keys_path=Path("/root/.ssh/authorized_keys"),
                 comment=f"alphapanel-terminal@{os.uname().nodename}",
+            ),
+        ),
+        (
+            "ssl_bootstrap",
+            lambda: generate_self_signed(
+                letsencrypt_dir=project_dir / "letsencrypt",
+                base_domain=form["base_domain"],
             ),
         ),
         ("compose_up", lambda: compose_up(project_dir, q)),
