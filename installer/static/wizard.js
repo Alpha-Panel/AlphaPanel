@@ -28,13 +28,11 @@ async function init() {
   }
 
   const sys = await (await fetch("/api/detect", { method: "POST" })).json();
-  const dl = document.getElementById("system-info");
-  dl.innerHTML = `
-    <dt>OS</dt><dd>${sys.os.pretty}</dd>
-    <dt>Private IP</dt><dd>${sys.private_ip}</dd>
-    <dt>Public IP</dt><dd>${sys.public_ip}</dd>`;
-  form.private_ip = sys.private_ip;
-  form.public_ip = sys.public_ip;
+  document.getElementById("detected-os-label").textContent = `Detected OS: ${sys.os.pretty}`;
+  const privateInput = document.querySelector("input[name='private_ip']");
+  const publicInput = document.querySelector("input[name='public_ip']");
+  if (privateInput && !privateInput.value) privateInput.value = form.private_ip || sys.private_ip || "";
+  if (publicInput && !publicInput.value) publicInput.value = form.public_ip || sys.public_ip || "";
 
   bindNav();
   bindDomainsAutofill();
