@@ -36,10 +36,11 @@ def setup_mysql_users(secrets: dict[str, str]) -> None:
     ftp_pw = secrets["ftp_mysql_password"]
 
     statements = [
-        # Panel DB + user
+        # Panel DB + user — full superuser during install so migrations can
+        # create auxiliary databases (e.g. powerdns) without permission errors.
         f"CREATE DATABASE IF NOT EXISTS `{_PANEL_DB}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
         f"CREATE USER IF NOT EXISTS '{_PANEL_USER}'@'%' IDENTIFIED BY '{panel_pw}';",
-        f"GRANT ALL PRIVILEGES ON `{_PANEL_DB}`.* TO '{_PANEL_USER}'@'%';",
+        f"GRANT ALL PRIVILEGES ON *.* TO '{_PANEL_USER}'@'%' WITH GRANT OPTION;",
 
         # Vaultwarden DB + user
         f"CREATE DATABASE IF NOT EXISTS `{_BITWARDEN_DB}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
@@ -50,7 +51,7 @@ def setup_mysql_users(secrets: dict[str, str]) -> None:
         f"CREATE USER IF NOT EXISTS '{_FTP_USER}'@'%' IDENTIFIED BY '{ftp_pw}';",
         f"GRANT SELECT ON `{_PANEL_DB}`.* TO '{_FTP_USER}'@'%';",
 
-        # PowerDNS DB (root credentials, no separate user needed)
+        # PowerDNS DB pre-created so migrations don't race against creation
         f"CREATE DATABASE IF NOT EXISTS `{_POWERDNS_DB}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
 
         "FLUSH PRIVILEGES;",
