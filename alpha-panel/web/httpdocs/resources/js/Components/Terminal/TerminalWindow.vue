@@ -89,6 +89,7 @@
                 v-if="contextMenu.visible"
                 :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
                 class="fixed z-[9999999] min-w-36 overflow-hidden rounded-md border border-gray-700 bg-gray-900 py-1 shadow-xl text-xs"
+                @mousedown.stop
                 @mouseleave="closeContextMenu"
             >
                 <button
