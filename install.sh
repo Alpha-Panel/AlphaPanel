@@ -64,6 +64,13 @@ fi
 .installer-venv/bin/pip install --quiet -r installer/requirements.txt
 ok "Virtualenv ready."
 
+if [ ! -f "${INSTALL_DIR}/external-services/local-services.yaml" ]; then
+    say "Creating external-services/local-services.yaml..."
+    printf '# Local extra services (git-ignored). Add your own compose services here.\n' \
+        > "${INSTALL_DIR}/external-services/local-services.yaml"
+    ok "external-services/local-services.yaml created."
+fi
+
 HOST_IP=$(ip route get 1.1.1.1 2>/dev/null \
     | awk '/src/ {for(i=1;i<=NF;i++) if($i=="src") print $(i+1); exit}' \
     || echo "localhost")
