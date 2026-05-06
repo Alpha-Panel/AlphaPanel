@@ -402,6 +402,7 @@ class PortainerService
      * Create an interactive exec instance with TTY (does not start it).
      *
      * @param  array<int, string>  $command
+     * @param  array<int, string>|null  $env  Environment variables as ["KEY=value", ...]
      * @return array{Id: string}
      */
     public function createInteractiveExec(
@@ -409,6 +410,7 @@ class PortainerService
         array $command = ['/bin/sh'],
         ?string $user = null,
         ?string $workingDir = null,
+        ?array $env = null,
     ): array {
         $payload = [
             'AttachStdin' => true,
@@ -424,6 +426,10 @@ class PortainerService
 
         if ($workingDir !== null) {
             $payload['WorkingDir'] = $workingDir;
+        }
+
+        if ($env !== null) {
+            $payload['Env'] = $env;
         }
 
         $response = $this->request()

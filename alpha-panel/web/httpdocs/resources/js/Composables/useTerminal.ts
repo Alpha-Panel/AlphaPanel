@@ -7,11 +7,20 @@ export type TerminalOrigin =
     | { type: 'domain'; domainId: number }
     | { type: 'ssh' };
 
-export interface TerminalSession {
+export interface TerminalTab {
     sessionId: string;
     wsToken: string;
-    containerName: string;
+    label: string;
     origin: TerminalOrigin;
+}
+
+export interface TerminalWindowState {
+    windowId: string;
+    targetKey: string;
+    title: string;
+    origin: TerminalOrigin;
+    tabs: TerminalTab[];
+    activeTabId: string;
     isMinimized: boolean;
     isMaximized: boolean;
     preMaximizeState: { top: string; left: string; width: string; height: string } | null;
@@ -27,13 +36,15 @@ export interface PersistentTerminal {
     ws: WebSocket | null;
 }
 
-const sessions = reactive(new Map<string, TerminalSession>());
-const minimizedSessions = ref<string[]>([]);
+const MAX_TABS_PER_WINDOW = 10;
+
+const windows = reactive(new Map<string, TerminalWindowState>());
+const minimizedWindows = ref<string[]>([]);
 const pendingOpenRequests = reactive(new Set<string>());
 let pendingHostRequest = false;
 let nextZIndex = 200000;
 
-// Persistent terminal instances survive Inertia navigations
+// Persistent terminal instances survive Inertia navigations — keyed by sessionId
 const persistentTerminals = new Map<string, PersistentTerminal>();
 
 let hiddenPark: HTMLElement | null = null;
@@ -51,21 +62,221 @@ function getHiddenPark(): HTMLElement {
 export function useTerminal() {
     const { t } = useI18n();
 
-    async function openTerminal(containerId: string, containerName: string) {
-        const existingSession = Array.from(sessions.values()).find(
-            (session) => session.containerName === containerName,
-        );
-        if (existingSession) {
-            restoreSession(existingSession.sessionId);
-            activateSession(existingSession.sessionId);
-            return existingSession.sessionId;
+    // -------------------------------------------------------------------------
+    // Window helpers
+    // -------------------------------------------------------------------------
+
+    function createWindow(
+        targetKey: string,
+        title: string,
+        origin: TerminalOrigin,
+        firstTab: TerminalTab,
+    ): TerminalWindowState {
+        const offset = windows.size * 30;
+        const win: TerminalWindowState = {
+            windowId: targetKey,
+            targetKey,
+            title,
+            origin,
+            tabs: [firstTab],
+            activeTabId: firstTab.sessionId,
+            isMinimized: false,
+            isMaximized: false,
+            preMaximizeState: null,
+            position: { top: 60 + offset + 'px', left: 100 + offset + 'px' },
+            size: { width: '700px', height: '450px' },
+            zIndex: nextZIndex++,
+            isActive: true,
+        };
+        windows.set(targetKey, win);
+        activateWindow(targetKey);
+        updateMinimizedList();
+        return win;
+    }
+
+    function activateWindow(windowId: string) {
+        for (const [id, w] of windows) {
+            w.isActive = id === windowId;
+        }
+        const win = windows.get(windowId);
+        if (win) {
+            win.zIndex = nextZIndex++;
+        }
+    }
+
+    function minimizeWindow(windowId: string) {
+        const win = windows.get(windowId);
+        if (win) {
+            win.isMinimized = true;
+            win.isActive = false;
+            updateMinimizedList();
+        }
+    }
+
+    function restoreWindow(windowId: string) {
+        const win = windows.get(windowId);
+        if (win) {
+            win.isMinimized = false;
+            activateWindow(windowId);
+            updateMinimizedList();
+        }
+    }
+
+    function toggleMaximize(windowId: string) {
+        const win = windows.get(windowId);
+        if (!win) return;
+
+        activateWindow(windowId);
+
+        if (win.isMaximized) {
+            if (win.preMaximizeState) {
+                win.position = { top: win.preMaximizeState.top, left: win.preMaximizeState.left };
+                win.size = { width: win.preMaximizeState.width, height: win.preMaximizeState.height };
+            }
+            win.isMaximized = false;
+            win.preMaximizeState = null;
+        } else {
+            win.preMaximizeState = {
+                top: win.position.top,
+                left: win.position.left,
+                width: win.size.width,
+                height: win.size.height,
+            };
+            win.isMaximized = true;
+        }
+    }
+
+    function updateMinimizedList() {
+        minimizedWindows.value = Array.from(windows.entries())
+            .filter(([, w]) => w.isMinimized)
+            .map(([id]) => id);
+    }
+
+    // -------------------------------------------------------------------------
+    // Tab helpers
+    // -------------------------------------------------------------------------
+
+    function makeTab(sessionId: string, wsToken: string, origin: TerminalOrigin, index: number): TerminalTab {
+        return { sessionId, wsToken, label: t('Tab :n', { n: index }), origin };
+    }
+
+    async function addTab(windowId: string): Promise<string | null> {
+        const win = windows.get(windowId);
+        if (!win) return null;
+        if (win.tabs.length >= MAX_TABS_PER_WINDOW) return null;
+
+        let res;
+        try {
+            if (win.origin.type === 'container') {
+                res = await axios.post(route('terminal.start'), {
+                    container_id: win.origin.containerId,
+                    container_name: win.origin.containerName,
+                });
+            } else if (win.origin.type === 'domain') {
+                res = await axios.post(route('terminal.start-domain'), {
+                    domain_id: win.origin.domainId,
+                });
+            } else {
+                res = await axios.post(route('terminal.start-ssh'));
+            }
+        } catch (err: any) {
+            throw new Error(err.response?.data?.message || err.message || t('Failed to open terminal'));
         }
 
-        if (pendingOpenRequests.has(containerId)) {
-            return null;
+        if (!res.data.session_id || !res.data.ws_token) {
+            throw new Error(t('Failed to start terminal session'));
         }
 
-        pendingOpenRequests.add(containerId);
+        const tab = makeTab(res.data.session_id, res.data.ws_token, win.origin, win.tabs.length + 1);
+        win.tabs.push(tab);
+        win.activeTabId = tab.sessionId;
+        activateWindow(windowId);
+        return tab.sessionId;
+    }
+
+    function activateTab(windowId: string, sessionId: string) {
+        const win = windows.get(windowId);
+        if (win) {
+            win.activeTabId = sessionId;
+            activateWindow(windowId);
+        }
+    }
+
+    function renameTab(windowId: string, sessionId: string, newLabel: string) {
+        const win = windows.get(windowId);
+        if (!win) return;
+        const tab = win.tabs.find((t) => t.sessionId === sessionId);
+        if (tab) {
+            tab.label = newLabel.trim() || tab.label;
+        }
+    }
+
+    function closeTab(windowId: string, sessionId: string) {
+        const win = windows.get(windowId);
+        if (!win) return;
+
+        const idx = win.tabs.findIndex((t) => t.sessionId === sessionId);
+        if (idx === -1) return;
+
+        // Dispose persistent terminal
+        const pt = persistentTerminals.get(sessionId);
+        if (pt) {
+            pt.ws?.close();
+            pt.terminal?.dispose();
+            persistentTerminals.delete(sessionId);
+        }
+
+        void axios.post(route('terminal.stop'), { session_id: sessionId }, { timeout: 2500 }).catch(() => {});
+
+        win.tabs.splice(idx, 1);
+
+        if (win.tabs.length === 0) {
+            windows.delete(windowId);
+            updateMinimizedList();
+            return;
+        }
+
+        // Switch to adjacent tab if needed
+        if (win.activeTabId === sessionId) {
+            win.activeTabId = win.tabs[Math.min(idx, win.tabs.length - 1)].sessionId;
+        }
+    }
+
+    function stopAndRemove(windowId: string) {
+        const win = windows.get(windowId);
+        if (!win) return;
+
+        for (const tab of win.tabs) {
+            const pt = persistentTerminals.get(tab.sessionId);
+            if (pt) {
+                pt.ws?.close();
+                pt.terminal?.dispose();
+                persistentTerminals.delete(tab.sessionId);
+            }
+            void axios
+                .post(route('terminal.stop'), { session_id: tab.sessionId }, { timeout: 2500 })
+                .catch(() => {});
+        }
+
+        windows.delete(windowId);
+        updateMinimizedList();
+    }
+
+    // -------------------------------------------------------------------------
+    // Public open functions (backward-compatible signatures)
+    // -------------------------------------------------------------------------
+
+    async function openTerminal(containerId: string, containerName: string): Promise<string | null> {
+        const targetKey = `container:${containerId}`;
+
+        const existing = windows.get(targetKey);
+        if (existing) {
+            restoreWindow(targetKey);
+            return existing.activeTabId;
+        }
+
+        if (pendingOpenRequests.has(targetKey)) return null;
+        pendingOpenRequests.add(targetKey);
 
         try {
             const res = await axios.post(route('terminal.start'), {
@@ -77,35 +288,28 @@ export function useTerminal() {
                 throw new Error(res.data.error || t('Failed to start terminal session'));
             }
 
-            createSession(res.data.session_id, res.data.ws_token, res.data.container_name, {
-                type: 'container',
-                containerId,
-                containerName,
-            });
-            return res.data.session_id;
+            const origin: TerminalOrigin = { type: 'container', containerId, containerName };
+            const tab = makeTab(res.data.session_id, res.data.ws_token, origin, 1);
+            createWindow(targetKey, containerName, origin, tab);
+            return tab.sessionId;
         } catch (err: any) {
             throw new Error(err.response?.data?.message || err.message || t('Failed to open terminal'));
         } finally {
-            pendingOpenRequests.delete(containerId);
+            pendingOpenRequests.delete(targetKey);
         }
     }
 
-    async function openDomainTerminal(domainId: number, domainFqdn: string) {
-        const key = `domain-${domainId}`;
-        const existingSession = Array.from(sessions.values()).find(
-            (session) => session.containerName.startsWith(domainFqdn + ' ('),
-        );
-        if (existingSession) {
-            restoreSession(existingSession.sessionId);
-            activateSession(existingSession.sessionId);
-            return existingSession.sessionId;
+    async function openDomainTerminal(domainId: number, domainFqdn: string): Promise<string | null> {
+        const targetKey = `domain:${domainId}`;
+
+        const existing = windows.get(targetKey);
+        if (existing) {
+            restoreWindow(targetKey);
+            return existing.activeTabId;
         }
 
-        if (pendingOpenRequests.has(key)) {
-            return null;
-        }
-
-        pendingOpenRequests.add(key);
+        if (pendingOpenRequests.has(targetKey)) return null;
+        pendingOpenRequests.add(targetKey);
 
         try {
             const res = await axios.post(route('terminal.start-domain'), {
@@ -116,32 +320,27 @@ export function useTerminal() {
                 throw new Error(res.data.error || t('Failed to start terminal session'));
             }
 
-            createSession(res.data.session_id, res.data.ws_token, res.data.container_name, {
-                type: 'domain',
-                domainId,
-            });
-            return res.data.session_id;
+            const origin: TerminalOrigin = { type: 'domain', domainId };
+            const tab = makeTab(res.data.session_id, res.data.ws_token, origin, 1);
+            createWindow(targetKey, res.data.container_name, origin, tab);
+            return tab.sessionId;
         } catch (err: any) {
             throw new Error(err.response?.data?.message || err.message || t('Failed to open terminal'));
         } finally {
-            pendingOpenRequests.delete(key);
+            pendingOpenRequests.delete(targetKey);
         }
     }
 
-    async function openHostTerminal() {
-        const existingSession = Array.from(sessions.values()).find(
-            (session) => session.containerName === 'Host Terminal',
-        );
-        if (existingSession) {
-            restoreSession(existingSession.sessionId);
-            activateSession(existingSession.sessionId);
-            return existingSession.sessionId;
+    async function openHostTerminal(): Promise<string | null> {
+        const targetKey = 'ssh';
+
+        const existing = windows.get(targetKey);
+        if (existing) {
+            restoreWindow(targetKey);
+            return existing.activeTabId;
         }
 
-        if (pendingHostRequest) {
-            return null;
-        }
-
+        if (pendingHostRequest) return null;
         pendingHostRequest = true;
 
         try {
@@ -151,10 +350,10 @@ export function useTerminal() {
                 throw new Error(res.data.error || t('Failed to start terminal session'));
             }
 
-            createSession(res.data.session_id, res.data.ws_token, res.data.container_name, {
-                type: 'ssh',
-            });
-            return res.data.session_id;
+            const origin: TerminalOrigin = { type: 'ssh' };
+            const tab = makeTab(res.data.session_id, res.data.ws_token, origin, 1);
+            createWindow(targetKey, res.data.container_name, origin, tab);
+            return tab.sessionId;
         } catch (err: any) {
             throw new Error(err.response?.data?.message || err.message || t('Failed to open terminal'));
         } finally {
@@ -162,113 +361,32 @@ export function useTerminal() {
         }
     }
 
-    function createSession(
-        sessionId: string,
-        wsToken: string,
-        containerName: string,
-        origin: TerminalOrigin,
-        minimized = false,
-    ): TerminalSession {
-        if (sessions.has(sessionId)) {
-            restoreSession(sessionId);
-            return sessions.get(sessionId)!;
-        }
-
-        const offset = sessions.size * 30;
-        const session: TerminalSession = {
-            sessionId,
-            wsToken,
-            containerName,
-            origin,
-            isMinimized: minimized,
-            isMaximized: false,
-            preMaximizeState: null,
-            position: { top: 60 + offset + 'px', left: 100 + offset + 'px' },
-            size: { width: '700px', height: '450px' },
-            zIndex: nextZIndex++,
-            isActive: !minimized,
-        };
-
-        sessions.set(sessionId, session);
-        if (!minimized) {
-            activateSession(sessionId);
-        }
-        updateMinimizedList();
-        return session;
-    }
-
-    function activateSession(sessionId: string) {
-        for (const [id, s] of sessions) {
-            s.isActive = id === sessionId;
-        }
-        const session = sessions.get(sessionId);
-        if (session) {
-            session.zIndex = nextZIndex++;
-        }
-    }
-
-    function minimizeSession(sessionId: string) {
-        const session = sessions.get(sessionId);
-        if (session) {
-            session.isMinimized = true;
-            session.isActive = false;
-            updateMinimizedList();
-        }
-    }
-
-    function restoreSession(sessionId: string) {
-        const session = sessions.get(sessionId);
-        if (session) {
-            session.isMinimized = false;
-            activateSession(sessionId);
-            updateMinimizedList();
-        }
-    }
-
-    function toggleMaximize(sessionId: string) {
-        const session = sessions.get(sessionId);
-        if (!session) return;
-
-        activateSession(sessionId);
-
-        if (session.isMaximized) {
-            if (session.preMaximizeState) {
-                session.position = {
-                    top: session.preMaximizeState.top,
-                    left: session.preMaximizeState.left,
-                };
-                session.size = {
-                    width: session.preMaximizeState.width,
-                    height: session.preMaximizeState.height,
-                };
-            }
-            session.isMaximized = false;
-            session.preMaximizeState = null;
-        } else {
-            session.preMaximizeState = {
-                top: session.position.top,
-                left: session.position.left,
-                width: session.size.width,
-                height: session.size.height,
-            };
-            session.isMaximized = true;
-        }
-    }
+    // -------------------------------------------------------------------------
+    // Reconnect
+    // -------------------------------------------------------------------------
 
     async function reconnectSession(sessionId: string): Promise<string | null> {
-        const session = sessions.get(sessionId);
-        if (!session) return null;
+        // Find the window + tab for this session
+        let foundOrigin: TerminalOrigin | null = null;
+        for (const win of windows.values()) {
+            const tab = win.tabs.find((t) => t.sessionId === sessionId);
+            if (tab) {
+                foundOrigin = tab.origin;
+                break;
+            }
+        }
+        if (!foundOrigin) return null;
 
         let res;
         try {
-            if (session.origin.type === 'container') {
+            if (foundOrigin.type === 'container') {
                 res = await axios.post(route('terminal.start'), {
-                    container_id: session.origin.containerId,
-                    container_name: session.origin.containerName,
+                    container_id: foundOrigin.containerId,
+                    container_name: foundOrigin.containerName,
                 });
-            } else if (session.origin.type === 'domain') {
+            } else if (foundOrigin.type === 'domain') {
                 res = await axios.post(route('terminal.start-domain'), {
-                    domain_id: session.origin.domainId,
+                    domain_id: foundOrigin.domainId,
                 });
             } else {
                 res = await axios.post(route('terminal.start-ssh'));
@@ -291,32 +409,21 @@ export function useTerminal() {
             pt.ws = null;
         }
 
-        session.wsToken = res.data.ws_token;
+        // Update ws_token on the tab
+        for (const win of windows.values()) {
+            const tab = win.tabs.find((t) => t.sessionId === sessionId);
+            if (tab) {
+                tab.wsToken = res.data.ws_token;
+                break;
+            }
+        }
+
         return res.data.ws_token;
     }
 
-    function stopAndRemove(sessionId: string) {
-        sessions.delete(sessionId);
-        updateMinimizedList();
-
-        // Clean up persistent terminal instance
-        const pt = persistentTerminals.get(sessionId);
-        if (pt) {
-            pt.ws?.close();
-            pt.terminal?.dispose();
-            persistentTerminals.delete(sessionId);
-        }
-
-        void axios
-            .post(route('terminal.stop'), { session_id: sessionId }, { timeout: 2500 })
-            .catch(() => {});
-    }
-
-    function updateMinimizedList() {
-        minimizedSessions.value = Array.from(sessions.entries())
-            .filter(([, s]) => s.isMinimized)
-            .map(([id]) => id);
-    }
+    // -------------------------------------------------------------------------
+    // Persistent terminal DOM helpers (unchanged API)
+    // -------------------------------------------------------------------------
 
     function getPersistentTerminal(sessionId: string): PersistentTerminal | undefined {
         return persistentTerminals.get(sessionId);
@@ -334,18 +441,21 @@ export function useTerminal() {
     }
 
     return {
-        sessions,
-        minimizedSessions,
+        windows,
+        minimizedWindows,
         openTerminal,
         openDomainTerminal,
         openHostTerminal,
-        createSession,
-        activateSession,
-        minimizeSession,
-        restoreSession,
+        activateWindow,
+        minimizeWindow,
+        restoreWindow,
         toggleMaximize,
-        reconnectSession,
+        addTab,
+        activateTab,
+        closeTab,
+        renameTab,
         stopAndRemove,
+        reconnectSession,
         getPersistentTerminal,
         setPersistentTerminal,
         parkTerminal,

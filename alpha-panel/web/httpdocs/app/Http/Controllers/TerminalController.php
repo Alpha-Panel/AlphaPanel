@@ -83,11 +83,21 @@ class TerminalController extends Controller
         $sessionId = Str::uuid()->toString();
         $displayName = "{$domain->fqdn} ({$ftpUser->username})";
 
+        $histFile = rtrim($ftpUser->homedir, '/').'/.bash_history';
+
         $exec = $portainer->createInteractiveExec(
             $containerId,
             ['/bin/bash'],
             $ftpUser->username,
             $ftpUser->homedir,
+            [
+                "HISTFILE={$histFile}",
+                'HISTSIZE=10000',
+                'HISTFILESIZE=20000',
+                'HISTCONTROL=ignoredups',
+                'PROMPT_COMMAND=history -a; history -n',
+                'TERM=xterm-256color',
+            ],
         );
         $execId = $exec['Id'];
 
