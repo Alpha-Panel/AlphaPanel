@@ -109,7 +109,7 @@ def write_root_env(path: Path, form: dict[str, Any], secrets: dict[str, str]) ->
     add(_env_line("REVERB_APP_KEY", secrets["reverb_app_key"]))
     add(_env_line("REVERB_APP_SECRET", secrets["reverb_app_secret"]))
 
-    path.write_text("".join(lines))
+    path.write_text("".join(lines), encoding="utf-8")
     os.chmod(path, 0o600)
 
 
@@ -125,6 +125,8 @@ _STATIC_LARAVEL_REPLACEMENTS = {
     "REDIS_HOST": ("redis", False),
     "REVERB_PORT": ("443", False),
     "REVERB_SCHEME": ("https", False),
+    # Browser accesses the panel at :8443; REVERB_PORT=443 is container-internal only
+    "VITE_REVERB_PORT": ("8443", False),
     "LOG_LEVEL": ("error", False),
     "DB_HOST": ("mysql", False),
     "DB_PORT": ("3306", False),
@@ -155,7 +157,7 @@ def write_laravel_env(
     secrets: dict[str, str],
     install_dir: str,
 ) -> None:
-    text = example.read_text()
+    text = example.read_text(encoding="utf-8")
 
     for key, (value, quoted) in _STATIC_LARAVEL_REPLACEMENTS.items():
         text = _replace_env_line(text, key, value, quoted)
@@ -175,6 +177,7 @@ def write_laravel_env(
     jenkins_domain = form["jenkins_domain"]
     meili_key = secrets["alpha_panel_meilisearch_master_key"]
     panel_db_pass = secrets["panel_db_pass"]
+    mysql_root_password = secrets["mysql_root_password"]
     crowdsec_dash_key = secrets["crowdsec_dashboard_api_key"]
     update_agent_secret = secrets["update_agent_secret"]
 
@@ -202,6 +205,9 @@ PORTAINER_API_KEY=
 PORTAINER_ENDPOINT_ID=1
 
 PMA_URL=https://{pma_domain}:8443/index.php?server=2
+PHPMYADMIN_URL=https://{pma_domain}
+PMA_ADMIN_USER=root
+PMA_ADMIN_PASS={mysql_root_password}
 JENKINS_URL=https://{jenkins_domain}
 PANEL_DB_HOST=mysql
 PANEL_DB_PORT=3306
@@ -229,13 +235,13 @@ UPDATE_AUTO_CHECK=true
         text += "\n"
     text += appended
 
-    target.write_text(text)
+    target.write_text(text, encoding="utf-8")
     os.chmod(target, 0o600)
 
 
 def set_portainer_credentials(laravel_env: Path, api_key: str, endpoint_id: int) -> None:
     """Call once Portainer is up and a token has been issued."""
-    text = laravel_env.read_text()
+    text = laravel_env.read_text(encoding="utf-8")
     text = _replace_env_line(text, "PORTAINER_API_KEY", api_key)
     text = _replace_env_line(text, "PORTAINER_ENDPOINT_ID", str(endpoint_id))
-    laravel_env.write_text(text)
+    laravel_env.write_text(text, encoding="utf-8")

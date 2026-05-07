@@ -217,7 +217,11 @@ class ProvisionDomainJob implements ShouldQueue
 
     protected function progress(Domain $domain, int $percent, string $message): void
     {
-        DomainProvisionProgress::dispatch($domain, $percent, $message);
+        try {
+            DomainProvisionProgress::dispatch($domain, $percent, $message);
+        } catch (\Throwable $e) {
+            Log::warning("Progress broadcast failed (non-fatal): {$e->getMessage()}");
+        }
     }
 
     protected function failProvision(Domain $domain, ApplyRun $applyRun, string $error): void

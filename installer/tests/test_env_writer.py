@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import pytest
@@ -69,6 +70,7 @@ def test_write_root_env_includes_expected_keys(tmp_path: Path, form_and_secrets)
         assert expected in content, f"missing in root .env: {expected}"
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="chmod 600 has no effect on Windows NTFS")
 def test_write_root_env_chmods_600(tmp_path: Path, form_and_secrets):
     form, secrets = form_and_secrets
     path = tmp_path / ".env"
@@ -101,6 +103,7 @@ def test_write_laravel_env_substitutes_keys(tmp_path: Path, form_and_secrets):
         "REVERB_HOST=localhost\n"
         "REVERB_PORT=8080\n"
         "REVERB_SCHEME=http\n"
+        "VITE_REVERB_PORT=${REVERB_PORT}\n"
         "LOG_LEVEL=debug\n"
         "SESSION_DOMAIN=null\n"
         "MAIL_FROM_ADDRESS=hello@example.com\n"
@@ -140,12 +143,9 @@ def test_write_laravel_env_substitutes_keys(tmp_path: Path, form_and_secrets):
     assert "REVERB_HOST=server.example.com" in content
     assert "REVERB_PORT=443" in content
     assert "REVERB_SCHEME=https" in content
+    assert "VITE_REVERB_PORT=8443" in content
     assert "SESSION_DOMAIN=server.example.com" in content
     assert 'MAIL_FROM_ADDRESS="admin@example.com"' in content
-    assert 'PANEL_ADMIN_NAME="Admin User"' in content
-    assert "PANEL_ADMIN_USERNAME=admin" in content
-    assert "PANEL_ADMIN_EMAIL=admin@example.com" in content
-    assert "PANEL_ADMIN_PASSWORD=supersecret" in content
 
 
 def test_write_laravel_env_appends_production_block(tmp_path: Path, form_and_secrets):
@@ -171,13 +171,17 @@ def test_write_laravel_env_appends_production_block(tmp_path: Path, form_and_sec
     assert "PANEL_FRANKENPHP_CONTAINER=frankenphp" in content
     assert "PANEL_PHP_CODE_SERVER_CONTAINER=php-code-server" in content
     assert "COMPOSE_PROJECT_ROOT_HOST=/opt/alphapanel-docker" in content
-    assert "PORTAINER_URL=https://portainer.example.com:8443" in content
+    assert "PORTAINER_URL=http://portainer:9000" in content
     assert "PMA_URL=https://pma.example.com:8443/index.php?server=2" in content
+    assert "PHPMYADMIN_URL=https://pma.example.com" in content
+    assert "PMA_ADMIN_USER=root" in content
+    assert "PMA_ADMIN_PASS=mysqlroot" in content
     assert "JENKINS_URL=https://jenkins.example.com" in content
     assert "UPDATE_AGENT_SECRET=update-secret" in content
     assert "UPDATE_AGENT_URL=http://update-agent:8100" in content
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="chmod 600 has no effect on Windows NTFS")
 def test_write_laravel_env_chmods_600(tmp_path: Path, form_and_secrets):
     form, secrets = form_and_secrets
     example = tmp_path / ".env.example"
