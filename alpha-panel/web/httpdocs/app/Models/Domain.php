@@ -305,8 +305,9 @@ class Domain extends Model
         }
 
         $apex = $this->getApexDomain();
+        $slug = str_replace('.'.$apex, '', $this->fqdn);
 
-        return str_replace('.'.$apex, '', $this->fqdn);
+        return $slug === '*' ? 'wildcard' : $slug;
     }
 
     /**
@@ -314,6 +315,10 @@ class Domain extends Model
      */
     public function getBasePath(): string
     {
+        if ($this->isCatchall()) {
+            return '/var/www/vhosts/wildcard';
+        }
+
         $apex = $this->getApexDomain();
         $base = "/var/www/vhosts/{$apex}";
 

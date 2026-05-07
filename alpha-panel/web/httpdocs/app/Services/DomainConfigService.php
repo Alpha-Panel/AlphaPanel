@@ -188,7 +188,8 @@ class DomainConfigService
             $certPaths = $withTls ? $this->resolveCertPaths($domain) : null;
             $lines = $this->renderWildcardSubdomainConfig($domain, $fqdn, $rootPath, $certPaths);
             $content = implode("\n", $lines)."\n";
-            $this->writeConfigFile("{$this->caddySitesBasePath}/{$fqdn}/Caddyfile", $content);
+            $dir = $this->caddyDirFromFqdn($fqdn);
+            $this->writeConfigFile("{$this->caddySitesBasePath}/{$dir}/Caddyfile", $content);
 
             return;
         }
@@ -197,7 +198,7 @@ class DomainConfigService
             $certPaths = $withTls ? $this->resolveCertPaths($domain) : null;
             $lines = $this->renderCatchallConfig($domain, $rootPath, $certPaths);
             $content = implode("\n", $lines)."\n";
-            $this->writeConfigFile("{$this->caddySitesBasePath}/_catchall/Caddyfile", $content);
+            $this->writeConfigFile("{$this->caddySitesBasePath}/wildcard/Caddyfile", $content);
 
             return;
         }
@@ -914,7 +915,7 @@ class DomainConfigService
             $serverDirectives = $this->renderServerDirectives($domain, 'catchall', $rootPath, '    ');
             $lines = array_merge($lines, $this->wrapWithIpAccessControl($domain, $serverDirectives, '    '));
             $lines[] = '    log {';
-            $lines[] = '        output file /var/log/caddy/_catchall.log';
+            $lines[] = '        output file /var/log/caddy/wildcard.log';
             $lines[] = '        format console';
             $lines[] = '    }';
             $lines[] = '}';
@@ -1186,7 +1187,7 @@ class DomainConfigService
         }
 
         if ($fqdn === '*') {
-            $catchallDir = "{$this->caddySitesBasePath}/_catchall";
+            $catchallDir = "{$this->caddySitesBasePath}/wildcard";
             if (File::isDirectory($catchallDir)) {
                 File::deleteDirectory($catchallDir);
             }
@@ -1194,7 +1195,7 @@ class DomainConfigService
             return;
         }
 
-        $caddyDir = "{$this->caddySitesBasePath}/{$fqdn}";
+        $caddyDir = "{$this->caddySitesBasePath}/{$this->caddyDirFromFqdn($fqdn)}";
         if (File::isDirectory($caddyDir)) {
             File::deleteDirectory($caddyDir);
             Log::info("Removed Caddy config directory: {$caddyDir}");
@@ -1213,6 +1214,25 @@ class DomainConfigService
                 Log::info("Removed FPM pool config: {$fpmFile}");
             }
         }
+    }
+
+    /**
+     * Map an FQDN to its Caddy sites-enabled directory name.
+     * Asterisks are not valid in filesystem paths, so wildcards get a safe name:
+     *   *            -> wildcard
+     *   *.example.com -> wildcard.example.com
+     */
+    private function caddyDirFromFqdn(string $fqdn): string
+    {
+        if ($fqdn === '*') {
+            return 'wildcard';
+        }
+
+        if (str_starts_with($fqdn, '*.')) {
+            return 'wildcard.'.substr($fqdn, 2);
+        }
+
+        return $fqdn;
     }
 
     /**

@@ -134,7 +134,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue';
+import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue';
 import type { TerminalWindowState } from '@/Composables/useTerminal';
 import { useTerminal } from '@/Composables/useTerminal';
 import { useI18n } from '@/Composables/useI18n';
@@ -255,6 +255,29 @@ watch(() => props.win.isMinimized, (minimized) => {
 });
 
 updateWindowStyle();
+
+let sizeObserver: ResizeObserver | null = null;
+
+onMounted(() => {
+    if (!windowElement.value) return;
+    sizeObserver = new ResizeObserver(() => {
+        if (props.win.isMaximized) return;
+        const el = windowElement.value;
+        if (!el) return;
+        const w = el.offsetWidth + 'px';
+        const h = el.offsetHeight + 'px';
+        if (props.win.size.width !== w || props.win.size.height !== h) {
+            props.win.size.width = w;
+            props.win.size.height = h;
+        }
+    });
+    sizeObserver.observe(windowElement.value);
+});
+
+onUnmounted(() => {
+    sizeObserver?.disconnect();
+    sizeObserver = null;
+});
 
 function activateWindow() {
     emit('activate');

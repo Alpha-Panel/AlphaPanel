@@ -37,7 +37,7 @@
                             </select>
                         </FormField>
 
-                        <FormField v-if="!isModeCatchall" :label="t('Domain Name (FQDN)')" :error="form.errors.fqdn" required>
+                        <FormField v-if="!isModeCatchall && !(isModeWildcardSub && !form.fqdn)" :label="t('Domain Name (FQDN)')" :error="form.errors.fqdn" :required="!isModeWildcardSub">
                             <input
                                 v-model="form.fqdn"
                                 type="text"

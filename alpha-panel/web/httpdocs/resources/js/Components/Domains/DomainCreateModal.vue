@@ -38,7 +38,7 @@
                         </select>
                     </FormField>
 
-                    <FormField v-if="!isModeCatchall" :label="t('Domain Name (FQDN)')" :error="form.errors.fqdn" required>
+                    <FormField v-if="!isModeCatchall" :label="t('Domain Name (FQDN)')" :error="form.errors.fqdn" :required="!isModeWildcardSub">
                         <input
                             v-model="form.fqdn"
                             type="text"
@@ -408,7 +408,9 @@ watch(() => form.mode, (newMode) => {
 
     if (newMode === 'wildcard_catchall') {
         form.fqdn = '*';
-    } else if (form.fqdn === '*') {
+    } else if (newMode === 'wildcard_subdomain') {
+        form.fqdn = props.parentDomainFqdn ? `*.${props.parentDomainFqdn}` : '';
+    } else if (form.fqdn === '*' || form.fqdn.startsWith('*.')) {
         form.fqdn = '';
     }
 
