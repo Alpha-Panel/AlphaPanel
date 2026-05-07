@@ -120,6 +120,7 @@ _STATIC_LARAVEL_REPLACEMENTS = {
     "APP_LOCALE": ("en", False),
     "DB_CONNECTION": ("mysql", False),
     "CACHE_STORE": ("redis", False),
+    "CACHE_PREFIX": ("alpha_panel_", False),
     "QUEUE_CONNECTION": ("redis", False),
     "REDIS_HOST": ("redis", False),
     "REVERB_PORT": ("443", False),
@@ -129,6 +130,7 @@ _STATIC_LARAVEL_REPLACEMENTS = {
     "DB_PORT": ("3306", False),
     "DB_DATABASE": (_PANEL_DB_NAME, False),
     "DB_USERNAME": (_PANEL_DB_USER, False),
+    "SESSION_SECURE_COOKIE": ("true", False),
 }
 
 
@@ -168,12 +170,7 @@ def write_laravel_env(
     text = _replace_env_line(text, "REVERB_HOST", form["panel_domain"])
     text = _replace_env_line(text, "SESSION_DOMAIN", form["panel_domain"])
     text = _replace_env_line(text, "MAIL_FROM_ADDRESS", form["admin_email"], quoted=True)
-    text = _replace_env_line(text, "PANEL_ADMIN_NAME", form["panel_admin_name"], quoted=True)
-    text = _replace_env_line(text, "PANEL_ADMIN_USERNAME", form["panel_admin_username"])
-    text = _replace_env_line(text, "PANEL_ADMIN_EMAIL", form["panel_admin_email"])
-    text = _replace_env_line(text, "PANEL_ADMIN_PASSWORD", form["panel_admin_password"])
 
-    portainer_domain = form["portainer_domain"]
     pma_domain = form["pma_domain"]
     jenkins_domain = form["jenkins_domain"]
     meili_key = secrets["alpha_panel_meilisearch_master_key"]
@@ -200,7 +197,7 @@ COMPOSE_PROJECT_ROOT_HOST={install_dir}
 PORTAINER_CERTBOT_IMAGE=alphapanel-docker-certbot-init:latest
 
 # ─── Services ───
-PORTAINER_URL=https://{portainer_domain}:8443
+PORTAINER_URL=http://portainer:9000
 PORTAINER_API_KEY=
 PORTAINER_ENDPOINT_ID=1
 

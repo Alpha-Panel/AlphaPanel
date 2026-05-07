@@ -101,16 +101,19 @@ def detect_endpoint_id(base_url: str, api_key: str) -> int:
 def ensure_agent_endpoint(base_url: str, api_key: str) -> int:
     """
     Create the Portainer agent endpoint (portainer_agent:9001) if none exists.
-    Returns the endpoint ID.
+    Returns the endpoint ID of the agent endpoint (Type=2).
     """
     headers = {"X-API-Key": api_key}
 
-    # Check existing endpoints first
+    # Check existing endpoints; prefer agent type (Type=2)
     resp = requests.get(f"{base_url}/api/endpoints", headers=headers, timeout=10, verify=False)
     if resp.status_code == 200:
         body = resp.json()
         if isinstance(body, list) and body:
-            return int(body[0]["Id"])
+            for ep in body:
+                if ep.get("Type") == 2:
+                    return int(ep["Id"])
+            # No agent endpoint found, fall through to creation
 
     # No endpoints — create the agent endpoint
     create = requests.post(

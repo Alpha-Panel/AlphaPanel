@@ -42,6 +42,7 @@ from installer.steps.composer import composer_install
 from installer.steps.mysql_setup import setup_mysql_users
 from installer.steps.npm import npm_build
 from installer.steps.reset import reset_installation
+from installer.steps.webpush import setup_webpush_vapid
 from installer.steps.ssh_key import ensure_ssh_key
 from installer.steps.ssl import issue_panel_certificate
 from installer.steps.ssl_bootstrap import generate_self_signed
@@ -233,9 +234,17 @@ def _run_install(
         ("mysql_wait", lambda: wait_for_mysql(secrets["mysql_root_password"])),
         ("mysql_setup", lambda: setup_mysql_users(secrets)),
         ("composer_install", lambda: composer_install(project_dir, q)),
-        ("npm_build", lambda: npm_build(q)),
         ("migrate", lambda: run_migrations(q)),
         ("seed", lambda: seed_php_versions(q)),
+        (
+            "webpush_vapid",
+            lambda: setup_webpush_vapid(
+                log_queue=q,
+                admin_email=form["admin_email"],
+                laravel_env=project_dir / "alpha-panel" / "web" / "httpdocs" / ".env",
+            ),
+        ),
+        ("npm_build", lambda: npm_build(q)),
         (
             "admin_user",
             lambda: create_admin_user(
