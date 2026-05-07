@@ -907,8 +907,7 @@ class DomainConfigService
         $lines = [];
 
         if ($certPaths !== null) {
-            // https:// catches all HTTPS traffic not matched by a more specific site label
-            $lines[] = 'https:// {';
+            $lines[] = '* {';
             $this->appendCommonHeaderImports($lines, '    ', $domain);
             $lines[] = "    tls {$certPaths['cert']} {$certPaths['key']}";
             $lines[] = '    encode zstd br gzip';
