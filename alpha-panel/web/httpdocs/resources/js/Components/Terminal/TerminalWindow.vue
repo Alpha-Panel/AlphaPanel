@@ -261,11 +261,12 @@ let sizeObserver: ResizeObserver | null = null;
 onMounted(() => {
     if (!windowElement.value) return;
     sizeObserver = new ResizeObserver(() => {
-        if (props.win.isMaximized) return;
+        if (props.win.isMaximized || props.win.isMinimized) return;
         const el = windowElement.value;
         if (!el) return;
         const w = el.offsetWidth + 'px';
         const h = el.offsetHeight + 'px';
+        if (w === '0px' || h === '0px') return;
         if (props.win.size.width !== w || props.win.size.height !== h) {
             props.win.size.width = w;
             props.win.size.height = h;
