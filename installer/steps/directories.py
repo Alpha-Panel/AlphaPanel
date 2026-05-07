@@ -51,3 +51,8 @@ def ensure_data_directories(base: Path, base_domain: str) -> None:
     if not local_services.exists():
         local_services.parent.mkdir(parents=True, exist_ok=True)
         local_services.write_text("# Local extra services (git-ignored). Add your own compose services here.\n")
+
+    ftp_users_env = base / "ftp-config/users.env"
+    if not ftp_users_env.exists():
+        ftp_users_env.parent.mkdir(parents=True, exist_ok=True)
+        ftp_users_env.write_text('USERS=""\n')

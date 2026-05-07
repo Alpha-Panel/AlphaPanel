@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\User;
 use Illuminate\Console\Command;
 
 class AddAdminUser extends Command
@@ -29,18 +30,20 @@ class AddAdminUser extends Command
      */
     public function handle(): void
     {
-        $name     = $this->option('name')     ?: $this->ask('Name');
+        $name = $this->option('name') ?: $this->ask('Name');
         $username = $this->option('username') ?: $this->ask('Username');
-        $email    = $this->option('email')    ?: $this->ask('Email');
+        $email = $this->option('email') ?: $this->ask('Email');
         $password = $this->option('password') ?: $this->secret('Password');
 
-        \App\Models\User::create([
-            'name'     => $name,
+        $user = User::create([
+            'name' => $name,
             'username' => $username,
-            'email'    => $email,
+            'email' => $email,
             'password' => $password,
-            'admin'    => true,
         ]);
+
+        $user->admin = true;
+        $user->save();
 
         $this->info('Admin user created successfully.');
     }

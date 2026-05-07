@@ -94,6 +94,7 @@ class IssueInstallerCertCommand extends Command
         );
 
         $sslCertificateService->activate($domain, $cert);
+        $sslCertificateService->syncToLivePath($domain, $cert);
 
         $domain->status = DomainStatus::Active;
         $domain->save();

@@ -463,6 +463,28 @@ class SslCertificateService
     }
 
     /**
+     * Copy a certificate's PEM files to the /etc/letsencrypt/live/{domain} path
+     * used by the panel's own Caddyfile (common-headers snippet).
+     * Call this after activating a cert for the base domain so the panel gets
+     * the real cert instead of the self-signed bootstrap.
+     */
+    public function syncToLivePath(Domain $domain, SslCertificate $certificate): void
+    {
+        $liveDir = config('panel.letsencrypt_base').'/'.$domain->fqdn;
+
+        if (! File::isDirectory($liveDir)) {
+            File::makeDirectory($liveDir, 0755, true);
+        }
+
+        $fullchain = $this->buildFullchain($certificate->certificate_pem, $certificate->ca_bundle_pem);
+        File::put("{$liveDir}/fullchain.pem", $fullchain);
+        File::put("{$liveDir}/privkey.pem", $certificate->private_key_pem);
+        File::chmod("{$liveDir}/privkey.pem", 0600);
+
+        Log::info("Synced certificate ID {$certificate->id} for {$domain->fqdn} to live path {$liveDir}.");
+    }
+
+    /**
      * Get the disk path where an active cert's files should be.
      *
      * @return array{cert: string, key: string}|null

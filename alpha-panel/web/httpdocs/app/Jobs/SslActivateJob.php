@@ -282,6 +282,12 @@ class SslActivateJob implements ShouldQueue
             $configService->renderWithTls($domain);
             $reloadService->reloadCaddy();
 
+            // If this is the panel base domain, also sync to the live path so
+            // the panel's own Caddyfile (common-headers) picks up the real cert.
+            if ($domain->fqdn === config('panel.base_domain')) {
+                $sslCertService->syncToLivePath($domain, $cert);
+            }
+
             // If this is an apex cert, propagate the new cert id to any
             // direct subdomains that were inheriting the previous version,
             // and re-render their Caddyfiles so they pick up the new path.

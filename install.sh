@@ -71,6 +71,12 @@ if [ ! -f "${INSTALL_DIR}/external-services/local-services.yaml" ]; then
     ok "external-services/local-services.yaml created."
 fi
 
+if [ ! -f "${INSTALL_DIR}/ftp-config/users.env" ]; then
+    say "Creating ftp-config/users.env..."
+    printf 'USERS=""\n' > "${INSTALL_DIR}/ftp-config/users.env"
+    ok "ftp-config/users.env created."
+fi
+
 say "Materializing stub files (php.ini, supervisor confs)..."
 for ver in 7.0 7.1 7.2 7.3 7.4 8.0 8.1 8.2 8.3 8.4 8.5; do
     stub="${INSTALL_DIR}/php-code-server/${ver}/php.ini.stub"

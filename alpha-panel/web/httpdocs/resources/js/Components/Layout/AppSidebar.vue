@@ -545,6 +545,11 @@ const menuGroups = computed(() => {
                         href: route('settings.acme.index'),
                         iconClass: 'fa-solid fa-lock',
                     });
+                    settingsSubItems.push({
+                        name: t('Panel SSL Certificate'),
+                        href: route('settings.panel-ssl.index'),
+                        iconClass: 'fa-solid fa-certificate',
+                    });
                 }
 
                 if (can('panel.mysql-config.manage')) {

@@ -96,3 +96,41 @@ def detect_endpoint_id(base_url: str, api_key: str) -> int:
     if isinstance(body, list) and body:
         return int(body[0]["Id"])
     return 1
+
+
+def ensure_agent_endpoint(base_url: str, api_key: str) -> int:
+    """
+    Create the Portainer agent endpoint (portainer_agent:9001) if none exists.
+    Returns the endpoint ID.
+    """
+    headers = {"X-API-Key": api_key}
+
+    # Check existing endpoints first
+    resp = requests.get(f"{base_url}/api/endpoints", headers=headers, timeout=10, verify=False)
+    if resp.status_code == 200:
+        body = resp.json()
+        if isinstance(body, list) and body:
+            return int(body[0]["Id"])
+
+    # No endpoints — create the agent endpoint
+    create = requests.post(
+        f"{base_url}/api/endpoints",
+        headers=headers,
+        data={
+            "Name": "local",
+            "EndpointCreationType": "2",  # Agent
+            "URL": "tcp://portainer_agent:9001",
+            "TLSSkipVerify": "true",
+            "GroupID": "1",
+            "PublicURL": "",
+        },
+        timeout=30,
+        verify=False,
+    )
+    if create.status_code not in (200, 201):
+        raise InstallerError(
+            "portainer_endpoint",
+            f"Agent endpoint creation returned {create.status_code}",
+            detail={"body": create.text[:500]},
+        )
+    return int(create.json()["Id"])

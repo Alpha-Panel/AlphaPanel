@@ -34,6 +34,7 @@ use App\Http\Controllers\ManifestController;
 use App\Http\Controllers\MysqlConfigController;
 use App\Http\Controllers\NotificationSettingsController;
 use App\Http\Controllers\OAuthController;
+use App\Http\Controllers\PanelSslController;
 use App\Http\Controllers\PhpSettingsController;
 use App\Http\Controllers\PhpVersionController;
 use App\Http\Controllers\PmaSsoController;
@@ -585,6 +586,13 @@ Route::middleware('auth')->group(function (): void {
     Route::middleware('permission:panel.acme-settings.manage')->prefix('settings/acme')->name('settings.acme.')->group(function (): void {
         Route::get('/', [AcmeSettingController::class, 'index'])->name('index');
         Route::put('/', [AcmeSettingController::class, 'update'])->name('update');
+    });
+
+    // Panel SSL Certificate (admin)
+    Route::middleware('permission:panel.acme-settings.manage')->prefix('settings/panel-ssl')->name('settings.panel-ssl.')->group(function (): void {
+        Route::get('/', [PanelSslController::class, 'index'])->name('index');
+        Route::post('/issue', [PanelSslController::class, 'issue'])->name('issue');
+        Route::post('/sync', [PanelSslController::class, 'sync'])->name('sync');
     });
 
     // DNS Templates (admin)

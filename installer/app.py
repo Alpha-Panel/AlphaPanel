@@ -34,11 +34,13 @@ from installer.steps.env_writer import (
 from installer.steps.portainer import (
     create_access_token,
     detect_endpoint_id,
+    ensure_agent_endpoint,
     init_portainer_admin,
     wait_for_portainer,
 )
 from installer.steps.composer import composer_install
 from installer.steps.mysql_setup import setup_mysql_users
+from installer.steps.npm import npm_build
 from installer.steps.reset import reset_installation
 from installer.steps.ssh_key import ensure_ssh_key
 from installer.steps.ssl import issue_panel_certificate
@@ -230,7 +232,8 @@ def _run_install(
         ("portainer_token", lambda: _portainer_token_phase(form, project_dir)),
         ("mysql_wait", lambda: wait_for_mysql(secrets["mysql_root_password"])),
         ("mysql_setup", lambda: setup_mysql_users(secrets)),
-        ("composer_install", lambda: composer_install(q)),
+        ("composer_install", lambda: composer_install(project_dir, q)),
+        ("npm_build", lambda: npm_build(q)),
         ("migrate", lambda: run_migrations(q)),
         ("seed", lambda: seed_php_versions(q)),
         (
@@ -288,7 +291,7 @@ def _portainer_token_phase(form: dict, project_dir: Path) -> None:
         form["portainer_admin_user"],
         form["portainer_admin_password"],
     )
-    endpoint_id = detect_endpoint_id(base_url, token)
+    endpoint_id = ensure_agent_endpoint(base_url, token)
     set_portainer_credentials(
         laravel_env=project_dir / "alpha-panel" / "web" / "httpdocs" / ".env",
         api_key=token,
