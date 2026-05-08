@@ -145,7 +145,7 @@ class SslActivateJob implements ShouldQueue
                     }
                 }
 
-                $domain->owner->notify(new DomainNotification(
+                $domain->owner?->notify(new DomainNotification(
                     level: 'error',
                     title: $this->isRenewal ? __('SSL Renewal Failed') : __('SSL Activation Failed'),
                     body: __('SSL certificate activation failed for :fqdn. Check the logs for details.', ['fqdn' => $fqdn]),
@@ -174,7 +174,7 @@ class SslActivateJob implements ShouldQueue
             $this->progress($domain, 85, __('Certificate obtained, storing and activating...'));
             $this->storeCertAndActivate($domain, $result, $sslMethod, $configService, $reloadService);
 
-            $domain->owner->notify(new DomainNotification(
+            $domain->owner?->notify(new DomainNotification(
                 level: 'success',
                 title: $this->isRenewal ? __('SSL Certificate Renewed') : __('SSL Certificate Activated'),
                 body: $this->isRenewal
@@ -201,7 +201,7 @@ class SslActivateJob implements ShouldQueue
         } catch (\Throwable $e) {
             Log::error("SSL activation failed for {$fqdn}: {$e->getMessage()}");
 
-            $domain->owner->notify(new DomainNotification(
+            $domain->owner?->notify(new DomainNotification(
                 level: 'error',
                 title: $this->isRenewal ? __('SSL Renewal Failed') : __('SSL Activation Failed'),
                 body: __('SSL certificate operation failed for :fqdn: :error', [

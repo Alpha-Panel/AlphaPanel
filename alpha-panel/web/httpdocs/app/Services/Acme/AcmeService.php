@@ -105,6 +105,16 @@ class AcmeService
             domains: $domains,
             createTxtRecord: function (string $recordName, string $recordValue) use ($apex) {
                 $zoneId = $this->cloudflareDns->getZoneId($apex);
+
+                // Remove any stale TXT records with the same name left by a prior
+                // failed attempt; Cloudflare rejects duplicates with error 81058.
+                $existing = $this->cloudflareDns->listRecords($zoneId, $recordName);
+                foreach ($existing as $record) {
+                    if (strtoupper((string) ($record->type ?? '')) === 'TXT') {
+                        $this->cloudflareDns->deleteRecord($zoneId, (string) ($record->id ?? ''));
+                    }
+                }
+
                 $this->cloudflareDns->addRecord($zoneId, [
                     'type' => 'TXT',
                     'name' => $recordName,
@@ -117,13 +127,14 @@ class AcmeService
             deleteTxtRecord: function (array $context) {
                 $records = $this->cloudflareDns->listRecords($context['zone_id'], $context['name']);
                 foreach ($records as $record) {
-                    if (($record['type'] ?? '') === 'TXT' && ($record['content'] ?? '') === $context['value']) {
-                        $this->cloudflareDns->deleteRecord($context['zone_id'], $record['id']);
+                    if (strtoupper((string) ($record->type ?? '')) === 'TXT' && ($record->content ?? '') === $context['value']) {
+                        $this->cloudflareDns->deleteRecord($context['zone_id'], (string) ($record->id ?? ''));
                     }
                 }
             },
             propagationWait: $this->getSettings()['dns_propagation_wait'],
             onProgress: $onProgress,
+            pollTimeout: $this->getSettings()['poll_timeout'],
         );
     }
 
@@ -168,6 +179,7 @@ class AcmeService
             },
             propagationWait: $this->getSettings()['local_dns_wait'],
             onProgress: $onProgress,
+            pollTimeout: $this->getSettings()['poll_timeout'],
         );
     }
 
@@ -264,7 +276,8 @@ class AcmeService
             if ($onProgress) {
                 $onProgress(55, __('Waiting for validation...'));
             }
-            if (! $client->domainValidation()->allChallengesPassed($order)) {
+            $pollTimeout = $this->getSettings()['poll_timeout'];
+            if (! $this->pollUntilChallengesPassed($client, $order, $pollTimeout)) {
                 // Capture final authorization state so we can see WHY validation
                 // failed (which identifier, what error from Let's Encrypt).
                 $finalStatus = $client->domainValidation()->status($order);
@@ -495,6 +508,7 @@ class AcmeService
         callable $deleteTxtRecord,
         int $propagationWait,
         ?callable $onProgress = null,
+        int $pollTimeout = 300,
     ): AcmeResult {
         $fqdn = $domain->fqdn;
         $createdRecords = [];
@@ -540,8 +554,10 @@ class AcmeService
                 }
             }
 
-            // Poll for all challenges to pass
-            if (! $client->domainValidation()->allChallengesPassed($order)) {
+            // Poll for all challenges to pass, respecting poll_timeout setting.
+            // The library's allChallengesPassed() is hardcoded to 4 attempts;
+            // we implement our own loop so poll_timeout is actually honoured.
+            if (! $this->pollUntilChallengesPassed($client, $order, $pollTimeout)) {
                 $this->cleanupDnsRecords($createdRecords);
 
                 return AcmeResult::failure('DNS-01 domain validation failed. Check DNS records and propagation.');
@@ -767,6 +783,42 @@ class AcmeService
             },
             default => ['-newkey rsa:'.((int) $keyLength ?: 2048)],
         };
+    }
+
+    /**
+     * Poll LE until all domain challenges pass or timeout is reached.
+     * Replaces the library's allChallengesPassed() which is hardcoded to 4 retries.
+     */
+    private function pollUntilChallengesPassed(mixed $client, mixed $order, int $timeoutSeconds): bool
+    {
+        $deadline = time() + $timeoutSeconds;
+
+        while (time() < $deadline) {
+            $statuses = $client->domainValidation()->status($order);
+
+            $allValid = true;
+            foreach ($statuses as $status) {
+                Log::info("Check {$status->identifier['type']} challenge of {$status->identifier['value']}.");
+                if ($status->isInvalid()) {
+                    if ($status->hasErrors()) {
+                        Log::error("ACME validation error for {$status->identifier['value']}.", $status->getErrors());
+                    }
+                    return false;
+                }
+                if (! $status->isValid()) {
+                    $allValid = false;
+                }
+            }
+
+            if ($allValid) {
+                return true;
+            }
+
+            Log::info('Challenge is not valid yet. Another attempt in 5 seconds.');
+            sleep(5);
+        }
+
+        return false;
     }
 
     private function cleanupDnsRecords(array $records): void
