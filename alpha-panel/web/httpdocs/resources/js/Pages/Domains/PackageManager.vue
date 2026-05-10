@@ -177,7 +177,7 @@
                             <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">{{ t('Last Command Output') }}</h4>
                             <span class="text-xs text-gray-500 dark:text-gray-400">{{ lastCommand.label }} · {{ lastCommand.executedAt }}</span>
                         </div>
-                        <pre class="max-h-90 overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">{{ lastCommand.output }}</pre>
+                        <pre class="max-h-90 max-w-full overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">{{ lastCommand.output }}</pre>
                         <p v-if="lastCommand.truncated" class="mt-2 text-xs text-warning-600 dark:text-warning-300">
                             {{ t('Output is truncated due to size.') }}
                         </p>

@@ -55,8 +55,15 @@ const encoder = new TextEncoder();
 
 const connected = ref(false);
 
-// Expose connected state so parent (TerminalWindow) can read it
-defineExpose({ connected });
+defineExpose({
+    connected,
+    fit() {
+        nextTick(() => { fitAddon?.fit(); terminal?.focus(); });
+    },
+    writeToTerminal(text: string) {
+        terminal?.write?.(text);
+    },
+});
 
 function sendResize(cols: number, rows: number) {
     if (ws && ws.readyState === WebSocket.OPEN && cols > 0 && rows > 0) {

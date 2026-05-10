@@ -250,7 +250,13 @@ watch(() => [props.win.isMaximized, props.win.position, props.win.size], () => {
 
 watch(() => props.win.isMinimized, (minimized) => {
     if (!minimized) {
-        nextTick(() => updateWindowStyle());
+        nextTick(() => {
+            updateWindowStyle();
+            requestAnimationFrame(() => {
+                const activeTabRef = tabRefs.get(props.win.activeTabId);
+                activeTabRef?.fit?.();
+            });
+        });
     }
 });
 
@@ -318,11 +324,13 @@ async function reconnect() {
     const activeSessionId = props.win.activeTabId;
     const activeTabRef = tabRefs.get(activeSessionId);
     try {
-        activeTabRef?.terminal?.write?.(`\r\n\x1b[33m[${t('Reconnecting...')}]\x1b[0m\r\n`);
+        activeTabRef?.writeToTerminal?.(`\r\n\x1b[33m[${t('Reconnecting...')}]\x1b[0m\r\n`);
         await terminal.reconnectSession(activeSessionId);
         // wsToken watcher in TerminalTab opens new WebSocket automatically
+        await nextTick();
+        activeTabRef?.fit?.();
     } catch (e: any) {
-        activeTabRef?.terminal?.write?.(`\r\n\x1b[31m[${e.message || t('Failed to reconnect terminal')}]\x1b[0m\r\n`);
+        activeTabRef?.writeToTerminal?.(`\r\n\x1b[31m[${e.message || t('Failed to reconnect terminal')}]\x1b[0m\r\n`);
     } finally {
         reconnecting.value = false;
     }
