@@ -990,7 +990,10 @@ class TerminalServeCommand extends Command
         string &$carryBuffer = '',
     ): string {
         if ($execId === '' || $portainerBaseUrl === '') {
-            return $carryBuffer.$chunk;
+            $out = $carryBuffer.$chunk;
+            $carryBuffer = '';
+
+            return $out;
         }
 
         $result = '';

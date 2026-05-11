@@ -51,7 +51,24 @@ let fitAddon: any = null;
 let ws: WebSocket | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 const encoder = new TextEncoder();
+
+function stopHeartbeat() {
+    if (heartbeatTimer !== null) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+    }
+}
+
+function startHeartbeat() {
+    stopHeartbeat();
+    heartbeatTimer = setInterval(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(new Uint8Array(0).buffer);
+        }
+    }, 20000);
+}
 
 const connected = ref(false);
 
@@ -85,18 +102,22 @@ function openWebSocket() {
     ws.onopen = () => {
         connected.value = true;
         emit('connected', true);
+        startHeartbeat();
         if (terminal) {
             sendResize(terminal.cols, terminal.rows);
         }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event: CloseEvent) => {
+        stopHeartbeat();
         connected.value = false;
         emit('connected', false);
-        terminal?.write('\r\n\x1b[33m[Connection closed]\x1b[0m\r\n');
+        const info = event.code !== 1000 && event.code !== 1001 ? ` [${event.code}]` : '';
+        terminal?.write(`\r\n\x1b[33m[Connection closed${info}]\x1b[0m\r\n`);
     };
 
     ws.onerror = () => {
+        stopHeartbeat();
         connected.value = false;
         emit('connected', false);
     };
@@ -140,13 +161,18 @@ async function initTerminal() {
         emit('connected', connected.value);
 
         if (ws) {
-            ws.onopen = () => { connected.value = true; emit('connected', true); };
-            ws.onclose = () => {
+            if (ws.readyState === WebSocket.OPEN) {
+                startHeartbeat();
+            }
+            ws.onopen = () => { connected.value = true; emit('connected', true); startHeartbeat(); };
+            ws.onclose = (event: CloseEvent) => {
+                stopHeartbeat();
                 connected.value = false;
                 emit('connected', false);
-                terminal?.write('\r\n\x1b[33m[Connection closed]\x1b[0m\r\n');
+                const info = event.code !== 1000 && event.code !== 1001 ? ` [${event.code}]` : '';
+                terminal?.write(`\r\n\x1b[33m[Connection closed${info}]\x1b[0m\r\n`);
             };
-            ws.onerror = () => { connected.value = false; emit('connected', false); };
+            ws.onerror = () => { stopHeartbeat(); connected.value = false; emit('connected', false); };
         }
 
         setupResizeObserver();
@@ -222,6 +248,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    stopHeartbeat();
     resizeObserver?.disconnect();
     parkTerminal(props.tab.sessionId);
 });
