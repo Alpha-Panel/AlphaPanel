@@ -164,12 +164,16 @@ class TerminalServeCommand extends Command
 
                 // Both handshakes complete — raw proxy (Portainer)
                 if ($proxyActive && $portainerConn !== null) {
-                    $filtered = $this->filterResizeFrames($chunk, $execId, $portainerResizeBaseUrl, $portainerApiKey, $portainerEndpointId, $portainerCarryBuffer);
-                    if ($filtered === '') {
-                        return;
+                    try {
+                        $filtered = $this->filterResizeFrames($chunk, $execId, $portainerResizeBaseUrl, $portainerApiKey, $portainerEndpointId, $portainerCarryBuffer);
+                        if ($filtered === '') {
+                            return;
+                        }
+                        $this->captureFromWsFrames($commandBuffer, $filtered, $userId, $sessionId, $sessionType, $containerName, $clientIp, $clientPort, $outputBuffer, $lastLogId);
+                        $portainerConn->write($filtered);
+                    } catch (\Throwable $e) {
+                        Log::error("[TerminalServe] Browser→Portainer error (session={$sessionId}): {$e->getMessage()} @ {$e->getFile()}:{$e->getLine()}");
                     }
-                    $this->captureFromWsFrames($commandBuffer, $filtered, $userId, $sessionId, $sessionType, $containerName, $clientIp, $clientPort, $outputBuffer, $lastLogId);
-                    $portainerConn->write($filtered);
                 } else {
                     // Portainer TCP open but its WS handshake pending; buffer
                     $pendingBrowserData .= $chunk;
@@ -387,6 +391,11 @@ class TerminalServeCommand extends Command
 
                     $pConn->on('close', function () use ($conn, $sessionId) {
                         Log::info("[TerminalServe] Portainer closed (session={$sessionId})");
+                        // Send WS close frame so browser gets code 1000 instead of 1006
+                        try {
+                            $conn->write($this->encodeWsFrame('', 0x08));
+                        } catch (\Throwable) {
+                        }
                         $conn->close();
                     });
 
@@ -1021,6 +1030,13 @@ class TerminalServeCommand extends Command
             $consumedLen = $beforeLen - strlen($tempBuffer);
             $rawFrame = substr($buffer, 0, $consumedLen);
             $buffer = $tempBuffer;
+
+            Log::debug(sprintf('[TerminalServe] WS frame browser→portainer: opcode=0x%02x payload=%d bytes', $frame['opcode'], strlen($frame['payload'])));
+
+            // Swallow empty binary frames (browser keepalive heartbeats) — don't send to Portainer
+            if ($frame['opcode'] === 0x02 && $frame['payload'] === '') {
+                continue;
+            }
 
             // Check for resize message (text frame with JSON)
             if ($frame['opcode'] === 0x01) {
