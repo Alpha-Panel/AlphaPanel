@@ -57,6 +57,9 @@ class TerminalServeCommand extends Command
         $portainerApiKey = '';
         $portainerEndpointId = 1;
 
+        // Carry buffer for incomplete WebSocket frames from browser (Portainer path)
+        $portainerCarryBuffer = '';
+
         // SSH session state
         $sessionType = 'portainer';
         $sshProcess = null;
@@ -120,6 +123,7 @@ class TerminalServeCommand extends Command
             &$portainerResizeBaseUrl,
             &$portainerApiKey,
             &$portainerEndpointId,
+            &$portainerCarryBuffer,
         ) {
             if ($handshakeDone) {
                 if ($sessionType === 'ssh') {
@@ -131,6 +135,12 @@ class TerminalServeCommand extends Command
                             $conn->close();
 
                             return;
+                        }
+                        // Respond to PING with PONG so browser doesn't time out
+                        if ($frame['opcode'] === 0x09) {
+                            $conn->write($this->encodeWsFrame($frame['payload'], 0x0A));
+
+                            continue;
                         }
                         if (($frame['opcode'] === 0x01 || $frame['opcode'] === 0x02)
                             && isset($sshPipes[0]) && is_resource($sshPipes[0])) {
@@ -154,7 +164,7 @@ class TerminalServeCommand extends Command
 
                 // Both handshakes complete — raw proxy (Portainer)
                 if ($proxyActive && $portainerConn !== null) {
-                    $filtered = $this->filterResizeFrames($chunk, $execId, $portainerResizeBaseUrl, $portainerApiKey, $portainerEndpointId);
+                    $filtered = $this->filterResizeFrames($chunk, $execId, $portainerResizeBaseUrl, $portainerApiKey, $portainerEndpointId, $portainerCarryBuffer);
                     if ($filtered === '') {
                         return;
                     }
@@ -946,7 +956,7 @@ class TerminalServeCommand extends Command
     /**
      * Parse a resize message from a WebSocket text frame payload.
      *
-     * @return array{0: int, 1: int}|null  [cols, rows] or null if not a resize message
+     * @return array{0: int, 1: int}|null [cols, rows] or null if not a resize message
      */
     private function parseResizeMessage(string $payload): ?array
     {
@@ -969,6 +979,7 @@ class TerminalServeCommand extends Command
     /**
      * Scan a raw chunk for WebSocket resize frames, handle them, and return the
      * chunk with resize frames stripped out so only data frames are forwarded.
+     * Incomplete frames are held in $carryBuffer until the next chunk arrives.
      */
     private function filterResizeFrames(
         string $chunk,
@@ -976,17 +987,20 @@ class TerminalServeCommand extends Command
         string $portainerBaseUrl,
         string $portainerApiKey,
         int $portainerEndpointId,
+        string &$carryBuffer = '',
     ): string {
         if ($execId === '' || $portainerBaseUrl === '') {
-            return $chunk;
+            return $carryBuffer.$chunk;
         }
 
         $result = '';
-        $buffer = $chunk;
+        $buffer = $carryBuffer.$chunk;
+        $carryBuffer = '';
 
         while ($buffer !== '') {
             if (strlen($buffer) < 2) {
-                $result .= $buffer;
+                // Too short to be a valid frame header — buffer for next chunk
+                $carryBuffer = $buffer;
                 break;
             }
 
@@ -996,8 +1010,8 @@ class TerminalServeCommand extends Command
             $frame = $this->decodeWsFrame($tempBuffer);
 
             if ($frame === null) {
-                // Incomplete frame — forward remaining bytes as-is
-                $result .= $buffer;
+                // Incomplete frame — hold in carry buffer until next TCP chunk
+                $carryBuffer = $buffer;
                 break;
             }
 

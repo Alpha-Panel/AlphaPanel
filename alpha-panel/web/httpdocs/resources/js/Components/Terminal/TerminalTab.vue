@@ -114,9 +114,10 @@ function openWebSocket() {
 function setupResizeObserver() {
     resizeObserver?.disconnect();
     resizeObserver = new ResizeObserver(() => {
-        if (fitAddon && props.isActive) {
-            fitAddon.fit();
-        }
+        if (!fitAddon || !props.isActive) return;
+        const el = terminalBody.value;
+        if (!el || el.offsetWidth === 0 || el.offsetHeight === 0) return;
+        fitAddon.fit();
     });
     if (terminalBody.value) {
         resizeObserver.observe(terminalBody.value);

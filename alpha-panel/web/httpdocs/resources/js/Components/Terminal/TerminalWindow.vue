@@ -22,9 +22,6 @@
                 {{ win.title }}
             </div>
             <div class="flex items-center gap-1">
-                <button @click.stop="reconnect" :disabled="reconnecting" class="rounded p-0.5 text-gray-400 hover:bg-gray-700 hover:text-white disabled:opacity-50" v-tooltip="t('Reconnect')">
-                    <svg :class="['h-3.5 w-3.5', { 'animate-spin': reconnecting }]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                </button>
                 <button @click.stop="$emit('minimize')" class="rounded p-0.5 text-gray-400 hover:bg-gray-700 hover:text-white" v-tooltip="t('Minimize')">
                     <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
                 </button>
@@ -152,7 +149,6 @@ const emit = defineEmits<{
 }>();
 
 const windowElement = ref<HTMLElement>();
-const reconnecting = ref(false);
 
 // Inline rename state
 const editingTabId = ref<string | null>(null);
@@ -252,10 +248,10 @@ watch(() => props.win.isMinimized, (minimized) => {
     if (!minimized) {
         nextTick(() => {
             updateWindowStyle();
-            requestAnimationFrame(() => {
+            setTimeout(() => {
                 const activeTabRef = tabRefs.get(props.win.activeTabId);
                 activeTabRef?.fit?.();
-            });
+            }, 50);
         });
     }
 });
@@ -316,24 +312,6 @@ async function openNewTab() {
     try {
         await terminal.addTab(props.win.windowId);
     } catch { /* noop */ }
-}
-
-async function reconnect() {
-    if (reconnecting.value) return;
-    reconnecting.value = true;
-    const activeSessionId = props.win.activeTabId;
-    const activeTabRef = tabRefs.get(activeSessionId);
-    try {
-        activeTabRef?.writeToTerminal?.(`\r\n\x1b[33m[${t('Reconnecting...')}]\x1b[0m\r\n`);
-        await terminal.reconnectSession(activeSessionId);
-        // wsToken watcher in TerminalTab opens new WebSocket automatically
-        await nextTick();
-        activeTabRef?.fit?.();
-    } catch (e: any) {
-        activeTabRef?.writeToTerminal?.(`\r\n\x1b[31m[${e.message || t('Failed to reconnect terminal')}]\x1b[0m\r\n`);
-    } finally {
-        reconnecting.value = false;
-    }
 }
 
 function startDrag(e: MouseEvent) {
