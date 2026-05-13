@@ -235,7 +235,54 @@ class BackupTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
             ->has('recent_runs', $existingCount + 3)
+            ->has('expired_count')
         );
+    }
+
+    public function test_expired_runs_excluded_from_index_and_counted(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $settings = BackupSetting::instance();
+        $settings->update(['backup_retention_days' => 10]);
+
+        // Recent run (within retention)
+        $recent = BackupRun::factory()->completed()->create(['started_at' => now()->subDays(5)]);
+        // Expired run (beyond retention)
+        $expired = BackupRun::factory()->completed()->create(['started_at' => now()->subDays(15)]);
+
+        $response = $this->actingAs($admin)->get(route('backups.index'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->where('expired_count', fn ($count) => $count >= 1)
+        );
+
+        // Recent run must appear, expired must not
+        $runIds = collect($response->viewData('page')['props']['recent_runs'])
+            ->pluck('id');
+
+        $this->assertContains($recent->id, $runIds->toArray());
+        $this->assertNotContains($expired->id, $runIds->toArray());
+    }
+
+    public function test_history_endpoint_returns_expired_runs(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $settings = BackupSetting::instance();
+        $settings->update(['backup_retention_days' => 10]);
+
+        $expired = BackupRun::factory()->completed()->create(['started_at' => now()->subDays(15)]);
+        BackupRun::factory()->completed()->create(['started_at' => now()->subDays(3)]);
+
+        $response = $this->actingAs($admin)->getJson(route('backups.history'));
+
+        $response->assertOk();
+        $response->assertJsonStructure(['data', 'current_page', 'last_page', 'total']);
+
+        $ids = collect($response->json('data'))->pluck('id');
+        $this->assertContains($expired->id, $ids->toArray());
     }
 
     public function test_disconnect_creates_audit_log(): void

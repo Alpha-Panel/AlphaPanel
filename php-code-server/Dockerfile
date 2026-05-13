@@ -23,6 +23,7 @@ RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
       vim \
       e2fsprogs \
       lsb-release \
+      ghostscript \
  && curl -fsSL https://packages.sury.org/php/apt.gpg \
     | gpg --dearmor -o /usr/share/keyrings/sury-php.gpg \
  && echo "deb [signed-by=/usr/share/keyrings/sury-php.gpg] https://packages.sury.org/php/ bookworm main" \

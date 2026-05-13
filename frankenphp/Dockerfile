@@ -72,7 +72,7 @@ RUN apt-get update \
 
 # ---- Supervisor + e2fsprogs (chattr for .user.ini immutable lock) + tzdata ----
 RUN apt-get update \
- && apt-get install -y --no-install-recommends supervisor e2fsprogs tzdata \
+ && apt-get install -y --no-install-recommends supervisor e2fsprogs tzdata ghostscript \
  && rm -rf /var/lib/apt/lists/*
 
 # Docker CLI (Docker resmi repo)

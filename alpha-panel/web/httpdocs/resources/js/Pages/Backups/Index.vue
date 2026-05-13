@@ -348,8 +348,82 @@
                                             {{ run.triggered_by || t('System') }}
                                         </td>
                                     </tr>
+
+                                    <!-- Older runs separator -->
+                                    <tr v-if="olderRuns.length > 0">
+                                        <td colspan="6" class="py-2 text-center text-xs text-gray-400 dark:text-gray-500">
+                                            <i class="bx bx-time-five mr-1"></i>
+                                            {{ t('Older backups') }}
+                                        </td>
+                                    </tr>
+
+                                    <!-- Older runs rows -->
+                                    <tr
+                                        v-for="run in olderRuns"
+                                        :key="`older-${run.id}`"
+                                        @click="openBackupDetail(run)"
+                                        class="cursor-pointer border-b border-gray-100 opacity-60 transition last:border-0 hover:bg-gray-50 hover:opacity-100 dark:border-gray-800 dark:hover:bg-gray-800/50"
+                                    >
+                                        <td class="py-3 pr-3">
+                                            <span
+                                                :class="[
+                                                    'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
+                                                    typeBadge(run.type),
+                                                ]"
+                                            >
+                                                {{ t(run.type) }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 pr-3">
+                                            <span
+                                                :class="[
+                                                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
+                                                    statusBadge(run.status),
+                                                ]"
+                                            >
+                                                <i :class="statusIcon(run.status)" class="text-[10px]"></i>
+                                                {{ t(run.status) }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 pr-3 text-gray-700 dark:text-gray-300">
+                                            {{ run.file_name || '-' }}
+                                        </td>
+                                        <td class="py-3 pr-3 text-gray-500 dark:text-gray-400">
+                                            {{ run.file_size ? humanSize(run.file_size) : '-' }}
+                                        </td>
+                                        <td class="py-3 pr-3 text-gray-500 dark:text-gray-400">
+                                            {{ run.started_at || '-' }}
+                                        </td>
+                                        <td class="py-3 pr-3 text-gray-500 dark:text-gray-400">
+                                            {{ run.triggered_by || t('System') }}
+                                        </td>
+                                    </tr>
                                 </tbody>
                             </table>
+
+                            <!-- Load older button -->
+                            <div
+                                v-if="(expired_count > 0 && !showingOlder) || hasMoreOlder || olderLoading"
+                                class="mt-4 flex justify-center"
+                            >
+                                <button
+                                    v-if="!olderLoading"
+                                    @click="loadOlderRuns"
+                                    class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-500 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                                >
+                                    <i class="bx bx-time-five"></i>
+                                    <template v-if="!showingOlder">
+                                        {{ t(':count older backups hidden', { count: expired_count }) }}
+                                    </template>
+                                    <template v-else>
+                                        {{ t('Load More') }}
+                                    </template>
+                                </button>
+                                <div v-else class="flex items-center gap-2 text-xs text-gray-400">
+                                    <div class="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-brand-500"></div>
+                                    {{ t('Loading...') }}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -564,8 +638,23 @@
                                     {{ selectedRun.error_message }}
                                 </div>
 
+                                <!-- Expired notice (retention deleted) -->
+                                <div v-if="selectedRun.is_expired" class="mt-5 rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-500/30 dark:bg-orange-500/10">
+                                    <div class="flex items-start gap-3">
+                                        <i class="bx bx-time-five mt-0.5 text-xl text-orange-500 dark:text-orange-400"></i>
+                                        <div>
+                                            <p class="text-sm font-semibold text-orange-800 dark:text-orange-200">
+                                                {{ t('This backup no longer exists on Google Drive.') }}
+                                            </p>
+                                            <p class="mt-1 text-xs text-orange-700 dark:text-orange-300">
+                                                {{ t('Deleted automatically after :days day retention period.', { days: settings.backup_retention_days }) }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <!-- File Browser Section -->
-                                <div v-if="selectedRun.status === 'completed' && settings.drive_folder_id" class="mt-5 border-t border-gray-200 pt-4 dark:border-gray-800">
+                                <div v-else-if="selectedRun.status === 'completed' && settings.drive_folder_id" class="mt-5 border-t border-gray-200 pt-4 dark:border-gray-800">
                                     <div class="mb-3 flex items-center justify-between">
                                         <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
                                             <i class="bx bx-folder-open mr-1"></i>
@@ -586,19 +675,30 @@
                                         </template>
                                     </div>
 
+                                    <!-- Search input -->
+                                    <div class="mb-3 relative">
+                                        <i class="bx bx-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                        <input
+                                            v-model="fileSearchQuery"
+                                            type="text"
+                                            :placeholder="t('Search files...')"
+                                            class="h-8 w-full rounded-lg border border-gray-300 bg-transparent pl-8 pr-3 text-sm text-gray-700 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                                        />
+                                    </div>
+
                                     <!-- File List -->
                                     <div class="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700">
                                         <div v-if="driveFilesLoading" class="flex items-center justify-center py-8">
                                             <div class="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-brand-500"></div>
                                         </div>
-                                        <div v-else-if="driveFiles.length === 0" class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                                        <div v-else-if="filteredDriveFiles.length === 0" class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
                                             <i class="bx bx-folder-open text-2xl"></i>
-                                            <p class="mt-1">{{ t('No files found') }}</p>
+                                            <p class="mt-1">{{ fileSearchQuery ? t('No matching records found.') : t('No files found') }}</p>
                                         </div>
                                         <table v-else class="w-full text-sm">
                                             <tbody>
                                                 <tr
-                                                    v-for="file in driveFiles"
+                                                    v-for="file in filteredDriveFiles"
                                                     :key="file.id"
                                                     :class="[
                                                         'border-b border-gray-100 last:border-0 dark:border-gray-800',
@@ -692,6 +792,7 @@ interface BackupRunItem {
     started_at: string | null;
     finished_at: string | null;
     triggered_by: string | null;
+    is_expired?: boolean;
 }
 
 interface DriveFolder {
@@ -710,6 +811,7 @@ interface DriveFileItem {
 const props = defineProps<{
     settings: BackupSettings;
     recent_runs: BackupRunItem[];
+    expired_count: number;
 }>();
 
 // Forms
@@ -762,10 +864,24 @@ const driveFiles = ref<DriveFileItem[]>([]);
 const driveFilesLoading = ref(false);
 const fileBreadcrumbs = ref<{ id: string; name: string }[]>([]);
 const currentDriveParentId = ref<string | null>(null);
+const fileSearchQuery = ref('');
+
+// Older runs (beyond retention)
+const olderRuns = ref<BackupRunItem[]>([]);
+const olderPage = ref(0);
+const hasMoreOlder = ref(false);
+const olderLoading = ref(false);
+const showingOlder = ref(false);
 
 // Computed
 const activeRun = computed(() => {
     return props.recent_runs.find((r) => r.status === 'uploading' || r.status === 'running');
+});
+
+const filteredDriveFiles = computed(() => {
+    if (!fileSearchQuery.value.trim()) return driveFiles.value;
+    const q = fileSearchQuery.value.toLowerCase();
+    return driveFiles.value.filter((f) => f.name.toLowerCase().includes(q));
 });
 
 // Echo/Reverb listener
@@ -960,12 +1076,36 @@ async function createNewFolder() {
     }
 }
 
+// Older runs loader
+async function loadOlderRuns() {
+    if (olderLoading.value) return;
+    olderLoading.value = true;
+    showingOlder.value = true;
+    try {
+        const nextPage = olderPage.value + 1;
+        const resp = await fetch(route('backups.history') + `?page=${nextPage}`, {
+            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        const data = await resp.json();
+        olderRuns.value.push(...data.data);
+        olderPage.value = data.current_page;
+        hasMoreOlder.value = data.current_page < data.last_page;
+    } catch {
+        // silent
+    } finally {
+        olderLoading.value = false;
+    }
+}
+
 // Detail Modal
 async function openBackupDetail(run: BackupRunItem) {
     selectedRun.value = run;
     showDetailModal.value = true;
     driveFiles.value = [];
     fileBreadcrumbs.value = [];
+    fileSearchQuery.value = '';
+
+    if (run.is_expired) return;
 
     if (run.status !== 'completed' || !props.settings.drive_folder_id) return;
 

@@ -21,11 +21,23 @@ class BackupController extends Controller
     public function index(): Response
     {
         $settings = BackupSetting::instance();
+        $retentionDays = $settings->backup_retention_days ?? 21;
+        $cutoffDate = now()->subDays($retentionDays);
+
         $recentRuns = BackupRun::query()
             ->with('triggeredByUser:id,name')
+            ->where(function ($q) use ($cutoffDate): void {
+                $q->where('started_at', '>=', $cutoffDate)
+                    ->orWhereIn('status', ['running', 'uploading']);
+            })
             ->latest()
             ->limit(50)
             ->get();
+
+        $expiredCount = BackupRun::query()
+            ->where('started_at', '<', $cutoffDate)
+            ->whereNotIn('status', ['running', 'uploading'])
+            ->count();
 
         return Inertia::render('Backups/Index', [
             'settings' => [
@@ -54,6 +66,7 @@ class BackupController extends Controller
                 'finished_at' => $run->finished_at?->format(config('app.display_datetime_format', 'd.m.Y H:i:s')),
                 'triggered_by' => $run->triggeredByUser?->name,
             ]),
+            'expired_count' => $expiredCount,
         ]);
     }
 
@@ -359,12 +372,36 @@ class BackupController extends Controller
 
     public function history(): JsonResponse
     {
+        $settings = BackupSetting::instance();
+        $retentionDays = $settings->backup_retention_days ?? 21;
+        $cutoffDate = now()->subDays($retentionDays);
+
         $runs = BackupRun::query()
             ->with('triggeredByUser:id,name')
+            ->where('started_at', '<', $cutoffDate)
+            ->whereNotIn('status', ['running', 'uploading'])
             ->latest()
             ->paginate(20);
 
-        return response()->json($runs);
+        return response()->json([
+            'data' => $runs->map(fn (BackupRun $run) => [
+                'id' => $run->id,
+                'type' => $run->type,
+                'status' => $run->status,
+                'file_name' => $run->file_name,
+                'file_size' => $run->file_size_bytes,
+                'progress_percent' => $run->progress_percent,
+                'error_message' => $run->error_message,
+                'drive_file_id' => $run->drive_file_id,
+                'started_at' => $run->started_at?->format(config('app.display_datetime_format', 'd.m.Y H:i:s')),
+                'finished_at' => $run->finished_at?->format(config('app.display_datetime_format', 'd.m.Y H:i:s')),
+                'triggered_by' => $run->triggeredByUser?->name,
+                'is_expired' => true,
+            ]),
+            'current_page' => $runs->currentPage(),
+            'last_page' => $runs->lastPage(),
+            'total' => $runs->total(),
+        ]);
     }
 
     private function cleanupDir(string $dir): void

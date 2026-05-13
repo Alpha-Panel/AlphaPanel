@@ -4,7 +4,7 @@ return [
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-        'scopes' => ['https://www.googleapis.com/auth/drive'],
+        'scopes' => ['https://www.googleapis.com/auth/drive', 'openid', 'email'],
     ],
 
     'retention_days' => (int) env('BACKUP_RETENTION_DAYS', 21),

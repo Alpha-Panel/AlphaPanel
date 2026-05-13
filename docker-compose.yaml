@@ -132,6 +132,7 @@ services:
         - ./php-code-server/8.3/fpm.d/:/etc/php/8.3/fpm/pool.d/
         - ./php-code-server/8.4/fpm.d/:/etc/php/8.4/fpm/pool.d/
         - ./php-code-server/8.5/fpm.d/:/etc/php/8.5/fpm/pool.d/
+        - ./frankenphp/imagick-policy.xml:/etc/ImageMagick-6/policy.xml
     networks:
       - vhost_network
     depends_on:
@@ -229,6 +230,7 @@ services:
       - ./deploy_cache:/deploy_cache
       - /root/backup:/root/backup
       - ./scripts/backup:/opt/backup
+      - ./frankenphp/imagick-policy.xml:/etc/ImageMagick-6/policy.xml
     depends_on:
       - mysql
       - redis

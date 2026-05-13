@@ -10,6 +10,7 @@ use Google\Service\Drive;
 use Google\Service\Drive\DriveFile;
 use Google\Service\Exception;
 use Google\Service\Oauth2;
+use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Facades\Log;
 use Psr\Http\Message\StreamInterface;
@@ -29,6 +30,10 @@ class GoogleDriveService
         }
 
         $this->client = new GoogleClient;
+        $this->client->setHttpClient(new Client([
+            'timeout' => 20,
+            'connect_timeout' => 5,
+        ]));
         $this->client->setClientId(config('backup.google.client_id'));
         $this->client->setClientSecret(config('backup.google.client_secret'));
         $this->client->setScopes(config('backup.google.scopes'));
@@ -96,15 +101,7 @@ class GoogleDriveService
 
         $client->setAccessToken($token);
 
-        $email = null;
-
-        try {
-            $oauth2 = new Oauth2($client);
-            $userInfo = $oauth2->userinfo->get();
-            $email = $userInfo->getEmail();
-        } catch (\Throwable $e) {
-            Log::warning('Could not fetch Google user email', ['error' => $e->getMessage()]);
-        }
+        $email = $this->emailFromIdToken($token['id_token'] ?? null);
 
         return [
             'access_token' => $token['access_token'],
@@ -112,6 +109,22 @@ class GoogleDriveService
             'expires_in' => $token['expires_in'] ?? 3600,
             'email' => $email,
         ];
+    }
+
+    private function emailFromIdToken(?string $idToken): ?string
+    {
+        if (! $idToken) {
+            return null;
+        }
+
+        try {
+            $parts = explode('.', $idToken);
+            $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+
+            return $payload['email'] ?? null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     // --- Token Management ---
