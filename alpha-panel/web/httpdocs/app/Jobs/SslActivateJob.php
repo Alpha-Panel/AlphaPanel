@@ -174,6 +174,12 @@ class SslActivateJob implements ShouldQueue
             $this->progress($domain, 85, __('Certificate obtained, storing and activating...'));
             $this->storeCertAndActivate($domain, $result, $sslMethod, $configService, $reloadService);
 
+            // Delete ACME challenge DNS records now that the certificate is fully
+            // stored on disk and Caddy has reloaded. Doing it here (not inside
+            // AcmeService right after validation) ensures the records remain
+            // visible to LE's resolvers throughout the entire finalization phase.
+            $result->runCleanup();
+
             $domain->owner?->notify(new DomainNotification(
                 level: 'success',
                 title: $this->isRenewal ? __('SSL Certificate Renewed') : __('SSL Certificate Activated'),
@@ -277,20 +283,18 @@ class SslActivateJob implements ShouldQueue
             $domain->update(['active_ssl_certificate_id' => $cert->id]);
             $domain->setRelation('activeSslCertificate', $cert);
 
-            // Write cert to disk for Caddy and reload
+            // Write all disk state first — cert files, Caddyfiles for this domain
+            // and all inheriting subdomains, plus the live-path sync for the panel
+            // base domain. A single restartCaddy() at the end picks up everything
+            // atomically. Calling reload before subdomain rendering would leave
+            // subdomain Caddyfiles stale until the next restart.
             $sslCertService->writeCertToDisk($domain, $cert);
             $configService->renderWithTls($domain);
-            $reloadService->reloadCaddy();
 
-            // If this is the panel base domain, also sync to the live path so
-            // the panel's own Caddyfile (common-headers) picks up the real cert.
             if ($domain->fqdn === config('panel.base_domain')) {
                 $sslCertService->syncToLivePath($domain, $cert);
             }
 
-            // If this is an apex cert, propagate the new cert id to any
-            // direct subdomains that were inheriting the previous version,
-            // and re-render their Caddyfiles so they pick up the new path.
             if (! $domain->isSubdomain()) {
                 $oldCertIds = SslCertificate::where('domain_id', $domain->id)
                     ->where('id', '!=', $cert->id)
@@ -306,6 +310,12 @@ class SslActivateJob implements ShouldQueue
                         }
                     });
             }
+
+            // Restart (not reload) after all Caddyfiles are on disk. restartCaddy()
+            // is synchronous and reliable — reloadCaddy() is fire-and-forget; a
+            // silent WAF compilation failure there leaves sites down until the next
+            // manual restart.
+            $reloadService->restartCaddy();
         } catch (\Exception $e) {
             Log::warning("Failed to create SslCertificate record for {$domain->fqdn}: {$e->getMessage()}");
         }

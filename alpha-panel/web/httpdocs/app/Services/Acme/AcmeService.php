@@ -572,7 +572,13 @@ class AcmeService
             }
             $result = $this->finalizeOrder($order, $domains);
 
-            $this->cleanupDnsRecords($createdRecords);
+            // Defer TXT record cleanup: the job will call runCleanup() after the
+            // certificate is written to disk and Caddy reloaded, so LE's resolvers
+            // can still see the records if anything retries during finalization.
+            $captured = $createdRecords;
+            $result->withCleanup(function () use ($captured): void {
+                $this->cleanupDnsRecords($captured);
+            });
 
             Log::info("DNS-01 certificate obtained for {$fqdn}.");
 

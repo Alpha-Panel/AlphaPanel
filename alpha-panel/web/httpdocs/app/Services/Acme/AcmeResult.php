@@ -6,6 +6,8 @@ namespace App\Services\Acme;
 
 class AcmeResult
 {
+    private ?\Closure $cleanupCallback = null;
+
     public function __construct(
         public readonly bool $success,
         public readonly ?string $certificatePem = null,
@@ -41,5 +43,23 @@ class AcmeResult
             success: false,
             error: $error,
         );
+    }
+
+    /**
+     * Attach a cleanup callback to run after the certificate is fully stored.
+     * Called by the job after storeCertAndActivate completes, not at validation time.
+     */
+    public function withCleanup(\Closure $callback): self
+    {
+        $this->cleanupCallback = $callback;
+
+        return $this;
+    }
+
+    public function runCleanup(): void
+    {
+        if ($this->cleanupCallback !== null) {
+            ($this->cleanupCallback)();
+        }
     }
 }
