@@ -224,6 +224,7 @@ class DomainConfigService
         }
 
         $content = implode("\n", $lines)."\n";
+        $this->ensureCustomConf("{$this->caddySitesBasePath}/{$fqdn}");
         $this->writeConfigFile("{$this->caddySitesBasePath}/{$fqdn}/Caddyfile", $content);
     }
 
@@ -310,6 +311,7 @@ class DomainConfigService
         }
 
         $lines[] = "    import reverse-proxy-{$slug}";
+        $lines[] = '    import custom.conf';
         $lines[] = '}';
 
         return $lines;
@@ -344,6 +346,7 @@ class DomainConfigService
             $lines[] = '    }';
         }
 
+        $lines[] = '    import custom.conf';
         $lines[] = '}';
 
         // Additional :80 blocks for www and other hostnames so HTTP-01 validation
@@ -558,22 +561,29 @@ class DomainConfigService
         $lines = [];
         $isLegacy = $domain->type === DomainType::ApacheReverseProxy;
 
-        // Reverb WebSocket proxy — matchers for /app/* (WS) and /apps/* (HTTP API)
-        // emitted before docker/main handlers so path matchers win over php_server.
+        // Reverb WebSocket proxy — handle blocks for /app/* (WS) and /apps/* (HTTP API).
+        // Caddy handle blocks are mutually exclusive, preventing php_server from matching
+        // these paths even without an explicit matcher on the main handler.
         $reverbLines = $this->renderReverbProxyBlock($domain, $indent);
-        if (! empty($reverbLines)) {
+        $hasReverb = ! empty($reverbLines);
+        if ($hasReverb) {
             $lines = array_merge($lines, $reverbLines);
             $lines[] = '';
         }
 
-        // Docker service bindings (handle_path routes before main handler)
-        $dockerBindingLines = $this->renderDockerServiceBindings($domain, $indent);
+        // Docker service and project bindings (handle_path routes before main handler)
+        $dockerBindingLines = array_merge(
+            $this->renderDockerServiceBindings($domain, $indent),
+            $this->renderDockerProjectBindings($domain, $indent),
+        );
         $hasDockerBindings = ! empty($dockerBindingLines);
 
         if ($hasDockerBindings) {
             $lines = array_merge($lines, $dockerBindingLines);
+        }
 
-            // Wrap main handler in handle block for mutual exclusion with handle_path blocks
+        if ($hasDockerBindings || $hasReverb) {
+            // Wrap main handler in handle block for mutual exclusion with handle/handle_path blocks above.
             $lines[] = "{$indent}handle {";
             $hi = "{$indent}    ";
 
@@ -589,7 +599,7 @@ class DomainConfigService
 
             $lines[] = "{$indent}}";
         } else {
-            // No Docker bindings — flat directives
+            // No Docker bindings and no Reverb — flat directives
             if (! $isLegacy) {
                 $lines[] = "{$indent}root * {$rootPath}";
             }
@@ -786,30 +796,29 @@ class DomainConfigService
 
         $port = (int) $reverb->reverb_port;
         $upstream = "http://127.0.0.1:{$port}";
+        $in = "{$indent}    ";
 
         return [
-            "{$indent}@reverb_ws {",
-            "{$indent}    path /app/*",
+            "{$indent}handle /app/* {",
+            "{$in}reverse_proxy {$upstream} {",
+            "{$in}    header_up Host {http.request.host}",
+            "{$in}    header_up X-Real-IP {http.request.remote.host}",
+            "{$in}    header_up X-Forwarded-For {http.request.remote.host}",
+            "{$in}    header_up X-Forwarded-Proto {http.request.scheme}",
+            "{$in}    header_up Upgrade {http.request.header.Upgrade}",
+            "{$in}    header_up Connection {http.request.header.Connection}",
+            "{$in}    transport http {",
+            "{$in}        versions 1.1",
+            "{$in}    }",
+            "{$in}}",
             "{$indent}}",
-            "{$indent}reverse_proxy @reverb_ws {$upstream} {",
-            "{$indent}    header_up Host {http.request.host}",
-            "{$indent}    header_up X-Real-IP {http.request.remote.host}",
-            "{$indent}    header_up X-Forwarded-For {http.request.remote.host}",
-            "{$indent}    header_up X-Forwarded-Proto {http.request.scheme}",
-            "{$indent}    header_up Upgrade {http.request.header.Upgrade}",
-            "{$indent}    header_up Connection {http.request.header.Connection}",
-            "{$indent}    transport http {",
-            "{$indent}        versions 1.1",
-            "{$indent}    }",
-            "{$indent}}",
-            "{$indent}@reverb_api {",
-            "{$indent}    path /apps/*",
-            "{$indent}}",
-            "{$indent}reverse_proxy @reverb_api {$upstream} {",
-            "{$indent}    header_up Host {http.request.host}",
-            "{$indent}    header_up X-Real-IP {http.request.remote.host}",
-            "{$indent}    header_up X-Forwarded-For {http.request.remote.host}",
-            "{$indent}    header_up X-Forwarded-Proto {http.request.scheme}",
+            "{$indent}handle /apps/* {",
+            "{$in}reverse_proxy {$upstream} {",
+            "{$in}    header_up Host {http.request.host}",
+            "{$in}    header_up X-Real-IP {http.request.remote.host}",
+            "{$in}    header_up X-Forwarded-For {http.request.remote.host}",
+            "{$in}    header_up X-Forwarded-Proto {http.request.scheme}",
+            "{$in}}",
             "{$indent}}",
         ];
     }
@@ -855,6 +864,56 @@ class DomainConfigService
                 $lines[] = "{$indent}}";
             } else {
                 // Root-level reverse proxy (entire domain proxied to service)
+                $lines[] = "{$indent}reverse_proxy http://{$containerName}:{$port} {";
+                $lines[] = "{$indent}    header_up Host {upstream_hostport}";
+                $lines[] = "{$indent}    header_up X-Forwarded-For {client_ip}";
+                $lines[] = "{$indent}    header_up X-Real-IP {client_ip}";
+                $lines[] = "{$indent}    header_up X-Forwarded-Proto {scheme}";
+                $lines[] = "{$indent}}";
+            }
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Render reverse proxy directives for Docker project domain bindings.
+     *
+     * @return array<int, string>
+     */
+    private function renderDockerProjectBindings(Domain $domain, string $indent): array
+    {
+        $bindings = $domain->dockerProjectBindings()
+            ->with('dockerProject')
+            ->get();
+
+        if ($bindings->isEmpty()) {
+            return [];
+        }
+
+        $lines = [];
+
+        foreach ($bindings as $binding) {
+            $project = $binding->dockerProject;
+            if (! $project) {
+                continue;
+            }
+
+            $containerName = $project->containerName($binding->service_name);
+            $port = $binding->container_port;
+            $prefix = $binding->path_prefix;
+
+            if ($prefix) {
+                $lines[] = "{$indent}redir {$prefix} {$prefix}/ 308";
+                $lines[] = "{$indent}handle_path {$prefix}/* {";
+                $lines[] = "{$indent}    reverse_proxy http://{$containerName}:{$port} {";
+                $lines[] = "{$indent}        header_up Host {upstream_hostport}";
+                $lines[] = "{$indent}        header_up X-Forwarded-For {client_ip}";
+                $lines[] = "{$indent}        header_up X-Real-IP {client_ip}";
+                $lines[] = "{$indent}        header_up X-Forwarded-Proto {scheme}";
+                $lines[] = "{$indent}    }";
+                $lines[] = "{$indent}}";
+            } else {
                 $lines[] = "{$indent}reverse_proxy http://{$containerName}:{$port} {";
                 $lines[] = "{$indent}    header_up Host {upstream_hostport}";
                 $lines[] = "{$indent}    header_up X-Forwarded-For {client_ip}";
@@ -1232,6 +1291,23 @@ class DomainConfigService
         }
 
         return $fqdn;
+    }
+
+    /**
+     * Create an empty custom.conf in the domain's Caddy directory if it doesn't exist.
+     * This file is imported by the generated Caddyfile and is never overwritten by the panel.
+     */
+    private function ensureCustomConf(string $dir): void
+    {
+        $path = "{$dir}/custom.conf";
+
+        if (! File::exists($path)) {
+            if (! File::isDirectory($dir)) {
+                File::makeDirectory($dir, 0755, true);
+            }
+
+            File::put($path, "# Custom Caddy directives — imported into this domain's server block.\n# The panel never overwrites this file.\n");
+        }
     }
 
     /**

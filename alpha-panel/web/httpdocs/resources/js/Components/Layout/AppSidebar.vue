@@ -443,8 +443,11 @@ const menuGroups = computed(() => {
                 if (canAny('panel.docker-services.view', 'panel.docker-services.manage')) {
                     items.push({
                         iconClass: 'fa-brands fa-docker',
-                        name: t('Docker Services'),
-                        href: route('docker-services.index'),
+                        name: t('External Services'),
+                        subItems: [
+                            { name: t('Docker Services'), href: route('docker-services.index'), iconClass: 'bx bx-server' },
+                            { name: t('Docker Projects'), href: route('docker-projects.index'), iconClass: 'bx bx-code-block' },
+                        ],
                     });
                 }
 

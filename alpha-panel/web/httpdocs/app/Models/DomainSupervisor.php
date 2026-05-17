@@ -13,10 +13,12 @@ class DomainSupervisor extends Model
         'type',
         'enabled',
         'num_procs',
+        'queue_names',
         'reverb_port',
         'reverb_app_id',
         'reverb_app_key',
         'reverb_app_secret',
+        'ssr_port',
     ];
 
     /** @return array<string, string> */
@@ -27,6 +29,7 @@ class DomainSupervisor extends Model
             'enabled' => 'boolean',
             'num_procs' => 'integer',
             'reverb_port' => 'integer',
+            'ssr_port' => 'integer',
         ];
     }
 

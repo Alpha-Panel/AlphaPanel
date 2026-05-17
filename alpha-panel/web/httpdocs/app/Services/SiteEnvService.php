@@ -45,6 +45,29 @@ class SiteEnvService
     }
 
     /**
+     * Upsert Inertia SSR-related keys in the hosted site's .env file.
+     *
+     * Writes INERTIA_SSR_ENABLED and INERTIA_SSR_URL so Laravel's Inertia
+     * package renders pages server-side via the per-site Node.js SSR process.
+     */
+    public function setSsrEnv(Domain $domain, DomainSupervisor $supervisor): void
+    {
+        if ($supervisor->ssr_port === null) {
+            throw new RuntimeException('Cannot sync SSR env without an allocated port.');
+        }
+
+        $envPath = "{$domain->getBasePath()}/httpdocs/.env";
+
+        $pairs = [
+            'INERTIA_SSR_ENABLED' => 'true',
+            'INERTIA_SSR_URL' => "http://127.0.0.1:{$supervisor->ssr_port}",
+            'INERTIA_SSR_PORT' => (string) $supervisor->ssr_port,
+        ];
+
+        $this->upsertEnv($domain, $envPath, $pairs);
+    }
+
+    /**
      * Apply a set of KEY=value upserts to the given .env file.
      *
      * @param  array<string, string>  $pairs

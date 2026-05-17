@@ -8,6 +8,7 @@ enum SupervisorType: string
     case Reverb = 'reverb';
     case Pulse = 'pulse';
     case Horizon = 'horizon';
+    case Ssr = 'ssr';
 
     public function label(): string
     {
@@ -16,6 +17,7 @@ enum SupervisorType: string
             self::Reverb => __('Reverb'),
             self::Pulse => __('Pulse'),
             self::Horizon => __('Horizon'),
+            self::Ssr => __('SSR Server'),
         };
     }
 
@@ -26,6 +28,7 @@ enum SupervisorType: string
             self::Reverb => 'reverb:start',
             self::Pulse => 'pulse:work',
             self::Horizon => 'horizon',
+            self::Ssr => '',
         };
     }
 
@@ -36,6 +39,7 @@ enum SupervisorType: string
             self::Reverb => 'reverb',
             self::Pulse => 'pulse',
             self::Horizon => 'horizon',
+            self::Ssr => 'ssr',
         };
     }
 
@@ -46,6 +50,7 @@ enum SupervisorType: string
             self::Reverb => 'reverb.log',
             self::Pulse => 'pulse.log',
             self::Horizon => 'horizon.log',
+            self::Ssr => 'ssr.log',
         };
     }
 

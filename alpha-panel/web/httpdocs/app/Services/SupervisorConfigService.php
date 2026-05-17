@@ -86,10 +86,19 @@ class SupervisorConfigService
         $httpdocs = $domain->getBasePath().'/httpdocs';
 
         $programName = $this->programName($domain, $type);
-        $command = "/usr/local/bin/php {$httpdocs}/artisan {$type->artisanCommand()}";
 
-        if ($type === SupervisorType::Reverb && $supervisor->reverb_port !== null) {
-            $command .= " --host=127.0.0.1 --port={$supervisor->reverb_port}";
+        if ($type === SupervisorType::Ssr) {
+            $command = "/usr/bin/env node {$httpdocs}/bootstrap/ssr/ssr.js";
+        } else {
+            $command = "/usr/local/bin/php {$httpdocs}/artisan {$type->artisanCommand()}";
+
+            if ($type === SupervisorType::Queue && $supervisor->queue_names !== null && $supervisor->queue_names !== '') {
+                $command .= ' --queue='.$supervisor->queue_names;
+            }
+
+            if ($type === SupervisorType::Reverb && $supervisor->reverb_port !== null) {
+                $command .= " --host=127.0.0.1 --port={$supervisor->reverb_port}";
+            }
         }
 
         $logFile = "{$httpdocs}/storage/logs/{$type->logFile()}";

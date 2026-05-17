@@ -14,6 +14,7 @@ use App\Services\PortainerService;
 use App\Services\ReloadService;
 use App\Services\ReverbPortAllocator;
 use App\Services\SiteEnvService;
+use App\Services\SsrPortAllocator;
 use App\Services\SupervisorConfigService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -53,6 +54,7 @@ class DomainSupervisorController extends Controller
                 'label' => $type->label(),
                 'enabled' => $existing?->enabled ?? false,
                 'num_procs' => $existing?->num_procs ?? ($type === SupervisorType::Queue ? 3 : 1),
+                'queue_names' => $type === SupervisorType::Queue ? ($existing?->queue_names ?? '') : null,
                 'supports_num_procs' => $type->supportsNumProcs(),
                 'is_available' => $available,
                 'missing_package' => $missingPackage,
@@ -63,6 +65,10 @@ class DomainSupervisorController extends Controller
                 $row['reverb_app_id'] = $existing?->reverb_app_id;
                 $row['reverb_app_key'] = $existing?->reverb_app_key;
                 $row['reverb_app_secret'] = $existing?->reverb_app_secret;
+            }
+
+            if ($type === SupervisorType::Ssr) {
+                $row['ssr_port'] = $existing?->ssr_port;
             }
 
             $processes[] = $row;
@@ -86,6 +92,7 @@ class DomainSupervisorController extends Controller
             'type' => ['required', 'string', Rule::in(array_column(SupervisorType::cases(), 'value'))],
             'enabled' => ['required', 'boolean'],
             'num_procs' => ['sometimes', 'integer', 'min:1', 'max:10'],
+            'queue_names' => ['sometimes', 'nullable', 'string', 'max:500', 'regex:/^[a-zA-Z0-9_,\-]*$/'],
         ]);
 
         $type = SupervisorType::from($validated['type']);
@@ -114,19 +121,27 @@ class DomainSupervisorController extends Controller
             }
         }
 
+        $updateData = [
+            'enabled' => $validated['enabled'],
+            'num_procs' => $type->supportsNumProcs() ? ($validated['num_procs'] ?? 1) : 1,
+        ];
+
+        if ($type === SupervisorType::Queue && array_key_exists('queue_names', $validated)) {
+            $updateData['queue_names'] = $validated['queue_names'] ?: null;
+        }
+
         $supervisor = DomainSupervisor::updateOrCreate(
             ['domain_id' => $domain->id, 'type' => $type],
-            [
-                'enabled' => $validated['enabled'],
-                'num_procs' => $type->supportsNumProcs()
-                    ? ($validated['num_procs'] ?? 1)
-                    : 1,
-            ],
+            $updateData,
         );
 
         try {
             if ($type === SupervisorType::Reverb && $validated['enabled']) {
                 $this->provisionReverb($domain, $supervisor);
+            }
+
+            if ($type === SupervisorType::Ssr && $validated['enabled']) {
+                $this->provisionSsr($domain, $supervisor);
             }
 
             $configService->syncSingle($supervisor);
@@ -143,11 +158,15 @@ class DomainSupervisorController extends Controller
                     : __(':process disabled successfully.', ['process' => $type->label()]),
                 'enabled' => $supervisor->enabled,
                 'num_procs' => $supervisor->num_procs,
+                'queue_names' => $type === SupervisorType::Queue ? ($supervisor->queue_names ?? '') : null,
                 'reverb' => $type === SupervisorType::Reverb ? [
                     'port' => $supervisor->reverb_port,
                     'app_id' => $supervisor->reverb_app_id,
                     'app_key' => $supervisor->reverb_app_key,
                     'app_secret' => $supervisor->reverb_app_secret,
+                ] : null,
+                'ssr' => $type === SupervisorType::Ssr ? [
+                    'port' => $supervisor->ssr_port,
                 ] : null,
             ]);
         } catch (\Throwable $e) {
@@ -403,6 +422,15 @@ SH;
      * hosted site's .env, and regenerate + reload the Caddyfile so the new
      * /app/* proxy block is live before the supervisor starts the process.
      */
+    /**
+     * Allocate a per-site SSR port and write INERTIA_SSR_* env vars to the hosted site's .env.
+     */
+    private function provisionSsr(Domain $domain, DomainSupervisor $supervisor): void
+    {
+        app(SsrPortAllocator::class)->allocate($supervisor);
+        app(SiteEnvService::class)->setSsrEnv($domain, $supervisor);
+    }
+
     private function provisionReverb(Domain $domain, DomainSupervisor $supervisor): void
     {
         app(ReverbPortAllocator::class)->allocate($supervisor);

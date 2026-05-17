@@ -12,11 +12,14 @@ use App\Http\Controllers\DnsController;
 use App\Http\Controllers\DnsSettingController;
 use App\Http\Controllers\DnsTemplateController;
 use App\Http\Controllers\DockerHubController;
+use App\Http\Controllers\DockerProjectController;
+use App\Http\Controllers\DockerProjectDomainBindingController;
 use App\Http\Controllers\DockerServiceController;
 use App\Http\Controllers\DockerServiceDomainBindingController;
 use App\Http\Controllers\DomainCloudflareController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\DomainCronJobController;
+use App\Http\Controllers\DomainCustomConfController;
 use App\Http\Controllers\DomainIpRuleController;
 use App\Http\Controllers\DomainLogController;
 use App\Http\Controllers\DomainModSecurityController;
@@ -247,6 +250,10 @@ Route::middleware('auth')->group(function (): void {
     // PHP Settings (per domain)
     Route::get('domains/{domain}/php', [PhpSettingsController::class, 'index'])->name('domains.php.index');
     Route::put('domains/{domain}/php', [PhpSettingsController::class, 'update'])->name('domains.php.update');
+
+    // Custom Caddy Config (per domain)
+    Route::get('domains/{domain}/custom-conf', [DomainCustomConfController::class, 'show'])->name('domains.custom-conf.show');
+    Route::put('domains/{domain}/custom-conf', [DomainCustomConfController::class, 'update'])->name('domains.custom-conf.update');
 
     // Laravel Supervisor (per domain)
     Route::get('domains/{domain}/supervisor', [DomainSupervisorController::class, 'index'])->name('domains.supervisor.index');
@@ -535,6 +542,30 @@ Route::middleware('auth')->group(function (): void {
         Route::get('domains/{domain}/docker-services', [DockerServiceDomainBindingController::class, 'index'])->name('domains.docker-services.index');
         Route::post('domains/{domain}/docker-services', [DockerServiceDomainBindingController::class, 'store'])->name('domains.docker-services.store');
         Route::delete('domains/{domain}/docker-services/{binding}', [DockerServiceDomainBindingController::class, 'destroy'])->name('domains.docker-services.destroy');
+    });
+
+    // Docker Projects
+    Route::middleware('permission:panel.docker-services.view')->group(function (): void {
+        Route::get('docker-projects', [DockerProjectController::class, 'index'])->name('docker-projects.index');
+        Route::get('docker-projects/create', [DockerProjectController::class, 'create'])->name('docker-projects.create');
+        Route::get('docker-projects/{dockerProject}', [DockerProjectController::class, 'show'])->name('docker-projects.show');
+        Route::get('docker-projects/{dockerProject}/edit', [DockerProjectController::class, 'edit'])->name('docker-projects.edit');
+        Route::get('docker-projects/{dockerProject}/logs', [DockerProjectController::class, 'logs'])->name('docker-projects.logs');
+        Route::post('docker-projects/{dockerProject}/sync-status', [DockerProjectController::class, 'syncStatus'])->name('docker-projects.sync-status');
+    });
+
+    Route::middleware('permission:panel.docker-services.manage')->group(function (): void {
+        Route::post('docker-projects', [DockerProjectController::class, 'store'])->name('docker-projects.store');
+        Route::put('docker-projects/{dockerProject}', [DockerProjectController::class, 'update'])->name('docker-projects.update');
+        Route::delete('docker-projects/{dockerProject}', [DockerProjectController::class, 'destroy'])->name('docker-projects.destroy');
+        Route::post('docker-projects/{dockerProject}/action', [DockerProjectController::class, 'action'])->name('docker-projects.action');
+    });
+
+    // Docker Project Domain Bindings
+    Route::middleware('permission:panel.docker-services.manage')->group(function (): void {
+        Route::get('domains/{domain}/docker-projects', [DockerProjectDomainBindingController::class, 'index'])->name('domains.docker-projects.index');
+        Route::post('domains/{domain}/docker-projects', [DockerProjectDomainBindingController::class, 'store'])->name('domains.docker-projects.store');
+        Route::delete('domains/{domain}/docker-projects/{binding}', [DockerProjectDomainBindingController::class, 'destroy'])->name('domains.docker-projects.destroy');
     });
 
     // Domain IP Access Control

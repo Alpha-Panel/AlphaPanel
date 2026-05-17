@@ -228,6 +228,12 @@
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
+                            <Link v-if="can('panel.docker-services.manage')" :href="route('domains.docker-projects.index', domain.id)" class="quick-link">
+                                <i class="fa-brands fa-docker quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('Docker Projects') }}</span>
+                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                            </Link>
+
                             <Link v-if="can('domain.logs.view')" :href="route('domains.logs.index', domain.id)" class="quick-link">
                                 <i class="fa-solid fa-file-lines quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('Logs') }}</span>
@@ -237,6 +243,12 @@
                             <Link v-if="can('domain.modsecurity.view')" :href="route('domains.modsecurity.index', domain.id)" class="quick-link">
                                 <i class="fa-solid fa-shield-virus quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('WAF') }}</span>
+                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                            </Link>
+
+                            <Link :href="route('domains.custom-conf.show', domain.id)" class="quick-link">
+                                <i class="fa-solid fa-file-code quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('Custom Config') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
@@ -384,9 +396,21 @@
                                     <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                                 </Link>
 
+                                <Link :href="route('domains.custom-conf.show', subdomain.id)" class="quick-link">
+                                    <i class="fa-solid fa-file-code quick-link-icon"></i>
+                                    <span class="quick-link-label">{{ t('Custom Config') }}</span>
+                                    <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                                </Link>
+
                                 <Link v-if="can('panel.docker-services.manage')" :href="route('domains.docker-services.index', subdomain.id)" class="quick-link">
                                     <i class="fa-brands fa-docker quick-link-icon"></i>
                                     <span class="quick-link-label">{{ t('Docker Services') }}</span>
+                                    <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                                </Link>
+
+                                <Link v-if="can('panel.docker-services.manage')" :href="route('domains.docker-projects.index', subdomain.id)" class="quick-link">
+                                    <i class="fa-brands fa-docker quick-link-icon"></i>
+                                    <span class="quick-link-label">{{ t('Docker Projects') }}</span>
                                     <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                                 </Link>
 

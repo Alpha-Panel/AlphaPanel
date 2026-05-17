@@ -153,6 +153,11 @@ class Domain extends Model
         return $this->hasMany(DockerServiceDomainBinding::class);
     }
 
+    public function dockerProjectBindings(): HasMany
+    {
+        return $this->hasMany(DockerProjectDomainBinding::class);
+    }
+
     public function ipRules(): HasMany
     {
         return $this->hasMany(DomainIpRule::class);

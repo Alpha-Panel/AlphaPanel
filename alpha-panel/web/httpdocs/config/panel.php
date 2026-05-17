@@ -139,6 +139,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Per-Site SSR Port Range
+    |--------------------------------------------------------------------------
+    | Range of ports allocated to hosted sites when Inertia SSR is enabled.
+    | Each site's Node.js SSR process binds its own port inside the frankenphp
+    | container. Laravel connects to it internally via INERTIA_SSR_URL.
+    */
+    'ssr_port_range' => [
+        'min' => (int) env('PANEL_SSR_PORT_MIN', 13700),
+        'max' => (int) env('PANEL_SSR_PORT_MAX', 14699),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | SSH Terminal (Host Machine Access)
     |--------------------------------------------------------------------------
     | SSH connection from the container to the host machine.

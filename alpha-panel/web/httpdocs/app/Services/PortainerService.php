@@ -625,6 +625,145 @@ class PortainerService
     }
 
     /**
+     * Build the Portainer management API URL (not the Docker passthrough).
+     */
+    private function portainerApiUrl(string $path): string
+    {
+        return "{$this->baseUrl}{$path}";
+    }
+
+    /**
+     * Create a Portainer compose stack from a YAML string.
+     *
+     * @return array<string, mixed>
+     */
+    public function createStack(string $name, string $composeContent): array
+    {
+        Log::info("Portainer creating stack: {$name}");
+
+        $response = $this->request(300)
+            ->post($this->portainerApiUrl("/api/stacks/create/standalone/string?endpointId={$this->endpointId}"), [
+                'Name' => $name,
+                'StackFileContent' => $composeContent,
+                'Env' => [],
+            ]);
+
+        if (! $response->successful()) {
+            throw new PortainerException("Failed to create stack {$name}: {$response->status()} {$response->body()}");
+        }
+
+        Log::info("Stack {$name} created successfully.");
+
+        return $response->json();
+    }
+
+    /**
+     * Update an existing Portainer stack.
+     *
+     * @return array<string, mixed>
+     */
+    public function updateStack(int $stackId, string $composeContent): array
+    {
+        Log::info("Portainer updating stack ID: {$stackId}");
+
+        $response = $this->request(300)
+            ->put($this->portainerApiUrl("/api/stacks/{$stackId}?endpointId={$this->endpointId}"), [
+                'StackFileContent' => $composeContent,
+                'Env' => [],
+                'Prune' => false,
+                'PullImage' => true,
+            ]);
+
+        if (! $response->successful()) {
+            throw new PortainerException("Failed to update stack {$stackId}: {$response->status()} {$response->body()}");
+        }
+
+        return $response->json();
+    }
+
+    /**
+     * Delete a Portainer stack and its containers.
+     */
+    public function removeStack(int $stackId): void
+    {
+        Log::info("Portainer removing stack ID: {$stackId}");
+
+        $response = $this->request(120)
+            ->delete($this->portainerApiUrl("/api/stacks/{$stackId}?endpointId={$this->endpointId}"));
+
+        if (! $response->successful() && $response->status() !== 404) {
+            throw new PortainerException("Failed to remove stack {$stackId}: {$response->status()} {$response->body()}");
+        }
+
+        Log::info("Stack {$stackId} removed successfully.");
+    }
+
+    /**
+     * Start a stopped Portainer stack.
+     */
+    public function startStack(int $stackId): void
+    {
+        Log::info("Portainer starting stack ID: {$stackId}");
+
+        $response = $this->request(120)
+            ->post($this->portainerApiUrl("/api/stacks/{$stackId}/start?endpointId={$this->endpointId}"));
+
+        if (! $response->successful()) {
+            throw new PortainerException("Failed to start stack {$stackId}: {$response->status()} {$response->body()}");
+        }
+    }
+
+    /**
+     * Stop a running Portainer stack.
+     */
+    public function stopStack(int $stackId): void
+    {
+        Log::info("Portainer stopping stack ID: {$stackId}");
+
+        $response = $this->request(120)
+            ->post($this->portainerApiUrl("/api/stacks/{$stackId}/stop?endpointId={$this->endpointId}"));
+
+        if (! $response->successful()) {
+            throw new PortainerException("Failed to stop stack {$stackId}: {$response->status()} {$response->body()}");
+        }
+    }
+
+    /**
+     * List containers belonging to a Docker Compose project by label.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function listContainersByProject(string $projectName): array
+    {
+        return $this->listContainers(
+            filters: ['label' => ["com.docker.compose.project={$projectName}"]],
+            all: true,
+        );
+    }
+
+    /**
+     * Connect all containers of a compose project to a Docker network.
+     */
+    public function connectProjectContainersToNetwork(string $projectName, string $network = 'vhost_network'): void
+    {
+        $containers = $this->listContainersByProject($projectName);
+
+        foreach ($containers as $container) {
+            $id = $container['Id'] ?? '';
+            if (! $id) {
+                continue;
+            }
+
+            try {
+                $this->connectNetwork($id, $network);
+            } catch (\Exception $e) {
+                $names = implode(', ', $container['Names'] ?? [$id]);
+                Log::warning("Failed to connect container {$names} to {$network}: {$e->getMessage()}");
+            }
+        }
+    }
+
+    /**
      * Demultiplex Docker stream output into stdout and stderr.
      *
      * Docker stream format: 8-byte header per frame

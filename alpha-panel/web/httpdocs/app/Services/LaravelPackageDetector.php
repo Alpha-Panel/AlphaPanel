@@ -93,6 +93,7 @@ class LaravelPackageDetector
             SupervisorType::Reverb->value => 'laravel/reverb',
             SupervisorType::Pulse->value => 'laravel/pulse',
             SupervisorType::Horizon->value => 'laravel/horizon',
+            SupervisorType::Ssr->value => 'inertiajs/inertia-laravel',
         ];
 
         $packages = array_values(array_filter($requirements));

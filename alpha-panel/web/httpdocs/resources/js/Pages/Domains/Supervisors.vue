@@ -140,6 +140,23 @@
                                         </div>
                                     </div>
 
+                                    <div
+                                        v-if="process.type === 'queue' && process.enabled"
+                                        class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white/80 px-2.5 py-1.5 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900/70"
+                                    >
+                                        <label class="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                            {{ t('Queues') }}
+                                        </label>
+                                        <input
+                                            v-model="process.queue_names"
+                                            type="text"
+                                            placeholder="default,high"
+                                            :disabled="actionLoading === process.type || processRestartLoading === process.type || workersRestartLoading || optimizeLoading"
+                                            @change="updateProcess(process)"
+                                            class="h-8 w-44 rounded-md border border-gray-300 bg-white px-2.5 font-mono text-xs text-gray-700 placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-2 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:placeholder:text-gray-600"
+                                        />
+                                    </div>
+
                                     <button
                                         v-if="process.enabled"
                                         type="button"
@@ -207,6 +224,16 @@
                                         </button>
                                     </div>
                                 </div>
+                            </div>
+
+                            <div
+                                v-if="process.type === 'ssr' && process.ssr_port"
+                                class="mt-3 rounded-lg border border-brand-500/30 bg-brand-500/5 p-3 dark:border-brand-500/20 dark:bg-brand-500/5"
+                            >
+                                <span class="inline-flex items-center gap-1.5 rounded-md bg-brand-500/15 px-2.5 py-1 text-xs font-semibold text-brand-700 dark:text-brand-300">
+                                    <i class="bx bx-plug text-sm"></i>
+                                    {{ t('SSR Port') }}: {{ process.ssr_port }}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -298,6 +325,7 @@ interface Process {
     label: string;
     enabled: boolean;
     num_procs: number;
+    queue_names?: string | null;
     supports_num_procs: boolean;
     is_available: boolean;
     missing_package: string | null;
@@ -305,6 +333,7 @@ interface Process {
     reverb_app_id?: string | null;
     reverb_app_key?: string | null;
     reverb_app_secret?: string | null;
+    ssr_port?: number | null;
 }
 
 const props = defineProps<{
@@ -352,6 +381,7 @@ const processIcon = (type: string): string => {
         case 'reverb': return 'bx bx-broadcast';
         case 'pulse': return 'bx bx-pulse';
         case 'horizon': return 'bx bx-bar-chart-alt-2';
+        case 'ssr': return 'bx bx-server';
         default: return 'bx bx-cog';
     }
 };
@@ -362,6 +392,7 @@ const processDescription = (type: string): string => {
         case 'reverb': return t('WebSocket server for real-time broadcasting with Laravel Reverb.');
         case 'pulse': return t('Application performance monitoring and metrics dashboard.');
         case 'horizon': return t('Redis queue dashboard and manager with auto-balancing.');
+        case 'ssr': return t('Node.js SSR server for Inertia.js server-side rendering.');
         default: return '';
     }
 };
@@ -375,16 +406,22 @@ const toggleProcess = async (process: Process): Promise<void> => {
             type: process.type,
             enabled: !process.enabled,
             num_procs: process.num_procs,
+            queue_names: process.type === 'queue' ? (process.queue_names ?? '') : undefined,
         });
 
         process.enabled = response.data.enabled;
         process.num_procs = response.data.num_procs;
+        if (process.type === 'queue') process.queue_names = response.data.queue_names ?? '';
 
         if (response.data.reverb) {
             process.reverb_port = response.data.reverb.port;
             process.reverb_app_id = response.data.reverb.app_id;
             process.reverb_app_key = response.data.reverb.app_key;
             process.reverb_app_secret = response.data.reverb.app_secret;
+        }
+
+        if (response.data.ssr) {
+            process.ssr_port = response.data.ssr.port;
         }
 
         addToast('success', response.data.message);
@@ -404,9 +441,11 @@ const updateProcess = async (process: Process): Promise<void> => {
             type: process.type,
             enabled: process.enabled,
             num_procs: process.num_procs,
+            queue_names: process.type === 'queue' ? (process.queue_names ?? '') : undefined,
         });
 
         process.num_procs = response.data.num_procs;
+        if (process.type === 'queue') process.queue_names = response.data.queue_names ?? '';
         addToast('success', response.data.message);
     } catch (error: any) {
         addToast('error', error.response?.data?.message ?? t('Operation failed.'));
