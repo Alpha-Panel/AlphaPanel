@@ -41,10 +41,18 @@ class BuildDockerProjectJob implements ShouldQueue
             // Create or update Portainer stack
             $this->progress(20, __('Deploying compose stack...'));
 
+            $composePath = $project->composeFilePath();
+
+            if (! file_exists($composePath)) {
+                throw new \RuntimeException("docker-compose.yml not found at {$composePath}. Please add it via the file manager.");
+            }
+
+            $composeContent = file_get_contents($composePath);
+
             if ($project->portainer_stack_id) {
-                $portainer->updateStack($project->portainer_stack_id, $project->compose_yaml);
+                $portainer->updateStack($project->portainer_stack_id, $composeContent);
             } else {
-                $result = $portainer->createStack($project->stackName(), $project->compose_yaml);
+                $result = $portainer->createStack($project->stackName(), $composeContent);
                 $project->update(['portainer_stack_id' => $result['Id']]);
             }
 

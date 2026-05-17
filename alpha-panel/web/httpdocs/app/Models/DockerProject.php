@@ -15,7 +15,6 @@ class DockerProject extends Model
     protected $fillable = [
         'name',
         'display_name',
-        'compose_yaml',
         'status',
         'portainer_stack_id',
         'created_by',
@@ -34,6 +33,34 @@ class DockerProject extends Model
     public function stackName(): string
     {
         return 'alphapanel-'.$this->name;
+    }
+
+    /** Absolute path to this project's directory inside the panel container. */
+    public function projectPath(): string
+    {
+        $base = rtrim((string) config('panel.docker_services.projects_dir', '/docker_compose_project_root/external-services/projects'), '/');
+
+        return "{$base}/{$this->name}";
+    }
+
+    /** Absolute path to this project's directory on the Docker host (for build context). */
+    public function hostProjectPath(): string
+    {
+        $base = rtrim((string) config('panel.docker_services.projects_dir_host', '/opt/alphapanel/external-services/projects'), '/');
+
+        return "{$base}/{$this->name}";
+    }
+
+    /** Absolute path to docker-compose.yml inside the project directory. */
+    public function composeFilePath(): string
+    {
+        return $this->projectPath().'/docker-compose.yml';
+    }
+
+    /** Docker image tag for the built image. */
+    public function imageTag(): string
+    {
+        return 'alphapanel-'.$this->name.':latest';
     }
 
     /**

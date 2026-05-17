@@ -16,7 +16,6 @@ class UpdateDockerProjectRequest extends FormRequest
     {
         return [
             'display_name' => ['nullable', 'string', 'max:255'],
-            'compose_yaml' => ['required', 'string', 'max:262144'],
         ];
     }
 }

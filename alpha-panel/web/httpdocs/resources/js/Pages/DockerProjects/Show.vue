@@ -60,6 +60,17 @@
                                     v-if="can('panel.docker-services.manage')"
                                     type="button"
                                     :disabled="actionLoading || currentStatus === 'building'"
+                                    @click="doAction('build')"
+                                    class="action-btn action-btn-amber"
+                                >
+                                    <i v-if="actionLoading" class="bx bx-loader-alt animate-spin text-sm"></i>
+                                    <i v-else class="bx bx-wrench text-sm"></i>
+                                    {{ t('Build') }}
+                                </button>
+                                <button
+                                    v-if="can('panel.docker-services.manage')"
+                                    type="button"
+                                    :disabled="actionLoading || currentStatus === 'building'"
                                     @click="doAction('redeploy')"
                                     class="action-btn action-btn-blue"
                                 >
@@ -72,8 +83,8 @@
                                     :href="route('docker-projects.edit', project.id)"
                                     class="action-btn action-btn-gray"
                                 >
-                                    <i class="bx bx-edit text-sm"></i>
-                                    {{ t('Edit YAML') }}
+                                    <i class="bx bx-cog text-sm"></i>
+                                    {{ t('Settings') }}
                                 </Link>
                                 <button
                                     v-if="can('panel.docker-services.manage')"
@@ -168,22 +179,27 @@
                         </div>
                     </div>
 
-                    <!-- Compose YAML viewer -->
+                    <!-- Project Files -->
                     <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
-                        <div class="mb-3 flex items-center justify-between">
-                            <h3 class="text-sm font-semibold text-gray-800 dark:text-white/90">
-                                <i class="bx bx-code-alt mr-1 text-brand-500"></i>
-                                {{ t('Compose YAML') }}
-                            </h3>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-gray-800 dark:text-white/90">
+                                    <i class="bx bx-folder-open mr-1 text-brand-500"></i>
+                                    {{ t('Project Files') }}
+                                </h3>
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    {{ t('Manage Dockerfile, compose YAML, and config files.') }}
+                                </p>
+                            </div>
                             <Link
                                 v-if="can('panel.docker-services.manage')"
-                                :href="route('docker-projects.edit', project.id)"
-                                class="text-xs text-brand-500 hover:text-brand-600"
+                                :href="route('docker-projects.files.index', project.id)"
+                                class="action-btn action-btn-gray"
                             >
-                                <i class="bx bx-edit mr-0.5"></i>{{ t('Edit') }}
+                                <i class="bx bx-folder-open text-sm"></i>
+                                {{ t('Open Files') }}
                             </Link>
                         </div>
-                        <pre class="overflow-x-auto rounded-lg bg-gray-900 p-4 text-xs leading-relaxed text-gray-200">{{ project.compose_yaml }}</pre>
                     </div>
 
                     <!-- Logs -->
@@ -246,7 +262,6 @@ const props = defineProps<{
         id: number;
         name: string;
         display_name: string | null;
-        compose_yaml: string;
         status: string;
         portainer_stack_id: number | null;
         domain_bindings: Binding[];
@@ -439,6 +454,10 @@ onBeforeUnmount(() => {
 
 .action-btn-blue {
     @apply bg-blue-500 text-white hover:bg-blue-600;
+}
+
+.action-btn-amber {
+    @apply bg-amber-500 text-white hover:bg-amber-600;
 }
 
 .action-btn-red {

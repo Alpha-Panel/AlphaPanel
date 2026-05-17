@@ -12,7 +12,6 @@ return new class extends Migration
             $table->id();
             $table->string('name')->unique();
             $table->string('display_name')->nullable();
-            $table->longText('compose_yaml');
             $table->string('status', 50)->default('pending');
             $table->unsignedInteger('portainer_stack_id')->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();

@@ -14,6 +14,7 @@ use App\Http\Controllers\DnsTemplateController;
 use App\Http\Controllers\DockerHubController;
 use App\Http\Controllers\DockerProjectController;
 use App\Http\Controllers\DockerProjectDomainBindingController;
+use App\Http\Controllers\DockerProjectFileController;
 use App\Http\Controllers\DockerServiceController;
 use App\Http\Controllers\DockerServiceDomainBindingController;
 use App\Http\Controllers\DomainCloudflareController;
@@ -559,6 +560,18 @@ Route::middleware('auth')->group(function (): void {
         Route::put('docker-projects/{dockerProject}', [DockerProjectController::class, 'update'])->name('docker-projects.update');
         Route::delete('docker-projects/{dockerProject}', [DockerProjectController::class, 'destroy'])->name('docker-projects.destroy');
         Route::post('docker-projects/{dockerProject}/action', [DockerProjectController::class, 'action'])->name('docker-projects.action');
+
+        // Docker Project File Manager
+        Route::get('docker-projects/{dockerProject}/files', [DockerProjectFileController::class, 'index'])->name('docker-projects.files.index');
+        Route::get('docker-projects/{dockerProject}/files/list', [DockerProjectFileController::class, 'list'])->name('docker-projects.files.list');
+        Route::get('docker-projects/{dockerProject}/files/read', [DockerProjectFileController::class, 'read'])->name('docker-projects.files.read');
+        Route::post('docker-projects/{dockerProject}/files/write', [DockerProjectFileController::class, 'write'])->name('docker-projects.files.write');
+        Route::post('docker-projects/{dockerProject}/files/create-file', [DockerProjectFileController::class, 'createFile'])->name('docker-projects.files.create-file');
+        Route::post('docker-projects/{dockerProject}/files/create-directory', [DockerProjectFileController::class, 'createDirectory'])->name('docker-projects.files.create-directory');
+        Route::post('docker-projects/{dockerProject}/files/upload', [DockerProjectFileController::class, 'upload'])->name('docker-projects.files.upload');
+        Route::post('docker-projects/{dockerProject}/files/delete', [DockerProjectFileController::class, 'delete'])->name('docker-projects.files.delete');
+        Route::post('docker-projects/{dockerProject}/files/rename', [DockerProjectFileController::class, 'rename'])->name('docker-projects.files.rename');
+        Route::get('docker-projects/{dockerProject}/files/download', [DockerProjectFileController::class, 'download'])->name('docker-projects.files.download');
     });
 
     // Docker Project Domain Bindings

@@ -1,12 +1,16 @@
 <template>
-    <Head :title="`${t('File Manager')} - ${domain.fqdn}`" />
+    <Head :title="`${t('Project Files')} — ${dockerProject.display_name || dockerProject.name}`" />
     <ThemeProvider>
         <SidebarProvider>
             <AdminLayout>
                 <PageBreadcrumb
-                    :pageTitle="t('File Manager')"
-                    :items="breadcrumbs"
-                    :backHref="route('domains.show', domain.id)"
+                    :pageTitle="t('Project Files')"
+                    :items="[
+                        { label: t('Docker Projects'), href: route('docker-projects.index') },
+                        { label: dockerProject.display_name || dockerProject.name, href: route('docker-projects.show', dockerProject.id) },
+                        { label: t('Project Files') },
+                    ]"
+                    :backHref="route('docker-projects.show', dockerProject.id)"
                 />
                 <Toast />
 
@@ -38,13 +42,6 @@
                         </button>
                         <button @click="downloadSelected" :disabled="!fm.hasSelection.value" class="fm-btn hidden sm:inline-flex" :title="t('Download')">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                        </button>
-                        <div class="mx-1 hidden h-5 w-px bg-gray-300 sm:block dark:bg-gray-700"></div>
-                        <button @click="promptCompress" :disabled="!fm.hasSelection.value" class="fm-btn hidden sm:inline-flex" :title="t('Compress')">
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
-                        </button>
-                        <button @click="extractSelected" :disabled="!fm.hasZipSelected.value" class="fm-btn hidden sm:inline-flex" :title="t('Extract')">
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4l3 3m0 0l3-3m-3 3V8" /></svg>
                         </button>
                         <div class="flex-1"></div>
                         <button @click="fm.refresh()" class="fm-btn" :title="t('Refresh')">
@@ -162,7 +159,6 @@
                                                     />
                                                 </th>
                                                 <th class="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">{{ t('Name') }}</th>
-                                                <th class="hidden w-24 px-3 py-2 text-left text-xs font-medium uppercase text-gray-500 sm:table-cell">{{ t('Perms') }}</th>
                                                 <th class="w-24 px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">{{ t('Size') }}</th>
                                                 <th class="hidden w-40 px-3 py-2 text-left text-xs font-medium uppercase text-gray-500 sm:table-cell">{{ t('Modified') }}</th>
                                             </tr>
@@ -176,13 +172,12 @@
                                                 class="cursor-pointer border-b border-gray-100 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/2"
                                             >
                                                 <td></td>
-                                                <td class="px-3 py-1.5 text-gray-500">
+                                                <td class="px-3 py-1.5 text-gray-500" colspan="3">
                                                     <span class="inline-flex items-center gap-2">
                                                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
                                                         ..
                                                     </span>
                                                 </td>
-                                                <td class="hidden sm:table-cell"></td><td></td><td class="hidden sm:table-cell"></td>
                                             </tr>
                                             <!-- File rows -->
                                             <tr
@@ -214,12 +209,11 @@
                                                         <span class="text-gray-800 dark:text-white/90">{{ item.name }}</span>
                                                     </span>
                                                 </td>
-                                                <td class="hidden px-3 py-1.5 font-mono text-xs text-gray-500 sm:table-cell">{{ item.permissions }}</td>
                                                 <td class="px-3 py-1.5 text-xs text-gray-500">{{ fm.formatSize(item.size) }}</td>
                                                 <td class="hidden px-3 py-1.5 text-xs text-gray-500 sm:table-cell">{{ fm.formatDate(item.lastModified) }}</td>
                                             </tr>
                                             <tr v-if="!fm.loading.value && fm.fileList.value.length === 0">
-                                                <td colspan="5" class="px-3 py-8 text-center text-gray-400">{{ t('Empty directory') }}</td>
+                                                <td colspan="4" class="px-3 py-8 text-center text-gray-400">{{ t('Empty directory') }}</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -257,9 +251,6 @@
                     <template v-if="fm.contextMenu.item?.type === 'file' && fm.singleSelection.value">
                         <button @click="ctxAction('open')" class="ctx-item">{{ t('Open in Editor') }}</button>
                         <button @click="ctxAction('download')" class="ctx-item">{{ t('Download') }}</button>
-                        <template v-if="fm.contextMenu.item.name.toLowerCase().endsWith('.zip')">
-                            <button @click="ctxAction('extract')" class="ctx-item">{{ t('Extract Here') }}</button>
-                        </template>
                         <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
                     </template>
                     <template v-if="fm.contextMenu.item?.type === 'directory' && fm.singleSelection.value">
@@ -271,10 +262,8 @@
                     <button @click="ctxAction('upload')" class="ctx-item">{{ t('Upload') }}</button>
                     <template v-if="fm.hasSelection.value">
                         <div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
-                        <button @click="ctxAction('compress')" class="ctx-item">{{ t('Compress') }}</button>
                         <template v-if="fm.singleSelection.value">
                             <button @click="ctxAction('rename')" class="ctx-item">{{ t('Rename') }}</button>
-                            <button @click="ctxAction('chmod')" class="ctx-item">{{ t('Permissions') }}</button>
                         </template>
                         <button @click="ctxAction('delete')" class="ctx-item text-error-500">{{ t('Delete') }}</button>
                     </template>
@@ -321,20 +310,22 @@ import { useFileManager, type FileItem } from '@/Composables/useFileManager';
 import { useI18n } from '@/Composables/useI18n';
 
 const props = defineProps<{
-    domain: Record<string, any>;
+    dockerProject: {
+        id: number;
+        name: string;
+        display_name: string | null;
+    };
     maxUploadBytes: number;
 }>();
+
 const { t } = useI18n();
-
-const breadcrumbs = computed(() => [
-    { label: t('Domains'), href: route('domains.index') },
-    { label: props.domain.fqdn, href: route('domains.show', props.domain.id) },
-    { label: t('File Manager') },
-]);
-
 const { addToast } = useToast();
+
 const fm = useFileManager(
-    { baseUrl: route('domains.files.index', props.domain.id), storageKey: `fm_state_${props.domain.id}` },
+    {
+        baseUrl: route('docker-projects.files.index', props.dockerProject.id),
+        storageKey: `docker-project-fm-${props.dockerProject.id}`,
+    },
     props.maxUploadBytes,
 );
 
@@ -380,8 +371,6 @@ function adjustContextMenuPosition() {
     fm.contextMenu.y = Math.max(margin, Math.min(fm.contextMenu.y, maxY));
 }
 
-// ==================== Monaco Editor ====================
-
 async function initMonaco() {
     if (monacoInstance) return;
     monacoInstance = await import('monaco-editor');
@@ -412,7 +401,6 @@ async function setupEditor() {
     });
 }
 
-// Watch active tab changes to update editor model
 watch(() => fm.activeTab.value, async (path) => {
     if (!path) return;
     await setupEditor();
@@ -435,7 +423,6 @@ watch(() => fm.activeTab.value, async (path) => {
     }
 });
 
-// Focus modal input when shown
 watch(() => fm.modal.visible, (visible) => {
     if (visible) {
         nextTick(() => {
@@ -458,8 +445,6 @@ async function saveActiveFile() {
         addToast('error', `${t('Save error')}: ${err.response?.data?.message || err.message}`);
     }
 }
-
-// ==================== File Operations ====================
 
 async function onOpenFile(path: string) {
     try {
@@ -555,29 +540,6 @@ function downloadSelected() {
     fm.downloadItems(fm.selectedPaths.value);
 }
 
-function promptCompress() {
-    fm.showModal(t('Compress'), t('Enter archive name:'), 'archive.zip', async (name) => {
-        if (!name) return;
-        try {
-            await fm.compressItems(fm.selectedPaths.value, name);
-            addToast('success', t('Archive created'));
-        } catch (err: any) {
-            addToast('error', err.response?.data?.message || err.message);
-        }
-    });
-}
-
-async function extractSelected() {
-    const zipPath = fm.selectedPaths.value.find(p => p.toLowerCase().endsWith('.zip'));
-    if (!zipPath) return;
-    try {
-        await fm.extractZip(zipPath);
-        addToast('success', t('Archive extracted'));
-    } catch (err: any) {
-        addToast('error', err.response?.data?.message || err.message);
-    }
-}
-
 function triggerUpload() {
     uploadInputRef.value?.click();
 }
@@ -593,8 +555,6 @@ async function handleUpload(event: Event) {
     }
     input.value = '';
 }
-
-// ==================== Context Menu ====================
 
 function onFileContextMenu(event: MouseEvent, item: FileItem) {
     if (!fm.selectedItems.has(item.path)) {
@@ -632,35 +592,9 @@ function ctxAction(action: string) {
         case 'new-folder': promptNewFolder(); break;
         case 'upload': triggerUpload(); break;
         case 'rename': promptRename(); break;
-        case 'chmod': promptChmod(); break;
         case 'delete': confirmDelete(); break;
-        case 'compress': promptCompress(); break;
-        case 'extract': extractSelected(); break;
     }
 }
-
-function promptChmod() {
-    const selectedPath = fm.selectedPaths.value[0];
-    if (!selectedPath) return;
-    const fullItem = fm.fileList.value.find(f => f.path === selectedPath);
-    const currentPerms = fullItem?.permissionsOctal || '0644';
-    fm.showModal(t('Permissions'), t('Enter chmod (e.g. 0755):'), currentPerms, async (mode) => {
-        if (!mode) return;
-        mode = mode.replace(/^0*/, '');
-        if (!/^[0-7]{3,4}$/.test(mode)) {
-            addToast('error', t('Invalid permissions format'));
-            return;
-        }
-        try {
-            await fm.chmodItem(selectedPath, mode);
-            addToast('success', t('Permissions changed'));
-        } catch (err: any) {
-            addToast('error', err.response?.data?.message || err.message);
-        }
-    });
-}
-
-// ==================== Drag & Drop ====================
 
 let dragSource: { path: string; type: string } | null = null;
 
@@ -704,7 +638,6 @@ async function onDropItem(event: { sourcePath: string; targetPath: string }) {
     }
 }
 
-// External file drop
 function onExternalDragOver(event: DragEvent) {
     if (dragSource) return;
     showDropZone.value = true;
@@ -730,8 +663,6 @@ async function onExternalDrop(event: DragEvent) {
     }
 }
 
-// ==================== Sidebar Resize ====================
-
 function startResize(event: MouseEvent) {
     const startX = event.clientX;
     const startWidth = fm.sidebarWidth.value;
@@ -751,8 +682,6 @@ function startResize(event: MouseEvent) {
     document.addEventListener('mouseup', onUp);
 }
 
-// ==================== Keyboard Shortcuts ====================
-
 function onKeyDown(e: KeyboardEvent) {
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
@@ -766,8 +695,6 @@ function onKeyDown(e: KeyboardEvent) {
         fm.isFullscreen.value = !fm.isFullscreen.value;
     }
 }
-
-// ==================== Lifecycle ====================
 
 watch(() => fm.isFullscreen.value, (fullscreen) => {
     document.documentElement.style.overflow = fullscreen ? 'hidden' : '';
@@ -794,7 +721,6 @@ onBeforeUnmount(() => {
         monacoEditor.dispose();
         monacoEditor = null;
     }
-    // Dispose all models
     if (monacoInstance) {
         monacoInstance.editor.getModels().forEach((m: any) => m.dispose());
     }
@@ -837,10 +763,10 @@ watch(() => fm.contextMenu.visible, (visible) => {
 }
 
 .ctx-item {
-    @apply block w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700;
+    @apply block w-full px-4 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700;
 }
 
 .form-input {
-    @apply h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90;
+    @apply h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800;
 }
 </style>

@@ -19,7 +19,7 @@
                             {{ t('Edit Docker Project') }}
                         </h3>
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                            {{ t('Saving will trigger a new deployment via Portainer.') }}
+                            {{ t('Update the display name. Edit project files via the File Manager.') }}
                         </p>
                     </div>
 
@@ -35,23 +35,11 @@
                             <p v-if="form.errors.display_name" class="mt-1 text-xs text-error-500">{{ form.errors.display_name }}</p>
                         </div>
 
-                        <!-- Compose YAML -->
-                        <div>
-                            <label class="form-label">{{ t('Docker Compose YAML') }} <span class="text-error-500">*</span></label>
-                            <textarea
-                                v-model="form.compose_yaml"
-                                rows="24"
-                                spellcheck="false"
-                                class="form-input font-mono text-xs leading-relaxed"
-                            ></textarea>
-                            <p v-if="form.errors.compose_yaml" class="mt-1 text-xs text-error-500">{{ form.errors.compose_yaml }}</p>
-                        </div>
-
                         <div class="flex items-center gap-3 border-t border-gray-200 pt-5 dark:border-gray-800">
                             <button type="submit" class="btn-primary" :disabled="form.processing">
                                 <i v-if="form.processing" class="bx bx-loader-alt animate-spin text-base"></i>
                                 <i v-else class="bx bx-save text-base"></i>
-                                {{ form.processing ? t('Saving...') : t('Save & Redeploy') }}
+                                {{ form.processing ? t('Saving...') : t('Save') }}
                             </button>
                             <Link :href="route('docker-projects.show', project.id)" class="btn-secondary">
                                 {{ t('Cancel') }}
@@ -78,7 +66,6 @@ const props = defineProps<{
         id: number;
         name: string;
         display_name: string | null;
-        compose_yaml: string;
     };
 }>();
 
@@ -86,7 +73,6 @@ const { t } = useI18n();
 
 const form = useForm({
     display_name: props.project.display_name ?? '',
-    compose_yaml: props.project.compose_yaml,
 });
 
 const submit = (): void => {

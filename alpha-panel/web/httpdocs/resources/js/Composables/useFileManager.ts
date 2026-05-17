@@ -20,7 +20,7 @@ export interface EditorTab {
     modified: boolean;
 }
 
-export function useFileManager(domainId: number, maxUploadBytes: number) {
+export function useFileManager(options: { baseUrl: string; storageKey: string }, maxUploadBytes: number) {
     const { t } = useI18n();
     const currentPath = ref('');
     const fileList = ref<FileItem[]>([]);
@@ -30,7 +30,7 @@ export function useFileManager(domainId: number, maxUploadBytes: number) {
     const treeCache = reactive(new Map<string, FileItem[]>());
     const openTabs = reactive(new Map<string, EditorTab>());
     const activeTab = ref<string | null>(null);
-    const storageKey = `fm_state_${domainId}`;
+    const storageKey = options.storageKey;
 
     // Context menu
     const contextMenu = reactive({
@@ -101,7 +101,7 @@ export function useFileManager(domainId: number, maxUploadBytes: number) {
     // ==================== API ====================
 
     function baseUrl() {
-        return route('domains.files.index', domainId).replace(/\/$/, '');
+        return options.baseUrl.replace(/\/$/, '');
     }
 
     async function apiGet(endpoint: string, params: Record<string, string> = {}) {

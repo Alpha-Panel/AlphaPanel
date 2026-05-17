@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\DockerProjectStatus;
 use App\Jobs\BuildDockerProjectJob;
 use App\Models\DockerProject;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 
 class DockerProjectManager
@@ -48,7 +49,12 @@ class DockerProjectManager
                 $this->portainer->removeStack($project->portainer_stack_id);
             }
 
+            $projectDir = $project->projectPath();
             $project->delete();
+
+            if (is_dir($projectDir)) {
+                File::deleteDirectory($projectDir);
+            }
 
             Log::info("Docker project removed: {$project->name}");
         } catch (\Exception $e) {

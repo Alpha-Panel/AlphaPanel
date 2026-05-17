@@ -17,7 +17,7 @@ class StoreDockerProjectRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:64', 'regex:/^[a-z0-9][a-z0-9\-]*[a-z0-9]$|^[a-z0-9]$/', 'unique:docker_projects,name'],
             'display_name' => ['nullable', 'string', 'max:255'],
-            'compose_yaml' => ['required', 'string', 'max:262144'],
+            'compose_yaml' => ['nullable', 'string', 'max:262144'],
         ];
     }
 

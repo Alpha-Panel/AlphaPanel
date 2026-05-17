@@ -191,6 +191,8 @@ return [
         'compose_dir' => env('DOCKER_SERVICES_COMPOSE_DIR', '/docker_compose_project_root/external-services/docker-services'),
         'local_services_path' => env('LOCAL_SERVICES_COMPOSE_PATH', '/docker_compose_project_root/external-services/local-services.yaml'),
         'volume_base_path' => env('DOCKER_SERVICES_VOLUME_BASE', '/docker_compose_project_root/external-services'),
+        'projects_dir' => env('DOCKER_PROJECTS_DIR', '/docker_compose_project_root/external-services/projects'),
+        'projects_dir_host' => env('DOCKER_PROJECTS_DIR_HOST', '/opt/alphapanel/external-services/projects'),
     ],
 
     /*

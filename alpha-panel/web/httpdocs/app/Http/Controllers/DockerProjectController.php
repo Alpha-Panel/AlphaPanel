@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreDockerProjectRequest;
 use App\Http\Requests\UpdateDockerProjectRequest;
+use App\Jobs\BuildDockerImageJob;
 use App\Models\AuditLog;
 use App\Models\DockerProject;
 use App\Services\DockerProjectManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -40,8 +42,21 @@ class DockerProjectController extends Controller
     {
         $data = $request->validated();
         $data['created_by'] = $request->user()->id;
+        $composeYaml = $data['compose_yaml'] ?? null;
+        unset($data['compose_yaml']);
 
         $project = DockerProject::create($data);
+
+        $projectDir = $project->projectPath();
+        File::ensureDirectoryExists($projectDir, 0755, true);
+
+        $composePath = $project->composeFilePath();
+
+        if ($composeYaml) {
+            file_put_contents($composePath, $composeYaml);
+        } elseif (! file_exists($composePath)) {
+            file_put_contents($composePath, "services:\n  web:\n    image: nginx:latest\n    restart: unless-stopped\n");
+        }
 
         return redirect()->route('docker-projects.show', $project)
             ->with('success', __('Project created. Click Deploy to start it.'));
@@ -67,18 +82,16 @@ class DockerProjectController extends Controller
     {
         $dockerProject->update($request->validated());
 
-        $this->manager->deploy($dockerProject, $request->user()->id);
-
         $projectLabel = $dockerProject->display_name ?? $dockerProject->name;
         AuditLog::create([
             'user_id' => $request->user()->id,
             'action' => 'docker_project_updated',
-            'summary' => "Updated and redeployed Docker project \"{$projectLabel}\".",
+            'summary' => "Updated Docker project \"{$projectLabel}\".",
             'details' => json_encode(['project_id' => $dockerProject->id], JSON_THROW_ON_ERROR),
         ]);
 
         return redirect()->route('docker-projects.show', $dockerProject)
-            ->with('success', __('Project updated. Redeployment started.'));
+            ->with('success', __('Project settings saved.'));
     }
 
     public function destroy(Request $request, DockerProject $dockerProject): RedirectResponse|JsonResponse
@@ -117,7 +130,7 @@ class DockerProjectController extends Controller
 
     public function action(Request $request, DockerProject $dockerProject): JsonResponse
     {
-        $request->validate(['action' => 'required|in:start,stop,redeploy']);
+        $request->validate(['action' => 'required|in:start,stop,redeploy,build']);
 
         $actionName = $request->input('action');
 
@@ -126,6 +139,7 @@ class DockerProjectController extends Controller
                 'start' => $this->manager->start($dockerProject),
                 'stop' => $this->manager->stop($dockerProject),
                 'redeploy' => $this->manager->deploy($dockerProject, $request->user()->id),
+                'build' => BuildDockerImageJob::dispatch($dockerProject, $request->user()->id),
             };
 
             $projectLabel = $dockerProject->display_name ?? $dockerProject->name;
