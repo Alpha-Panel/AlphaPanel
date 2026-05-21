@@ -20,6 +20,14 @@ export interface EditorTab {
     modified: boolean;
 }
 
+export interface UploadTask {
+    id: number;
+    filename: string;
+    loaded: number;
+    total: number;
+    percent: number;
+}
+
 export function useFileManager(options: { baseUrl: string; storageKey: string }, maxUploadBytes: number) {
     const { t } = useI18n();
     const currentPath = ref('');
@@ -52,6 +60,11 @@ export function useFileManager(options: { baseUrl: string; storageKey: string },
     // Status
     const statusText = ref(t('Ready'));
     const isFullscreen = ref(false);
+
+    // Upload tasks (concurrent uploads)
+    const uploadTasks = ref<UploadTask[]>([]);
+    const uploadControllers = new Map<number, AbortController>();
+    let uploadTaskIdSeq = 0;
     const sidebarWidth = ref(250);
 
     // Computed
@@ -114,9 +127,11 @@ export function useFileManager(options: { baseUrl: string; storageKey: string },
         return res.data;
     }
 
-    async function apiPostFormData(endpoint: string, formData: FormData) {
+    async function apiPostFormData(endpoint: string, formData: FormData, onProgress?: (e: ProgressEvent) => void, signal?: AbortSignal) {
         const res = await axios.post(`${baseUrl()}/${endpoint}`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress: onProgress,
+            signal,
         });
         return res.data;
     }
@@ -372,7 +387,8 @@ export function useFileManager(options: { baseUrl: string; storageKey: string },
 
     async function uploadFiles(files: FileList | File[]) {
         const maxMb = (maxUploadBytes / (1024 * 1024)).toFixed(1);
-        const tooLarge = Array.from(files).filter(f => f.size > maxUploadBytes);
+        const fileArray = Array.from(files);
+        const tooLarge = fileArray.filter(f => f.size > maxUploadBytes);
         if (tooLarge.length > 0) {
             throw new Error(t('File too large (max :maxMbMB): :files', {
                 maxMb,
@@ -382,10 +398,38 @@ export function useFileManager(options: { baseUrl: string; storageKey: string },
 
         const formData = new FormData();
         formData.append('directory', currentPath.value);
-        Array.from(files).forEach(file => formData.append('files[]', file));
+        fileArray.forEach(file => formData.append('files[]', file));
 
-        await apiPostFormData('upload', formData);
-        await refresh();
+        const id = ++uploadTaskIdSeq;
+        const controller = new AbortController();
+        uploadControllers.set(id, controller);
+
+        const task: UploadTask = {
+            id,
+            filename: fileArray.length === 1 ? fileArray[0].name : t(':count file(s)', { count: fileArray.length }),
+            loaded: 0,
+            total: fileArray.reduce((sum, f) => sum + f.size, 0),
+            percent: 0,
+        };
+        uploadTasks.value.push(task);
+
+        try {
+            await apiPostFormData('upload', formData, (e: ProgressEvent) => {
+                if (e.lengthComputable) {
+                    task.loaded = e.loaded;
+                    task.total = e.total;
+                    task.percent = Math.round((e.loaded / e.total) * 100);
+                }
+            }, controller.signal);
+            await refresh();
+        } finally {
+            uploadTasks.value = uploadTasks.value.filter(t => t.id !== id);
+            uploadControllers.delete(id);
+        }
+    }
+
+    function cancelUpload(id: number) {
+        uploadControllers.get(id)?.abort();
     }
 
     async function compressItems(paths: string[], name: string) {
@@ -545,6 +589,8 @@ export function useFileManager(options: { baseUrl: string; storageKey: string },
         chmodItem,
         downloadItems,
         uploadFiles,
+        uploadTasks,
+        cancelUpload,
         compressItems,
         extractZip,
         moveItem,

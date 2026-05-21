@@ -4,8 +4,11 @@ namespace Tests\Unit;
 
 use App\Enums\DomainType;
 use App\Models\Domain;
+use App\Models\FtpUser;
+use App\Models\PhpVersion;
 use App\Models\User;
 use App\Services\DomainConfigService;
+use Database\Seeders\PhpVersionSeeder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
@@ -294,7 +297,7 @@ class DomainConfigRendererTest extends TestCase
 
     public function test_subdomain_path_in_caddy_config(): void
     {
-        $this->seed(\Database\Seeders\PhpVersionSeeder::class);
+        $this->seed(PhpVersionSeeder::class);
 
         $owner = User::factory()->create();
         $fqdn = 'subpath-test-'.uniqid().'.com';
@@ -329,7 +332,7 @@ class DomainConfigRendererTest extends TestCase
 
     public function test_subdomain_with_tls_uses_apex_domain_cert(): void
     {
-        $this->seed(\Database\Seeders\PhpVersionSeeder::class);
+        $this->seed(PhpVersionSeeder::class);
 
         $owner = User::factory()->create();
         $fqdn = 'tlsapex-test-'.uniqid().'.com';
@@ -486,9 +489,10 @@ class DomainConfigRendererTest extends TestCase
     public function test_php_fpm_pool_uses_www_data_group_and_umask(): void
     {
         $owner = User::factory()->create();
-        $phpVersion = \App\Models\PhpVersion::factory()->create([
-            'fpm_pool_dir' => '/tmp/test-fpm-pools',
-        ]);
+        $phpVersion = PhpVersion::firstOrCreate(
+            ['slug' => '8.1'],
+            ['fpm_pool_dir' => '/tmp/test-fpm-pools', 'fpm_service_name' => 'php8.1-fpm', 'is_enabled' => true, 'sort_order' => 81]
+        );
 
         $domain = Domain::factory()->create([
             'fqdn' => 'pool-perms.test',
@@ -497,7 +501,7 @@ class DomainConfigRendererTest extends TestCase
             'php_version_id' => $phpVersion->id,
         ]);
 
-        \App\Models\FtpUser::create([
+        FtpUser::create([
             'domain_id' => $domain->id,
             'username' => 'testpooluser',
             'homedir' => '/var/www/vhosts/pool-perms.test',
@@ -523,6 +527,46 @@ class DomainConfigRendererTest extends TestCase
         $this->assertStringContainsString('group = www-data', $capturedContent);
         $this->assertStringNotContainsString('group = testpooluser', $capturedContent);
         $this->assertStringContainsString('process.umask = 0022', $capturedContent);
+    }
+
+    public function test_php_fpm_pool_omits_umask_for_php_80(): void
+    {
+        $owner = User::factory()->create();
+        $phpVersion = PhpVersion::firstOrCreate(
+            ['slug' => '8.0'],
+            ['fpm_pool_dir' => '/tmp/test-fpm-pools', 'fpm_service_name' => 'php8.0-fpm', 'is_enabled' => true, 'sort_order' => 80]
+        );
+
+        $domain = Domain::factory()->create([
+            'fqdn' => 'pool-php80.test',
+            'owner_user_id' => $owner->id,
+            'type' => DomainType::ApacheReverseProxy,
+            'php_version_id' => $phpVersion->id,
+        ]);
+
+        FtpUser::create([
+            'domain_id' => $domain->id,
+            'username' => 'testpooluser80',
+            'homedir' => '/var/www/vhosts/pool-php80.test',
+            'uid' => 34,
+            'gid' => 33,
+            'shell' => '/sbin/nologin',
+        ]);
+
+        $domain->load('phpVersion', 'ftpUser');
+
+        $capturedContent = null;
+
+        File::shouldReceive('put')
+            ->once()
+            ->with(Mockery::on(fn (string $path): bool => str_contains($path, 'pool-php80.test.conf')), Mockery::capture($capturedContent))
+            ->andReturn(true);
+        File::shouldReceive('move')->once();
+
+        $this->service->writePhpFpmConfig($domain);
+
+        $this->assertNotNull($capturedContent);
+        $this->assertStringNotContainsString('process.umask', $capturedContent);
     }
 
     public function test_www_redirect_blocks_generated_with_tls(): void

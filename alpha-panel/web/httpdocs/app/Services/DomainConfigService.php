@@ -1058,7 +1058,9 @@ class DomainConfigService
         $lines[] = "listen = /run/php/{$fqdn}.sock";
         $lines[] = 'listen.owner = www-data';
         $lines[] = 'listen.group = www-data';
-        $lines[] = 'process.umask = 0022';
+        if (version_compare($phpVersion->slug, '8.1', '>=')) {
+            $lines[] = 'process.umask = 0022';
+        }
         $lines[] = 'pm = dynamic';
         $lines[] = 'pm.max_children = 5';
         $lines[] = 'pm.start_servers = 2';

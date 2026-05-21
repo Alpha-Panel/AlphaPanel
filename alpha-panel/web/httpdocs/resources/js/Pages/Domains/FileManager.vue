@@ -304,6 +304,41 @@
             </AdminLayout>
         </SidebarProvider>
     </ThemeProvider>
+
+    <!-- Upload Progress Toast -->
+    <Transition name="fm-upload-toast">
+        <div
+            v-if="fm.uploadTasks.value.length > 0"
+            class="fixed bottom-5 right-5 z-99999 w-80 rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800"
+        >
+            <div class="border-b border-gray-100 px-4 py-2.5 dark:border-gray-700">
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ t('Uploading...') }} ({{ fm.uploadTasks.value.length }})</p>
+            </div>
+            <div class="max-h-60 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+                <div v-for="task in fm.uploadTasks.value" :key="task.id" class="flex items-center gap-3 px-4 py-3">
+                    <svg class="h-4 w-4 shrink-0 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <div class="min-w-0 flex-1">
+                        <p class="truncate text-xs text-gray-700 dark:text-gray-300">{{ task.filename }}</p>
+                        <div class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                            <div
+                                class="h-full rounded-full bg-brand-500 transition-[width] duration-150"
+                                :style="{ width: task.percent + '%' }"
+                            />
+                        </div>
+                    </div>
+                    <div class="flex shrink-0 flex-col items-end gap-1">
+                        <span class="text-xs font-semibold tabular-nums text-gray-600 dark:text-gray-400">{{ task.percent }}%</span>
+                        <button
+                            @click="fm.cancelUpload(task.id)"
+                            class="text-xs text-red-500 hover:text-red-700 dark:hover:text-red-400"
+                        >{{ t('Cancel') }}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </Transition>
 </template>
 
 <script setup lang="ts">
@@ -316,6 +351,7 @@ import PageBreadcrumb from '@/Components/Common/PageBreadcrumb.vue';
 import Toast from '@/Components/UI/Toast.vue';
 import TreeView from '@/Components/FileManager/TreeView.vue';
 import FileIcon from '@/Components/FileManager/FileIcon.vue';
+import axios from 'axios';
 import { useToast } from '@/Composables/useToast';
 import { useFileManager, type FileItem } from '@/Composables/useFileManager';
 import { useI18n } from '@/Composables/useI18n';
@@ -582,15 +618,17 @@ function triggerUpload() {
     uploadInputRef.value?.click();
 }
 
-async function handleUpload(event: Event) {
+function handleUpload(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
-    try {
-        await fm.uploadFiles(input.files);
-        addToast('success', t(':count file(s) uploaded', { count: input.files.length }));
-    } catch (err: any) {
-        addToast('error', err.response?.data?.message || err.message);
-    }
+    const count = input.files.length;
+    fm.uploadFiles(input.files).then(() => {
+        addToast('success', t(':count file(s) uploaded', { count }));
+    }).catch((err: any) => {
+        if (!axios.isCancel(err)) {
+            addToast('error', err.response?.data?.message || err.message);
+        }
+    });
     input.value = '';
 }
 
@@ -717,16 +755,18 @@ function onExternalDragLeave(event: DragEvent) {
     }
 }
 
-async function onExternalDrop(event: DragEvent) {
+function onExternalDrop(event: DragEvent) {
     if (dragSource) return;
     showDropZone.value = false;
     if (event.dataTransfer?.files.length) {
-        try {
-            await fm.uploadFiles(event.dataTransfer.files);
-            addToast('success', t(':count file(s) uploaded', { count: event.dataTransfer.files.length }));
-        } catch (err: any) {
-            addToast('error', err.message);
-        }
+        const count = event.dataTransfer.files.length;
+        fm.uploadFiles(event.dataTransfer.files).then(() => {
+            addToast('success', t(':count file(s) uploaded', { count }));
+        }).catch((err: any) => {
+            if (!axios.isCancel(err)) {
+                addToast('error', err.message);
+            }
+        });
     }
 }
 
@@ -842,5 +882,13 @@ watch(() => fm.contextMenu.visible, (visible) => {
 
 .form-input {
     @apply h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90;
+}
+
+.fm-upload-toast-enter-active, .fm-upload-toast-leave-active {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.fm-upload-toast-enter-from, .fm-upload-toast-leave-to {
+    opacity: 0;
+    transform: translateY(8px);
 }
 </style>

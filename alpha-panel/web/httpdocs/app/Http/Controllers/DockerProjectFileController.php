@@ -80,6 +80,8 @@ class DockerProjectFileController extends Controller
 
     public function upload(Request $request, DockerProject $dockerProject): JsonResponse
     {
+        $request->session()->save();
+
         $maxKb = (int) (self::phpMaxUploadBytes() / 1024);
 
         $request->validate([

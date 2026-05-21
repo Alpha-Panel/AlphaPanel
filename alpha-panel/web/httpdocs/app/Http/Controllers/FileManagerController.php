@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Domain;
 use App\Services\FileManagerService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -16,7 +17,7 @@ class FileManagerController extends Controller
     /**
      * Show the file manager page.
      */
-    public function index(Domain $domain): \Illuminate\Http\RedirectResponse|Response
+    public function index(Domain $domain): RedirectResponse|Response
     {
         $this->authorize('viewFiles', $domain);
 
@@ -118,6 +119,7 @@ class FileManagerController extends Controller
     public function upload(Request $request, Domain $domain): JsonResponse
     {
         $this->authorize('manageFiles', $domain);
+        $request->session()->save();
 
         $maxKb = (int) (self::phpMaxUploadBytes() / 1024);
 
