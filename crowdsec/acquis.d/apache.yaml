@@ -1,0 +1,4 @@
+filenames:
+  - /var/www/vhosts/*/logs/*access*.log
+labels:
+  type: apache2

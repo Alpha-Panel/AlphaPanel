@@ -261,7 +261,7 @@ class DomainConfigService
         if (! $isLegacy) {
             $lines[] = '    log {';
             $lines[] = "        output file /var/log/caddy/{$fqdn}.log";
-            $lines[] = '        format console';
+            $lines[] = '        format json';
             $lines[] = '    }';
         }
 
@@ -947,7 +947,7 @@ class DomainConfigService
             $lines = array_merge($lines, $this->wrapWithIpAccessControl($domain, $serverDirectives, '    '));
             $lines[] = '    log {';
             $lines[] = "        output file /var/log/caddy/{$slug}.log";
-            $lines[] = '        format console';
+            $lines[] = '        format json';
             $lines[] = '    }';
             $lines[] = '}';
         } else {
@@ -977,7 +977,7 @@ class DomainConfigService
             $lines = array_merge($lines, $this->wrapWithIpAccessControl($domain, $serverDirectives, '    '));
             $lines[] = '    log {';
             $lines[] = '        output file /var/log/caddy/wildcard.log';
-            $lines[] = '        format console';
+            $lines[] = '        format json';
             $lines[] = '    }';
             $lines[] = '}';
         } else {

@@ -161,7 +161,7 @@ services:
       - frankenphp
     environment:
       TZ: Europe/Istanbul
-      COLLECTIONS: "crowdsecurity/modsecurity crowdsecurity/base-http-scenarios crowdsecurity/http-cve"
+      COLLECTIONS: "crowdsecurity/modsecurity crowdsecurity/base-http-scenarios crowdsecurity/http-cve crowdsecurity/caddy crowdsecurity/apache2"
       # Internal agent ↔ LAPI lives on loopback. Cross-container bouncers reach LAPI via crowdsec:8080
       # and MUST authenticate with BOUNCER_KEY_* below — no anonymous decisions.
       LOCAL_API_URL: "http://127.0.0.1:8080"
@@ -173,6 +173,8 @@ services:
       - ./crowdsec/data:/var/lib/crowdsec/data
       - ./crowdsec/acquis.d:/etc/crowdsec/acquis.d:ro
       - ./frankenphp/coraza-logs:/var/log/coraza:ro
+      - ./frankenphp/logs:/var/log/caddy:ro
+      - ./vhosts:/var/www/vhosts:ro
     ports:
       - "127.0.0.1:8080:8080"
     networks:
