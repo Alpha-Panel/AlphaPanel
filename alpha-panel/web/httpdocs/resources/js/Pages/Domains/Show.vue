@@ -46,6 +46,29 @@
                                 >
                                     <i class="fa-solid fa-broom text-sm"></i>
                                 </button>
+                                <button
+                                    v-if="!isSubdomain && can('domain.cloudflare.manage')"
+                                    type="button"
+                                    :disabled="!isCloudflareManagedForDns || cloudflareActionLoading"
+                                    @click="toggleUnderAttackQuick"
+                                    class="inline-flex h-9 items-center gap-2 rounded-lg border px-2.5 text-xs font-medium shadow-theme-xs transition disabled:cursor-not-allowed disabled:opacity-50"
+                                    :class="underAttackEnabled
+                                        ? 'border-error-500/40 bg-error-500/10 text-error-600 hover:bg-error-500/20 dark:border-error-500/40 dark:bg-error-500/10 dark:text-error-300'
+                                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/3'"
+                                    v-tooltip="!isCloudflareManagedForDns ? t('Cloudflare is not active for this domain.') : t('Toggle Under Attack mode')"
+                                >
+                                    <i class="fa-solid fa-shield-virus text-sm"></i>
+                                    <span class="hidden sm:inline">{{ t('Under Attack') }}</span>
+                                    <span
+                                        class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+                                        :class="underAttackEnabled
+                                            ? 'bg-error-500 text-white'
+                                            : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'"
+                                    >
+                                        <i v-if="cloudflareActionLoading" class="bx bx-loader-alt animate-spin"></i>
+                                        <template v-else>{{ underAttackEnabled ? t('On') : t('Off') }}</template>
+                                    </span>
+                                </button>
                                 <Link
                                     :href="route('domains.edit', domain.id)"
                                     class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 shadow-theme-xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/3"
@@ -110,8 +133,23 @@
                     </div>
 
                     <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
-                        <h4 class="mb-4 text-sm font-semibold text-gray-800 dark:text-white/90">{{ t('Quick Links') }}</h4>
-                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <div class="mb-4 flex flex-wrap items-center gap-2 border-b border-gray-200 pb-3 dark:border-gray-800">
+                            <button
+                                v-for="tab in quickLinksTabs"
+                                :key="tab.key"
+                                type="button"
+                                @click="activeQuickLinksTab = tab.key"
+                                class="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition"
+                                :class="activeQuickLinksTab === tab.key
+                                    ? 'bg-brand-500 text-white shadow-theme-xs'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'"
+                            >
+                                <i :class="tab.icon"></i>
+                                <span>{{ tab.label }}</span>
+                            </button>
+                        </div>
+
+                        <div v-show="activeQuickLinksTab === 'most_used'" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             <template v-if="can('domain.files.view')">
                                 <template v-if="hasStoredFtpPassword">
                                     <Link
@@ -185,7 +223,9 @@
                                 </span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
+                        </div>
 
+                        <div v-show="activeQuickLinksTab === 'configuration'" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             <Link v-if="can('domain.edit')" :href="route('domains.edit', domain.id)" class="quick-link">
                                 <i class="fa-solid fa-gears quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('Vhost Settings') }}</span>
@@ -198,15 +238,9 @@
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
-                            <Link v-if="can('domain.supervisor.view')" :href="route('domains.supervisor.index', domain.id)" class="quick-link">
-                                <i class="fa-brands fa-laravel quick-link-icon"></i>
-                                <span class="quick-link-label">{{ t('Laravel Processes') }}</span>
-                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
-                            </Link>
-
-                            <Link v-if="can('domain.cron-jobs.view')" :href="route('domains.cron-jobs.index', domain.id)" class="quick-link">
-                                <i class="fa-solid fa-clock quick-link-icon"></i>
-                                <span class="quick-link-label">{{ t('Cron Jobs') }}</span>
+                            <Link :href="route('domains.custom-conf.show', domain.id)" class="quick-link">
+                                <i class="fa-solid fa-file-code quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('Custom Config') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
@@ -215,40 +249,32 @@
                                 <span class="quick-link-label">{{ t('Package Manager') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
+                        </div>
 
-                            <Link v-if="can('domain.edit')" :href="route('domains.users.index', domain.id)" class="quick-link">
-                                <i class="fa-solid fa-user-group quick-link-icon"></i>
-                                <span class="quick-link-label">{{ t('Authorized Users') }}</span>
+                        <div v-show="activeQuickLinksTab === 'automation'" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            <Link v-if="can('domain.cron-jobs.view')" :href="route('domains.cron-jobs.index', domain.id)" class="quick-link">
+                                <i class="fa-solid fa-clock quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('Cron Jobs') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
-                            <Link v-if="can('panel.docker-services.manage')" :href="route('domains.docker-services.index', domain.id)" class="quick-link">
-                                <i class="fa-brands fa-docker quick-link-icon"></i>
-                                <span class="quick-link-label">{{ t('Docker Services') }}</span>
+                            <Link v-if="can('domain.supervisor.view')" :href="route('domains.supervisor.index', domain.id)" class="quick-link">
+                                <i class="fa-brands fa-laravel quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('Laravel Processes') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
-                            <Link v-if="can('panel.docker-services.manage')" :href="route('domains.docker-projects.index', domain.id)" class="quick-link">
-                                <i class="fa-brands fa-docker quick-link-icon"></i>
-                                <span class="quick-link-label">{{ t('Docker Projects') }}</span>
+                            <button type="button" @click="openJenkinsModal(domain.fqdn)" class="quick-link">
+                                <i class="fa-brands fa-jenkins quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('Jenkins file') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
-                            </Link>
+                            </button>
+                        </div>
 
-                            <Link v-if="can('domain.logs.view')" :href="route('domains.logs.index', domain.id)" class="quick-link">
-                                <i class="fa-solid fa-file-lines quick-link-icon"></i>
-                                <span class="quick-link-label">{{ t('Logs') }}</span>
-                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
-                            </Link>
-
+                        <div v-show="activeQuickLinksTab === 'security'" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             <Link v-if="can('domain.modsecurity.view')" :href="route('domains.modsecurity.index', domain.id)" class="quick-link">
                                 <i class="fa-solid fa-shield-virus quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('WAF') }}</span>
-                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
-                            </Link>
-
-                            <Link :href="route('domains.custom-conf.show', domain.id)" class="quick-link">
-                                <i class="fa-solid fa-file-code quick-link-icon"></i>
-                                <span class="quick-link-label">{{ t('Custom Config') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
@@ -258,11 +284,11 @@
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
-                            <button type="button" @click="openJenkinsModal(domain.fqdn)" class="quick-link">
-                                <i class="fa-brands fa-jenkins quick-link-icon"></i>
-                                <span class="quick-link-label">{{ t('Jenkins file') }}</span>
+                            <Link v-if="can('domain.edit')" :href="route('domains.users.index', domain.id)" class="quick-link">
+                                <i class="fa-solid fa-user-group quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('Authorized Users') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
-                            </button>
+                            </Link>
 
                             <button
                                 v-if="!isSubdomain && can('domain.cloudflare.manage')"
@@ -294,6 +320,28 @@
                                     <i :class="isCloudflareManagedForDns ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'" class="mr-1 text-[9px]"></i>
                                     {{ isCloudflareManagedForDns ? t('On') : t('Off') }}
                                 </span>
+                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                            </Link>
+                        </div>
+
+                        <div v-show="activeQuickLinksTab === 'docker'" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            <Link v-if="can('panel.docker-services.manage')" :href="route('domains.docker-services.index', domain.id)" class="quick-link">
+                                <i class="fa-brands fa-docker quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('Docker Services') }}</span>
+                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                            </Link>
+
+                            <Link v-if="can('panel.docker-services.manage')" :href="route('domains.docker-projects.index', domain.id)" class="quick-link">
+                                <i class="fa-brands fa-docker quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('Docker Projects') }}</span>
+                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                            </Link>
+                        </div>
+
+                        <div v-show="activeQuickLinksTab === 'monitoring'" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            <Link v-if="can('domain.logs.view')" :href="route('domains.logs.index', domain.id)" class="quick-link">
+                                <i class="fa-solid fa-file-lines quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('Logs') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
                         </div>
@@ -349,7 +397,23 @@
                                 </div>
                             </div>
 
-                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                            <div class="mb-4 flex flex-wrap items-center gap-2 border-b border-gray-200 pb-3 dark:border-gray-800">
+                                <button
+                                    v-for="tab in quickLinksTabs"
+                                    :key="tab.key"
+                                    type="button"
+                                    @click="setSubdomainTab(subdomain.id, tab.key)"
+                                    class="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition"
+                                    :class="getSubdomainTab(subdomain.id) === tab.key
+                                        ? 'bg-brand-500 text-white shadow-theme-xs'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'"
+                                >
+                                    <i :class="tab.icon"></i>
+                                    <span>{{ tab.label }}</span>
+                                </button>
+                            </div>
+
+                            <div v-show="getSubdomainTab(subdomain.id) === 'most_used'" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                                 <Link :href="route('domains.ssl.index', subdomain.id)" class="quick-link">
                                     <i class="fa-brands fa-expeditedssl quick-link-icon"></i>
                                     <span class="quick-link-label">{{ t('SSL Certificate') }}</span>
@@ -361,7 +425,9 @@
                                     <span class="quick-link-label">{{ t('Vhost Settings') }}</span>
                                     <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                                 </Link>
+                            </div>
 
+                            <div v-show="getSubdomainTab(subdomain.id) === 'configuration'" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                                 <Link
                                     v-if="subdomain.type === 'apache_reverse_proxy'"
                                     :href="route('domains.php.index', subdomain.id)"
@@ -372,9 +438,9 @@
                                     <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                                 </Link>
 
-                                <Link :href="route('domains.supervisor.index', subdomain.id)" class="quick-link">
-                                    <i class="fa-brands fa-laravel quick-link-icon"></i>
-                                    <span class="quick-link-label">{{ t('Laravel Processes') }}</span>
+                                <Link :href="route('domains.custom-conf.show', subdomain.id)" class="quick-link">
+                                    <i class="fa-solid fa-file-code quick-link-icon"></i>
+                                    <span class="quick-link-label">{{ t('Custom Config') }}</span>
                                     <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                                 </Link>
 
@@ -383,25 +449,37 @@
                                     <span class="quick-link-label">{{ t('Package Manager') }}</span>
                                     <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                                 </Link>
+                            </div>
 
-                                <Link :href="route('domains.logs.index', subdomain.id)" class="quick-link">
-                                    <i class="fa-solid fa-file-lines quick-link-icon"></i>
-                                    <span class="quick-link-label">{{ t('Logs') }}</span>
+                            <div v-show="getSubdomainTab(subdomain.id) === 'automation'" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                <Link :href="route('domains.supervisor.index', subdomain.id)" class="quick-link">
+                                    <i class="fa-brands fa-laravel quick-link-icon"></i>
+                                    <span class="quick-link-label">{{ t('Laravel Processes') }}</span>
                                     <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                                 </Link>
 
+                                <button type="button" @click="openJenkinsModal(subdomain.fqdn)" class="quick-link">
+                                    <i class="fa-brands fa-jenkins quick-link-icon"></i>
+                                    <span class="quick-link-label">{{ t('Jenkins file') }}</span>
+                                    <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                                </button>
+                            </div>
+
+                            <div v-show="getSubdomainTab(subdomain.id) === 'security'" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                                 <Link :href="route('domains.modsecurity.index', subdomain.id)" class="quick-link">
                                     <i class="fa-solid fa-shield-virus quick-link-icon"></i>
                                     <span class="quick-link-label">{{ t('WAF') }}</span>
                                     <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                                 </Link>
 
-                                <Link :href="route('domains.custom-conf.show', subdomain.id)" class="quick-link">
-                                    <i class="fa-solid fa-file-code quick-link-icon"></i>
-                                    <span class="quick-link-label">{{ t('Custom Config') }}</span>
+                                <Link :href="route('domains.ip-access.index', subdomain.id)" class="quick-link">
+                                    <i class="fa-solid fa-shield-halved quick-link-icon"></i>
+                                    <span class="quick-link-label">{{ t('IP Access Control') }}</span>
                                     <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                                 </Link>
+                            </div>
 
+                            <div v-show="getSubdomainTab(subdomain.id) === 'docker'" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                                 <Link v-if="can('panel.docker-services.manage')" :href="route('domains.docker-services.index', subdomain.id)" class="quick-link">
                                     <i class="fa-brands fa-docker quick-link-icon"></i>
                                     <span class="quick-link-label">{{ t('Docker Services') }}</span>
@@ -413,18 +491,14 @@
                                     <span class="quick-link-label">{{ t('Docker Projects') }}</span>
                                     <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                                 </Link>
+                            </div>
 
-                                <Link :href="route('domains.ip-access.index', subdomain.id)" class="quick-link">
-                                    <i class="fa-solid fa-shield-halved quick-link-icon"></i>
-                                    <span class="quick-link-label">{{ t('IP Access Control') }}</span>
+                            <div v-show="getSubdomainTab(subdomain.id) === 'monitoring'" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                <Link :href="route('domains.logs.index', subdomain.id)" class="quick-link">
+                                    <i class="fa-solid fa-file-lines quick-link-icon"></i>
+                                    <span class="quick-link-label">{{ t('Logs') }}</span>
                                     <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                                 </Link>
-
-                                <button type="button" @click="openJenkinsModal(subdomain.fqdn)" class="quick-link">
-                                    <i class="fa-brands fa-jenkins quick-link-icon"></i>
-                                    <span class="quick-link-label">{{ t('Jenkins file') }}</span>
-                                    <i class="fa-solid fa-angle-right quick-link-arrow"></i>
-                                </button>
                             </div>
                         </div>
 
@@ -773,6 +847,25 @@ const ftpForm = ref({
 });
 const fixPermissionsLoading = ref(false);
 const domainTerminalLoading = ref(false);
+
+type QuickLinksTabKey = 'most_used' | 'configuration' | 'automation' | 'security' | 'docker' | 'monitoring';
+const activeQuickLinksTab = ref<QuickLinksTabKey>('most_used');
+const quickLinksTabs = computed<Array<{ key: QuickLinksTabKey; label: string; icon: string }>>(() => [
+    { key: 'most_used', label: t('Most Used'), icon: 'fa-solid fa-bolt' },
+    { key: 'configuration', label: t('Configuration'), icon: 'fa-solid fa-gears' },
+    { key: 'automation', label: t('Automation'), icon: 'fa-solid fa-robot' },
+    { key: 'security', label: t('Security'), icon: 'fa-solid fa-shield-halved' },
+    { key: 'docker', label: t('Docker'), icon: 'fa-brands fa-docker' },
+    { key: 'monitoring', label: t('Monitoring'), icon: 'fa-solid fa-chart-line' },
+]);
+
+const subdomainActiveTab = ref<Record<number, QuickLinksTabKey>>({});
+function getSubdomainTab(id: number): QuickLinksTabKey {
+    return subdomainActiveTab.value[id] ?? 'most_used';
+}
+function setSubdomainTab(id: number, key: QuickLinksTabKey): void {
+    subdomainActiveTab.value[id] = key;
+}
 
 const showJenkinsModal = ref(false);
 const jenkinsFqdn = ref('');
