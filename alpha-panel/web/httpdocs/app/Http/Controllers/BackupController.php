@@ -352,18 +352,25 @@ class BackupController extends Controller
 
     public function driveDownload(string $fileId, GoogleDriveService $drive): StreamedResponse
     {
+        @set_time_limit(0);
+        @ignore_user_abort(false);
+
         try {
             $file = $drive->downloadFile($fileId);
 
             return response()->streamDownload(function () use ($file): void {
                 $stream = $file['stream'];
                 while (! $stream->eof()) {
-                    echo $stream->read(8192);
+                    if (connection_aborted()) {
+                        break;
+                    }
+                    echo $stream->read(65536);
                     flush();
                 }
             }, $file['name'], [
                 'Content-Type' => $file['mimeType'],
-                'Content-Length' => $file['size'],
+                'X-Accel-Buffering' => 'no',
+                'Cache-Control' => 'no-store, no-cache, must-revalidate',
             ]);
         } catch (\Throwable $e) {
             abort(500, $e->getMessage());

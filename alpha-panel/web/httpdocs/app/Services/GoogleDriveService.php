@@ -31,8 +31,9 @@ class GoogleDriveService
 
         $this->client = new GoogleClient;
         $this->client->setHttpClient(new Client([
-            'timeout' => 20,
-            'connect_timeout' => 5,
+            'timeout' => 0,
+            'connect_timeout' => 10,
+            'read_timeout' => 0,
         ]));
         $this->client->setClientId(config('backup.google.client_id'));
         $this->client->setClientSecret(config('backup.google.client_secret'));
