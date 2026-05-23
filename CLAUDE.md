@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 AlphaPanel-Docker is a Docker Compose-based web hosting stack. It consists of:
-- A **Laravel 12 control panel** (`alpha-panel/web/httpdocs/`) for managing hosted domains
+- A **Laravel 13 control panel** (`alpha-panel/web/httpdocs/`) for managing hosted domains
 - **FrankenPHP + Caddy** as the primary web server and reverse proxy
 - **Apache + PHP-FPM** for legacy `.htaccess`-based sites (proxied through Caddy)
 - Supporting services: MySQL, Redis, Meilisearch, N8N, Jenkins, Portainer, Vaultwarden, FTP

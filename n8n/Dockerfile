@@ -1,11 +1,11 @@
-FROM n8nio/n8n:2.18.5
+FROM n8nio/n8n:2.22.2
 
 USER root
 
 # n8n image'in bazen distroless geldiği için paket yöneticisi olmayabiliyor.
 # O yüzden docker-cli'yi "static binary" olarak ekleyeceğiz.
 
-ARG DOCKER_CLI_VERSION=27.5.1
+ARG DOCKER_CLI_VERSION=29.5.0
 RUN set -eux; \
   arch="$(uname -m)"; \
   case "$arch" in \

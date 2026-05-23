@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG FRANKENPHP_VERSION=1.12.2
+ARG FRANKENPHP_VERSION=1.12.3
 FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-builder-php8.5-bookworm AS builder
 ARG FRANKENPHP_VERSION
 
@@ -89,7 +89,7 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 # Node.js 22.x (Vite 7+ requires Node.js 20.19+ or 22.12+)
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
  && apt-get install -y nodejs \
  && rm -rf /var/lib/apt/lists/*
 
