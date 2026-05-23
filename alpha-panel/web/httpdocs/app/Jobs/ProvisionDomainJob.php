@@ -21,6 +21,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 
@@ -52,6 +53,15 @@ class ProvisionDomainJob implements ShouldQueue
     ): void {
         $this->applyLocale();
         $domain = $this->domain;
+
+        $lock = Cache::lock("provision:{$domain->id}", $this->timeout);
+
+        if (! $lock->get()) {
+            Log::warning("Provision already in progress for {$domain->fqdn}, skipping duplicate dispatch.");
+
+            return;
+        }
+
         $applyRun = ApplyRun::create([
             'domain_id' => $domain->id,
             'status' => 'running',
@@ -212,6 +222,8 @@ class ProvisionDomainJob implements ShouldQueue
         } catch (\Throwable $e) {
             Log::error("Provision failed for {$domain->fqdn}: {$e->getMessage()}");
             $this->failProvision($domain, $applyRun, $e->getMessage());
+        } finally {
+            $lock->release();
         }
     }
 

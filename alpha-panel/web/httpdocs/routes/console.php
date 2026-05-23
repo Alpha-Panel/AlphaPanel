@@ -1,11 +1,14 @@
 <?php
 
+use App\Enums\NotificationType;
 use App\Jobs\BackupUploadJob;
 use App\Jobs\CheckForUpdatesJob;
 use App\Jobs\ExecuteDomainCronJob;
 use App\Models\BackupRun;
 use App\Models\BackupSetting;
 use App\Models\DomainCronJob;
+use App\Models\User;
+use App\Notifications\DomainNotification;
 use Cron\CronExpression;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -63,12 +66,14 @@ Schedule::call(function (): void {
             ->with('domain')
             ->get();
 
-        $now = now();
+        // Pin evaluation to the app timezone so container TZ drift can't shift fires.
+        $appTz = (string) config('app.timezone', 'UTC');
+        $now = now($appTz);
 
         foreach ($cronJobs as $cronJob) {
             try {
                 $cron = new CronExpression($cronJob->schedule);
-                if ($cron->isDue($now)) {
+                if ($cron->isDue($now, $appTz)) {
                     dispatch(new ExecuteDomainCronJob($cronJob));
                 }
             } catch (Throwable $e) {
@@ -131,7 +136,22 @@ Schedule::command('ssl:renew')
     ->twiceDaily(3, 15)
     ->name('ssl:renew')
     ->withoutOverlapping(30)
-    ->onFailure(fn () => Log::error('SSL renewal check failed'));
+    ->onFailure(function (): void {
+        Log::error('SSL renewal check failed — notifying admins.');
+        try {
+            $admins = User::query()->where('admin', true)->get();
+            foreach ($admins as $admin) {
+                $admin->notify(new DomainNotification(
+                    level: 'error',
+                    title: __('SSL Renewal Check Failed'),
+                    body: __('Scheduled ssl:renew command failed. Check application logs.'),
+                    notificationType: NotificationType::SslRenewal,
+                ));
+            }
+        } catch (Throwable $e) {
+            Log::error("SSL renewal failure notification could not be sent: {$e->getMessage()}");
+        }
+    });
 
 /*
 |--------------------------------------------------------------------------
@@ -146,7 +166,8 @@ Schedule::command('ssl:renew')
 Schedule::command('telescope:prune --hours='.config('telescope.prune_hours', 48))
     ->daily()
     ->name('telescope:prune')
-    ->withoutOverlapping();
+    ->withoutOverlapping()
+    ->onFailure(fn () => Log::error('Telescope prune failed'));
 
 /*
 |--------------------------------------------------------------------------
@@ -162,4 +183,5 @@ Schedule::command('telescope:prune --hours='.config('telescope.prune_hours', 48)
 Schedule::command('system:check-health')
     ->everyFiveMinutes()
     ->name('system:check-health')
-    ->withoutOverlapping();
+    ->withoutOverlapping()
+    ->onFailure(fn () => Log::error('System health check failed'));

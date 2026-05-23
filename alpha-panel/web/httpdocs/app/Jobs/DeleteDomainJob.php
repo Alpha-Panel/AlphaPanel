@@ -60,6 +60,14 @@ class DeleteDomainJob implements ShouldQueue
         $domain = $this->domain;
         $fqdn = $this->fqdn;
 
+        // Idempotency — if the model is already gone (manual cleanup or earlier retry
+        // finished before failing), don't double-process and don't duplicate audit logs.
+        if (! Domain::query()->whereKey($domain->id)->exists()) {
+            Log::info("Domain {$fqdn} already deleted; skipping job.");
+
+            return;
+        }
+
         try {
             Log::info("Starting deletion of domain {$fqdn}");
 

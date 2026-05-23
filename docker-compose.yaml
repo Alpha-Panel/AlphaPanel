@@ -46,8 +46,10 @@ services:
       - ./php-code-server/8.5/fpm.d/:/etc/php/8.5/fpm/pool.d/
       - .:/docker_compose_project_root # Mount the Docker Compose project root
     depends_on:
-      - mysql
-      - alpha_panel_meilisearch
+      mysql:
+        condition: service_healthy
+      alpha_panel_meilisearch:
+        condition: service_started
     environment:
       PUBLIC_NETWORK_IP: ${PUBLIC_NETWORK_IP}
       PRIVATE_NETWORK_IP: ${PRIVATE_NETWORK_IP}
@@ -136,11 +138,16 @@ services:
     networks:
       - vhost_network
     depends_on:
-      - mysql
-      - redis
-      - ftp
-      - meilisearch
-      - memcached
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+      ftp:
+        condition: service_started
+      memcached:
+        condition: service_started
     ports:
       - "${PUBLIC_NETWORK_IP}:80:80"
       - "443:443"
@@ -235,11 +242,16 @@ services:
       - ./scripts/backup:/opt/backup
       - ./frankenphp/imagick-policy.xml:/etc/ImageMagick-6/policy.xml
     depends_on:
-      - mysql
-      - redis
-      - meilisearch
-      - ftp
-      - memcached
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+      ftp:
+        condition: service_started
+      memcached:
+        condition: service_started
     networks:
       - vhost_network
 
@@ -257,6 +269,12 @@ services:
       - MEILI_MASTER_KEY=${MEILISEARCH_MASTER_KEY}
     ports:
       - "${PRIVATE_NETWORK_IP}:7700:7700"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:7700/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     networks:
       - vhost_network
 
@@ -273,6 +291,12 @@ services:
       TZ: ${APP_TIMEZONE:-Europe/Istanbul}
     ports:
       - "${PRIVATE_NETWORK_IP}:3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - vhost_network
 
@@ -290,7 +314,8 @@ services:
       - ./powerdns/pdns.conf:/etc/powerdns/pdns.conf
     command: ["--gmysql-password=${MYSQL_ROOT_PASSWORD}"]
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     networks:
       - vhost_network
 
@@ -303,6 +328,12 @@ services:
       - ./redis:/data
     ports:
       - "${PRIVATE_NETWORK_IP}:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     networks:
       - vhost_network
 
@@ -363,14 +394,14 @@ services:
     ports:
       - "${PRIVATE_NETWORK_IP}:21:21"                        # komut kanalı (FTPS explicit)
       - "${PRIVATE_NETWORK_IP}:990:990"                      # FTPS implicit
-      - "${PRIVATE_NETWORK_IP}:21000-21099:21000-21099"       # pasif mod — 100 port (paralel transferler için yeterli)
+      - "${PRIVATE_NETWORK_IP}:${FTP_PASSIVE_PORT_RANGE_START:-21000}-${FTP_PASSIVE_PORT_RANGE_END:-21099}:${FTP_PASSIVE_PORT_RANGE_START:-21000}-${FTP_PASSIVE_PORT_RANGE_END:-21099}"
     environment:
       FTP_MASQUERADE_ADDRESS: ${PRIVATE_NETWORK_IP}
       FTP_TLS_REQUIRED: "on"
       FTP_TLS_CERTIFICATE_FILE: /etc/letsencrypt/live/${BASE_DOMAIN}/fullchain.pem
       FTP_TLS_CERTIFICATE_KEY_FILE: /etc/letsencrypt/live/${BASE_DOMAIN}/privkey.pem
-      FTP_PASSIVE_PORT_RANGE_START: 21000
-      FTP_PASSIVE_PORT_RANGE_END: 21099
+      FTP_PASSIVE_PORT_RANGE_START: ${FTP_PASSIVE_PORT_RANGE_START:-21000}
+      FTP_PASSIVE_PORT_RANGE_END: ${FTP_PASSIVE_PORT_RANGE_END:-21099}
       MYSQL_HOST: mysql
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ftp_reader
@@ -385,7 +416,8 @@ services:
     networks:
       - vhost_network
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
 
   jenkins:
     build:
@@ -418,8 +450,14 @@ services:
       POSTGRES_DB: n8n
     volumes:
       - ./postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRESQL_USER} -d n8n"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     networks:
-      - vhost_network
+      - n8n_internal
 
   n8n:
     build:
@@ -429,7 +467,8 @@ services:
     group_add:
       - "988"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     ports:
       - "${PRIVATE_NETWORK_IP}:5678:5678"
     environment:
@@ -473,6 +512,7 @@ services:
       - /root/backup:/home/node/backup
     networks:
       - vhost_network
+      - n8n_internal
 
   portainer:
     image: portainer/portainer-ce:2.39.1
@@ -546,3 +586,10 @@ networks:
   vhost_network:
     name: vhost_network
     driver: bridge
+
+  # Internal-only network for n8n ↔ postgres. Hosted user sites on vhost_network
+  # cannot reach the n8n DB. n8n itself joins both networks for ingress + DB access.
+  n8n_internal:
+    name: n8n_internal
+    driver: bridge
+    internal: true

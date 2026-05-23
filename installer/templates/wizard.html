@@ -44,14 +44,14 @@
     <section id="step-domains" class="step" hidden>
       <h2>Domains</h2>
       <form id="form-domains">
-        <label>Base domain (apex) <input name="base_domain" required placeholder="example.com"></label>
-        <label>Panel <input name="panel_domain" required></label>
-        <label>phpMyAdmin <input name="pma_domain" required></label>
-        <label>File manager <input name="code_server_domain" required></label>
-        <label>Vaultwarden <input name="vaultwarden_domain" required></label>
-        <label>N8N <input name="n8n_domain" required></label>
-        <label>Portainer <input name="portainer_domain" required></label>
-        <label>Jenkins <input name="jenkins_domain" required></label>
+        <label>Base domain (apex) <input name="base_domain" required placeholder="example.com" pattern="^(?=.{1,253}$)([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$" title="Enter a valid FQDN, e.g. example.com"></label>
+        <label>Panel <input name="panel_domain" required pattern="^(?=.{1,253}$)([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$" title="Enter a valid FQDN"></label>
+        <label>phpMyAdmin <input name="pma_domain" required pattern="^(?=.{1,253}$)([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$" title="Enter a valid FQDN"></label>
+        <label>File manager <input name="code_server_domain" required pattern="^(?=.{1,253}$)([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$" title="Enter a valid FQDN"></label>
+        <label>Vaultwarden <input name="vaultwarden_domain" required pattern="^(?=.{1,253}$)([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$" title="Enter a valid FQDN"></label>
+        <label>N8N <input name="n8n_domain" required pattern="^(?=.{1,253}$)([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$" title="Enter a valid FQDN"></label>
+        <label>Portainer <input name="portainer_domain" required pattern="^(?=.{1,253}$)([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$" title="Enter a valid FQDN"></label>
+        <label>Jenkins <input name="jenkins_domain" required pattern="^(?=.{1,253}$)([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$" title="Enter a valid FQDN"></label>
         <label>Jenkins admin IPs (optional, CIDRs comma-separated) <input name="jenkins_admin_ips"></label>
       </form>
       <button class="prev">Back</button>

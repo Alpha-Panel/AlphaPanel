@@ -86,13 +86,4 @@
 	#debug
 }
 
-#0.0.0.0:80 {
-#    respond "Caddy alive"
-#}
-#
-#0.0.0.0:443 {
-#    tls /data/self-signed/server.crt /data/self-signed/server.key
-#    respond "Caddy alive"
-#}
-
 import ./sites-enabled/*/Caddyfile

@@ -112,3 +112,17 @@ services:
         limits:
           cpus: "${POSTGRES_CPU_LIMIT:-0.5}"
           memory: "${POSTGRES_MEM_LIMIT:-512M}"
+
+  jenkins:
+    deploy:
+      resources:
+        limits:
+          cpus: "${JENKINS_CPU_LIMIT:-1.0}"
+          memory: "${JENKINS_MEM_LIMIT:-1G}"
+
+  powerdns:
+    deploy:
+      resources:
+        limits:
+          cpus: "${POWERDNS_CPU_LIMIT:-0.25}"
+          memory: "${POWERDNS_MEM_LIMIT:-128M}"

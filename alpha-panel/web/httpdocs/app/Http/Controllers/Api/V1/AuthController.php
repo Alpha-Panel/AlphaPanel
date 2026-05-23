@@ -131,7 +131,17 @@ class AuthController extends ApiController
 
     public function logout(Request $request): Response
     {
-        $request->user()?->currentAccessToken()?->delete();
+        $user = $request->user();
+
+        if ($user !== null) {
+            // Revoke every active refresh token for this user — otherwise a stolen
+            // refresh token can still mint new access tokens after logout.
+            RefreshToken::where('user_id', $user->id)
+                ->whereNull('revoked_at')
+                ->update(['revoked_at' => now()]);
+
+            $user->currentAccessToken()?->delete();
+        }
 
         return response()->noContent();
     }

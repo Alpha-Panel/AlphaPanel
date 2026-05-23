@@ -75,7 +75,10 @@ const { isExpanded, isHovered, isMobileOpen } = useSidebar();
 const { t } = useI18n();
 
 const stats = ref<StatsData | null>(null);
-let pollInterval: ReturnType<typeof setInterval> | null = null;
+const STALE_THRESHOLD_MS = 90_000;
+let lastBroadcastAt = 0;
+let fallbackTimer: ReturnType<typeof setInterval> | null = null;
+let echoChannel: { stopListening: (event: string) => void } | null = null;
 
 const fetchStats = async (): Promise<void> => {
     try {
@@ -88,12 +91,32 @@ const fetchStats = async (): Promise<void> => {
 
 onMounted(() => {
     void fetchStats();
-    pollInterval = setInterval(() => void fetchStats(), 30_000);
+
+    const echo = (window as unknown as { Echo?: { private: (channel: string) => any } }).Echo;
+    if (echo && typeof echo.private === 'function') {
+        echoChannel = echo.private('admin').listen('.ServerStatsBroadcast', (event: StatsData) => {
+            stats.value = event;
+            lastBroadcastAt = Date.now();
+        });
+    }
+
+    // Fallback poll only when the broadcaster has gone silent (Reverb / supervisor down).
+    // Healthy broadcast cadence is 15s by default; trigger HTTP refetch after 90s of silence.
+    fallbackTimer = setInterval(() => {
+        if (lastBroadcastAt === 0 || Date.now() - lastBroadcastAt > STALE_THRESHOLD_MS) {
+            void fetchStats();
+        }
+    }, 60_000);
 });
 
 onUnmounted(() => {
-    if (pollInterval !== null) {
-        clearInterval(pollInterval);
+    if (fallbackTimer !== null) {
+        clearInterval(fallbackTimer);
+        fallbackTimer = null;
+    }
+    if (echoChannel !== null) {
+        echoChannel.stopListening('.ServerStatsBroadcast');
+        echoChannel = null;
     }
 });
 

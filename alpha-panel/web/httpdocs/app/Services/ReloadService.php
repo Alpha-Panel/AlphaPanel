@@ -97,7 +97,7 @@ class ReloadService
     {
         $container = (string) config('panel.frankenphp_container', 'frankenphp');
         $proxyUrl = rtrim((string) config('panel.docker_socket_proxy_url', 'http://docker-socket-proxy:2375'), '/');
-        $stopTimeout = (int) config('panel.frankenphp_restart_timeout', 5);
+        $stopTimeout = (int) config('panel.frankenphp_restart_timeout', 30);
 
         try {
             $client = new Client(['connect_timeout' => 5, 'timeout' => 60]);

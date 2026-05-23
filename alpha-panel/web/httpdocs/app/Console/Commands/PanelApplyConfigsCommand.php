@@ -75,14 +75,20 @@ class PanelApplyConfigsCommand extends Command
         $this->info("Done: {$success} regenerated, {$failed} failed.");
 
         $skipRestart = $this->option('no-restart') || $this->option('no-reload');
+        $restartFailed = false;
 
         if ($failed === 0 && ! $this->option('dry-run') && ! $skipRestart) {
             $this->newLine();
             $this->info('Restarting Caddy...');
             $restarted = $reloadService->restartCaddy();
-            $this->line($restarted ? '  OK  Caddy restarted.' : '  WARN  Caddy restart returned non-zero.');
+            if ($restarted) {
+                $this->line('  OK  Caddy restarted.');
+            } else {
+                $this->error('  FAIL  Caddy restart failed — regenerated configs may not be live yet.');
+                $restartFailed = true;
+            }
         }
 
-        return $failed > 0 ? self::FAILURE : self::SUCCESS;
+        return ($failed > 0 || $restartFailed) ? self::FAILURE : self::SUCCESS;
     }
 }

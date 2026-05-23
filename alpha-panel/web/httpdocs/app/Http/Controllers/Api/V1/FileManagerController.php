@@ -20,11 +20,15 @@ class FileManagerController extends ApiController
 
     public function index(Domain $domain): JsonResponse
     {
+        $this->authorize('viewFiles', $domain);
+
         return response()->json(['data' => ['fqdn' => $domain->fqdn, 'web_root' => $domain->getWebRootPath()]]);
     }
 
     public function list(Request $request, Domain $domain): JsonResponse
     {
+        $this->authorize('viewFiles', $domain);
+
         $path = (string) $request->input('path', '/');
         $items = $this->getService($domain)->listDirectory($path);
 
@@ -33,6 +37,7 @@ class FileManagerController extends ApiController
 
     public function read(Request $request, Domain $domain): JsonResponse
     {
+        $this->authorize('viewFiles', $domain);
         $request->validate(['path' => 'required|string']);
         $content = $this->getService($domain)->readFile($request->input('path'));
 
@@ -41,6 +46,7 @@ class FileManagerController extends ApiController
 
     public function write(Request $request, Domain $domain): JsonResponse
     {
+        $this->authorize('manageFiles', $domain);
         $request->validate(['path' => 'required|string', 'content' => 'required|string']);
         $this->getService($domain)->writeFile($request->input('path'), $request->input('content'));
 
@@ -49,14 +55,16 @@ class FileManagerController extends ApiController
 
     public function createFile(Request $request, Domain $domain): JsonResponse
     {
+        $this->authorize('manageFiles', $domain);
         $request->validate(['path' => 'required|string']);
-        $this->getService($domain)->createFile($request->input('path'));
+        $this->getService($domain)->writeFile($request->input('path'), '');
 
         return response()->json(['message' => __('File created.')], 201);
     }
 
     public function createDirectory(Request $request, Domain $domain): JsonResponse
     {
+        $this->authorize('manageFiles', $domain);
         $request->validate(['path' => 'required|string']);
         $this->getService($domain)->createDirectory($request->input('path'));
 
@@ -65,12 +73,13 @@ class FileManagerController extends ApiController
 
     public function upload(Request $request, Domain $domain): JsonResponse
     {
+        $this->authorize('manageFiles', $domain);
         $request->validate(['path' => 'required|string', 'files' => 'required|array', 'files.*' => 'file']);
         $service = $this->getService($domain);
         $count = 0;
 
         foreach ($request->file('files') as $file) {
-            $service->uploadFile($request->input('path'), $file);
+            $service->upload($request->input('path'), $file);
             $count++;
         }
 
@@ -79,6 +88,7 @@ class FileManagerController extends ApiController
 
     public function delete(Request $request, Domain $domain): JsonResponse
     {
+        $this->authorize('manageFiles', $domain);
         $request->validate(['paths' => 'required|array', 'paths.*' => 'string']);
         $service = $this->getService($domain);
 
@@ -91,6 +101,7 @@ class FileManagerController extends ApiController
 
     public function rename(Request $request, Domain $domain): JsonResponse
     {
+        $this->authorize('manageFiles', $domain);
         $request->validate(['old_path' => 'required|string', 'new_path' => 'required|string']);
         $this->getService($domain)->rename($request->input('old_path'), $request->input('new_path'));
 
@@ -99,14 +110,16 @@ class FileManagerController extends ApiController
 
     public function chmod(Request $request, Domain $domain): JsonResponse
     {
+        $this->authorize('manageFiles', $domain);
         $request->validate(['path' => 'required|string', 'permissions' => 'required|string|regex:/^[0-7]{3,4}$/']);
-        $this->getService($domain)->chmod($request->input('path'), octdec($request->input('permissions')));
+        $this->getService($domain)->chmod($request->input('path'), $request->input('permissions'));
 
         return response()->json(['message' => __('Permissions updated.')]);
     }
 
     public function compress(Request $request, Domain $domain): JsonResponse
     {
+        $this->authorize('manageFiles', $domain);
         $request->validate(['paths' => 'required|array', 'archive_name' => 'required|string']);
         $this->getService($domain)->compress($request->input('paths'), $request->input('archive_name'));
 
@@ -115,6 +128,7 @@ class FileManagerController extends ApiController
 
     public function decompress(Request $request, Domain $domain): JsonResponse
     {
+        $this->authorize('manageFiles', $domain);
         $request->validate(['path' => 'required|string', 'destination' => 'nullable|string']);
         $this->getService($domain)->decompress($request->input('path'), $request->input('destination', '/'));
 
@@ -123,8 +137,13 @@ class FileManagerController extends ApiController
 
     public function download(Request $request, Domain $domain): Response
     {
+        $this->authorize('viewFiles', $domain);
         $request->validate(['path' => 'required|string']);
-        $content = $this->getService($domain)->readFileRaw($request->input('path'));
+        $stream = $this->getService($domain)->readStream($request->input('path'));
+        $content = stream_get_contents($stream);
+        if (is_resource($stream)) {
+            fclose($stream);
+        }
         $name = basename($request->input('path'));
 
         return response($content, 200, [

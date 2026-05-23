@@ -22,11 +22,18 @@ class ServerStatsController extends Controller
         abort_unless($user->isAdmin(), 403);
 
         try {
-            $data = Cache::remember(
-                self::CACHE_KEY,
-                now()->addSeconds(self::CACHE_SECONDS),
-                fn (): array => $metrics->getHostMetrics(),
-            );
+            // Hot path: broadcaster (system:broadcast-server-stats) refreshes this
+            // cache key on its loop, so the SPA's initial paint and any fallback
+            // poll just read the latest snapshot without hitting Portainer.
+            $data = Cache::get(self::CACHE_KEY);
+
+            if (! is_array($data)) {
+                $data = Cache::remember(
+                    self::CACHE_KEY,
+                    now()->addSeconds(self::CACHE_SECONDS),
+                    fn (): array => $metrics->getHostMetrics(),
+                );
+            }
 
             return response()->json([
                 'has_error' => false,

@@ -37,6 +37,20 @@ class TerminalServeCommand extends Command
             Log::error('[TerminalServe] Server error: '.$e->getMessage());
         });
 
+        // Graceful shutdown — drain active connections, then stop the loop.
+        $shutdown = function (int $signal) use ($loop, $server): void {
+            Log::info("[TerminalServe] Received signal {$signal}, shutting down.");
+            $server->close();
+            $loop->stop();
+        };
+
+        if (defined('SIGTERM')) {
+            $loop->addSignal(SIGTERM, $shutdown);
+        }
+        if (defined('SIGINT')) {
+            $loop->addSignal(SIGINT, $shutdown);
+        }
+
         $loop->run();
 
         return self::SUCCESS;

@@ -115,9 +115,12 @@ class DomainConfigService
             }
         }
 
-        // Priority 2: For subdomains/wildcard-subdomains, check parent domain's active cert
+        // Priority 2: For subdomains/wildcard-subdomains, check parent domain's active cert.
+        // Use the FK relationship first so apex rename/recreation can't desync; fall back
+        // to FQDN lookup only when the FK isn't set yet (legacy rows).
         if ($domain->hasParentLikeBehavior()) {
-            $parentDomain = Domain::where('fqdn', $domain->getApexDomain())->first();
+            $parentDomain = $domain->parentDomain
+                ?: Domain::where('fqdn', $domain->getApexDomain())->first();
             if ($parentDomain?->activeSslCertificate) {
                 $cert = $parentDomain->activeSslCertificate;
 

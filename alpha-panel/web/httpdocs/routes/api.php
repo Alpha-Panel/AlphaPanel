@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\V1\HandshakeController;
 use App\Http\Controllers\Api\V1\ImpersonationController;
 use App\Http\Controllers\Api\V1\ModSecurityController;
 use App\Http\Controllers\Api\V1\MysqlConfigController as MysqlConfigApiController;
+use App\Http\Controllers\Api\V1\NotificationSettingsController;
 use App\Http\Controllers\Api\V1\PackageManagerController;
 use App\Http\Controllers\Api\V1\PhpSettingsController;
 use App\Http\Controllers\Api\V1\PhpVersionController;
@@ -42,14 +43,14 @@ use App\Http\Controllers\Api\V1\WafRuleController;
 use Illuminate\Support\Facades\Route;
 
 // ── Auth (no token required) ─────────────────────────────────────────────
-Route::prefix('v1/auth')->group(function (): void {
-    Route::post('/login', [AuthController::class, 'login']);
-    Route::post('/refresh', [AuthController::class, 'refresh']);
-    Route::post('/token', [AuthController::class, 'token']);
+Route::prefix('auth')->group(function (): void {
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+    Route::post('/refresh', [AuthController::class, 'refresh'])->middleware('throttle:10,1');
+    Route::post('/token', [AuthController::class, 'token'])->middleware('throttle:5,1');
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 });
 
-Route::prefix('v1')->middleware(['auth:sanctum', 'api.token.ip'])->group(function (): void {
+Route::middleware(['auth:sanctum', 'api.token.ip', 'idempotency'])->group(function (): void {
 
     // ── Handshake ──────────────────────────────────────────────────────────
     Route::post('/handshake/webhook', [HandshakeController::class, 'registerWebhook']);
@@ -408,6 +409,13 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'api.token.ip'])->group(functio
         Route::put('/{file}/raw', [MysqlConfigApiController::class, 'updateRaw'])->where('file', '.+')->middleware('ability:settings:write');
         Route::post('/restart', [MysqlConfigApiController::class, 'restart'])->middleware('ability:settings:write');
         Route::post('/purge-binlogs', [MysqlConfigApiController::class, 'purgeBinlogs'])->middleware('ability:settings:write');
+    });
+
+    // ── Notification Preferences ──────────────────────────────────────────────
+    Route::prefix('notification-settings')->group(function (): void {
+        Route::get('/', [NotificationSettingsController::class, 'index']);
+        Route::put('/', [NotificationSettingsController::class, 'update']);
+        Route::delete('/devices/{pushSubscription}', [NotificationSettingsController::class, 'destroyDevice']);
     });
 
     // ── API Token Management ──────────────────────────────────────────────────

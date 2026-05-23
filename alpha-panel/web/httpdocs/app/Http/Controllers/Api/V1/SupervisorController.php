@@ -22,6 +22,8 @@ class SupervisorController extends ApiController
 
     public function index(Domain $domain, LaravelPackageDetector $packageDetector): JsonResponse
     {
+        $this->authorize('viewSupervisor', $domain);
+
         $isLaravel = $packageDetector->isLaravel($domain);
 
         $supervisors = $domain->supervisors()
@@ -65,6 +67,8 @@ class SupervisorController extends ApiController
 
     public function updateProcess(Request $request, Domain $domain, SupervisorConfigService $configService, LaravelPackageDetector $packageDetector): JsonResponse
     {
+        $this->authorize('manageSupervisor', $domain);
+
         $validated = $request->validate([
             'type' => ['required', 'string', Rule::in(array_column(SupervisorType::cases(), 'value'))],
             'enabled' => ['required', 'boolean'],
@@ -132,6 +136,8 @@ class SupervisorController extends ApiController
 
     public function restart(Request $request, Domain $domain, SupervisorConfigService $configService): JsonResponse
     {
+        $this->authorize('manageSupervisor', $domain);
+
         $validated = $request->validate([
             'type' => ['required', 'string', Rule::in(array_column(SupervisorType::cases(), 'value'))],
         ]);
@@ -168,6 +174,8 @@ class SupervisorController extends ApiController
 
     public function restartWorkers(Request $request, Domain $domain, PortainerService $portainer): JsonResponse
     {
+        $this->authorize('manageSupervisor', $domain);
+
         try {
             $result = $portainer->execInContainer(
                 'frankenphp',
@@ -199,6 +207,8 @@ class SupervisorController extends ApiController
 
     public function optimize(Request $request, Domain $domain, PortainerService $portainer): JsonResponse
     {
+        $this->authorize('manageSupervisor', $domain);
+
         $container = $domain->type === DomainType::ApacheReverseProxy
             ? 'php-code-server'
             : 'frankenphp';
@@ -237,6 +247,8 @@ class SupervisorController extends ApiController
 
     public function artisan(RunArtisanCommandRequest $request, Domain $domain, PortainerService $portainer): JsonResponse
     {
+        $this->authorize('runArtisan', $domain);
+
         $domain->loadMissing('ftpUser');
 
         $raw = trim($request->validated()['command']);

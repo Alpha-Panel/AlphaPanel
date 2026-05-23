@@ -244,8 +244,17 @@ php artisan panel:render {fqdn}      # Render config for one domain
 # Admin
 php artisan add-admin-user           # Create an admin account
 
-# Terminal proxy (must run persistently via supervisor)
+# Long-running workers (managed automatically by supervisord inside the
+# alpha_panel_web container — entries live under alpha-panel/supervisor/*.conf
+# and are mounted read-only into /etc/supervisor/conf.d):
+#   - terminal:serve                 (terminal.conf)
+#   - queue:work                     (AlphaPanel-queue.conf)
+#   - reverb:start                   (AlphaPanel-reverb.conf)
+#   - schedule:work                  (AlphaPanel-schedule.conf)
+#   - system:broadcast-server-stats  (AlphaPanel-server-stats.conf)
+# Run manually only for debugging:
 php artisan terminal:serve --port=2999
+php artisan system:broadcast-server-stats --interval=15
 
 # Tests
 php artisan test --compact
@@ -277,6 +286,14 @@ Check `alpha_panel_web` logs:
 ```bash
 docker compose logs -f alpha_panel_web
 ```
+
+---
+
+## Security Notes
+
+- **`php-code-server` container runs as `root`** to allow the in-browser code editor full filesystem access across hosted vhosts. This is a development/admin convenience and a deliberate trade-off — keep it gated behind the panel auth layer (`code-server.${BASE_DOMAIN}`), do not expose its port publicly, and consider disabling the service in environments where untrusted operators have panel access.
+- **Terminal access** (`/terminal/*` routes) requires `panel.terminal.access` permission and is admin-only for host containers / SSH bridges. Domain terminals require domain ownership.
+- **Trusted proxies**: The panel defaults to trusting Docker bridge CIDRs (`10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`). If you front the panel with an additional reverse proxy or a CDN, override `TRUSTED_PROXIES` in `.env` to match exactly the upstream IPs — overly permissive trust enables `X-Forwarded-For` spoofing.
 
 ---
 

@@ -22,15 +22,17 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class SslActivateJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 3;
+    public int $tries = 5;
 
-    public int $backoff = 10;
+    /** @var array<int, int> Exponential backoff in seconds: 1m, 5m, 15m, 1h, 2h. */
+    public array $backoff = [60, 300, 900, 3600, 7200];
 
     public int $timeout = 900;
 
@@ -87,13 +89,22 @@ class SslActivateJob implements ShouldQueue
                 if ($parentCert && $parentCert->coversFqdn($domain->fqdn)) {
                     Log::info("Subdomain {$fqdn} is covered by apex cert for {$parent->fqdn}; reusing and skipping issuance.");
 
-                    // Stop the cron from trying to renew any stale per-subdomain certs
-                    SslCertificate::where('domain_id', $domain->id)
-                        ->where('id', '!=', $parentCert->id)
-                        ->update(['auto_renew' => false]);
+                    // Lock the subdomain row so two concurrent SslActivateJobs for sibling
+                    // subdomains can't race and overwrite each other's active_ssl_certificate_id.
+                    DB::transaction(function () use ($domain, $parentCert): void {
+                        $locked = Domain::query()->whereKey($domain->id)->lockForUpdate()->first();
+                        if ($locked === null) {
+                            return;
+                        }
 
-                    $domain->update(['active_ssl_certificate_id' => $parentCert->id]);
-                    $domain->setRelation('activeSslCertificate', $parentCert);
+                        SslCertificate::where('domain_id', $domain->id)
+                            ->where('id', '!=', $parentCert->id)
+                            ->update(['auto_renew' => false]);
+
+                        $locked->update(['active_ssl_certificate_id' => $parentCert->id]);
+                        $domain->setRawAttributes($locked->getAttributes(), true);
+                        $domain->setRelation('activeSslCertificate', $parentCert);
+                    });
 
                     $configService->renderWithTls($domain);
                     $reloadService->reloadCaddy();
@@ -322,11 +333,16 @@ class SslActivateJob implements ShouldQueue
     }
 
     /**
-     * Broadcast SSL operation progress to the frontend.
+     * Broadcast SSL operation progress to the frontend. Broadcast failures fall
+     * back to log lines so operators still get a paper trail when Reverb is down.
      */
     private function progress(Domain $domain, int $percent, string $message, string $status = 'running'): void
     {
-        SslOperationProgress::dispatch($domain, $percent, $message, $status);
+        try {
+            SslOperationProgress::dispatch($domain, $percent, $message, $status);
+        } catch (\Throwable $e) {
+            Log::info("[SSL progress] {$domain->fqdn} {$percent}% {$status}: {$message} (broadcast failed: {$e->getMessage()})");
+        }
     }
 
     private function applyLocale(): void
