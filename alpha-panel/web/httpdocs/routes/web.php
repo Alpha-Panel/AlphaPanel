@@ -357,12 +357,12 @@ Route::middleware('auth')->group(function (): void {
             ->name('dashboard.docker.action');
     });
 
-    // Impersonation — authorization handled inside ImpersonationService::start()
-    // (super admin bypass + cannot express via single permission middleware).
-    // NOTE: `stop` MUST be declared before `{user}` or Laravel will treat "stop"
-    // as a user slug and the stop endpoint returns 404.
+    // Impersonation — `stop` MUST come before `{user}` or Laravel treats "stop" as a user slug.
+    // Stop has no permission gate so impersonated users can always end their own session.
     Route::post('impersonate/stop', [ImpersonationController::class, 'destroy'])->name('impersonation.stop');
-    Route::post('impersonate/{user}', [ImpersonationController::class, 'store'])->name('impersonation.start');
+    Route::post('impersonate/{user}', [ImpersonationController::class, 'store'])
+        ->middleware(['permission:panel.users.impersonate', 'throttle:10,1'])
+        ->name('impersonation.start');
 
     Route::middleware('permission:panel.users.manage')->group(function (): void {
         Route::get('users', [UserAccountsController::class, 'index'])->name('users.list');
@@ -378,13 +378,13 @@ Route::middleware('auth')->group(function (): void {
         Route::delete('roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
     });
 
-    Route::middleware('permission:panel.terminal.access')->group(function (): void {
+    Route::middleware(['permission:panel.terminal.access', 'throttle:30,1'])->group(function (): void {
         Route::post('terminal/start', [TerminalController::class, 'start'])->name('terminal.start');
         Route::post('terminal/start-ssh', [TerminalController::class, 'startSsh'])->name('terminal.start-ssh');
         Route::post('terminal/stop', [TerminalController::class, 'stop'])->name('terminal.stop');
     });
 
-    Route::middleware('permission:domain.terminal.access')->group(function (): void {
+    Route::middleware(['permission:domain.terminal.access', 'throttle:30,1'])->group(function (): void {
         Route::post('terminal/start-domain', [TerminalController::class, 'startDomain'])->name('terminal.start-domain');
     });
 

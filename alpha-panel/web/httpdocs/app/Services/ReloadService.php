@@ -15,23 +15,21 @@ class ReloadService
     /**
      * Reload Caddy by executing frankenphp reload inside the frankenphp container.
      *
-     * Uses Docker exec with Detach=true so Docker returns HTTP 200 immediately and
-     * the frankenphp reload process continues in the background. Coraza WAF + OWASP
-     * CRS compilation during reload takes several minutes — we never wait for it.
-     *
-     * The call goes directly to docker-socket-proxy to avoid OPcache skew issues
-     * that can occur when the Portainer service class is loaded from a stale worker.
+     * Synchronous: waits for the reload command to finish and checks its exit code.
+     * Detached mode hides WAF/CRS compile failures, leaving the panel reporting
+     * success while Caddy continues serving stale config. Timeout is generous to
+     * accommodate Coraza WAF + OWASP CRS compilation.
      */
     public function reloadCaddy(): bool
     {
         $container = (string) config('panel.frankenphp_container', 'frankenphp');
         $configPath = (string) config('panel.caddy_reload_config', '/etc/frankenphp/Caddyfile');
         $proxyUrl = rtrim((string) config('panel.docker_socket_proxy_url', 'http://docker-socket-proxy:2375'), '/');
+        $reloadTimeout = (int) config('panel.caddy_reload_timeout', 300);
 
         try {
-            $client = new Client(['connect_timeout' => 5, 'timeout' => 10]);
+            $client = new Client(['connect_timeout' => 5, 'timeout' => $reloadTimeout]);
 
-            // Resolve container name → ID
             $listResp = $client->get("{$proxyUrl}/containers/json", [
                 'query' => ['filters' => json_encode(['name' => [$container]])],
             ]);
@@ -44,11 +42,10 @@ class ReloadService
                 return false;
             }
 
-            // Create exec instance (no output attachment needed for fire-and-forget)
             $createResp = $client->post("{$proxyUrl}/containers/{$containerId}/exec", [
                 'json' => [
-                    'AttachStdout' => false,
-                    'AttachStderr' => false,
+                    'AttachStdout' => true,
+                    'AttachStderr' => true,
                     'Cmd' => ['frankenphp', 'reload', '--config', $configPath],
                 ],
             ]);
@@ -60,19 +57,27 @@ class ReloadService
                 return false;
             }
 
-            // Start with Detach=true — Docker returns HTTP 200 immediately.
-            // The reload process keeps running inside the container.
             $client->post("{$proxyUrl}/exec/{$execId}/start", [
-                'json' => ['Detach' => true, 'Tty' => false],
+                'json' => ['Detach' => false, 'Tty' => false],
             ]);
 
-            Log::info('Caddy reload triggered (detached).');
+            $inspectResp = $client->get("{$proxyUrl}/exec/{$execId}/json");
+            $inspect = json_decode($inspectResp->getBody()->getContents(), true);
+            $exitCode = $inspect['ExitCode'] ?? null;
+
+            if ($exitCode !== 0) {
+                Log::error("Caddy reload exited with code {$exitCode}; falling back to restart.");
+
+                return $this->restartCaddy();
+            }
+
+            Log::info('Caddy reload completed successfully.');
 
             return true;
         } catch (\Exception $e) {
-            Log::error("Caddy reload failed: {$e->getMessage()}");
+            Log::error("Caddy reload failed: {$e->getMessage()}; falling back to restart.");
 
-            return false;
+            return $this->restartCaddy();
         }
     }
 

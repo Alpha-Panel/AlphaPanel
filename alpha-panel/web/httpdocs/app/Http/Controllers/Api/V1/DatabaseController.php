@@ -17,6 +17,8 @@ class DatabaseController extends ApiController
 {
     public function index(Domain $domain): JsonResponse
     {
+        $this->authorize('viewDb', $domain);
+
         $databases = ManagedDatabase::with('databaseUsers')
             ->where('domain_id', $domain->id)
             ->get();
@@ -26,6 +28,8 @@ class DatabaseController extends ApiController
 
     public function store(StoreManagedDatabaseRequest $request, Domain $domain, MysqlAdminService $mysql): JsonResponse
     {
+        $this->authorize('manageDb', $domain);
+
         $validated = $request->validated();
 
         try {
@@ -53,8 +57,8 @@ class DatabaseController extends ApiController
 
     public function destroy(Request $request, Domain $domain, ManagedDatabase $database, MysqlAdminService $mysql): Response
     {
+        $this->authorize('manageDb', $domain);
         abort_unless($database->domain_id === $domain->id, 404);
-        $this->ensureAdmin($request);
 
         foreach ($database->databaseUsers as $user) {
             try {
@@ -75,6 +79,7 @@ class DatabaseController extends ApiController
 
     public function storeUser(StoreManagedDatabaseUserRequest $request, Domain $domain, ManagedDatabase $database, MysqlAdminService $mysql): JsonResponse
     {
+        $this->authorize('manageDb', $domain);
         abort_unless($database->domain_id === $domain->id, 404);
 
         $validated = $request->validated();
@@ -92,6 +97,9 @@ class DatabaseController extends ApiController
 
     public function updateUserPassword(Request $request, Domain $domain, ManagedDatabaseUser $user, MysqlAdminService $mysql): JsonResponse
     {
+        $this->authorize('manageDb', $domain);
+        $this->ensureUserBelongsToDomain($user, $domain);
+
         $validated = $request->validate(['password' => 'required|string|min:8']);
         $mysql->updateUserPassword($user->username, $validated['password']);
 
@@ -100,7 +108,8 @@ class DatabaseController extends ApiController
 
     public function destroyUser(Request $request, Domain $domain, ManagedDatabaseUser $user, MysqlAdminService $mysql): Response
     {
-        $this->ensureAdmin($request);
+        $this->authorize('manageDb', $domain);
+        $this->ensureUserBelongsToDomain($user, $domain);
 
         try {
             $mysql->dropUser($user->username);
@@ -112,10 +121,9 @@ class DatabaseController extends ApiController
         return response()->noContent();
     }
 
-    private function ensureAdmin(Request $request): void
+    private function ensureUserBelongsToDomain(ManagedDatabaseUser $user, Domain $domain): void
     {
-        if (! $request->user()->isAdmin()) {
-            abort(403);
-        }
+        $user->loadMissing('managedDatabase');
+        abort_unless($user->managedDatabase && $user->managedDatabase->domain_id === $domain->id, 404);
     }
 }

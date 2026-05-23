@@ -25,7 +25,7 @@ def gen_all_panel_secrets() -> dict[str, str]:
     return {
         "mysql_root_password": gen_hex(16),
         "meilisearch_master_key": gen_hex(32),
-        "alpha_panel_meilisearch_master_key": gen_hex(20),
+        "alpha_panel_meilisearch_master_key": gen_hex(32),
         "postgresql_password": gen_hex(16),
         "n8n_encryption_key": gen_hex(32),
         "pma_blowfish_secret": gen_hex(16),

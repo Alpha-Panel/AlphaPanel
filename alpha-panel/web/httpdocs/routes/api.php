@@ -55,7 +55,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'api.token.ip'])->group(functio
     Route::post('/handshake/webhook', [HandshakeController::class, 'registerWebhook']);
 
     // ── PMA SSO ────────────────────────────────────────────────────────────
-    Route::get('/pma/sso/admin', [PmaSsoApiController::class, 'admin'])->middleware('ability:*');
+    Route::get('/pma/sso/admin', [PmaSsoApiController::class, 'admin']);
     Route::get('/pma/domains/{domain}/databases/{database}/pma-sso', [PmaSsoApiController::class, 'database'])->middleware('ability:databases:read');
 
     // ── Ping ────────────────────────────────────────────────────────────────
@@ -227,7 +227,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'api.token.ip'])->group(functio
             });
 
             // Domain Terminal
-            Route::post('/terminal/start', [TerminalController::class, 'startDomain'])->middleware('ability:terminal:access');
+            Route::post('/terminal/start', [TerminalController::class, 'startDomain'])->middleware(['ability:terminal:access', 'throttle:30,1']);
         });
     });
 
@@ -259,7 +259,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'api.token.ip'])->group(functio
     });
 
     // ── Terminal ─────────────────────────────────────────────────────────────
-    Route::prefix('terminal')->group(function (): void {
+    Route::prefix('terminal')->middleware('throttle:30,1')->group(function (): void {
         Route::post('/start', [TerminalController::class, 'start'])->middleware('ability:terminal:access');
         Route::post('/start-ssh', [TerminalController::class, 'startSsh'])->middleware('ability:terminal:access');
         Route::post('/start-domain', [TerminalController::class, 'startDomain'])->middleware('ability:terminal:access');

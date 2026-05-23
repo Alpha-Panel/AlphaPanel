@@ -155,7 +155,10 @@ services:
     environment:
       TZ: Europe/Istanbul
       COLLECTIONS: "crowdsecurity/modsecurity crowdsecurity/base-http-scenarios crowdsecurity/http-cve"
-      LOCAL_API_URL: "http://0.0.0.0:8080"
+      # Internal agent ↔ LAPI lives on loopback. Cross-container bouncers reach LAPI via crowdsec:8080
+      # and MUST authenticate with BOUNCER_KEY_* below — no anonymous decisions.
+      LOCAL_API_URL: "http://127.0.0.1:8080"
+      DISABLE_AGENT_REGISTRATION: "true"
       BOUNCER_KEY_firewall: ${CROWDSEC_FIREWALL_BOUNCER_KEY}
       BOUNCER_KEY_dashboard: ${CROWDSEC_DASHBOARD_API_KEY}
     volumes:

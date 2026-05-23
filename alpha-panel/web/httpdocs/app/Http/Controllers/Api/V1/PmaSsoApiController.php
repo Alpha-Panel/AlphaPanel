@@ -13,6 +13,8 @@ class PmaSsoApiController extends ApiController
 {
     public function admin(Request $request): JsonResponse
     {
+        abort_unless($request->user()?->isAdmin(), 403);
+
         $pmaBase = rtrim((string) config('services.phpmyadmin.base_url', ''), '/');
         abort_unless($pmaBase !== '', 500, 'PHPMYADMIN_URL ayari bulunamadi.');
 
@@ -32,6 +34,8 @@ class PmaSsoApiController extends ApiController
 
     public function database(Request $request, Domain $domain, ManagedDatabase $database): JsonResponse
     {
+        $this->authorize('manageDb', $domain);
+
         abort_unless($database->domain_id === $domain->id, 404);
 
         $pmaBase = rtrim((string) config('services.phpmyadmin.base_url', ''), '/');

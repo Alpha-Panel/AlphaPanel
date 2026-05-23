@@ -1313,7 +1313,8 @@ class DomainConfigService
     }
 
     /**
-     * Atomically write a config file.
+     * Atomically write a config file. fsync ensures the bytes hit the disk
+     * before rename, so Caddy never sees a half-written file under high I/O.
      */
     protected function writeConfigFile(string $filePath, string $content): void
     {
@@ -1323,8 +1324,28 @@ class DomainConfigService
         }
 
         $tempPath = $filePath.'.tmp.'.uniqid();
-        File::put($tempPath, $content);
-        File::move($tempPath, $filePath);
+
+        $handle = @fopen($tempPath, 'wb');
+        if ($handle === false) {
+            throw new \RuntimeException("Failed to open temp config file: {$tempPath}");
+        }
+
+        try {
+            if (@fwrite($handle, $content) === false) {
+                throw new \RuntimeException("Failed to write temp config file: {$tempPath}");
+            }
+            @fflush($handle);
+            if (function_exists('fsync')) {
+                @fsync($handle);
+            }
+        } finally {
+            @fclose($handle);
+        }
+
+        if (! @rename($tempPath, $filePath)) {
+            @unlink($tempPath);
+            throw new \RuntimeException("Failed to move temp config file into place: {$filePath}");
+        }
 
         Log::info("Configuration file written: {$filePath}");
     }

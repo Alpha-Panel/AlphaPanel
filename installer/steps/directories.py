@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import os
+import shutil
 from pathlib import Path
+
+_UID_GID_1000_DIRS = ["deploy_cache", "n8n", "backup"]
 
 _DIRS = [
     "secrets",
@@ -56,3 +60,34 @@ def ensure_data_directories(base: Path, base_domain: str) -> None:
     if not ftp_users_env.exists():
         ftp_users_env.parent.mkdir(parents=True, exist_ok=True)
         ftp_users_env.write_text('USERS=""\n')
+
+    _apply_container_ownership(base)
+
+
+def _apply_container_ownership(base: Path) -> None:
+    """
+    Container processes run as UID 1000 (n8n, deploy worker, backup writer).
+    Without explicit ownership the bind-mounted host paths inherit root:root and
+    the containers silently fail to write. POSIX-only — chown is a no-op on Windows.
+    """
+    if os.name != "posix":
+        return
+
+    chown = getattr(shutil, "chown", None)
+    if chown is None:
+        return
+
+    for rel in _UID_GID_1000_DIRS:
+        target = base / rel
+        if not target.exists():
+            continue
+
+        for path in [target, *target.rglob("*")]:
+            try:
+                chown(path, user=1000, group=1000)
+            except (PermissionError, LookupError):
+                pass
+            try:
+                path.chmod(path.stat().st_mode | 0o770)
+            except PermissionError:
+                pass

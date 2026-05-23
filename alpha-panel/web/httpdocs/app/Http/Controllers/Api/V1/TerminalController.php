@@ -17,6 +17,8 @@ class TerminalController extends ApiController
 
     public function start(Request $request, PortainerService $portainer): JsonResponse
     {
+        abort_unless($request->user()?->isAdmin(), 403);
+
         $request->validate([
             'container_id' => 'required|string',
             'container_name' => 'required|string',
@@ -64,6 +66,9 @@ class TerminalController extends ApiController
         } else {
             $domain->load('ftpUser');
         }
+
+        $this->authorize('manageSupervisor', $domain);
+
         $ftpUser = $domain->ftpUser;
 
         if (! $ftpUser) {
@@ -102,6 +107,8 @@ class TerminalController extends ApiController
 
     public function startSsh(Request $request): JsonResponse
     {
+        abort_unless($request->user()?->isAdmin(), 403);
+
         $sessionId = Str::uuid()->toString();
         $wsToken = Str::random(40);
 
