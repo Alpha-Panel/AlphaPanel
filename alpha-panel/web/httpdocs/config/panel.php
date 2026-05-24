@@ -212,6 +212,54 @@ return [
             env('N8N_DOMAIN'),
             env('PORTAINER_DOMAIN'),
             env('JENKINS_DOMAIN'),
+            env('MAIL_DOMAIN'),
         ],
     ))),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Feature Flags
+    |--------------------------------------------------------------------------
+    | Toggles for opt-in panel subsystems. Driven by root `.env` so a feature
+    | is enabled only when the supporting service is actually deployed.
+    */
+    'features' => [
+        'mailu' => filter_var(env('MAIL_ENABLED', false), FILTER_VALIDATE_BOOL),
+        'zimbra' => filter_var(env('ZIMBRA_ENABLED', false), FILTER_VALIDATE_BOOL),
+        'mail' => filter_var(env('MAIL_ENABLED', false), FILTER_VALIDATE_BOOL)
+            || filter_var(env('ZIMBRA_ENABLED', false), FILTER_VALIDATE_BOOL),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Mail Subsystem
+    |--------------------------------------------------------------------------
+    */
+    'mail' => [
+        'domain' => env('MAIL_DOMAIN'),
+        'hostname' => env('MAIL_HOSTNAME', env('MAIL_DOMAIN')),
+        'data_path' => env('MAIL_DATA_PATH', './mail-data'),
+        'webmail' => env('MAIL_WEBMAIL', 'snappymail'),
+        'antivirus' => env('MAIL_ANTIVIRUS', 'none'),
+        'message_size_limit' => env('MAIL_MESSAGE_SIZE_LIMIT', '50000000'),
+        'mailu_admin_url' => env('MAILU_ADMIN_URL', 'http://mailu-admin:8080'),
+        'mailu_api_base' => env('MAILU_API_BASE', 'http://mailu-admin:8080/api/v1'),
+        'relay' => [
+            'host' => env('MAIL_RELAY_HOST'),
+            'port' => (int) env('MAIL_RELAY_PORT', 587),
+            'username' => env('MAIL_RELAY_USERNAME'),
+            'password' => env('MAIL_RELAY_PASSWORD'),
+        ],
+        'zimbra' => [
+            'enabled' => filter_var(env('ZIMBRA_ENABLED', false), FILTER_VALIDATE_BOOL),
+            'admin_url' => env('ZIMBRA_ADMIN_URL'),
+            'admin_user' => env('ZIMBRA_ADMIN_USER'),
+            'admin_password' => env('ZIMBRA_ADMIN_PASSWORD'),
+            'default_mx_host' => env('ZIMBRA_DEFAULT_MX_HOST'),
+            'default_mx_priority' => (int) env('ZIMBRA_DEFAULT_MX_PRIORITY', 10),
+            'default_spf_include' => env('ZIMBRA_DEFAULT_SPF_INCLUDE'),
+            'verify_tls' => filter_var(env('ZIMBRA_VERIFY_TLS', true), FILTER_VALIDATE_BOOL),
+            'timeout_seconds' => (int) env('ZIMBRA_TIMEOUT_SECONDS', 15),
+        ],
+    ],
 ];

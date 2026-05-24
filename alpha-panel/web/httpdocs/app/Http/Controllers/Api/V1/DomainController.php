@@ -47,6 +47,9 @@ class DomainController extends ApiController
             'enable_www_redirect' => 'boolean',
             'ftp_username' => 'nullable|string|max:100',
             'ftp_password' => 'nullable|string|min:8',
+            'mail_hosting' => 'nullable|string|in:disabled,local,remote,zimbra',
+            'mail_remote_mx_host' => 'nullable|string|max:255|required_if:mail_hosting,remote',
+            'mail_remote_mx_priority' => 'nullable|integer|between:0,65535',
         ]);
 
         $validated['owner_user_id'] = $validated['owner_user_id'] ?? $request->user()->id;
@@ -101,6 +104,9 @@ class DomainController extends ApiController
             'cors_enabled' => 'boolean',
             'cors_allowed_origins' => 'nullable|string',
             'bypass_reverse_proxy' => 'boolean',
+            'mail_hosting' => 'nullable|string|in:disabled,local,remote,zimbra',
+            'mail_remote_mx_host' => 'nullable|string|max:255|required_if:mail_hosting,remote',
+            'mail_remote_mx_priority' => 'nullable|integer|between:0,65535',
         ]);
 
         $domain->update($validated);

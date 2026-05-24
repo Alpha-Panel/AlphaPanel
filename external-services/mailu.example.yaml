@@ -1,0 +1,211 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Mailu external-service include for AlphaPanel-Docker.
+#
+# MAIL_DATA_PATH is a HOST path (left side of the bind mount). Resolved by
+# Docker Compose relative to the compose project root (where docker-compose.yaml
+# lives) when written as `./something`. Absolute paths like `/var/lib/mailu`
+# or `/mnt/mail` are also accepted if you want a dedicated disk.
+#
+# Default `./mail-data` puts everything in `<project_root>/mail-data/` next to
+# `vhosts/`, `letsencrypt/`, `mysql/` — matching the rest of the stack.
+#
+# Activation:
+#   1. cp external-services/mailu.example.yaml external-services/mailu.yaml
+#   2. Edit `external-services/local-services.yaml` and add:  - ./mailu.yaml
+#   3. Set MAIL_* env vars in root `.env`
+#   4. mkdir -p ${MAIL_DATA_PATH} && chmod 750 ${MAIL_DATA_PATH}
+#   5. docker compose up -d
+#
+# Deactivation: remove the `- ./mailu.yaml` line from local-services.yaml and
+# set MAIL_ENABLED=false in root `.env`. Data under ${MAIL_DATA_PATH} is kept.
+#
+# Caddy on alpha_panel_web reverse-proxies https://${MAIL_DOMAIN} → mailu-front:80.
+# Mail protocols (25/465/587/993/995) are bound directly to PUBLIC_NETWORK_IP.
+# ─────────────────────────────────────────────────────────────────────────────
+
+x-mailu-environment: &mailu-env
+  # Core
+  DOMAIN: ${BASE_DOMAIN}
+  HOSTNAMES: ${MAIL_HOSTNAME:-${MAIL_DOMAIN}}
+  POSTMASTER: postmaster
+  SECRET_KEY: ${MAIL_SECRET_KEY}
+  SUBNET: 192.168.203.0/24
+  TZ: ${APP_TIMEZONE:-Europe/Istanbul}
+
+  # TLS — Caddy provides external TLS; Mailu uses provided certs from /certs.
+  TLS_FLAVOR: mail
+  REAL_IP_HEADER: X-Real-IP
+  REAL_IP_FROM: 0.0.0.0/0
+
+  # Storage
+  COMPRESSION:
+  COMPRESSION_LEVEL:
+
+  # Features
+  ADMIN: "true"
+  WEBMAIL: ${MAIL_WEBMAIL:-snappymail}
+  WEBDAV: "none"
+  ANTIVIRUS: ${MAIL_ANTIVIRUS:-none}
+  FETCHMAIL: "false"
+
+  # Outbound relay (optional, env-driven)
+  RELAYHOST: ${MAIL_RELAY_HOST:-}
+  RELAYUSER: ${MAIL_RELAY_USERNAME:-}
+  RELAYPASSWORD: ${MAIL_RELAY_PASSWORD:-}
+  FRONT_ADDRESS: front
+
+  # Size limits
+  MESSAGE_SIZE_LIMIT: ${MAIL_MESSAGE_SIZE_LIMIT:-50000000}
+  MESSAGE_RATELIMIT: 200/hour
+  RECIPIENT_DELIMITER: "+"
+
+  # Network
+  POD_ADDRESS_RANGE:
+  ADMIN_ADDRESS:
+  PUBLIC_IPV4: ${PUBLIC_NETWORK_IP}
+  PUBLIC_IPV6:
+
+  # DB — SQLite by default (Mailu's own data dir)
+  DB_FLAVOR: sqlite
+
+  # Redis — Mailu's own redis service
+  REDIS_ADDRESS: mailu-redis
+
+  # Web paths
+  WEB_ADMIN: /admin
+  WEB_WEBMAIL: /
+
+  # Logging
+  LOG_LEVEL: WARNING
+
+  # OIDC / outbound proxy — out of scope
+  AUTH_RATELIMIT_IP: 60/hour
+  AUTH_RATELIMIT_USER: 100/day
+
+services:
+  mailu-redis:
+    image: redis:alpine
+    container_name: mailu-redis
+    restart: always
+    volumes:
+      - ${MAIL_DATA_PATH:-./mail-data}/redis:/data
+    networks:
+      - vhost_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  mailu-front:
+    image: ghcr.io/mailu/nginx:2024.06
+    container_name: mailu-front
+    restart: always
+    environment:
+      <<: *mailu-env
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    ports:
+      - "${PUBLIC_NETWORK_IP}:25:25"
+      - "${PUBLIC_NETWORK_IP}:465:465"
+      - "${PUBLIC_NETWORK_IP}:587:587"
+      - "${PUBLIC_NETWORK_IP}:993:993"
+      - "${PUBLIC_NETWORK_IP}:995:995"
+    volumes:
+      - ${MAIL_DATA_PATH:-./mail-data}/certs:/certs
+      - ${MAIL_DATA_PATH:-./mail-data}/overrides/nginx:/overrides:ro
+      - ./letsencrypt/live/${BASE_DOMAIN}:/upstream-certs:ro
+    networks:
+      - vhost_network
+    depends_on:
+      - mailu-redis
+      - mailu-resolver
+
+  mailu-resolver:
+    image: ghcr.io/mailu/unbound:2024.06
+    container_name: mailu-resolver
+    restart: always
+    environment:
+      <<: *mailu-env
+    networks:
+      - vhost_network
+
+  mailu-admin:
+    image: ghcr.io/mailu/admin:2024.06
+    container_name: mailu-admin
+    restart: always
+    environment:
+      <<: *mailu-env
+      INITIAL_ADMIN_ACCOUNT: admin
+      INITIAL_ADMIN_DOMAIN: ${BASE_DOMAIN}
+      INITIAL_ADMIN_PW: ${MAIL_ADMIN_PASSWORD}
+      INITIAL_ADMIN_MODE: ifmissing
+    volumes:
+      - ${MAIL_DATA_PATH:-./mail-data}/data:/data
+      - ${MAIL_DATA_PATH:-./mail-data}/dkim:/dkim
+    depends_on:
+      - mailu-redis
+    networks:
+      - vhost_network
+
+  mailu-imap:
+    image: ghcr.io/mailu/dovecot:2024.06
+    container_name: mailu-imap
+    restart: always
+    environment:
+      <<: *mailu-env
+    volumes:
+      - ${MAIL_DATA_PATH:-./mail-data}/mail:/mail
+      - ${MAIL_DATA_PATH:-./mail-data}/overrides/dovecot:/overrides:ro
+    networks:
+      - vhost_network
+    depends_on:
+      - mailu-front
+      - mailu-redis
+
+  mailu-smtp:
+    image: ghcr.io/mailu/postfix:2024.06
+    container_name: mailu-smtp
+    restart: always
+    environment:
+      <<: *mailu-env
+    volumes:
+      - ${MAIL_DATA_PATH:-./mail-data}/mailqueue:/queue
+      - ${MAIL_DATA_PATH:-./mail-data}/overrides/postfix:/overrides:ro
+    networks:
+      - vhost_network
+    depends_on:
+      - mailu-front
+      - mailu-redis
+
+  mailu-antispam:
+    image: ghcr.io/mailu/rspamd:2024.06
+    container_name: mailu-antispam
+    restart: always
+    environment:
+      <<: *mailu-env
+    volumes:
+      - ${MAIL_DATA_PATH:-./mail-data}/filter:/var/lib/rspamd
+      - ${MAIL_DATA_PATH:-./mail-data}/overrides/rspamd:/overrides:ro
+    networks:
+      - vhost_network
+    depends_on:
+      - mailu-front
+      - mailu-redis
+
+  mailu-webmail:
+    image: ghcr.io/mailu/webmail:2024.06
+    container_name: mailu-webmail
+    restart: always
+    environment:
+      <<: *mailu-env
+    volumes:
+      - ${MAIL_DATA_PATH:-./mail-data}/webmail:/data
+      - ${MAIL_DATA_PATH:-./mail-data}/overrides/snappymail:/overrides:ro
+    networks:
+      - vhost_network
+    depends_on:
+      - mailu-imap

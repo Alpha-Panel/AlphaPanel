@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\DomainMode;
 use App\Enums\DomainType;
+use App\Enums\MailHosting;
 use App\Enums\NotificationType;
 use App\Http\Requests\StoreDomainRequest;
 use App\Http\Requests\UpdateDomainRequest;
@@ -21,6 +22,9 @@ use App\Services\DomainConfigService;
 use App\Services\FtpUserService;
 use App\Services\LaravelPackageDetector;
 use App\Services\LocalDnsService;
+use App\Services\Mail\Exceptions\MailProviderException;
+use App\Services\Mail\MailDnsService;
+use App\Services\Mail\MailProviderResolver;
 use App\Services\PortainerService;
 use App\Services\ServerNetworkInfoService;
 use Illuminate\Database\Eloquent\Collection;
@@ -236,6 +240,8 @@ class DomainController extends Controller
             }
         }
 
+        $this->applyMailHosting($domain);
+
         if ($ftpUsername && $ftpPassword) {
             $ftpUserService->addUser($domain, $ftpUsername, $ftpPassword);
         }
@@ -342,7 +348,11 @@ class DomainController extends Controller
             $validated['php_version_id'] = null;
         }
 
+        $previousMailHosting = $domain->mail_hosting;
         $domain->update($validated);
+        if ($domain->wasChanged('mail_hosting') || $domain->wasChanged('mail_remote_mx_host') || $domain->wasChanged('mail_remote_mx_priority')) {
+            $this->applyMailHosting($domain, previous: $previousMailHosting);
+        }
 
         // Clean up old FPM config if PHP version changed or domain switched away from Apache
         if ($oldPhpVersionId && $oldPhpVersionId !== $domain->php_version_id && $oldPhpVersion) {
@@ -890,5 +900,36 @@ class DomainController extends Controller
             ->withErrors([
                 $field => $message,
             ]);
+    }
+
+    /**
+     * Apply provider-side + DNS side effects for a domain's mail hosting choice.
+     * Idempotent: re-registering an already-known domain in Mailu or Zimbra is a no-op.
+     */
+    private function applyMailHosting(Domain $domain, ?MailHosting $previous = null): void
+    {
+        $resolver = app(MailProviderResolver::class);
+        $dns = app(MailDnsService::class);
+
+        try {
+            if ($previous !== null && $previous !== $domain->mail_hosting && $previous->isManaged()) {
+                // Tear down the previous provider's registration first.
+                $previousDomain = clone $domain;
+                $previousDomain->mail_hosting = $previous;
+                $previousProvider = $resolver->tryFor($previousDomain);
+                $previousProvider?->deregisterDomain($previousDomain);
+            }
+
+            $provider = $resolver->tryFor($domain);
+            $provider?->registerDomain($domain);
+
+            $dns->applyForDomain($domain);
+        } catch (MailProviderException $e) {
+            Log::warning('mail.hosting.apply_failed', [
+                'fqdn' => $domain->fqdn,
+                'mail_hosting' => $domain->mail_hosting->value,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

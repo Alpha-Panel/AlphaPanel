@@ -7,6 +7,7 @@ use App\Enums\DomainMode;
 use App\Enums\DomainStatus;
 use App\Enums\DomainType;
 use App\Enums\IpAccessMode;
+use App\Enums\MailHosting;
 use App\Enums\SslMethod;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -51,6 +52,10 @@ class Domain extends Model
         'active_ssl_certificate_id',
         'mode',
         'linked_domain_id',
+        'mail_hosting',
+        'mail_remote_mx_host',
+        'mail_remote_mx_priority',
+        'mail_provider_external_id',
     ];
 
     /** @return array<string, string> */
@@ -75,7 +80,19 @@ class Domain extends Model
             'modsecurity_disabled_rule_ids' => 'array',
             'cors_enabled' => 'boolean',
             'mode' => DomainMode::class,
+            'mail_hosting' => MailHosting::class,
+            'mail_remote_mx_priority' => 'integer',
         ];
+    }
+
+    public function usesLocalMail(): bool
+    {
+        return $this->mail_hosting === MailHosting::Local;
+    }
+
+    public function usesZimbra(): bool
+    {
+        return $this->mail_hosting === MailHosting::Zimbra;
     }
 
     public function owner(): BelongsTo

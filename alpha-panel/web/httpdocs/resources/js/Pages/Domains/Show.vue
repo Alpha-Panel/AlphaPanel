@@ -182,6 +182,26 @@
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
+                            <Link
+                                v-if="domain.mail_hosting && domain.mail_hosting !== 'disabled' && domain.mail_hosting !== 'remote'"
+                                :href="route('mail.mailboxes.index', domain.id)"
+                                class="quick-link"
+                            >
+                                <i class="bx bx-envelope quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('Mailboxes') }}</span>
+                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                            </Link>
+
+                            <Link
+                                v-if="domain.mail_hosting && domain.mail_hosting !== 'disabled' && domain.mail_hosting !== 'remote'"
+                                :href="route('mail.aliases.index', domain.id)"
+                                class="quick-link"
+                            >
+                                <i class="bx bx-mail-send quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('Aliases') }}</span>
+                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                            </Link>
+
                             <Link v-if="can('domain.ssl.manage')" :href="route('domains.ssl.index', domain.id)" class="quick-link">
                                 <i class="fa-brands fa-expeditedssl quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('SSL Certificates') }}</span>
@@ -221,6 +241,31 @@
                                 >
                                     {{ isCloudflareManagedForDns ? 'Cloudflare' : 'Local' }}
                                 </span>
+                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                            </Link>
+
+                            <Link
+                                v-if="mailManaged"
+                                :href="route('mail.mailboxes.index', domain.id)"
+                                class="quick-link"
+                            >
+                                <i class="bx bx-envelope quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('Mailboxes') }}</span>
+                                <span class="ml-auto mr-2 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                    :class="mailBadgeClass"
+                                >
+                                    {{ mailProviderLabel }}
+                                </span>
+                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                            </Link>
+
+                            <Link
+                                v-if="mailManaged"
+                                :href="route('mail.aliases.index', domain.id)"
+                                class="quick-link"
+                            >
+                                <i class="bx bx-share-alt quick-link-icon"></i>
+                                <span class="quick-link-label">{{ t('Aliases') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
                         </div>
@@ -832,6 +877,23 @@ const isCloudflareManagedForDns = computed(() => {
 const canManagePhpSettings = computed(() => domain.value.type === 'apache_reverse_proxy');
 const hasStoredFtpPassword = computed(() => Boolean(domain.value.ftp_user?.encrypted_password));
 const subdomains = computed(() => domain.value.subdomains ?? []);
+
+const mailHosting = computed(() => (domain.value.mail_hosting ?? 'disabled') as string);
+const mailManaged = computed(() => mailHosting.value === 'local' || mailHosting.value === 'zimbra');
+const mailProviderLabel = computed(() => {
+    return {
+        local: 'Mailu',
+        zimbra: 'Zimbra',
+        remote: 'Remote',
+        disabled: 'Off',
+    }[mailHosting.value] ?? '';
+});
+const mailBadgeClass = computed(() => {
+    return {
+        local: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+        zimbra: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+    }[mailHosting.value] ?? 'bg-gray-100 text-gray-700';
+});
 
 const showCreateSubdomainModal = ref(false);
 const showDomainDetails = ref(false);

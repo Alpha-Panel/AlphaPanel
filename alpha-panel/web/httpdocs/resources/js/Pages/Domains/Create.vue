@@ -141,6 +141,45 @@
                         </FormField>
 
                         <FormField
+                            v-if="!isModeCatchall"
+                            :label="t('Mail Hosting')"
+                            :error="form.errors.mail_hosting"
+                        >
+                            <select v-model="form.mail_hosting" class="form-input">
+                                <option value="disabled">{{ t('Disabled (no mail)') }}</option>
+                                <option value="local" :disabled="!features.mailu">
+                                    {{ t('Local (Mailu)') }}{{ features.mailu ? '' : ' — ' + t('not enabled') }}
+                                </option>
+                                <option value="remote">{{ t('Remote MX') }}</option>
+                                <option value="zimbra" :disabled="!features.zimbra">
+                                    {{ t('Zimbra') }}{{ features.zimbra ? '' : ' — ' + t('not configured') }}
+                                </option>
+                            </select>
+                        </FormField>
+
+                        <FormField
+                            v-if="form.mail_hosting === 'remote'"
+                            :label="t('Remote MX host')"
+                            :error="form.errors.mail_remote_mx_host"
+                            required
+                        >
+                            <input v-model="form.mail_remote_mx_host" type="text" class="form-input" placeholder="mx.example.com" />
+                        </FormField>
+
+                        <FormField
+                            v-if="form.mail_hosting === 'remote'"
+                            :label="t('Remote MX priority')"
+                            :error="form.errors.mail_remote_mx_priority"
+                        >
+                            <input v-model.number="form.mail_remote_mx_priority" type="number" min="0" max="65535" class="form-input" />
+                        </FormField>
+
+                        <p v-if="form.mail_hosting === 'zimbra' && mailDefaults?.zimbra_default_host" class="text-sm text-gray-500">
+                            {{ t('Mail will be routed to the configured Zimbra server at') }}
+                            <strong>{{ mailDefaults.zimbra_default_host }}</strong>.
+                        </p>
+
+                        <FormField
                             v-if="!isModeSubdomain && !isModeWildcardSub && !isModeCatchall && form.dns_provider === 'cloudflare'"
                             :label="t('Cloudflare Status')"
                             :error="form.errors.cloudflare_mode"
@@ -215,7 +254,7 @@
 </template>
 
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, watch } from 'vue';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
 import SidebarProvider from '@/Components/Layout/SidebarProvider.vue';
@@ -259,7 +298,18 @@ const form = useForm({
     dns_target_ip: '',
     ftp_username: '',
     ftp_password: '',
+    mail_hosting: 'disabled' as 'disabled' | 'local' | 'remote' | 'zimbra',
+    mail_remote_mx_host: '',
+    mail_remote_mx_priority: 10,
 });
+
+const inertiaPage = usePage<{ features?: { mail?: boolean; mailu?: boolean; zimbra?: boolean }, mail?: { zimbra_default_host?: string } }>();
+const features = computed(() => ({
+    mail: !!inertiaPage.props.features?.mail,
+    mailu: !!inertiaPage.props.features?.mailu,
+    zimbra: !!inertiaPage.props.features?.zimbra,
+}));
+const mailDefaults = computed(() => inertiaPage.props.mail ?? null);
 
 const isModeSubdomain = computed(() => form.mode === 'subdomain');
 const isModeWildcardSub = computed(() => form.mode === 'wildcard_subdomain');

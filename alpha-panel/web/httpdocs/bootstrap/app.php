@@ -5,6 +5,7 @@ use App\Http\Middleware\AddEarlyHints;
 use App\Http\Middleware\ApiTokenIpMiddleware;
 use App\Http\Middleware\EnforceImpersonationTtl;
 use App\Http\Middleware\EnsureAdmin;
+use App\Http\Middleware\EnsureMailFeature;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\IdempotencyKey;
 use App\Http\Middleware\SetLocale;
@@ -51,6 +52,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'ability' => CheckForAnyAbility::class,
             'api.token.ip' => ApiTokenIpMiddleware::class,
             'idempotency' => IdempotencyKey::class,
+            'mail.feature' => EnsureMailFeature::class,
         ]);
 
         $middleware->prependToGroup('web', AddCspHeaders::class);

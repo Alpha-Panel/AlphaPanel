@@ -66,6 +66,10 @@ services:
       DOCKER_HOST: tcp://docker-socket-proxy:2375
       CROWDSEC_LAPI_URL: ${CROWDSEC_LAPI_URL}
       CROWDSEC_DASHBOARD_API_KEY: ${CROWDSEC_DASHBOARD_API_KEY}
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_DOMAIN: ${MAIL_DOMAIN:-}
+      ZIMBRA_ENABLED: ${ZIMBRA_ENABLED:-false}
+      ZIMBRA_DEFAULT_MX_HOST: ${ZIMBRA_DEFAULT_MX_HOST:-}
       TZ: ${APP_TIMEZONE:-Europe/Istanbul}
     ports:
       - "${PRIVATE_NETWORK_IP}:8443:443"
@@ -105,6 +109,8 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       PUBLIC_NETWORK_IP: ${PUBLIC_NETWORK_IP}
       PRIVATE_NETWORK_IP: ${PRIVATE_NETWORK_IP}
+      BASE_DOMAIN: ${BASE_DOMAIN}
+      MAIL_DOMAIN: ${MAIL_DOMAIN:-}
       TZ: ${APP_TIMEZONE:-Europe/Istanbul}
     volumes:
         - ./frankenphp/home:/root

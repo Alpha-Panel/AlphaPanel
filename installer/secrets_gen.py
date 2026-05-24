@@ -40,4 +40,6 @@ def gen_all_panel_secrets() -> dict[str, str]:
         "reverb_app_secret": gen_hex(32),
         "app_key": f"base64:{gen_b64(32)}",
         "code_server_password": gen_hex(12),
+        "mail_admin_password": gen_hex(12),
+        "mail_secret_key": gen_hex(8),
     }

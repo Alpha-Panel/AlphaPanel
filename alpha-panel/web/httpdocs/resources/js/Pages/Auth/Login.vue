@@ -522,7 +522,15 @@ const loginWithDevice = async (email: string) => {
 
         router.visit(route('home'));
     } catch (error: any) {
-        if (error?.name === 'NotAllowedError') {
+        const serverMessage = error?.response?.status === 422
+            ? (error?.response?.data?.errors?.login?.[0]
+                ?? error?.response?.data?.errors?.email?.[0]
+                ?? error?.response?.data?.message)
+            : null;
+
+        if (serverMessage) {
+            form.setError('login', serverMessage);
+        } else if (error?.name === 'NotAllowedError') {
             form.setError('login', t('Device authentication was cancelled or timed out.'));
         } else {
             form.setError('login', t('Device authentication failed. Continue with password.'));

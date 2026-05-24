@@ -434,7 +434,15 @@ const verifyDevice = async () => {
 
         router.visit(route('home'));
     } catch (error: any) {
-        if (error?.name === 'NotAllowedError') {
+        const serverMessage = error?.response?.status === 422
+            ? (error?.response?.data?.errors?.login?.[0]
+                ?? error?.response?.data?.errors?.email?.[0]
+                ?? error?.response?.data?.message)
+            : null;
+
+        if (serverMessage) {
+            errorMessage.value = serverMessage;
+        } else if (error?.name === 'NotAllowedError') {
             errorMessage.value = t('Device verification was cancelled or timed out.');
         } else {
             errorMessage.value = t('Device verification failed.');

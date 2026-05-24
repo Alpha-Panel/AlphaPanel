@@ -228,6 +228,74 @@ See `includeservices/README.md` for usage.
 
 ---
 
+## Mail Server (Mailu + Zimbra Bridge)
+
+Mail hosting ships as an opt-in external-service. Each panel domain can pick its
+mail backend independently: `disabled`, `local` (Mailu), `remote` (custom MX),
+or `zimbra` (bridge to an existing Zimbra server).
+
+### Enabling local Mailu
+
+1. Set in root `.env`:
+   ```dotenv
+   MAIL_ENABLED=true
+   MAIL_DOMAIN=mail.example.com
+   MAIL_HOSTNAME=mail.example.com
+   MAIL_DATA_PATH=./mail-data
+   MAIL_ADMIN_PASSWORD=<strong-password>
+   MAIL_SECRET_KEY=<16-char-secret>
+   ```
+   > `MAIL_DATA_PATH` is a **host** path resolved relative to the compose
+   > project root. Absolute paths (`/var/lib/mailu`, `/mnt/mail`, …) also work
+   > if you need to mount a dedicated disk.
+2. `mkdir -p ./mail-data && chmod 750 ./mail-data`
+3. `cp external-services/mailu.example.yaml external-services/mailu.yaml`
+4. Add `- ./mailu.yaml` to `external-services/local-services.yaml`
+5. `docker compose up -d`
+6. `docker compose exec alpha_panel_web php artisan mail:bootstrap` — caches the Mailu admin API token
+
+The panel exposes webmail at `https://${MAIL_DOMAIN}:8443/` and the Mailu admin
+UI at `/admin`. Caddy uses the wildcard `${BASE_DOMAIN}` certificate; rDNS for
+the outbound IP must point to `${MAIL_HOSTNAME}` (set this with your hosting
+provider — it cannot be automated).
+
+### Bridging an existing Zimbra server
+
+You do **not** need MAIL_ENABLED for this; the bridge runs panel-side only.
+
+1. Log in to the panel as admin.
+2. Go to **Mail → Settings → Zimbra** and fill in admin SOAP URL, admin user,
+   admin password, and the MX target host.
+3. Click **Test connection** to verify SOAP auth works.
+4. Save. On every domain create/edit form a new **Zimbra** option appears under
+   *Mail Hosting*. Choosing it links the panel domain to Zimbra **idempotently** —
+   if the domain already exists in Zimbra the call is a no-op, no error is raised.
+
+The panel manages mailboxes, passwords, aliases, and forwarding via Zimbra SOAP
+Admin API; you never have to log into the Zimbra admin UI for routine ops.
+
+### Per-domain mail hosting
+
+| Mode | Behaviour |
+|------|-----------|
+| `disabled` | No MX or mailboxes published. Domain has no mail. |
+| `local` | Mailu hosts mail; panel publishes MX + SPF + DKIM + DMARC. |
+| `remote` | Panel publishes the custom MX you provide. No mailbox management. |
+| `zimbra` | Panel writes MX → your Zimbra server; mailboxes managed via SOAP API. |
+
+### API
+
+Every mail-related panel action is mirrored in `/v1/mail/...` and
+`/v1/domains/{domain}/mail/...` — see `API-DOCUMENTATION.md`. Token abilities:
+`mail:read` and `mail:write`.
+
+### Installer
+
+The Flask installer wizard collects mail + Zimbra settings in optional pages.
+Tests: `installer/tests/test_mail.py`, `installer/tests/test_zimbra.py`.
+
+---
+
 ## Panel Commands
 
 Run inside `alpha-panel/web/httpdocs/`:

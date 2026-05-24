@@ -363,6 +363,10 @@ const isRtl = computed(() => page.props.text_direction === 'rtl');
 const appName = computed(() => page.props.app?.name ?? 'AlphaPanel');
 const logoUrl = computed(() => page.props.app?.logo_url ?? '/img/AlphaPanel-dark.svg');
 const externalLinks = computed(() => page.props.app?.links ?? {});
+const mailFeatureEnabled = computed(() => {
+    const features = (page.props as Record<string, unknown> & { features?: { mail?: boolean } }).features;
+    return !!features?.mail;
+});
 const impersonationActive = computed(
     () => !!(page.props as Record<string, unknown> & { impersonation?: { active?: boolean } }).impersonation?.active
 );
@@ -588,6 +592,11 @@ const menuGroups = computed(() => {
                 }
 
                 if (isAdmin.value) {
+                    settingsSubItems.push({
+                        name: t('Mail Settings'),
+                        href: route('mail.settings.edit'),
+                        iconClass: 'bx bx-envelope',
+                    });
                     settingsSubItems.push({
                         name: t('API Tokens'),
                         href: route('settings.api-tokens.index'),

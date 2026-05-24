@@ -680,4 +680,37 @@ Route::middleware('auth')->group(function (): void {
         Route::post('/{endpoint}/test', [WebhookWebController::class, 'sendTest'])->name('test');
         Route::post('/{endpoint}/regenerate-secret', [WebhookWebController::class, 'regenerateSecret'])->name('regenerate');
     });
+
+    // Mail hosting (Mailu + Zimbra)
+    Route::prefix('mail')->name('mail.')->group(function (): void {
+        // Settings are admin-accessible regardless of feature flags so admins
+        // can bootstrap Mailu / Zimbra from the panel itself (chicken-and-egg).
+        Route::middleware('admin')->prefix('settings')->name('settings.')->group(function (): void {
+            Route::get('/', [\App\Http\Controllers\Mail\MailSettingsController::class, 'edit'])->name('edit');
+            Route::put('/relay', [\App\Http\Controllers\Mail\MailSettingsController::class, 'updateRelay'])->name('relay.update');
+            Route::put('/zimbra', [\App\Http\Controllers\Mail\MailSettingsController::class, 'updateZimbra'])->name('zimbra.update');
+            Route::post('/zimbra/test', [\App\Http\Controllers\Mail\MailSettingsController::class, 'testZimbra'])->name('zimbra.test');
+        });
+
+        // Domains overview + mailbox/alias management — feature-flag gated.
+        Route::middleware('mail.feature')->group(function (): void {
+            Route::get('/', \App\Http\Controllers\Mail\MailIndexController::class)->name('index');
+
+            Route::prefix('domains/{domain}/mailboxes')->name('mailboxes.')->group(function (): void {
+                Route::get('/', [\App\Http\Controllers\Mail\MailboxController::class, 'index'])->name('index');
+                Route::get('/create', [\App\Http\Controllers\Mail\MailboxController::class, 'create'])->name('create');
+                Route::post('/', [\App\Http\Controllers\Mail\MailboxController::class, 'store'])->name('store');
+                Route::put('/{local}', [\App\Http\Controllers\Mail\MailboxController::class, 'update'])->name('update');
+                Route::delete('/{local}', [\App\Http\Controllers\Mail\MailboxController::class, 'destroy'])->name('destroy');
+                Route::post('/{local}/password', [\App\Http\Controllers\Mail\MailboxController::class, 'setPassword'])->name('password');
+                Route::post('/{local}/forwarding', [\App\Http\Controllers\Mail\MailboxController::class, 'setForwarding'])->name('forwarding');
+            });
+
+            Route::prefix('domains/{domain}/aliases')->name('aliases.')->group(function (): void {
+                Route::get('/', [\App\Http\Controllers\Mail\AliasController::class, 'index'])->name('index');
+                Route::post('/', [\App\Http\Controllers\Mail\AliasController::class, 'store'])->name('store');
+                Route::delete('/{local}', [\App\Http\Controllers\Mail\AliasController::class, 'destroy'])->name('destroy');
+            });
+        });
+    });
 });

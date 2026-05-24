@@ -58,6 +58,38 @@
                             <span class="text-sm text-gray-700 dark:text-gray-400">{{ t('Enable www redirect') }}</span>
                         </label>
 
+                        <!-- Mail hosting -->
+                        <div class="pt-5 border-t border-gray-200 dark:border-gray-800">
+                            <h4 class="mb-3 text-sm font-medium text-gray-800 dark:text-white/90">{{ t('Mail Hosting') }}</h4>
+                            <FormField :label="t('Mail Hosting')" :error="form.errors.mail_hosting">
+                                <select v-model="form.mail_hosting" class="form-input">
+                                    <option value="disabled">{{ t('Disabled (no mail)') }}</option>
+                                    <option value="local" :disabled="!mailFeatures.mailu">
+                                        {{ t('Local (Mailu)') }}{{ mailFeatures.mailu ? '' : ' — ' + t('not enabled') }}
+                                    </option>
+                                    <option value="remote">{{ t('Remote MX') }}</option>
+                                    <option value="zimbra" :disabled="!mailFeatures.zimbra">
+                                        {{ t('Zimbra') }}{{ mailFeatures.zimbra ? '' : ' — ' + t('not configured') }}
+                                    </option>
+                                </select>
+                            </FormField>
+                            <FormField
+                                v-if="form.mail_hosting === 'remote'"
+                                :label="t('Remote MX host')"
+                                :error="form.errors.mail_remote_mx_host"
+                                required
+                            >
+                                <input v-model="form.mail_remote_mx_host" type="text" class="form-input" placeholder="mx.example.com" />
+                            </FormField>
+                            <FormField
+                                v-if="form.mail_hosting === 'remote'"
+                                :label="t('Remote MX priority')"
+                                :error="form.errors.mail_remote_mx_priority"
+                            >
+                                <input v-model.number="form.mail_remote_mx_priority" type="number" min="0" max="65535" class="form-input" />
+                            </FormField>
+                        </div>
+
                         <!-- SSL Method -->
                         <FormField :label="t('SSL Method')" :error="form.errors.ssl_method">
                             <select v-model="form.ssl_method" class="form-input">
@@ -210,7 +242,7 @@
 
 <script setup lang="ts">
 import { computed, watch } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
 import SidebarProvider from '@/Components/Layout/SidebarProvider.vue';
 import AdminLayout from '@/Components/Layout/AdminLayout.vue';
@@ -253,7 +285,17 @@ const form = useForm({
     worker_watch: props.domain.worker_watch,
     worker_max_requests: props.domain.worker_max_requests ?? 500,
     forwarded_port: props.domain.forwarded_port ?? 443,
+    mail_hosting: (props.domain.mail_hosting ?? 'disabled') as 'disabled' | 'local' | 'remote' | 'zimbra',
+    mail_remote_mx_host: props.domain.mail_remote_mx_host ?? '',
+    mail_remote_mx_priority: props.domain.mail_remote_mx_priority ?? 10,
 });
+
+const inertiaPage = usePage<{ features?: { mail?: boolean; mailu?: boolean; zimbra?: boolean } }>();
+const mailFeatures = computed(() => ({
+    mail: !!inertiaPage.props.features?.mail,
+    mailu: !!inertiaPage.props.features?.mailu,
+    zimbra: !!inertiaPage.props.features?.zimbra,
+}));
 
 const exampleDirectives = `reverse_proxy http://10.0.0.5:3000 {
     header_up Host {host}

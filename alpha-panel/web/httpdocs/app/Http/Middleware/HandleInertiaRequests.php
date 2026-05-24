@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\ZimbraServerSetting;
 use App\Services\ImpersonationService;
+use App\Services\Mail\MailSettingsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
@@ -102,6 +104,23 @@ class HandleInertiaRequests extends Middleware
                     'n8n' => config('services.n8n_url'),
                 ],
             ],
+            'features' => function () {
+                $settings = app(MailSettingsService::class);
+
+                return [
+                    'mail' => $settings->mailEnabled(),
+                    'mailu' => $settings->mailuEnabled(),
+                    'zimbra' => $settings->zimbraEnabled(),
+                ];
+            },
+            'mail' => function () {
+                $zimbra = ZimbraServerSetting::current();
+
+                return [
+                    'zimbra_default_host' => $zimbra?->default_mx_host
+                        ?? config('panel.mail.zimbra.default_mx_host'),
+                ];
+            },
             'locale' => $locale,
             'text_direction' => $textDirection,
             'available_locales' => config('app.supported_locales', ['tr', 'tr-gokturk', 'gokturk-latin', 'az', 'en', 'de', 'es', 'fr', 'ru']),

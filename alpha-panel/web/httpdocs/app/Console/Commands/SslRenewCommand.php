@@ -82,6 +82,30 @@ class SslRenewCommand extends Command
         $this->newLine();
         $this->info("Summary: {$renewed} queued, {$skipped} skipped.");
 
+        if ($renewed > 0 && ! $this->option('dry-run')) {
+            $this->reloadMailuIfEnabled();
+        }
+
         return $skipped > 0 ? self::FAILURE : self::SUCCESS;
+    }
+
+    /**
+     * After a successful cert renewal, ask the mailu-front container to reload nginx
+     * so it picks up the new fullchain.pem / privkey.pem. Best-effort — no failure
+     * if Mailu is off.
+     */
+    private function reloadMailuIfEnabled(): void
+    {
+        if (! filter_var(env('MAIL_ENABLED', false), FILTER_VALIDATE_BOOL)) {
+            return;
+        }
+
+        try {
+            $docker = app(\App\Services\DockerControlService::class);
+            $docker->exec('mailu-front', ['nginx', '-s', 'reload']);
+            $this->info('  Mailu front nginx reloaded.');
+        } catch (\Throwable $e) {
+            $this->warn('  Mailu reload skipped: '.$e->getMessage());
+        }
     }
 }

@@ -1,0 +1,6 @@
+# Mailu data and runtime config — never commit.
+*
+!.gitignore
+!*.example
+!overrides/.gitkeep
+!overrides/*.example

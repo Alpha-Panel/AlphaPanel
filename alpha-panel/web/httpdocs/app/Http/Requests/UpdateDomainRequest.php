@@ -94,6 +94,22 @@ class UpdateDomainRequest extends FormRequest
                     }
                 },
             ],
+            'mail_hosting' => [
+                'nullable',
+                'string',
+                Rule::in(['disabled', 'local', 'remote', 'zimbra']),
+            ],
+            'mail_remote_mx_host' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::requiredIf(fn () => $this->input('mail_hosting') === 'remote'),
+            ],
+            'mail_remote_mx_priority' => [
+                'nullable',
+                'integer',
+                'between:0,65535',
+            ],
         ];
     }
 

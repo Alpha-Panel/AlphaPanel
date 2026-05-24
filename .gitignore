@@ -127,6 +127,9 @@ vhosts/
 # Git deploy cache (intermediate artefacts)
 deploy_cache/
 
+# Mailu runtime data (mailboxes, queue, DKIM keys, rspamd state) — never commit
+mail-data/
+
 # =============================================================================
 # BACKUP — CREDENTIALS & LOCAL CONFIG
 # =============================================================================
