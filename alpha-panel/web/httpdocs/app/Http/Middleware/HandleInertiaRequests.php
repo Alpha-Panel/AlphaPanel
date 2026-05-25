@@ -119,6 +119,9 @@ class HandleInertiaRequests extends Middleware
                 return [
                     'zimbra_default_host' => $zimbra?->default_mx_host
                         ?? config('panel.mail.zimbra.default_mx_host'),
+                    'mail_domain' => config('panel.mail.domain'),
+                    'mailu_api_token_set' => (bool) (config('services.mailu.api_token')
+                        ?: cache()->has('mailu.api.token')),
                 ];
             },
             'locale' => $locale,

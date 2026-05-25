@@ -37,13 +37,14 @@ class MailBootstrapCommand extends Command
             return self::SUCCESS;
         }
 
-        $token = Str::random(48);
-        Cache::put('mailu.api.token', $token, now()->addYear());
+        // Mailu admin reads API_TOKEN from its own env. We mirror MAIL_ADMIN_PASSWORD
+        // as the shared bearer secret so the panel and Mailu agree without an extra round-trip.
+        Cache::put('mailu.api.token', $password, now()->addYear());
 
         $this->info("Mailu admin: {$admin}");
         $this->info("Mailu API base: {$base}");
-        $this->info('API token cached. Use it as `Authorization: Bearer <token>` against the Mailu admin REST API.');
-        $this->warn('Reminder: register this token inside Mailu via `flask mailu admin-token issue` (Mailu CLI).');
+        $this->info('Mailu admin container must run with: API=true and API_TOKEN=${MAIL_ADMIN_PASSWORD}.');
+        $this->info('The panel uses that same value as the Bearer token.');
 
         return self::SUCCESS;
     }

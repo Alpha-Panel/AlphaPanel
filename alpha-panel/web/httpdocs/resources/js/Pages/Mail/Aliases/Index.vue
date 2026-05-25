@@ -47,7 +47,7 @@
                                 <td class="px-4 py-3 font-medium">{{ alias.address }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-500">{{ alias.destination }}</td>
                                 <td class="px-4 py-3 text-right">
-                                    <button class="text-red-500 hover:underline" @click="confirmDelete(alias)">{{ t('Delete') }}</button>
+                                    <button class="text-red-500 hover:underline" @click="askDelete(alias)">{{ t('Delete') }}</button>
                                 </td>
                             </tr>
                             <tr v-if="aliases.length === 0">
@@ -58,19 +58,30 @@
                         </tbody>
                     </table>
                 </div>
+
+                <ConfirmDialog
+                    v-model="deleteDialogOpen"
+                    :title="t('Delete alias?')"
+                    :message="deleteTarget ? t('This will permanently delete the alias :addr.', { addr: deleteTarget.address }) : ''"
+                    :confirm-label="t('Yes, delete it')"
+                    :cancel-label="t('Cancel')"
+                    variant="danger"
+                    @confirm="confirmDelete"
+                />
             </AdminLayout>
         </SidebarProvider>
     </ThemeProvider>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
 import SidebarProvider from '@/Components/Layout/SidebarProvider.vue';
 import AdminLayout from '@/Components/Layout/AdminLayout.vue';
 import PageBreadcrumb from '@/Components/Common/PageBreadcrumb.vue';
 import Toast from '@/Components/UI/Toast.vue';
+import ConfirmDialog from '@/Components/UI/ConfirmDialog.vue';
 import { useI18n } from '@/Composables/useI18n';
 
 const { t } = useI18n();
@@ -97,10 +108,23 @@ function submit() {
     });
 }
 
-function confirmDelete(alias) {
-    if (!confirm(t('Delete alias?'))) return;
-    const localPart = alias.address.split('@')[0];
-    router.delete(route('mail.aliases.destroy', [props.domain.id, localPart]));
+const deleteDialogOpen = ref(false);
+const deleteTarget = ref(null);
+
+function askDelete(alias) {
+    deleteTarget.value = alias;
+    deleteDialogOpen.value = true;
+}
+
+function confirmDelete() {
+    if (!deleteTarget.value) return;
+    const localPart = deleteTarget.value.address.split('@')[0];
+    router.delete(route('mail.aliases.destroy', [props.domain.id, localPart]), {
+        preserveScroll: true,
+        onFinish: () => {
+            deleteTarget.value = null;
+        },
+    });
 }
 </script>
 

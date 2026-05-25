@@ -2030,5 +2030,11 @@
   "Relay host": "Ulaşturğu qonağı",
   "Relay port": "Ulaşturğu qapı",
   "From": "Birden",
-  "To": "Birge"
+  "To": "Birge",
+  "Address": "Ünwan",
+  "Change password (optional)": "Gizçeni dəyiştir (talgamlıq)",
+  "Mail provider unavailable": "Yarlıq berguçi yetişməz",
+  "Open Mail Settings": "Yarlıq tüzüvlərini aç",
+  "This will permanently delete :addr. This action cannot be undone.": ":addr biriksiz silinəcək. Bu iş geri qaytarılmaz.",
+  "This will permanently delete the alias :addr.": ":addr atlaması biriksiz silinəcək."
 }

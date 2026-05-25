@@ -56,8 +56,8 @@ return [
     ],
 
     'mailu' => [
-        'admin_url' => env('MAILU_ADMIN_URL', 'http://mailu-admin:8080'),
-        'api_base' => env('MAILU_API_BASE', 'http://mailu-admin:8080/api/v1'),
+        'admin_url' => env('MAILU_ADMIN_URL', 'http://mailu-admin'),
+        'api_base' => env('MAILU_API_BASE', 'http://mailu-admin/api/v1'),
         'api_token' => env('MAILU_API_TOKEN'),
     ],
 

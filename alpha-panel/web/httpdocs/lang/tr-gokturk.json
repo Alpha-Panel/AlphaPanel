@@ -2016,5 +2016,11 @@
   "Relay host": "𐰆𐰞𐰀𐱁𐱃𐰆𐰺 𐰸𐰆𐰣𐰍𐰃",
   "Relay port": "𐰆𐰞𐰀𐱁𐱃𐰆𐰺 𐰸𐰀𐰯𐰃",
   "From": "𐰉𐰃𐰼𐰓𐰣",
-  "To": "𐰉𐰃𐰼𐰚𐰀"
+  "To": "𐰉𐰃𐰼𐰚𐰀",
+  "Address": "𐰇𐰣𐰲𐰰𐰣",
+  "Change password (optional)": "𐰍𐰕𐰲𐰰𐰣𐰃 𐰓𐰇𐰍𐰓𐰇𐰼 (𐱅𐰀𐰠𐰍𐰀𐰢𐰞𐰸)",
+  "Mail provider unavailable": "𐰖𐰺𐰞𐰍 𐰋𐰼𐰗𐰇𐰲 𐰗𐰀𐱅𐰃𐱁𐰢𐰕",
+  "Open Mail Settings": "𐰖𐰺𐰞𐰍 𐱅𐰇𐰕𐰇𐰢𐰠𐰼𐰃𐰣 𐰀𐰲",
+  "This will permanently delete :addr. This action cannot be undone.": ":addr 𐰋𐰇𐱅𐰇𐰣𐰠𐰃 𐰾𐰃𐰼𐰠𐰀𐰲𐰰. 𐰋𐰆 𐰃𐱁 𐰚𐰼𐰃 𐰠𐰣𐰢𐰀𐰕.",
+  "This will permanently delete the alias :addr.": ":addr 𐰀𐱃𐰞𐰢𐰀𐰾𐰃 𐰋𐰇𐱅𐰇𐰣𐰠𐰃 𐰾𐰃𐰼𐰠𐰀𐰲𐰰."
 }

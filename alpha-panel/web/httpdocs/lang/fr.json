@@ -2039,5 +2039,11 @@
   "Relay host": "Hôte de relai",
   "Relay port": "Port de relai",
   "From": "De",
-  "To": "À"
+  "To": "À",
+  "Address": "Adresse",
+  "Change password (optional)": "Changer le mot de passe (optionnel)",
+  "Mail provider unavailable": "Fournisseur de courrier indisponible",
+  "Open Mail Settings": "Ouvrir les paramètres du courrier",
+  "This will permanently delete :addr. This action cannot be undone.": ":addr sera supprimé définitivement. Cette action est irréversible.",
+  "This will permanently delete the alias :addr.": "L alias :addr sera supprimé définitivement."
 }

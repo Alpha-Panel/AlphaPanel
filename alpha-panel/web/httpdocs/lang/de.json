@@ -2034,5 +2034,11 @@
   "Relay host": "Relay-Host",
   "Relay port": "Relay-Port",
   "From": "Von",
-  "To": "An"
+  "To": "An",
+  "Address": "Adresse",
+  "Change password (optional)": "Passwort ändern (optional)",
+  "Mail provider unavailable": "Mail-Anbieter nicht erreichbar",
+  "Open Mail Settings": "E-Mail-Einstellungen öffnen",
+  "This will permanently delete :addr. This action cannot be undone.": ":addr wird dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.",
+  "This will permanently delete the alias :addr.": "Der Alias :addr wird dauerhaft gelöscht."
 }

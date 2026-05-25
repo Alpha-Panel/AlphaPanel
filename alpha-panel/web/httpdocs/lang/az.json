@@ -2050,5 +2050,11 @@
   "Relay host": "Relay server",
   "Relay port": "Relay port",
   "From": "Kimdən",
-  "To": "Kimə"
+  "To": "Kimə",
+  "Address": "Ünvan",
+  "Change password (optional)": "Parolanı dəyiş (opsional)",
+  "Mail provider unavailable": "Poçt provayderi əlçatmazdır",
+  "Open Mail Settings": "Poçt Tənzimləmələrini Aç",
+  "This will permanently delete :addr. This action cannot be undone.": ":addr daimi olaraq silinəcək. Bu əməliyyat geri alına bilməz.",
+  "This will permanently delete the alias :addr.": ":addr ləqəbi daimi olaraq silinəcək."
 }

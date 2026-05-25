@@ -2099,5 +2099,20 @@
   "Relay host": "Relay host",
   "Relay port": "Relay port",
   "From": "From",
-  "To": "To"
+  "To": "To",
+  "Address": "Address",
+  "Change password (optional)": "Change password (optional)",
+  "Mail provider unavailable": "Mail provider unavailable",
+  "Open Mail Settings": "Open Mail Settings",
+  "This will permanently delete :addr. This action cannot be undone.": "This will permanently delete :addr. This action cannot be undone.",
+  "This will permanently delete the alias :addr.": "This will permanently delete the alias :addr.",
+  "Mailu is disabled": "Mailu is disabled",
+  "Mailu endpoints": "Mailu endpoints",
+  "Set MAIL_DOMAIN in .env": "Set MAIL_DOMAIN in .env",
+  "Mailu admin UI": "Mailu admin UI",
+  "SMTP": "SMTP",
+  "IMAP / POP3": "IMAP / POP3",
+  "How Mailu works in this panel": "How Mailu works in this panel",
+  "Mailu API token not configured": "Mailu API token not configured",
+  "Webmail": "Webmail"
 }

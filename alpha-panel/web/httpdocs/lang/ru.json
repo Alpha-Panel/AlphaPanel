@@ -2050,5 +2050,11 @@
   "Relay host": "Ретранслятор-хост",
   "Relay port": "Порт ретранслятора",
   "From": "От",
-  "To": "Кому"
+  "To": "Кому",
+  "Address": "Адрес",
+  "Change password (optional)": "Изменить пароль (опционально)",
+  "Mail provider unavailable": "Почтовый провайдер недоступен",
+  "Open Mail Settings": "Открыть настройки почты",
+  "This will permanently delete :addr. This action cannot be undone.": ":addr будет навсегда удалён. Это действие нельзя отменить.",
+  "This will permanently delete the alias :addr.": "Псевдоним :addr будет навсегда удалён."
 }

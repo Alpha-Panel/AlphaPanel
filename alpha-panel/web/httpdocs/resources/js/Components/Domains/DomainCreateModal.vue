@@ -144,6 +144,36 @@
                         </select>
                     </FormField>
 
+                    <FormField
+                        v-if="!isModeCatchall && mailFeatures.mail"
+                        :label="t('Mail Hosting')"
+                        :error="form.errors.mail_hosting"
+                    >
+                        <select v-model="form.mail_hosting" class="form-input">
+                            <option value="disabled">{{ t('Disabled (no mail)') }}</option>
+                            <option v-if="mailFeatures.mailu" value="local">{{ t('Local (Mailu)') }}</option>
+                            <option value="remote">{{ t('Remote MX') }}</option>
+                            <option v-if="mailFeatures.zimbra" value="zimbra">{{ t('Zimbra') }}</option>
+                        </select>
+                    </FormField>
+
+                    <FormField
+                        v-if="form.mail_hosting === 'remote'"
+                        :label="t('Remote MX host')"
+                        :error="form.errors.mail_remote_mx_host"
+                        required
+                    >
+                        <input v-model="form.mail_remote_mx_host" type="text" class="form-input" placeholder="mx.example.com" />
+                    </FormField>
+
+                    <FormField
+                        v-if="form.mail_hosting === 'remote'"
+                        :label="t('Remote MX priority')"
+                        :error="form.errors.mail_remote_mx_priority"
+                    >
+                        <input v-model.number="form.mail_remote_mx_priority" type="number" min="0" max="65535" class="form-input" />
+                    </FormField>
+
                     <label
                         v-if="showSubdomainDnsOption"
                         class="flex items-center gap-2 text-sm text-white/80"
@@ -212,7 +242,7 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue';
 import axios from 'axios';
-import { router, useForm } from '@inertiajs/vue3';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import FormField from '@/Components/UI/FormField.vue';
 import { useI18n } from '@/Composables/useI18n';
 import { useCan } from '@/Composables/useCan';
@@ -278,7 +308,17 @@ const form = useForm({
     dns_target_ip: '',
     ftp_username: '',
     ftp_password: '',
+    mail_hosting: 'disabled' as 'disabled' | 'local' | 'remote' | 'zimbra',
+    mail_remote_mx_host: '',
+    mail_remote_mx_priority: 10,
 });
+
+const inertiaPage = usePage<{ features?: { mail?: boolean; mailu?: boolean; zimbra?: boolean } }>();
+const mailFeatures = computed(() => ({
+    mail: !!inertiaPage.props.features?.mail,
+    mailu: !!inertiaPage.props.features?.mailu,
+    zimbra: !!inertiaPage.props.features?.zimbra,
+}));
 
 const isModeSubdomain = computed(() => form.mode === 'subdomain');
 const isModeWildcardSub = computed(() => form.mode === 'wildcard_subdomain');
