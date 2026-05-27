@@ -8,9 +8,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('docker_projects', function (Blueprint $table) {
-            $table->dropColumn('compose_yaml');
-        });
+        if (Schema::hasColumn('docker_projects', 'compose_yaml')) {
+            Schema::table('docker_projects', function (Blueprint $table) {
+                $table->dropColumn('compose_yaml');
+            });
+        }
     }
 
     public function down(): void
