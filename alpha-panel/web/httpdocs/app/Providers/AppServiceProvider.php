@@ -15,6 +15,9 @@ use App\Observers\DomainCronJobObserver;
 use App\Observers\DomainObserver;
 use App\Observers\SslObserver;
 use App\Services\ImpersonationService;
+use Dedoc\Scramble\Scramble;
+use Dedoc\Scramble\Support\Generator\OpenApi;
+use Dedoc\Scramble\Support\Generator\SecurityScheme;
 use Illuminate\Notifications\Events\NotificationSending;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
@@ -61,5 +64,28 @@ class AppServiceProvider extends ServiceProvider
         } catch (\Throwable) {
             // Table may not exist yet (before migration)
         }
+
+        $this->configureScramble();
+    }
+
+    /**
+     * Configure Scramble OpenAPI generator: serve UI at /api/docs and document Sanctum Bearer auth.
+     */
+    private function configureScramble(): void
+    {
+        if (! class_exists(Scramble::class)) {
+            return;
+        }
+
+        Scramble::registerUiRoute('api/docs');
+        Scramble::registerJsonSpecificationRoute('api/docs.json');
+
+        Scramble::configure()
+            ->withDocumentTransformers(function (OpenApi $openApi): void {
+                $openApi->secure(
+                    SecurityScheme::http('bearer')
+                        ->setDescription('Sanctum personal access token. Generate at Settings > API Tokens.')
+                );
+            });
     }
 }
