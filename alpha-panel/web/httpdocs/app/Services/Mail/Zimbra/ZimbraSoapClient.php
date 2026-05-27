@@ -314,7 +314,7 @@ class ZimbraSoapClient
         try {
             $resp = $this->soap($request, $body);
         } catch (ZimbraSoapFaultException $e) {
-            $code = $e->code ?? '';
+            $code = $e->faultCode ?? '';
             if (str_ends_with($code, 'NO_SUCH_ACCOUNT') || str_ends_with($code, 'NO_SUCH_DOMAIN')) {
                 return null;
             }

@@ -6,7 +6,7 @@ class ZimbraSoapFaultException extends MailProviderException
 {
     public function __construct(
         string $message,
-        public readonly ?string $code = null,
+        public readonly ?string $faultCode = null,
         public readonly ?string $detail = null,
     ) {
         parent::__construct($message);
