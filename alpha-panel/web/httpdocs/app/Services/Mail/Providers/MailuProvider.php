@@ -7,8 +7,8 @@ use App\Services\Mail\Contracts\MailProviderInterface;
 use App\Services\Mail\DTO\Alias;
 use App\Services\Mail\DTO\DnsHints;
 use App\Services\Mail\DTO\Mailbox;
-use App\Services\Mail\Exceptions\MailProviderUnavailableException;
 use App\Services\Mail\Exceptions\MailboxNotFoundException;
+use App\Services\Mail\Exceptions\MailProviderUnavailableException;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
@@ -283,15 +283,18 @@ class MailuProvider implements MailProviderInterface
     /** @param array<string, mixed> $row */
     private function hydrateMailbox(array $row): Mailbox
     {
+        $forwardDest = $row['forward_destination'] ?? [];
+        $aliases = $row['allow_spoofing'] ?? [];
+
         return new Mailbox(
             address: (string) ($row['email'] ?? ''),
-            displayName: $row['displayed_name'] ?? null,
-            quotaBytes: $row['quota_bytes'] ?? null,
-            quotaUsedBytes: $row['quota_bytes_used'] ?? null,
+            displayName: isset($row['displayed_name']) && $row['displayed_name'] !== false ? (string) $row['displayed_name'] : null,
+            quotaBytes: isset($row['quota_bytes']) && is_numeric($row['quota_bytes']) ? (int) $row['quota_bytes'] : null,
+            quotaUsedBytes: isset($row['quota_bytes_used']) && is_numeric($row['quota_bytes_used']) ? (int) $row['quota_bytes_used'] : null,
             active: (bool) ($row['enabled'] ?? true),
-            forwardTo: array_values($row['forward_destination'] ?? []),
+            forwardTo: is_array($forwardDest) ? array_values(array_map('strval', $forwardDest)) : [],
             keepLocal: (bool) ($row['forward_keep'] ?? true),
-            aliases: array_values($row['allow_spoofing'] ?? []),
+            aliases: is_array($aliases) ? array_values(array_map('strval', $aliases)) : [],
             providerExternalId: isset($row['id']) ? (string) $row['id'] : null,
         );
     }

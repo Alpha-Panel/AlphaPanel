@@ -15,7 +15,7 @@
                         <label class="form-label">{{ t('Local part') }}</label>
                         <div class="flex">
                             <input v-model="form.local_part" type="text" class="form-input rounded-r-none" required />
-                            <span class="inline-flex items-center rounded-r-md border border-l-0 border-gray-300 bg-gray-50 px-3 text-sm text-gray-500">
+                            <span class="inline-flex items-center rounded-r-md border border-l-0 border-gray-300 bg-gray-50 px-3 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
                                 @{{ domain.fqdn }}
                             </span>
                         </div>
@@ -24,7 +24,37 @@
 
                     <div>
                         <label class="form-label">{{ t('Password') }}</label>
-                        <input v-model="form.password" type="password" class="form-input" minlength="8" required />
+                        <div class="relative">
+                            <input
+                                v-model="form.password"
+                                :type="showPassword ? 'text' : 'password'"
+                                class="form-input pr-28"
+                                minlength="8"
+                                required
+                            />
+                            <div class="absolute inset-y-0 right-1 flex items-center gap-1">
+                                <button type="button" class="pwd-icon-btn" @click="showPassword = !showPassword" :title="t('Show/Hide')">
+                                    <i :class="showPassword ? 'bx bx-show' : 'bx bx-hide'"></i>
+                                </button>
+                                <button type="button" class="pwd-icon-btn" @click="generatePassword" :title="t('Generate')">
+                                    <i class="bx bx-refresh"></i>
+                                </button>
+                                <button
+                                    v-if="generatedPassword"
+                                    type="button"
+                                    class="pwd-icon-btn"
+                                    :class="{ 'pwd-icon-btn-success': copiedPassword }"
+                                    @click="copyPassword"
+                                    :title="t('Copy')"
+                                >
+                                    <i :class="copiedPassword ? 'bx bx-check' : 'bx bx-copy'"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <p v-if="generatedPassword && !copiedPassword" class="mt-1 text-xs text-warning-500">
+                            <i class="bx bx-info-circle mr-1"></i>
+                            {{ t('Copy the password before submitting.') }}
+                        </p>
                         <p v-if="form.errors.password" class="mt-1 text-sm text-red-500">{{ form.errors.password }}</p>
                     </div>
 
@@ -57,7 +87,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
 import SidebarProvider from '@/Components/Layout/SidebarProvider.vue';
@@ -86,8 +116,47 @@ const form = useForm({
     quota_bytes: 0,
 });
 
+const showPassword = ref(false);
+const generatedPassword = ref(false);
+const copiedPassword = ref(false);
+
+function generatePassword() {
+    const chars = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
+    const length = 20;
+    const array = new Uint32Array(length);
+    crypto.getRandomValues(array);
+
+    let password = '';
+    for (let index = 0; index < length; index += 1) {
+        password += chars[array[index] % chars.length];
+    }
+
+    form.password = password;
+    showPassword.value = true;
+    generatedPassword.value = true;
+    copiedPassword.value = false;
+}
+
+async function copyPassword() {
+    if (!form.password) {
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(form.password);
+        copiedPassword.value = true;
+    } catch {
+        copiedPassword.value = false;
+    }
+}
+
 function submit() {
-    form.post(route('mail.mailboxes.store', props.domain.id));
+    form.post(route('mail.mailboxes.store', props.domain.id), {
+        onSuccess: () => {
+            generatedPassword.value = false;
+            copiedPassword.value = false;
+        },
+    });
 }
 </script>
 
@@ -99,5 +168,11 @@ function submit() {
 }
 .form-label {
     @apply mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400;
+}
+.pwd-icon-btn {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700;
+}
+.pwd-icon-btn-success {
+    @apply border-success-500 bg-success-500 text-white hover:bg-success-600 hover:text-white dark:border-success-500 dark:bg-success-500 dark:text-white;
 }
 </style>

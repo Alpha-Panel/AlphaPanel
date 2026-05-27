@@ -414,6 +414,10 @@ layer(base);
   color: #0ba5ec;
 }
 
+.swal2-container {
+  z-index: 99999 !important;
+}
+
 .swal2-popup {
   border-radius: 1rem;
 }

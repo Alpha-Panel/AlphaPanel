@@ -219,13 +219,37 @@
 
                                     <div class="border-t border-gray-200 pt-4 dark:border-gray-700">
                                         <p class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-400">{{ t('Change password (optional)') }}</p>
-                                        <input
-                                            v-model="editForm.new_password"
-                                            type="password"
-                                            class="form-input"
-                                            :placeholder="t('Leave blank to keep current')"
-                                            autocomplete="new-password"
-                                        />
+                                        <div class="relative">
+                                            <input
+                                                v-model="editForm.new_password"
+                                                :type="showEditPassword ? 'text' : 'password'"
+                                                class="form-input pr-28"
+                                                :placeholder="t('Leave blank to keep current')"
+                                                autocomplete="new-password"
+                                            />
+                                            <div class="absolute inset-y-0 right-1 flex items-center gap-1">
+                                                <button type="button" class="pwd-icon-btn" @click="showEditPassword = !showEditPassword" :title="t('Show/Hide')">
+                                                    <i :class="showEditPassword ? 'bx bx-show' : 'bx bx-hide'"></i>
+                                                </button>
+                                                <button type="button" class="pwd-icon-btn" @click="generateEditPassword" :title="t('Generate')">
+                                                    <i class="bx bx-refresh"></i>
+                                                </button>
+                                                <button
+                                                    v-if="editGeneratedPassword"
+                                                    type="button"
+                                                    class="pwd-icon-btn"
+                                                    :class="{ 'pwd-icon-btn-success': editCopiedPassword }"
+                                                    @click="copyEditPassword"
+                                                    :title="t('Copy')"
+                                                >
+                                                    <i :class="editCopiedPassword ? 'bx bx-check' : 'bx bx-copy'"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <p v-if="editGeneratedPassword && !editCopiedPassword" class="mt-1 text-xs text-warning-500">
+                                            <i class="bx bx-info-circle mr-1"></i>
+                                            {{ t('Copy the password before submitting.') }}
+                                        </p>
                                     </div>
 
                                     <div class="flex justify-end gap-2 pt-2">
@@ -285,6 +309,7 @@ import PageBreadcrumb from '@/Components/Common/PageBreadcrumb.vue';
 import Toast from '@/Components/UI/Toast.vue';
 import ConfirmDialog from '@/Components/UI/ConfirmDialog.vue';
 import { useI18n } from '@/Composables/useI18n';
+import { loadSweetAlert } from '@/utils/sweetalert';
 
 const { t } = useI18n();
 const props = defineProps({
@@ -323,8 +348,28 @@ function formatBytes(bytes) {
 const editing = ref(null);
 const saving = ref(false);
 const editForm = ref({ display_name: '', quota_bytes: 0, active: true, new_password: '' });
+const showEditPassword = ref(false);
+const editGeneratedPassword = ref(false);
+const editCopiedPassword = ref(false);
+
+async function showError(message) {
+    const swal = await loadSweetAlert();
+    if (!swal) {
+        return;
+    }
+    await swal.fire({
+        title: t('Error'),
+        text: message,
+        icon: 'error',
+        confirmButtonText: t('OK'),
+    });
+}
 
 function openEdit(mailbox) {
+    if (!mailbox?.address || !mailbox.address.includes('@')) {
+        showError(t('Invalid mailbox address.'));
+        return;
+    }
     editing.value = mailbox;
     editForm.value = {
         display_name: mailbox.display_name || '',
@@ -332,27 +377,67 @@ function openEdit(mailbox) {
         active: mailbox.active,
         new_password: '',
     };
+    showEditPassword.value = false;
+    editGeneratedPassword.value = false;
+    editCopiedPassword.value = false;
 }
 
 function closeEdit() {
     editing.value = null;
     saving.value = false;
+    editGeneratedPassword.value = false;
+    editCopiedPassword.value = false;
+}
+
+function generateEditPassword() {
+    const chars = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
+    const length = 20;
+    const array = new Uint32Array(length);
+    crypto.getRandomValues(array);
+
+    let password = '';
+    for (let index = 0; index < length; index += 1) {
+        password += chars[array[index] % chars.length];
+    }
+
+    editForm.value.new_password = password;
+    showEditPassword.value = true;
+    editGeneratedPassword.value = true;
+    editCopiedPassword.value = false;
+}
+
+async function copyEditPassword() {
+    if (!editForm.value.new_password) {
+        return;
+    }
+    try {
+        await navigator.clipboard.writeText(editForm.value.new_password);
+        editCopiedPassword.value = true;
+    } catch {
+        editCopiedPassword.value = false;
+    }
 }
 
 async function saveEdit() {
     if (!editing.value) return;
+    const address = editing.value.address || '';
+    const localPart = address.includes('@') ? address.split('@')[0] : '';
+    if (localPart === '') {
+        await showError(t('Invalid mailbox address.'));
+        return;
+    }
+
     saving.value = true;
-    const localPart = editing.value.address.split('@')[0];
 
     try {
-        await axios.put(route('mail.mailboxes.update', [props.domain.id, localPart]), {
+        await axios.put(route('mail.mailboxes.update', { domain: props.domain.id, local: localPart }), {
             display_name: editForm.value.display_name,
             quota_bytes: editForm.value.quota_bytes,
             active: editForm.value.active,
         });
 
         if (editForm.value.new_password) {
-            await axios.post(route('mail.mailboxes.password', [props.domain.id, localPart]), {
+            await axios.post(route('mail.mailboxes.password', { domain: props.domain.id, local: localPart }), {
                 password: editForm.value.new_password,
             });
         }
@@ -360,8 +445,8 @@ async function saveEdit() {
         closeEdit();
         router.reload({ only: ['mailboxes'] });
     } catch (e) {
-        const msg = e?.response?.data?.message || t('Save error');
-        alert(msg);
+        const msg = e?.response?.data?.message || e?.message || t('Save error');
+        await showError(msg);
     } finally {
         saving.value = false;
     }
@@ -428,5 +513,11 @@ function confirmDeleteAlias() {
 }
 .form-label {
     @apply mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400;
+}
+.pwd-icon-btn {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700;
+}
+.pwd-icon-btn-success {
+    @apply border-success-500 bg-success-500 text-white hover:bg-success-600 hover:text-white dark:border-success-500 dark:bg-success-500 dark:text-white;
 }
 </style>

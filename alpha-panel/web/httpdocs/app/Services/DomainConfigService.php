@@ -56,18 +56,29 @@ class DomainConfigService
     }
 
     /**
-     * Write or remove the webmail Caddyfile for mail.{fqdn}.
+     * Write or remove the webmail Caddyfile for mail.{fqdn} and webmail.{fqdn}.
      *
      * Created when mail_hosting=Local (Mailu). Removed otherwise.
      * Cert is resolved from the apex domain — a wildcard cert covers the subdomain.
+     *
+     * Both mail.{fqdn} and webmail.{fqdn} 308-redirect to the global Mailu hostname
+     * (MAIL_HOSTNAME). Reverse-proxying the per-domain hostname directly causes a
+     * redirect loop because Mailu's HOSTNAMES env only lists the global hostname,
+     * so unknown hosts get bounced back to the canonical URL.
      */
     public function syncWebmailCaddyConfig(Domain $domain): void
     {
         $mailFqdn = 'mail.'.$domain->fqdn;
+        $webmailFqdn = 'webmail.'.$domain->fqdn;
         $dir = "{$this->caddySitesBasePath}/{$mailFqdn}";
         $file = "{$dir}/Caddyfile";
 
-        if (! $domain->usesLocalMail()) {
+        $globalHostname = (string) config('panel.mail.hostname');
+
+        // Remove the file when: mail hosting is not local, no global hostname is
+        // configured, or the per-domain hostname equals the global one (handled by
+        // frankenphp/sites-enabled/mail/Caddyfile already).
+        if (! $domain->usesLocalMail() || $globalHostname === '' || $mailFqdn === $globalHostname) {
             if (File::isDirectory($dir)) {
                 File::deleteDirectory($dir);
                 Log::info("Removed webmail Caddyfile directory: {$dir}");
@@ -80,40 +91,19 @@ class DomainConfigService
         $lines = [];
 
         if ($certPaths !== null) {
-            $lines[] = "{$mailFqdn}:80 {";
-            $lines[] = "    redir https://{$mailFqdn}{uri} 308";
+            $lines[] = "{$mailFqdn}:80, {$webmailFqdn}:80 {";
+            $lines[] = "    redir https://{$globalHostname}{uri} 308";
             $lines[] = '}';
             $lines[] = '';
-            $lines[] = "{$mailFqdn}:443 {";
+            $lines[] = "{$mailFqdn}:443, {$webmailFqdn}:443 {";
             $lines[] = "    tls {$certPaths['cert']} {$certPaths['key']}";
+            $lines[] = "    redir https://{$globalHostname}{uri} 308";
+            $lines[] = '}';
         } else {
-            $lines[] = "{$mailFqdn}:80 {";
+            $lines[] = "{$mailFqdn}:80, {$webmailFqdn}:80 {";
+            $lines[] = "    redir https://{$globalHostname}{uri} 308";
+            $lines[] = '}';
         }
-
-        $lines[] = '    encode zstd br gzip';
-        $lines[] = '    import common-headers';
-        $lines[] = '';
-        $lines[] = '    # Block Mailu admin — manage via AlphaPanel only';
-        $lines[] = '    @mail_admin {';
-        $lines[] = '        path /admin /admin/*';
-        $lines[] = '    }';
-        $lines[] = '    handle @mail_admin {';
-        $lines[] = '        respond "Access denied" 403';
-        $lines[] = '    }';
-        $lines[] = '';
-        $lines[] = '    reverse_proxy mailu-front:80 {';
-        $lines[] = '        header_up Host {http.request.host}';
-        $lines[] = '        header_up X-Real-IP {http.request.remote.host}';
-        $lines[] = '        header_up X-Forwarded-For {http.request.remote.host}';
-        $lines[] = '        header_up X-Forwarded-Proto https';
-        $lines[] = '        header_down Location "^https?://mailu-front" "https://{http.request.host}"';
-        $lines[] = '    }';
-        $lines[] = '';
-        $lines[] = '    log {';
-        $lines[] = "        output file /var/log/caddy/{$mailFqdn}.log";
-        $lines[] = '        format json';
-        $lines[] = '    }';
-        $lines[] = '}';
 
         $this->writeConfigFile($file, implode("\n", $lines)."\n");
     }

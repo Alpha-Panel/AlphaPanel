@@ -34,6 +34,11 @@ use App\Http\Controllers\FtpBanController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\LoginIpFilterController;
+use App\Http\Controllers\Mail\AliasController;
+use App\Http\Controllers\Mail\DomainMailController;
+use App\Http\Controllers\Mail\MailboxController;
+use App\Http\Controllers\Mail\MailIndexController;
+use App\Http\Controllers\Mail\MailSettingsController;
 use App\Http\Controllers\ManifestController;
 use App\Http\Controllers\MysqlConfigController;
 use App\Http\Controllers\NotificationSettingsController;
@@ -67,6 +72,20 @@ use Illuminate\Validation\Rule;
 use Laravel\Fortify\Http\Controllers\TwoFactorAuthenticationController;
 
 Route::get('/manifest.json', [ManifestController::class, 'index'])->name('manifest');
+
+// Webmail compat — bookmark/stale-link handler. SnappyMail SSO URLs
+// (e.g. /mail/index.php?sso&hash=...) get redirected to the actual webmail
+// hostname with the query string preserved.
+Route::any('/mail/index.php', function (Request $request) {
+    $hostname = (string) config('panel.mail.hostname');
+    if ($hostname === '') {
+        abort(404);
+    }
+    $qs = $request->getQueryString();
+    $target = 'https://'.$hostname.'/'.($qs !== null && $qs !== '' ? '?'.$qs : '');
+
+    return redirect()->away($target, 302);
+})->name('mail.webmail.compat');
 
 // OAuth authorization code flow (no auth middleware — guest-facing)
 Route::get('/oauth/authorize', [OAuthController::class, 'show'])->name('oauth.authorize');
@@ -686,32 +705,32 @@ Route::middleware('auth')->group(function (): void {
         // Settings are admin-accessible regardless of feature flags so admins
         // can bootstrap Mailu / Zimbra from the panel itself (chicken-and-egg).
         Route::middleware('admin')->prefix('settings')->name('settings.')->group(function (): void {
-            Route::get('/', [\App\Http\Controllers\Mail\MailSettingsController::class, 'edit'])->name('edit');
-            Route::put('/relay', [\App\Http\Controllers\Mail\MailSettingsController::class, 'updateRelay'])->name('relay.update');
-            Route::put('/zimbra', [\App\Http\Controllers\Mail\MailSettingsController::class, 'updateZimbra'])->name('zimbra.update');
-            Route::post('/zimbra/test', [\App\Http\Controllers\Mail\MailSettingsController::class, 'testZimbra'])->name('zimbra.test');
+            Route::get('/', [MailSettingsController::class, 'edit'])->name('edit');
+            Route::put('/relay', [MailSettingsController::class, 'updateRelay'])->name('relay.update');
+            Route::put('/zimbra', [MailSettingsController::class, 'updateZimbra'])->name('zimbra.update');
+            Route::post('/zimbra/test', [MailSettingsController::class, 'testZimbra'])->name('zimbra.test');
         });
 
         // Domains overview + mailbox/alias management — feature-flag gated.
         Route::middleware('mail.feature')->group(function (): void {
-            Route::get('/', \App\Http\Controllers\Mail\MailIndexController::class)->name('index');
+            Route::get('/', MailIndexController::class)->name('index');
 
-            Route::get('domains/{domain}', \App\Http\Controllers\Mail\DomainMailController::class)->name('domain');
+            Route::get('domains/{domain}', DomainMailController::class)->name('domain');
 
             Route::prefix('domains/{domain}/mailboxes')->name('mailboxes.')->group(function (): void {
-                Route::get('/', [\App\Http\Controllers\Mail\MailboxController::class, 'index'])->name('index');
-                Route::get('/create', [\App\Http\Controllers\Mail\MailboxController::class, 'create'])->name('create');
-                Route::post('/', [\App\Http\Controllers\Mail\MailboxController::class, 'store'])->name('store');
-                Route::put('/{local}', [\App\Http\Controllers\Mail\MailboxController::class, 'update'])->name('update');
-                Route::delete('/{local}', [\App\Http\Controllers\Mail\MailboxController::class, 'destroy'])->name('destroy');
-                Route::post('/{local}/password', [\App\Http\Controllers\Mail\MailboxController::class, 'setPassword'])->name('password');
-                Route::post('/{local}/forwarding', [\App\Http\Controllers\Mail\MailboxController::class, 'setForwarding'])->name('forwarding');
+                Route::get('/', [MailboxController::class, 'index'])->name('index');
+                Route::get('/create', [MailboxController::class, 'create'])->name('create');
+                Route::post('/', [MailboxController::class, 'store'])->name('store');
+                Route::put('/{local}', [MailboxController::class, 'update'])->name('update');
+                Route::delete('/{local}', [MailboxController::class, 'destroy'])->name('destroy');
+                Route::post('/{local}/password', [MailboxController::class, 'setPassword'])->name('password');
+                Route::post('/{local}/forwarding', [MailboxController::class, 'setForwarding'])->name('forwarding');
             });
 
             Route::prefix('domains/{domain}/aliases')->name('aliases.')->group(function (): void {
-                Route::get('/', [\App\Http\Controllers\Mail\AliasController::class, 'index'])->name('index');
-                Route::post('/', [\App\Http\Controllers\Mail\AliasController::class, 'store'])->name('store');
-                Route::delete('/{local}', [\App\Http\Controllers\Mail\AliasController::class, 'destroy'])->name('destroy');
+                Route::get('/', [AliasController::class, 'index'])->name('index');
+                Route::post('/', [AliasController::class, 'store'])->name('store');
+                Route::delete('/{local}', [AliasController::class, 'destroy'])->name('destroy');
             });
         });
     });
