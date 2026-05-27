@@ -352,6 +352,14 @@ class DomainController extends Controller
         $domain->update($validated);
         if ($domain->wasChanged('mail_hosting') || $domain->wasChanged('mail_remote_mx_host') || $domain->wasChanged('mail_remote_mx_priority')) {
             $this->applyMailHosting($domain, previous: $previousMailHosting);
+
+            AuditLog::create([
+                'user_id' => $request->user()->id,
+                'action' => 'domain_mail_hosting_changed',
+                'domain_id' => $domain->id,
+                'summary' => $domain->fqdn.': '.($previousMailHosting?->value ?? 'null').' → '.($domain->mail_hosting?->value ?? 'null'),
+                'ip_address' => $request->ip(),
+            ]);
         }
 
         // Clean up old FPM config if PHP version changed or domain switched away from Apache

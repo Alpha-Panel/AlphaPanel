@@ -7,6 +7,7 @@ use App\Http\Requests\Api\V1\Mail\SetPasswordApiRequest;
 use App\Http\Requests\Api\V1\Mail\StoreMailboxApiRequest;
 use App\Http\Requests\Api\V1\Mail\UpdateMailboxApiRequest;
 use App\Http\Resources\Api\V1\MailboxResource;
+use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Services\Mail\Exceptions\MailProviderException;
 use App\Services\Mail\MailProviderResolver;
@@ -57,6 +58,13 @@ class MailboxApiController extends ApiController
             return $this->providerError($e);
         }
 
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'mailbox_created',
+            'domain_id' => $domain->id,
+            'summary' => "{$data['local_part']}@{$domain->fqdn}",
+        ]);
+
         return response()->json(['data' => (new MailboxResource($mailbox))->resolve()], 201);
     }
 
@@ -68,6 +76,13 @@ class MailboxApiController extends ApiController
         } catch (MailProviderException $e) {
             return $this->providerError($e);
         }
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'mailbox_updated',
+            'domain_id' => $domain->id,
+            'summary' => "{$localPart}@{$domain->fqdn}",
+        ]);
 
         return response()->json(['data' => (new MailboxResource($mailbox))->resolve()]);
     }
@@ -81,6 +96,13 @@ class MailboxApiController extends ApiController
             return $this->providerError($e);
         }
 
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'mailbox_deleted',
+            'domain_id' => $domain->id,
+            'summary' => "{$localPart}@{$domain->fqdn}",
+        ]);
+
         return response()->json(['ok' => true]);
     }
 
@@ -92,6 +114,13 @@ class MailboxApiController extends ApiController
         } catch (MailProviderException $e) {
             return $this->providerError($e);
         }
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'mailbox_password_reset',
+            'domain_id' => $domain->id,
+            'summary' => "{$localPart}@{$domain->fqdn}",
+        ]);
 
         return response()->json(['ok' => true]);
     }
@@ -110,6 +139,13 @@ class MailboxApiController extends ApiController
         } catch (MailProviderException $e) {
             return $this->providerError($e);
         }
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'mailbox_forwarding_set',
+            'domain_id' => $domain->id,
+            'summary' => "{$localPart}@{$domain->fqdn} → ".implode(', ', $data['addresses'] ?? []),
+        ]);
 
         return response()->json(['ok' => true]);
     }

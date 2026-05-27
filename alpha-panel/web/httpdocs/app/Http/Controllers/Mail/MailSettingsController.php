@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Mail;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Mail\UpdateRelaySettingsRequest;
 use App\Http\Requests\Mail\UpdateZimbraSettingsRequest;
+use App\Models\AuditLog;
 use App\Services\Mail\Exceptions\MailProviderException;
 use App\Services\Mail\MailSettingsService;
 use App\Services\Mail\Zimbra\ZimbraSoapClient;
@@ -34,14 +35,28 @@ class MailSettingsController extends Controller
 
     public function updateRelay(UpdateRelaySettingsRequest $request): RedirectResponse
     {
-        $this->settings->updateRelay($request->validated());
+        $data = $request->validated();
+        $this->settings->updateRelay($data);
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'mail_relay_updated',
+            'summary' => 'Mailu relay '.($data['host'] ?? 'cleared'),
+        ]);
 
         return back()->with('success', __('Mail relay updated. Restart Mailu to apply.'));
     }
 
     public function updateZimbra(UpdateZimbraSettingsRequest $request): RedirectResponse
     {
-        $this->settings->updateZimbra($request->validated());
+        $data = $request->validated();
+        $this->settings->updateZimbra($data);
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'mail_zimbra_updated',
+            'summary' => ($data['enabled'] ?? false ? 'enabled' : 'disabled').' '.($data['admin_url'] ?? ''),
+        ]);
 
         return back()->with('success', __('Zimbra server saved.'));
     }
@@ -52,12 +67,25 @@ class MailSettingsController extends Controller
             $this->zimbra->refreshToken();
             $this->zimbra->authenticate();
         } catch (MailProviderException $e) {
+            AuditLog::create([
+                'user_id' => request()->user()?->id,
+                'action' => 'mail_zimbra_test_failed',
+                'summary' => $this->mapZimbraError($e),
+                'details' => $e->getMessage(),
+            ]);
+
             return response()->json([
                 'ok' => false,
                 'status' => $this->mapZimbraError($e),
                 'message' => $e->getMessage(),
             ], 422);
         }
+
+        AuditLog::create([
+            'user_id' => request()->user()?->id,
+            'action' => 'mail_zimbra_tested',
+            'summary' => 'auth_ok',
+        ]);
 
         return response()->json(['ok' => true, 'status' => 'auth_ok']);
     }

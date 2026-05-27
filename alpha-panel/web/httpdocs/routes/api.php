@@ -23,6 +23,10 @@ use App\Http\Controllers\Api\V1\FirewallController;
 use App\Http\Controllers\Api\V1\FtpBanController;
 use App\Http\Controllers\Api\V1\HandshakeController;
 use App\Http\Controllers\Api\V1\ImpersonationController;
+use App\Http\Controllers\Api\V1\MailAliasApiController;
+use App\Http\Controllers\Api\V1\MailboxApiController;
+use App\Http\Controllers\Api\V1\MailDomainApiController;
+use App\Http\Controllers\Api\V1\MailSettingsApiController;
 use App\Http\Controllers\Api\V1\ModSecurityController;
 use App\Http\Controllers\Api\V1\MysqlConfigController as MysqlConfigApiController;
 use App\Http\Controllers\Api\V1\NotificationSettingsController;
@@ -429,38 +433,47 @@ Route::middleware(['auth:sanctum', 'api.token.ip', 'idempotency'])->group(functi
     });
 
     // ── Mail (Mailu + Zimbra) ─────────────────────────────────────────────────
-    Route::middleware('mail.feature')->prefix('mail')->group(function (): void {
-        Route::get('/settings', [\App\Http\Controllers\Api\V1\MailSettingsApiController::class, 'index'])
+    // Settings stay accessible even when feature flag is off so admins can bootstrap.
+    Route::prefix('mail')->group(function (): void {
+        Route::get('/settings', [MailSettingsApiController::class, 'index'])
             ->middleware('ability:mail:read');
-        Route::put('/settings/relay', [\App\Http\Controllers\Api\V1\MailSettingsApiController::class, 'updateRelay'])
+        Route::put('/settings/relay', [MailSettingsApiController::class, 'updateRelay'])
             ->middleware('ability:mail:write');
-        Route::put('/settings/zimbra', [\App\Http\Controllers\Api\V1\MailSettingsApiController::class, 'updateZimbra'])
+        Route::put('/settings/zimbra', [MailSettingsApiController::class, 'updateZimbra'])
             ->middleware('ability:mail:write');
-        Route::post('/settings/zimbra/test', [\App\Http\Controllers\Api\V1\MailSettingsApiController::class, 'testZimbra'])
+        Route::post('/settings/zimbra/test', [MailSettingsApiController::class, 'testZimbra'])
             ->middleware('ability:mail:write');
     });
 
+    Route::middleware('mail.feature')->prefix('mail')->group(function (): void {
+        Route::get('/domains', [MailDomainApiController::class, 'index'])
+            ->middleware('ability:mail:read');
+    });
+
     Route::middleware('mail.feature')->prefix('domains/{domain}/mail')->group(function (): void {
-        Route::get('/mailboxes', [\App\Http\Controllers\Api\V1\MailboxApiController::class, 'index'])
+        Route::get('/', [MailDomainApiController::class, 'show'])
             ->middleware('ability:mail:read');
-        Route::post('/mailboxes', [\App\Http\Controllers\Api\V1\MailboxApiController::class, 'store'])
-            ->middleware('ability:mail:write');
-        Route::get('/mailboxes/{local}', [\App\Http\Controllers\Api\V1\MailboxApiController::class, 'show'])
+
+        Route::get('/mailboxes', [MailboxApiController::class, 'index'])
             ->middleware('ability:mail:read');
-        Route::put('/mailboxes/{local}', [\App\Http\Controllers\Api\V1\MailboxApiController::class, 'update'])
+        Route::post('/mailboxes', [MailboxApiController::class, 'store'])
             ->middleware('ability:mail:write');
-        Route::delete('/mailboxes/{local}', [\App\Http\Controllers\Api\V1\MailboxApiController::class, 'destroy'])
+        Route::get('/mailboxes/{local}', [MailboxApiController::class, 'show'])
+            ->middleware('ability:mail:read');
+        Route::put('/mailboxes/{local}', [MailboxApiController::class, 'update'])
             ->middleware('ability:mail:write');
-        Route::post('/mailboxes/{local}/password', [\App\Http\Controllers\Api\V1\MailboxApiController::class, 'setPassword'])
+        Route::delete('/mailboxes/{local}', [MailboxApiController::class, 'destroy'])
             ->middleware('ability:mail:write');
-        Route::post('/mailboxes/{local}/forwarding', [\App\Http\Controllers\Api\V1\MailboxApiController::class, 'setForwarding'])
+        Route::post('/mailboxes/{local}/password', [MailboxApiController::class, 'setPassword'])
+            ->middleware('ability:mail:write');
+        Route::post('/mailboxes/{local}/forwarding', [MailboxApiController::class, 'setForwarding'])
             ->middleware('ability:mail:write');
 
-        Route::get('/aliases', [\App\Http\Controllers\Api\V1\MailAliasApiController::class, 'index'])
+        Route::get('/aliases', [MailAliasApiController::class, 'index'])
             ->middleware('ability:mail:read');
-        Route::post('/aliases', [\App\Http\Controllers\Api\V1\MailAliasApiController::class, 'store'])
+        Route::post('/aliases', [MailAliasApiController::class, 'store'])
             ->middleware('ability:mail:write');
-        Route::delete('/aliases/{local}', [\App\Http\Controllers\Api\V1\MailAliasApiController::class, 'destroy'])
+        Route::delete('/aliases/{local}', [MailAliasApiController::class, 'destroy'])
             ->middleware('ability:mail:write');
     });
 });

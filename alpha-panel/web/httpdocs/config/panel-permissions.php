@@ -66,6 +66,7 @@ return [
             'panel.notifications.system-alerts.receive' => 'Receive system health alerts (CPU, RAM, disk usage)',
             'panel.notifications.backups.receive' => 'Receive backup notifications (started, completed, failed)',
             'panel.notifications.admin-announcements.receive' => 'Receive admin announcements targeted to admins',
+            'panel.mail.settings.manage' => 'Manage Mailu relay and Zimbra bridge settings',
         ],
     ],
 
@@ -102,6 +103,8 @@ return [
             'domain.modsecurity.view' => 'View ModSecurity settings',
             'domain.modsecurity.manage' => 'Manage ModSecurity rules',
             'domain.terminal.access' => 'Open terminal for domain',
+            'domain.mail.view' => 'View mailboxes and aliases',
+            'domain.mail.manage' => 'Create, edit and delete mailboxes and aliases',
         ],
     ],
 
@@ -136,6 +139,7 @@ return [
                 'domain.files.view',
                 'domain.logs.view',
                 'domain.modsecurity.view',
+                'domain.mail.view',
             ],
         ],
     ],

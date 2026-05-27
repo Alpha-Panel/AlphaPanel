@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\Api\V1\Mail\StoreAliasApiRequest;
 use App\Http\Resources\Api\V1\AliasResource;
+use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Services\Mail\Exceptions\MailProviderException;
 use App\Services\Mail\MailProviderResolver;
@@ -39,6 +40,13 @@ class MailAliasApiController extends ApiController
             return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
         }
 
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'mail_alias_created',
+            'domain_id' => $domain->id,
+            'summary' => "{$data['from_local_part']}@{$domain->fqdn} → {$data['to_address']}",
+        ]);
+
         return response()->json(['data' => (new AliasResource($alias))->resolve()], 201);
     }
 
@@ -50,6 +58,13 @@ class MailAliasApiController extends ApiController
         } catch (MailProviderException $e) {
             return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
         }
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'mail_alias_deleted',
+            'domain_id' => $domain->id,
+            'summary' => "{$localPart}@{$domain->fqdn}",
+        ]);
 
         return response()->json(['ok' => true]);
     }

@@ -7,6 +7,7 @@ use App\Http\Requests\Mail\SetForwardingRequest;
 use App\Http\Requests\Mail\SetPasswordRequest;
 use App\Http\Requests\Mail\StoreMailboxRequest;
 use App\Http\Requests\Mail\UpdateMailboxRequest;
+use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Services\Mail\Exceptions\MailProviderException;
 use App\Services\Mail\Exceptions\MailProviderUnavailableException;
@@ -92,6 +93,13 @@ class MailboxController extends Controller
             return back()->withErrors(['provider' => $e->getMessage()]);
         }
 
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'mailbox_created',
+            'domain_id' => $domain->id,
+            'summary' => "{$data['local_part']}@{$domain->fqdn}",
+        ]);
+
         return redirect()
             ->route('mail.mailboxes.index', $domain)
             ->with('success', __('Mailbox created.'));
@@ -109,6 +117,13 @@ class MailboxController extends Controller
 
             return back()->withErrors(['provider' => $e->getMessage()]);
         }
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'mailbox_updated',
+            'domain_id' => $domain->id,
+            'summary' => "{$localPart}@{$domain->fqdn}",
+        ]);
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json(['message' => __('Mailbox updated.')]);
@@ -150,6 +165,13 @@ class MailboxController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'mailbox_updated',
+            'domain_id' => $domain->id,
+            'summary' => "{$localPart}@{$domain->fqdn}",
+        ]);
+
         return response()->json(['message' => __('Mailbox updated.')]);
     }
 
@@ -169,6 +191,13 @@ class MailboxController extends Controller
         } catch (MailProviderException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'mailbox_deleted',
+            'domain_id' => $domain->id,
+            'summary' => "{$localPart}@{$domain->fqdn}",
+        ]);
 
         return response()->json(['message' => __('Mailbox deleted.')]);
     }
@@ -247,6 +276,13 @@ class MailboxController extends Controller
             return back()->withErrors(['provider' => $e->getMessage()]);
         }
 
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'mailbox_deleted',
+            'domain_id' => $domain->id,
+            'summary' => "{$localPart}@{$domain->fqdn}",
+        ]);
+
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json(['message' => __('Mailbox deleted.')]);
         }
@@ -272,6 +308,13 @@ class MailboxController extends Controller
             return back()->withErrors(['provider' => $e->getMessage()]);
         }
 
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'mailbox_password_reset',
+            'domain_id' => $domain->id,
+            'summary' => "{$localPart}@{$domain->fqdn}",
+        ]);
+
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json(['message' => __('Password updated.')]);
         }
@@ -296,6 +339,13 @@ class MailboxController extends Controller
 
             return back()->withErrors(['provider' => $e->getMessage()]);
         }
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'mailbox_forwarding_set',
+            'domain_id' => $domain->id,
+            'summary' => "{$localPart}@{$domain->fqdn} → ".implode(', ', $data['addresses'] ?? []),
+        ]);
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json(['message' => __('Forwarding updated.')]);

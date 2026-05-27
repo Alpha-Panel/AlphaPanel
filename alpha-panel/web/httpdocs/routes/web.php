@@ -704,7 +704,7 @@ Route::middleware('auth')->group(function (): void {
     Route::prefix('mail')->name('mail.')->group(function (): void {
         // Settings are admin-accessible regardless of feature flags so admins
         // can bootstrap Mailu / Zimbra from the panel itself (chicken-and-egg).
-        Route::middleware('admin')->prefix('settings')->name('settings.')->group(function (): void {
+        Route::middleware(['admin', 'permission:panel.mail.settings.manage'])->prefix('settings')->name('settings.')->group(function (): void {
             Route::get('/', [MailSettingsController::class, 'edit'])->name('edit');
             Route::put('/relay', [MailSettingsController::class, 'updateRelay'])->name('relay.update');
             Route::put('/zimbra', [MailSettingsController::class, 'updateZimbra'])->name('zimbra.update');
@@ -713,33 +713,45 @@ Route::middleware('auth')->group(function (): void {
 
         // Domains overview + mailbox/alias management — feature-flag gated.
         Route::middleware('mail.feature')->group(function (): void {
-            Route::get('/', MailIndexController::class)->name('index');
+            Route::middleware('permission:domain.mail.view')->group(function (): void {
+                Route::get('/', MailIndexController::class)->name('index');
 
-            Route::get('domains/{domain}', DomainMailController::class)->name('domain');
+                Route::get('domains/{domain}', DomainMailController::class)->name('domain');
+            });
 
             // Stale-Ziggy / cached-bundle fallback: when JS ships a URL missing the
             // {local} path segment, accept the call here and resolve local from query
             // string, body, address field, or Referer URL.
-            Route::put('domains/{domain}', [MailboxController::class, 'updateFallback'])->name('mailboxes.update.fallback');
-            Route::delete('domains/{domain}', [MailboxController::class, 'destroyFallback'])->name('mailboxes.destroy.fallback');
+            Route::middleware('permission:domain.mail.manage')->group(function (): void {
+                Route::put('domains/{domain}', [MailboxController::class, 'updateFallback'])->name('mailboxes.update.fallback');
+                Route::delete('domains/{domain}', [MailboxController::class, 'destroyFallback'])->name('mailboxes.destroy.fallback');
+            });
 
             Route::prefix('domains/{domain}/mailboxes')->name('mailboxes.')->group(function (): void {
-                Route::get('/', [MailboxController::class, 'index'])->name('index');
-                Route::get('/create', [MailboxController::class, 'create'])->name('create');
-                Route::post('/', [MailboxController::class, 'store'])->name('store');
-                // Fallback for URLs missing /{local} — same resolver as above.
-                Route::put('/', [MailboxController::class, 'updateFallback'])->name('update.collection-fallback');
-                Route::delete('/', [MailboxController::class, 'destroyFallback'])->name('destroy.collection-fallback');
-                Route::put('/{local}', [MailboxController::class, 'update'])->name('update');
-                Route::delete('/{local}', [MailboxController::class, 'destroy'])->name('destroy');
-                Route::post('/{local}/password', [MailboxController::class, 'setPassword'])->name('password');
-                Route::post('/{local}/forwarding', [MailboxController::class, 'setForwarding'])->name('forwarding');
+                Route::middleware('permission:domain.mail.view')->group(function (): void {
+                    Route::get('/', [MailboxController::class, 'index'])->name('index');
+                    Route::get('/create', [MailboxController::class, 'create'])->name('create');
+                });
+                Route::middleware('permission:domain.mail.manage')->group(function (): void {
+                    Route::post('/', [MailboxController::class, 'store'])->name('store');
+                    // Fallback for URLs missing /{local} — same resolver as above.
+                    Route::put('/', [MailboxController::class, 'updateFallback'])->name('update.collection-fallback');
+                    Route::delete('/', [MailboxController::class, 'destroyFallback'])->name('destroy.collection-fallback');
+                    Route::put('/{local}', [MailboxController::class, 'update'])->name('update');
+                    Route::delete('/{local}', [MailboxController::class, 'destroy'])->name('destroy');
+                    Route::post('/{local}/password', [MailboxController::class, 'setPassword'])->name('password');
+                    Route::post('/{local}/forwarding', [MailboxController::class, 'setForwarding'])->name('forwarding');
+                });
             });
 
             Route::prefix('domains/{domain}/aliases')->name('aliases.')->group(function (): void {
-                Route::get('/', [AliasController::class, 'index'])->name('index');
-                Route::post('/', [AliasController::class, 'store'])->name('store');
-                Route::delete('/{local}', [AliasController::class, 'destroy'])->name('destroy');
+                Route::middleware('permission:domain.mail.view')->group(function (): void {
+                    Route::get('/', [AliasController::class, 'index'])->name('index');
+                });
+                Route::middleware('permission:domain.mail.manage')->group(function (): void {
+                    Route::post('/', [AliasController::class, 'store'])->name('store');
+                    Route::delete('/{local}', [AliasController::class, 'destroy'])->name('destroy');
+                });
             });
         });
     });

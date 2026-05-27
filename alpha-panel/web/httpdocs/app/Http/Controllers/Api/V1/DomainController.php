@@ -109,6 +109,7 @@ class DomainController extends ApiController
             'mail_remote_mx_priority' => 'nullable|integer|between:0,65535',
         ]);
 
+        $previousMailHosting = $domain->mail_hosting;
         $domain->update($validated);
 
         AuditLog::create([
@@ -118,6 +119,16 @@ class DomainController extends ApiController
             'summary' => $domain->fqdn,
             'ip_address' => $request->ip(),
         ]);
+
+        if ($domain->wasChanged(['mail_hosting', 'mail_remote_mx_host', 'mail_remote_mx_priority'])) {
+            AuditLog::create([
+                'user_id' => $request->user()->id,
+                'action' => 'domain_mail_hosting_changed',
+                'domain_id' => $domain->id,
+                'summary' => $domain->fqdn.': '.($previousMailHosting?->value ?? 'null').' → '.($domain->mail_hosting?->value ?? 'null'),
+                'ip_address' => $request->ip(),
+            ]);
+        }
 
         return response()->json(['data' => $domain->fresh()]);
     }

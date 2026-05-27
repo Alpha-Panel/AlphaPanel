@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Mail;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Mail\StoreAliasRequest;
+use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Services\Mail\Exceptions\MailProviderException;
 use App\Services\Mail\Exceptions\MailProviderUnavailableException;
@@ -45,8 +46,8 @@ class AliasController extends Controller
 
     public function store(StoreAliasRequest $request, Domain $domain): RedirectResponse
     {
+        $data = $request->validated();
         try {
-            $data = $request->validated();
             $this->resolver->for($domain)->createAlias(
                 $domain,
                 $data['from_local_part'],
@@ -55,6 +56,13 @@ class AliasController extends Controller
         } catch (MailProviderException $e) {
             return back()->withErrors(['provider' => $e->getMessage()]);
         }
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'mail_alias_created',
+            'domain_id' => $domain->id,
+            'summary' => "{$data['from_local_part']}@{$domain->fqdn} → {$data['to_address']}",
+        ]);
 
         return back()->with('success', __('Alias created.'));
     }
@@ -67,6 +75,13 @@ class AliasController extends Controller
         } catch (MailProviderException $e) {
             return back()->withErrors(['provider' => $e->getMessage()]);
         }
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'mail_alias_deleted',
+            'domain_id' => $domain->id,
+            'summary' => "{$localPart}@{$domain->fqdn}",
+        ]);
 
         return back()->with('success', __('Alias deleted.'));
     }

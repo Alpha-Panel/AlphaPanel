@@ -344,6 +344,7 @@ const availableAbilities = [
     'users:read', 'users:write',
     'settings:read', 'settings:write',
     'audit:read',
+    'mail:read', 'mail:write',
 ];
 
 interface ApiToken {
