@@ -126,28 +126,38 @@
 		}
 	}
 	handle /webmail/* {
+		uri strip_prefix /webmail
 		reverse_proxy https://mailu-front:443 {
 			transport http {
 				tls_insecure_skip_verify
 			}
 			header_up Host {http.request.hostport}
 			header_up X-Forwarded-Proto https
+			header_down Location "^/sso/login\?url=.*" "/sso/login?url=/webmail/"
 			header_down Location "^https?://[^/]+(/.+)" "$1"
 			header_down Location "^(/.+)" "/mail$1"
 			header_down Set-Cookie "; Domain=[^;]*" ""
 		}
 	}
 
-	# Mailu webmail via panel subpath — proxies to mailu-front's /webmail/
+	# Mailu webmail via panel subpath
+	# Strip /mail/webmail entirely so snappymail paths hit correct nginx locations:
+	# /mail/webmail/sso.php -> /sso.php -> nginx location /sso.php (sets X-Remote-User)
+	# /mail/webmail/       -> /        -> nginx location / (auth check -> snappymail)
 	handle /mail/webmail* {
-		uri replace /mail/webmail /webmail
+		uri strip_prefix /mail/webmail
 		reverse_proxy https://mailu-front:443 {
 			transport http {
 				tls_insecure_skip_verify
 			}
 			header_up Host {http.request.hostport}
 			header_up X-Forwarded-Proto https
+			# Force url=/webmail/ so post-login SSO redirects back to /webmail/
+			# which /mail/sso* handler then rewrites to /mail/webmail/
+			header_down Location "^/sso/login\?url=.*" "/sso/login?url=/webmail/"
 			header_down Location "^https?://[^/]+(/.+)" "$1"
+			# Prefix absolute redirects with /mail (routes /sso/login -> /mail/sso/login)
+			# Relative redirects (sso.php, index.php?sso&hash=...) are not affected
 			header_down Location "^(/.+)" "/mail$1"
 			header_down Set-Cookie "; Domain=[^;]*" ""
 		}

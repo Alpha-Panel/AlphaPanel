@@ -429,15 +429,22 @@ async function saveEdit() {
 
     saving.value = true;
 
+    const encodedLocal = encodeURIComponent(localPart);
+    const updateUrl = `/mail/domains/${props.domain.id}/mailboxes/${encodedLocal}`;
+    const passwordUrl = `/mail/domains/${props.domain.id}/mailboxes/${encodedLocal}/password`;
+
+    // eslint-disable-next-line no-console
+    console.log('[mailbox.saveEdit] PUT', updateUrl, 'domainId:', props.domain.id, 'localPart:', localPart);
+
     try {
-        await axios.put(route('mail.mailboxes.update', { domain: props.domain.id, local: localPart }), {
+        await axios.put(updateUrl, {
             display_name: editForm.value.display_name,
             quota_bytes: editForm.value.quota_bytes,
             active: editForm.value.active,
         });
 
         if (editForm.value.new_password) {
-            await axios.post(route('mail.mailboxes.password', { domain: props.domain.id, local: localPart }), {
+            await axios.post(passwordUrl, {
                 password: editForm.value.new_password,
             });
         }
@@ -464,7 +471,7 @@ function askDeleteMailbox(mailbox) {
 function confirmDeleteMailbox() {
     if (!deleteMailboxTarget.value) return;
     const localPart = deleteMailboxTarget.value.address.split('@')[0];
-    router.delete(route('mail.mailboxes.destroy', [props.domain.id, localPart]), {
+    router.delete(`/mail/domains/${props.domain.id}/mailboxes/${encodeURIComponent(localPart)}`, {
         preserveScroll: true,
         onFinish: () => { deleteMailboxTarget.value = null; },
     });
@@ -498,7 +505,7 @@ function askDeleteAlias(alias) {
 function confirmDeleteAlias() {
     if (!deleteAliasTarget.value) return;
     const localPart = deleteAliasTarget.value.address.split('@')[0];
-    router.delete(route('mail.aliases.destroy', [props.domain.id, localPart]), {
+    router.delete(`/mail/domains/${props.domain.id}/aliases/${encodeURIComponent(localPart)}`, {
         preserveScroll: true,
         onFinish: () => { deleteAliasTarget.value = null; },
     });

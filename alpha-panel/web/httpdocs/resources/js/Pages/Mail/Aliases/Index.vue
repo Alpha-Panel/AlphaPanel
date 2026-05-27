@@ -119,7 +119,7 @@ function askDelete(alias) {
 function confirmDelete() {
     if (!deleteTarget.value) return;
     const localPart = deleteTarget.value.address.split('@')[0];
-    router.delete(route('mail.aliases.destroy', [props.domain.id, localPart]), {
+    router.delete(`/mail/domains/${props.domain.id}/aliases/${encodeURIComponent(localPart)}`, {
         preserveScroll: true,
         onFinish: () => {
             deleteTarget.value = null;

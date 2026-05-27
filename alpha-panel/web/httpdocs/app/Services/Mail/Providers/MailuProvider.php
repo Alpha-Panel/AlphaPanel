@@ -245,10 +245,20 @@ class MailuProvider implements MailProviderInterface
             return $cached;
         }
 
+        // Persistent fallback chain — survives optimize:clear / cache:clear without
+        // needing mail:bootstrap to re-seed cache. Mailu admin uses MAIL_ADMIN_PASSWORD
+        // as API_TOKEN per the bootstrap command's mirror convention.
         $token = (string) config('services.mailu.api_token');
         if ($token === '') {
+            $token = (string) env('MAILU_API_TOKEN', '');
+        }
+        if ($token === '') {
+            $token = (string) env('MAIL_ADMIN_PASSWORD', '');
+        }
+
+        if ($token === '') {
             throw new MailProviderUnavailableException(
-                'Mailu API token missing. Run `php artisan mail:bootstrap` first.'
+                'Mailu API token missing. Set MAIL_ADMIN_PASSWORD in .env or run `php artisan mail:bootstrap`.'
             );
         }
 

@@ -717,6 +717,12 @@ Route::middleware('auth')->group(function (): void {
 
             Route::get('domains/{domain}', DomainMailController::class)->name('domain');
 
+            // Stale-Ziggy fallback: when the JS bundle is cached with an old route
+            // registry, ziggy drops the {local} segment and sends it as ?local=info.
+            // This catches those calls and dispatches to MailboxController::update.
+            Route::put('domains/{domain}', [MailboxController::class, 'updateFallback'])->name('mailboxes.update.fallback');
+            Route::delete('domains/{domain}', [MailboxController::class, 'destroyFallback'])->name('mailboxes.destroy.fallback');
+
             Route::prefix('domains/{domain}/mailboxes')->name('mailboxes.')->group(function (): void {
                 Route::get('/', [MailboxController::class, 'index'])->name('index');
                 Route::get('/create', [MailboxController::class, 'create'])->name('create');

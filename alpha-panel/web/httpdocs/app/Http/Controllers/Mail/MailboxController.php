@@ -107,6 +107,42 @@ class MailboxController extends Controller
         return back()->with('success', __('Mailbox updated.'));
     }
 
+    /**
+     * Fallback for stale frontend bundles where Ziggy lost the {local} path segment
+     * and shipped it as a ?local=... query string. Read it from query/body and
+     * delegate to update().
+     */
+    public function updateFallback(UpdateMailboxRequest $request, Domain $domain): RedirectResponse
+    {
+        $localPart = (string) ($request->query('local')
+            ?? $request->input('local_part')
+            ?? $request->input('local')
+            ?? '');
+
+        if ($localPart === '') {
+            abort(404, 'Mailbox local part missing.');
+        }
+
+        return $this->update($request, $domain, $localPart);
+    }
+
+    /**
+     * Same fallback for DELETE — stale Ziggy ships {local} as ?local=... too.
+     */
+    public function destroyFallback(Request $request, Domain $domain): RedirectResponse
+    {
+        $localPart = (string) ($request->query('local')
+            ?? $request->input('local_part')
+            ?? $request->input('local')
+            ?? '');
+
+        if ($localPart === '') {
+            abort(404, 'Mailbox local part missing.');
+        }
+
+        return $this->destroy($request, $domain, $localPart);
+    }
+
     public function destroy(Request $request, Domain $domain, string $localPart): RedirectResponse
     {
         $this->authorizeDomain($request, $domain);
