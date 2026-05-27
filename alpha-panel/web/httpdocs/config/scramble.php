@@ -48,7 +48,7 @@ return [
     */
     'ui' => [
         'title' => 'AlphaPanel API',
-        'theme' => 'light',
+        'theme' => 'dark',
         'hide_try_it' => false,
         'hide_schemas' => false,
         'logo' => '',

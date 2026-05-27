@@ -213,7 +213,7 @@ async function initTerminal() {
 
     terminal.onData((data: string) => {
         if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(encoder.encode(data));
+            ws.send(encoder.encode(data).buffer);
         }
     });
 

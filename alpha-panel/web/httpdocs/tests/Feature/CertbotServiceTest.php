@@ -28,9 +28,25 @@ class CertbotServiceTest extends TestCase
         ]);
     }
 
+    /**
+     * Return a PortainerService mock with listContainers already stubbed
+     * (called by killStaleCertbotContainers before every certbot operation).
+     *
+     * @return \Mockery\MockInterface
+     */
+    private function mockPortainer(): \Mockery\MockInterface
+    {
+        $mock = $this->mockPortainer();
+        $mock->shouldReceive('listContainers')
+            ->zeroOrMoreTimes()
+            ->andReturn([]);
+
+        return $mock;
+    }
+
     public function test_request_certificate_success(): void
     {
-        $mock = $this->mock(PortainerService::class);
+        $mock = $this->mockPortainer();
         $mock->shouldReceive('createAndRunContainer')
             ->once()
             ->withArgs(function (array $config, int $timeout) {
@@ -56,7 +72,7 @@ class CertbotServiceTest extends TestCase
 
     public function test_request_certificate_includes_wildcard_domain(): void
     {
-        $mock = $this->mock(PortainerService::class);
+        $mock = $this->mockPortainer();
         $mock->shouldReceive('createAndRunContainer')
             ->once()
             ->withArgs(function (array $config) {
@@ -78,7 +94,7 @@ class CertbotServiceTest extends TestCase
 
     public function test_request_certificate_uses_host_bind_mounts(): void
     {
-        $mock = $this->mock(PortainerService::class);
+        $mock = $this->mockPortainer();
         $mock->shouldReceive('createAndRunContainer')
             ->once()
             ->withArgs(function (array $config) {
@@ -102,7 +118,7 @@ class CertbotServiceTest extends TestCase
 
     public function test_request_certificate_passes_environment_variables(): void
     {
-        $mock = $this->mock(PortainerService::class);
+        $mock = $this->mockPortainer();
         $mock->shouldReceive('createAndRunContainer')
             ->once()
             ->withArgs(function (array $config) {
@@ -126,7 +142,7 @@ class CertbotServiceTest extends TestCase
 
     public function test_request_certificate_returns_false_on_failure(): void
     {
-        $mock = $this->mock(PortainerService::class);
+        $mock = $this->mockPortainer();
         $mock->shouldReceive('createAndRunContainer')
             ->once()
             ->andReturn(new RunResult(exitCode: 1, output: 'Error: invalid credentials'));
@@ -144,7 +160,7 @@ class CertbotServiceTest extends TestCase
 
     public function test_request_certificate_returns_false_on_exception(): void
     {
-        $mock = $this->mock(PortainerService::class);
+        $mock = $this->mockPortainer();
         $mock->shouldReceive('createAndRunContainer')
             ->once()
             ->andThrow(new \App\Exceptions\PortainerException('Connection refused'));

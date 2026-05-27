@@ -696,6 +696,8 @@ Route::middleware('auth')->group(function (): void {
         Route::middleware('mail.feature')->group(function (): void {
             Route::get('/', \App\Http\Controllers\Mail\MailIndexController::class)->name('index');
 
+            Route::get('domains/{domain}', \App\Http\Controllers\Mail\DomainMailController::class)->name('domain');
+
             Route::prefix('domains/{domain}/mailboxes')->name('mailboxes.')->group(function (): void {
                 Route::get('/', [\App\Http\Controllers\Mail\MailboxController::class, 'index'])->name('index');
                 Route::get('/create', [\App\Http\Controllers\Mail\MailboxController::class, 'create'])->name('create');

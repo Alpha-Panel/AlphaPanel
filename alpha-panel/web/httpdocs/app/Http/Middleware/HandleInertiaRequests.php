@@ -122,6 +122,8 @@ class HandleInertiaRequests extends Middleware
                     'mail_domain' => config('panel.mail.domain'),
                     'mailu_api_token_set' => (bool) (config('services.mailu.api_token')
                         ?: cache()->has('mailu.api.token')),
+                    'webmail_panel_url' => config('panel.mail.webmail_panel_url'),
+                    'admin_panel_url' => config('panel.mail.admin_panel_url'),
                 ];
             },
             'locale' => $locale,

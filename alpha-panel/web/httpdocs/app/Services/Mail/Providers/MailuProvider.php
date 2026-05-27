@@ -64,7 +64,7 @@ class MailuProvider implements MailProviderInterface
 
     public function listMailboxes(Domain $domain): Collection
     {
-        $rows = $this->client()->get("domain/{$domain->fqdn}/user")->throw()->json();
+        $rows = $this->client()->get("domain/{$domain->fqdn}/users")->throw()->json();
 
         return collect($rows)->map(fn (array $row) => $this->hydrateMailbox($row));
     }
@@ -146,7 +146,7 @@ class MailuProvider implements MailProviderInterface
 
     public function listAliases(Domain $domain): Collection
     {
-        $rows = $this->client()->get("domain/{$domain->fqdn}/alias")->throw()->json();
+        $rows = $this->client()->get("alias/destination/{$domain->fqdn}")->throw()->json();
 
         return collect($rows)->map(fn (array $row) => new Alias(
             address: $row['email'] ?? '',
@@ -186,9 +186,22 @@ class MailuProvider implements MailProviderInterface
         $base = (string) config('panel.base_domain');
         $mxHost = config('panel.mail.hostname') ?: 'mail.'.$base;
 
-        $dkimRow = $this->safeRequest('GET', "domain/{$domain->fqdn}/dkim");
+        $domainData = $this->safeRequest('GET', "domain/{$domain->fqdn}");
         $dkimSelector = 'dkim';
-        $dkimPublicKey = $dkimRow['public_key'] ?? null;
+        $dkimPublicKey = null;
+
+        if ($domainData !== null) {
+            $dnsDkim = $domainData['dns_dkim'] ?? null;
+            if ($dnsDkim === null) {
+                // Generate DKIM keys on first access; POST is idempotent-safe when null
+                $this->client()->post("domain/{$domain->fqdn}/dkim")->throw();
+                $refreshed = $this->safeRequest('GET', "domain/{$domain->fqdn}");
+                $dnsDkim = $refreshed['dns_dkim'] ?? null;
+            }
+            if ($dnsDkim !== null && preg_match('/\bp=([A-Za-z0-9+\/=]+)/', $dnsDkim, $m)) {
+                $dkimPublicKey = $m[1];
+            }
+        }
 
         $txt = [
             ['name' => $domain->fqdn, 'content' => 'v=spf1 mx ~all'],

@@ -243,6 +243,8 @@ return [
         'antivirus' => env('MAIL_ANTIVIRUS', 'none'),
         'message_size_limit' => env('MAIL_MESSAGE_SIZE_LIMIT', '50000000'),
         'mailu_admin_url' => env('MAILU_ADMIN_URL', 'http://mailu-admin:8080'),
+        'webmail_panel_url' => env('MAIL_WEBMAIL_PANEL_URL'),
+        'admin_panel_url' => env('MAIL_ADMIN_PANEL_URL'),
         'mailu_api_base' => env('MAILU_API_BASE', 'http://mailu-admin:8080/api/v1'),
         'relay' => [
             'host' => env('MAIL_RELAY_HOST'),

@@ -20,30 +20,30 @@
                         <dt class="text-gray-500">{{ t('Webmail') }}</dt>
                         <dd>
                             <a
-                                v-if="mailDomain"
-                                :href="`https://${mailDomain}:8443/`"
+                                v-if="webmailPanelUrl"
+                                :href="webmailPanelUrl"
                                 target="_blank"
                                 rel="noopener"
                                 class="text-brand-500 hover:underline"
                             >
-                                https://{{ mailDomain }}:8443/
+                                {{ webmailPanelUrl }}
                             </a>
-                            <span v-else class="text-gray-400">{{ t('Set MAIL_DOMAIN in .env') }}</span>
+                            <span v-else class="text-gray-400">{{ t('Set MAIL_WEBMAIL_PANEL_URL in .env') }}</span>
                         </dd>
                     </div>
                     <div>
                         <dt class="text-gray-500">{{ t('Mailu admin UI') }}</dt>
                         <dd>
                             <a
-                                v-if="mailDomain"
-                                :href="`https://${mailDomain}:8443/admin`"
+                                v-if="adminPanelUrl"
+                                :href="adminPanelUrl"
                                 target="_blank"
                                 rel="noopener"
                                 class="text-brand-500 hover:underline"
                             >
-                                https://{{ mailDomain }}:8443/admin
+                                {{ adminPanelUrl }}
                             </a>
-                            <span v-else class="text-gray-400">—</span>
+                            <span v-else class="text-gray-400">{{ t('Set MAIL_ADMIN_PANEL_URL in .env') }}</span>
                         </dd>
                     </div>
                     <div>
@@ -89,5 +89,7 @@ const props = defineProps({
 
 const page = usePage();
 const mailDomain = computed(() => page.props.app?.mail_domain || page.props.mail?.mail_domain || null);
+const webmailPanelUrl = computed(() => page.props.mail?.webmail_panel_url || null);
+const adminPanelUrl = computed(() => page.props.mail?.admin_panel_url || null);
 const apiTokenSet = computed(() => !!page.props.mail?.mailu_api_token_set);
 </script>

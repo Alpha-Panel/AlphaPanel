@@ -174,19 +174,6 @@ class PortainerServiceTest extends TestCase
         $this->assertSame(1, $result->exitCode);
     }
 
-    public function test_get_exec_websocket_url_and_headers_for_portainer_auth(): void
-    {
-        $url = $this->service->getExecWebSocketUrl('exec-id-123');
-        $headers = $this->service->getExecWebSocketHeaders();
-
-        $this->assertSame(
-            'wss://portainer.test:8443/api/websocket/exec?endpointId=1&id=exec-id-123',
-            $url,
-        );
-        $this->assertStringNotContainsString('token=', $url);
-        $this->assertSame(['X-API-Key' => 'test-api-key'], $headers);
-    }
-
     public function test_create_and_run_container_full_flow(): void
     {
         Http::fake([

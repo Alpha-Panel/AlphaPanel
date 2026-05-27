@@ -182,26 +182,6 @@
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
 
-                            <Link
-                                v-if="domain.mail_hosting && domain.mail_hosting !== 'disabled' && domain.mail_hosting !== 'remote'"
-                                :href="route('mail.mailboxes.index', domain.id)"
-                                class="quick-link"
-                            >
-                                <i class="bx bx-envelope quick-link-icon"></i>
-                                <span class="quick-link-label">{{ t('Mailboxes') }}</span>
-                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
-                            </Link>
-
-                            <Link
-                                v-if="domain.mail_hosting && domain.mail_hosting !== 'disabled' && domain.mail_hosting !== 'remote'"
-                                :href="route('mail.aliases.index', domain.id)"
-                                class="quick-link"
-                            >
-                                <i class="bx bx-mail-send quick-link-icon"></i>
-                                <span class="quick-link-label">{{ t('Aliases') }}</span>
-                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
-                            </Link>
-
                             <Link v-if="can('domain.ssl.manage')" :href="route('domains.ssl.index', domain.id)" class="quick-link">
                                 <i class="fa-brands fa-expeditedssl quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('SSL Certificates') }}</span>
@@ -246,26 +226,16 @@
 
                             <Link
                                 v-if="mailManaged"
-                                :href="route('mail.mailboxes.index', domain.id)"
+                                :href="route('mail.domain', domain.id)"
                                 class="quick-link"
                             >
                                 <i class="bx bx-envelope quick-link-icon"></i>
-                                <span class="quick-link-label">{{ t('Mailboxes') }}</span>
+                                <span class="quick-link-label">{{ t('Mail') }}</span>
                                 <span class="ml-auto mr-2 rounded-full px-2 py-0.5 text-[10px] font-semibold"
                                     :class="mailBadgeClass"
                                 >
                                     {{ mailProviderLabel }}
                                 </span>
-                                <i class="fa-solid fa-angle-right quick-link-arrow"></i>
-                            </Link>
-
-                            <Link
-                                v-if="mailManaged"
-                                :href="route('mail.aliases.index', domain.id)"
-                                class="quick-link"
-                            >
-                                <i class="bx bx-share-alt quick-link-icon"></i>
-                                <span class="quick-link-label">{{ t('Aliases') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>
                         </div>
