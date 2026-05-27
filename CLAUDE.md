@@ -2,6 +2,25 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## CRITICAL USER DIRECTIVES — NEVER VIOLATE
+
+**Destructive database commands are STRICTLY FORBIDDEN. No exceptions.**
+
+Never use, suggest, or run any of the following under any circumstance in this project:
+
+- `RefreshDatabase` trait
+- `DatabaseMigrations` trait
+- `migrate:fresh`
+- `migrate:fresh --seed`
+- `db:wipe`
+- Any command that drops, truncates, or wipes tables or data
+
+Real production data lives in this database. These commands cause irreversible data loss.
+
+When tests fail due to missing tables: do NOT suggest RefreshDatabase. Investigate other causes.
+
+---
+
 ## Project Overview
 
 AlphaPanel-Docker is a Docker Compose-based web hosting stack. It consists of:

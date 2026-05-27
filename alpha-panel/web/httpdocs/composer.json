@@ -9,6 +9,7 @@
         "php": "^8.5",
         "ext-openssl": "*",
         "ext-pdo": "*",
+        "dedoc/scramble": "^0.12",
         "google/apiclient": "^2.16",
         "guzzlehttp/guzzle": "^7.10",
         "inertiajs/inertia-laravel": "^2.0",

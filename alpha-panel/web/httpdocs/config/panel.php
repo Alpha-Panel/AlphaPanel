@@ -242,8 +242,8 @@ return [
         'webmail' => env('MAIL_WEBMAIL', 'snappymail'),
         'antivirus' => env('MAIL_ANTIVIRUS', 'none'),
         'message_size_limit' => env('MAIL_MESSAGE_SIZE_LIMIT', '50000000'),
-        'mailu_admin_url' => env('MAILU_ADMIN_URL', 'http://mailu-admin'),
-        'mailu_api_base' => env('MAILU_API_BASE', 'http://mailu-admin/api/v1'),
+        'mailu_admin_url' => env('MAILU_ADMIN_URL', 'http://mailu-admin:8080'),
+        'mailu_api_base' => env('MAILU_API_BASE', 'http://mailu-admin:8080/api/v1'),
         'relay' => [
             'host' => env('MAIL_RELAY_HOST'),
             'port' => (int) env('MAIL_RELAY_PORT', 587),

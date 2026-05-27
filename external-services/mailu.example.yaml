@@ -25,19 +25,29 @@ x-mailu-environment: &mailu-env
   SUBNET: 192.168.203.0/24
   TZ: ${APP_TIMEZONE:-Europe/Istanbul}
 
-  ADMIN_ADDRESS: admin
-  ANTISPAM_ADDRESS: antispam:11332
-  ANTISPAM_WEBUI_ADDRESS: antispam:11334
-  WEBMAIL_ADDRESS: webmail
-  IMAP_ADDRESS: imap
-  SMTP_ADDRESS: smtp
-  REDIS_ADDRESS: redis
-  FRONT_ADDRESS: front
+  # Static IPs avoid all Docker-embedded-DNS dependency. mailu-admin's resolv.conf
+  # is rewritten to use only unbound (192.168.203.254) to satisfy its DNSSEC
+  # validation check — unbound does not know container aliases, so addresses are
+  # passed by IP instead of name.
+  ADMIN_ADDRESS: 192.168.203.252
+  ANTISPAM_ADDRESS: 192.168.203.249:11332
+  ANTISPAM_WEBUI_ADDRESS: 192.168.203.249:11334
+  WEBMAIL_ADDRESS: 192.168.203.248
+  IMAP_ADDRESS: 192.168.203.251
+  SMTP_ADDRESS: 192.168.203.250
+  REDIS_ADDRESS: 192.168.203.253
+  FRONT_ADDRESS: 192.168.203.247
   RESOLVER_ADDRESS: 192.168.203.254
 
   API: "true"
   API_TOKEN: ${MAIL_ADMIN_PASSWORD}
 
+  # Mailu reads /certs/cert.pem and /certs/key.pem. We bind the panel's
+  # letsencrypt PEM files directly (Docker resolves the letsencrypt symlinks
+  # on the host at compose-up time). After each `ssl:renew` certbot creates a
+  # NEW archive file and updates the symlink — the running container still
+  # holds the old inode, so SslRenewCommand restarts mailu-front to pick up
+  # the new cert.
   TLS_FLAVOR: cert
   REAL_IP_HEADER: X-Real-IP
   REAL_IP_FROM: 0.0.0.0/0
@@ -94,6 +104,7 @@ services:
       - ${MAIL_DATA_PATH:-./mail-data}/redis:/data
     networks:
       mailu_internal:
+        ipv4_address: 192.168.203.253
         aliases:
           - redis
     healthcheck:
@@ -124,10 +135,11 @@ services:
       - "${PUBLIC_NETWORK_IP}:995:995"
     volumes:
       - ${MAIL_DATA_PATH:-./mail-data}/overrides/nginx:/overrides:ro
-      - ./letsencrypt/live/${BASE_DOMAIN}/fullchain.pem:/certs/cert.pem:ro
-      - ./letsencrypt/live/${BASE_DOMAIN}/privkey.pem:/certs/key.pem:ro
+      - ../letsencrypt/live/${BASE_DOMAIN}/fullchain.pem:/certs/cert.pem:ro
+      - ../letsencrypt/live/${BASE_DOMAIN}/privkey.pem:/certs/key.pem:ro
     networks:
       mailu_internal:
+        ipv4_address: 192.168.203.247
         aliases:
           - front
       vhost_network:
@@ -140,6 +152,13 @@ services:
     container_name: mailu-admin
     restart: always
     dns: *mailu-dns
+    # Override /etc/resolv.conf at container start so dnspython hits mailu-resolver
+    # directly (Docker's embedded DNS at 127.0.0.11 doesn't forward DNSSEC bits,
+    # which sends Mailu admin into an infinite DNSSEC-validation retry loop).
+    entrypoint:
+      - sh
+      - -c
+      - "printf 'nameserver 192.168.203.254\nsearch .\n' > /etc/resolv.conf && exec /start.py"
     environment:
       <<: *mailu-env
       INITIAL_ADMIN_ACCOUNT: admin
@@ -151,6 +170,7 @@ services:
       - ${MAIL_DATA_PATH:-./mail-data}/dkim:/dkim
     networks:
       mailu_internal:
+        ipv4_address: 192.168.203.252
         aliases:
           - admin
       vhost_network:
@@ -170,6 +190,7 @@ services:
       - ${MAIL_DATA_PATH:-./mail-data}/overrides/dovecot:/overrides:ro
     networks:
       mailu_internal:
+        ipv4_address: 192.168.203.251
         aliases:
           - imap
     depends_on:
@@ -188,6 +209,7 @@ services:
       - ${MAIL_DATA_PATH:-./mail-data}/overrides/postfix:/overrides:ro
     networks:
       mailu_internal:
+        ipv4_address: 192.168.203.250
         aliases:
           - smtp
     depends_on:
@@ -206,6 +228,7 @@ services:
       - ${MAIL_DATA_PATH:-./mail-data}/overrides/rspamd:/overrides:ro
     networks:
       mailu_internal:
+        ipv4_address: 192.168.203.249
         aliases:
           - antispam
     depends_on:
@@ -224,6 +247,7 @@ services:
       - ${MAIL_DATA_PATH:-./mail-data}/overrides/snappymail:/overrides:ro
     networks:
       mailu_internal:
+        ipv4_address: 192.168.203.248
         aliases:
           - webmail
     depends_on:

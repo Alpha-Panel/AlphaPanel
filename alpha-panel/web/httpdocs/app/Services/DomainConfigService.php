@@ -52,6 +52,70 @@ class DomainConfigService
     public function regenerateCaddyConfig(Domain $domain): void
     {
         $this->writeCaddyConfig($domain, $this->certExists($domain));
+        $this->syncWebmailCaddyConfig($domain);
+    }
+
+    /**
+     * Write or remove the webmail Caddyfile for mail.{fqdn}.
+     *
+     * Created when mail_hosting=Local (Mailu). Removed otherwise.
+     * Cert is resolved from the apex domain — a wildcard cert covers the subdomain.
+     */
+    public function syncWebmailCaddyConfig(Domain $domain): void
+    {
+        $mailFqdn = 'mail.'.$domain->fqdn;
+        $dir = "{$this->caddySitesBasePath}/{$mailFqdn}";
+        $file = "{$dir}/Caddyfile";
+
+        if (! $domain->usesLocalMail()) {
+            if (File::isDirectory($dir)) {
+                File::deleteDirectory($dir);
+                Log::info("Removed webmail Caddyfile directory: {$dir}");
+            }
+
+            return;
+        }
+
+        $certPaths = $this->resolveCertPaths($domain);
+        $lines = [];
+
+        if ($certPaths !== null) {
+            $lines[] = "{$mailFqdn}:80 {";
+            $lines[] = "    redir https://{$mailFqdn}{uri} 308";
+            $lines[] = '}';
+            $lines[] = '';
+            $lines[] = "{$mailFqdn}:443 {";
+            $lines[] = "    tls {$certPaths['cert']} {$certPaths['key']}";
+        } else {
+            $lines[] = "{$mailFqdn}:80 {";
+        }
+
+        $lines[] = '    encode zstd br gzip';
+        $lines[] = '    import common-headers';
+        $lines[] = '';
+        $lines[] = '    # Block Mailu admin — manage via AlphaPanel only';
+        $lines[] = '    @mail_admin {';
+        $lines[] = '        path /admin /admin/*';
+        $lines[] = '    }';
+        $lines[] = '    handle @mail_admin {';
+        $lines[] = '        respond "Access denied" 403';
+        $lines[] = '    }';
+        $lines[] = '';
+        $lines[] = '    reverse_proxy mailu-front:80 {';
+        $lines[] = '        header_up Host {http.request.host}';
+        $lines[] = '        header_up X-Real-IP {http.request.remote.host}';
+        $lines[] = '        header_up X-Forwarded-For {http.request.remote.host}';
+        $lines[] = '        header_up X-Forwarded-Proto https';
+        $lines[] = '        header_down Location "^https?://mailu-front" "https://{http.request.host}"';
+        $lines[] = '    }';
+        $lines[] = '';
+        $lines[] = '    log {';
+        $lines[] = "        output file /var/log/caddy/{$mailFqdn}.log";
+        $lines[] = '        format json';
+        $lines[] = '    }';
+        $lines[] = '}';
+
+        $this->writeConfigFile($file, implode("\n", $lines)."\n");
     }
 
     /**
@@ -1262,6 +1326,12 @@ class DomainConfigService
         if (File::isDirectory($caddyDir)) {
             File::deleteDirectory($caddyDir);
             Log::info("Removed Caddy config directory: {$caddyDir}");
+        }
+
+        $webmailDir = "{$this->caddySitesBasePath}/mail.{$fqdn}";
+        if (File::isDirectory($webmailDir)) {
+            File::deleteDirectory($webmailDir);
+            Log::info("Removed webmail Caddy config directory: {$webmailDir}");
         }
 
         $apacheFile = "{$this->apacheSitesBasePath}/{$fqdn}.conf";

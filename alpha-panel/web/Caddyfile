@@ -91,6 +91,98 @@
 		reverse_proxy http://pma-upgrade-test:80
 	}
 
+	# Mailu direct-path handlers — serve absolute-path links inside admin/webmail/sso pages
+	handle /static/* {
+		reverse_proxy https://mailu-front:443 {
+			transport http {
+				tls_insecure_skip_verify
+			}
+			header_up Host {http.request.hostport}
+			header_up X-Forwarded-Proto https
+		}
+	}
+	handle /admin/* {
+		reverse_proxy https://mailu-front:443 {
+			transport http {
+				tls_insecure_skip_verify
+			}
+			header_up Host {http.request.hostport}
+			header_up X-Forwarded-Proto https
+			header_down Location "^https?://[^/]+(/.+)" "$1"
+			header_down Location "^(/.+)" "/mail$1"
+			header_down Set-Cookie "; Domain=[^;]*" ""
+		}
+	}
+	handle /sso/* {
+		reverse_proxy https://mailu-front:443 {
+			transport http {
+				tls_insecure_skip_verify
+			}
+			header_up Host {http.request.hostport}
+			header_up X-Forwarded-Proto https
+			header_down Location "^https?://[^/]+(/.+)" "$1"
+			header_down Location "^(/.+)" "/mail$1"
+			header_down Set-Cookie "; Domain=[^;]*" ""
+		}
+	}
+	handle /webmail/* {
+		reverse_proxy https://mailu-front:443 {
+			transport http {
+				tls_insecure_skip_verify
+			}
+			header_up Host {http.request.hostport}
+			header_up X-Forwarded-Proto https
+			header_down Location "^https?://[^/]+(/.+)" "$1"
+			header_down Location "^(/.+)" "/mail$1"
+			header_down Set-Cookie "; Domain=[^;]*" ""
+		}
+	}
+
+	# Mailu webmail via panel subpath — proxies to mailu-front's /webmail/
+	handle /mail/webmail* {
+		uri replace /mail/webmail /webmail
+		reverse_proxy https://mailu-front:443 {
+			transport http {
+				tls_insecure_skip_verify
+			}
+			header_up Host {http.request.hostport}
+			header_up X-Forwarded-Proto https
+			header_down Location "^https?://[^/]+(/.+)" "$1"
+			header_down Location "^(/.+)" "/mail$1"
+			header_down Set-Cookie "; Domain=[^;]*" ""
+		}
+	}
+
+	# Mailu admin via panel subpath — proxies to mailu-front's /admin/
+	handle /mail/admin* {
+		uri replace /mail/admin /admin
+		reverse_proxy https://mailu-front:443 {
+			transport http {
+				tls_insecure_skip_verify
+			}
+			header_up Host {http.request.hostport}
+			header_up X-Forwarded-Proto https
+			header_down Location "^https?://[^/]+(/.+)" "$1"
+			header_down Location "^(/.+)" "/mail$1"
+			header_down Set-Cookie "; Domain=[^;]*" ""
+		}
+	}
+
+	# Mailu SSO auth flow via panel subpath (auth for both webmail and admin)
+	handle /mail/sso* {
+		uri replace /mail/sso /sso
+		reverse_proxy https://mailu-front:443 {
+			transport http {
+				tls_insecure_skip_verify
+			}
+			header_up Host {http.request.hostport}
+			header_up X-Forwarded-Proto https
+			header_down Location "^https?://[^/]+(/.+)" "$1"
+			header_down Location "^(/.+)" "/mail$1"
+			header_down Set-Cookie "; Domain=[^;]*" ""
+		}
+	}
+
 	php_server {
 		root /var/www/AlphaPanel/httpdocs/public
 		worker {

@@ -90,9 +90,10 @@ class SslRenewCommand extends Command
     }
 
     /**
-     * After a successful cert renewal, ask the mailu-front container to reload nginx
-     * so it picks up the new fullchain.pem / privkey.pem. Best-effort — no failure
-     * if Mailu is off.
+     * After a successful cert renewal, restart mailu-front so the bind-mounted
+     * /certs/cert.pem and /certs/key.pem point at the new letsencrypt archive
+     * inodes (Docker file-binds capture the inode at container start time, so
+     * reload alone keeps serving the stale cert).
      */
     private function reloadMailuIfEnabled(): void
     {
@@ -101,11 +102,11 @@ class SslRenewCommand extends Command
         }
 
         try {
-            $docker = app(\App\Services\DockerControlService::class);
-            $docker->exec('mailu-front', ['nginx', '-s', 'reload']);
-            $this->info('  Mailu front nginx reloaded.');
+            $portainer = app(\App\Services\PortainerService::class);
+            $portainer->restartContainer('mailu-front');
+            $this->info('  Mailu front restarted to pick up renewed cert.');
         } catch (\Throwable $e) {
-            $this->warn('  Mailu reload skipped: '.$e->getMessage());
+            $this->warn('  Mailu restart skipped: '.$e->getMessage());
         }
     }
 }
