@@ -31,6 +31,7 @@ from installer.steps.env_writer import (
     write_laravel_env,
     write_root_env,
 )
+from installer.steps.mail import ensure_mail_data_dir, setup_mail_external_service
 from installer.steps.portainer import (
     create_access_token,
     detect_endpoint_id,
@@ -217,6 +218,8 @@ def _run_install(
                 base_domain=form["base_domain"],
             ),
         ),
+        ("mail_external_service", lambda: setup_mail_external_service(project_dir, form)),
+        ("mail_data_dir", lambda: ensure_mail_data_dir(project_dir, form)),
         ("compose_up", lambda: compose_up(project_dir, q)),
         (
             "portainer_wait",

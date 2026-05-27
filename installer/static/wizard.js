@@ -1,4 +1,4 @@
-const steps = ["welcome", "system", "domains", "creds", "admin", "summary", "progress", "done"];
+const steps = ["welcome", "system", "domains", "creds", "admin", "mail", "summary", "progress", "done"];
 const form = {};
 let currentIdx = 0;
 
@@ -36,8 +36,31 @@ async function init() {
 
   bindNav();
   bindDomainsAutofill();
+  bindMailToggle();
   bindStart();
   bindReset();
+}
+
+function bindMailToggle() {
+  const toggle = document.getElementById("mail-enabled-toggle");
+  const fields = document.getElementById("mail-fields");
+  const mailDomain = document.querySelector("input[name='mail_domain']");
+  const mailHostname = document.querySelector("input[name='mail_hostname']");
+  if (!toggle || !fields) return;
+
+  const sync = () => {
+    fields.disabled = !toggle.checked;
+    if (mailDomain) mailDomain.required = toggle.checked;
+    if (toggle.checked) {
+      const base = form.base_domain || document.querySelector("input[name='base_domain']")?.value;
+      if (base) {
+        if (mailDomain && !mailDomain.value) mailDomain.value = base;
+        if (mailHostname && !mailHostname.value) mailHostname.value = `mail.${base}`;
+      }
+    }
+  };
+  toggle.addEventListener("change", sync);
+  sync();
 }
 
 function bindNav() {
@@ -47,8 +70,13 @@ function bindNav() {
       if (formId) {
         const el = document.getElementById(formId);
         if (!el.reportValidity()) return;
-        for (const input of el.querySelectorAll("input")) {
-          form[input.name] = input.value;
+        for (const input of el.querySelectorAll("input, select")) {
+          if (!input.name) continue;
+          if (input.type === "checkbox") {
+            form[input.name] = input.checked;
+          } else {
+            form[input.name] = input.value;
+          }
         }
         if (formId === "form-creds") {
           const resp = await fetch("/api/verify-cf-token", {
@@ -91,9 +119,14 @@ function bindDomainsAutofill() {
 }
 
 function renderSummary() {
-  const hidden = ["cf_api_token", "portainer_admin_password", "panel_admin_password"];
+  const hidden = ["cf_api_token", "portainer_admin_password", "panel_admin_password", "mail_relay_password"];
   const rows = Object.entries(form)
     .filter(([k]) => !hidden.includes(k))
+    .filter(([k, v]) => {
+      // mail_* alanları sadece mail_enabled iken göster
+      if (k.startsWith("mail_") && k !== "mail_enabled" && !form.mail_enabled) return false;
+      return v !== "" && v !== undefined;
+    })
     .map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`)
     .join("");
   document.getElementById("summary-body").innerHTML = `<table>${rows}</table>`;
@@ -150,6 +183,13 @@ function renderDone(panelUrl) {
     N8N: `https://${form.n8n_domain}:8443`,
     Passwords: `https://${form.vaultwarden_domain}:8443`,
   };
+  if (form.mail_enabled) {
+    const mailHost = form.mail_hostname || (form.mail_domain ? `mail.${form.mail_domain}` : null);
+    if (mailHost) {
+      subs["Webmail"] = `https://${mailHost}`;
+      subs["Mail admin"] = `https://${mailHost}/admin`;
+    }
+  }
   ul.innerHTML = Object.entries(subs)
     .map(([k, v]) => `<li>${k}: <a href="${v}">${v}</a></li>`)
     .join("");

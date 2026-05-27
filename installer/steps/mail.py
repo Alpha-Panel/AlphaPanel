@@ -45,19 +45,18 @@ def setup_mail_external_service(project_dir: Path, form: dict[str, Any]) -> None
     local_services.write_text(content, encoding="utf-8")
 
 
-def ensure_mail_data_dir(form: dict[str, Any]) -> None:
+def ensure_mail_data_dir(project_dir: Path, form: dict[str, Any]) -> None:
     """Create MAIL_DATA_PATH with 750 perms; safe to re-run."""
     if not form.get("mail_enabled"):
         return
 
     # Default lives under the compose project root so `docker compose` resolves
-    # the volume relative path correctly. The installer's project_dir is the
-    # absolute base; we anchor relative values there before mkdir.
-    raw = form.get("mail_data_path", "./mail-data")
-    project_dir = form.get("_project_dir")
+    # the volume relative path correctly. Relative MAIL_DATA_PATH values are
+    # anchored at the compose project root before mkdir.
+    raw = form.get("mail_data_path", "./mail-data") or "./mail-data"
     path = Path(raw)
-    if not path.is_absolute() and project_dir:
-        path = Path(project_dir) / raw.lstrip("./")
+    if not path.is_absolute():
+        path = project_dir / raw.lstrip("./")
     path.mkdir(parents=True, exist_ok=True)
     try:
         os.chmod(path, 0o750)

@@ -14,7 +14,7 @@
   <main>
     <section id="step-welcome" class="step">
       <h2>Welcome</h2>
-      <p>This installer sets up AlphaPanel-Docker in 8 steps. Nothing is written until the final screen.</p>
+      <p>This installer sets up AlphaPanel-Docker in 9 steps. Nothing is written until the final screen.</p>
       <div id="resume-banner" hidden>
         <p><strong>A previous installation did not finish.</strong></p>
         <div id="resume-error"></div>
@@ -82,6 +82,49 @@
       </form>
       <button class="prev">Back</button>
       <button class="next" data-form="form-admin">Next</button>
+    </section>
+
+    <section id="step-mail" class="step" hidden>
+      <h2>Mail Service (Mailu) — optional</h2>
+      <p>Bu adım opsiyoneldir. Etkinleştirirseniz Mailu mail sunucusu (SMTP/IMAP/Webmail) bu sunucuda kurulur. Devre dışı bırakırsanız Mailu container'ları indirilmez; sistem mail servisi olmadan çalışır.</p>
+      <form id="form-mail">
+        <label><input type="checkbox" name="mail_enabled" id="mail-enabled-toggle"> Mailu mail server'ı kur</label>
+        <fieldset id="mail-fields" disabled>
+          <label>Mail domain (örn: <code>example.com</code>)
+            <input name="mail_domain" placeholder="example.com" pattern="^(?=.{1,253}$)([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$" title="Enter a valid FQDN, e.g. example.com">
+          </label>
+          <label>Mail hostname (boş bırakılırsa <code>mail.&lt;base_domain&gt;</code> kullanılır)
+            <input name="mail_hostname" placeholder="mail.example.com">
+          </label>
+          <label>Mail data path (host filesystem, compose project root'a göre relative olabilir)
+            <input name="mail_data_path" value="./mail-data">
+          </label>
+          <label>Webmail
+            <select name="mail_webmail">
+              <option value="snappymail" selected>SnappyMail</option>
+              <option value="roundcube">Roundcube</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+          <label>Antivirus
+            <select name="mail_antivirus">
+              <option value="none" selected>None</option>
+              <option value="clamav">ClamAV</option>
+            </select>
+          </label>
+          <label>Mesaj boyut limiti (byte)
+            <input name="mail_message_size_limit" value="50000000" pattern="^\d+$">
+          </label>
+          <hr>
+          <p>Opsiyonel SMTP relay (örn: SendGrid, Mailgun). Boş bırakılabilir.</p>
+          <label>Relay host <input name="mail_relay_host" placeholder="smtp.sendgrid.net"></label>
+          <label>Relay port <input name="mail_relay_port" value="587" pattern="^\d+$"></label>
+          <label>Relay username <input name="mail_relay_username"></label>
+          <label>Relay password <input type="password" name="mail_relay_password"></label>
+        </fieldset>
+      </form>
+      <button class="prev">Back</button>
+      <button class="next" data-form="form-mail">Next</button>
     </section>
 
     <section id="step-summary" class="step" hidden>
