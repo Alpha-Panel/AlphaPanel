@@ -11,8 +11,10 @@ use App\Models\Domain;
 use App\Services\Mail\Exceptions\MailProviderException;
 use App\Services\Mail\Exceptions\MailProviderUnavailableException;
 use App\Services\Mail\MailProviderResolver;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -108,39 +110,105 @@ class MailboxController extends Controller
     }
 
     /**
-     * Fallback for stale frontend bundles where Ziggy lost the {local} path segment
-     * and shipped it as a ?local=... query string. Read it from query/body and
-     * delegate to update().
+     * Fallback for stale frontend bundles where Ziggy lost the {local} path segment.
+     * Tries multiple sources because different stale-Ziggy versions ship the value
+     * differently (query string, body field, Referer URL).
      */
-    public function updateFallback(UpdateMailboxRequest $request, Domain $domain): RedirectResponse
+    public function updateFallback(UpdateMailboxRequest $request, Domain $domain): RedirectResponse|JsonResponse
     {
-        $localPart = (string) ($request->query('local')
-            ?? $request->input('local_part')
-            ?? $request->input('local')
-            ?? '');
+        $localPart = $this->resolveLocalPartFromRequest($request);
+
+        Log::warning('mail.mailbox.updateFallback.invoked', [
+            'domain_id' => $domain->id,
+            'resolved_local' => $localPart,
+            'all_input' => $request->all(),
+            'query' => $request->query(),
+            'referer' => $request->header('Referer'),
+            'full_url' => $request->fullUrl(),
+        ]);
 
         if ($localPart === '') {
-            abort(404, 'Mailbox local part missing.');
+            return $this->staleBundleResponse($request);
         }
 
         return $this->update($request, $domain, $localPart);
     }
 
     /**
-     * Same fallback for DELETE — stale Ziggy ships {local} as ?local=... too.
+     * Same fallback for DELETE.
      */
-    public function destroyFallback(Request $request, Domain $domain): RedirectResponse
+    public function destroyFallback(Request $request, Domain $domain): RedirectResponse|JsonResponse
     {
-        $localPart = (string) ($request->query('local')
-            ?? $request->input('local_part')
-            ?? $request->input('local')
-            ?? '');
+        $localPart = $this->resolveLocalPartFromRequest($request);
 
         if ($localPart === '') {
-            abort(404, 'Mailbox local part missing.');
+            return $this->staleBundleResponse($request);
         }
 
         return $this->destroy($request, $domain, $localPart);
+    }
+
+    /**
+     * When the request reaches the fallback without enough info to identify the
+     * mailbox, the only honest diagnosis is "stale browser bundle". Send back a
+     * Clear-Site-Data header so the browser purges caches/storage and the next
+     * page load fetches the current bundle.
+     */
+    private function staleBundleResponse(Request $request): JsonResponse
+    {
+        $message = __('Stale browser cache detected. Page will reload with the latest bundle.');
+
+        return response()->json([
+            'message' => $message,
+            'reload' => true,
+        ], 409)
+            ->header('Clear-Site-Data', '"cache", "storage"')
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    }
+
+    /**
+     * Pull mailbox local-part from any plausible request location.
+     * Stale frontend bundles can ship it as:
+     *   - ?local=info       (Ziggy query-string fallback)
+     *   - body local/local_part/address/email
+     *   - Referer URL like /mail/domains/500/mailboxes/info
+     */
+    private function resolveLocalPartFromRequest(Request $request): string
+    {
+        // Named keys — covers proper Ziggy fallback (?local=info) and any
+        // body field that ships the mailbox identifier.
+        $namedKeys = ['local', 'localPart', 'local_part', 'mailbox', 'mailbox_local'];
+        foreach ($namedKeys as $key) {
+            $value = $request->query($key) ?? $request->input($key);
+            if (is_string($value) && $value !== '') {
+                return $value;
+            }
+        }
+
+        // Ziggy v2 positional extras land as numeric query keys (?0=info, ?1=info).
+        foreach ([0, 1, 2] as $idx) {
+            $value = $request->query((string) $idx);
+            if (is_string($value) && $value !== '' && ! is_numeric($value)) {
+                return $value;
+            }
+        }
+
+        // Some bundles ship the full address — derive local part.
+        $address = $request->input('address') ?? $request->input('email');
+        if (is_string($address) && str_contains($address, '@')) {
+            return explode('@', $address)[0];
+        }
+
+        // Last resort — Referer URL may carry /mailboxes/{local}.
+        $referer = (string) $request->header('Referer', '');
+        if (preg_match('~/mailboxes/([^/?#]+)~', $referer, $m)) {
+            $candidate = urldecode($m[1]);
+            if (! in_array($candidate, ['create', 'index'], true)) {
+                return $candidate;
+            }
+        }
+
+        return '';
     }
 
     public function destroy(Request $request, Domain $domain, string $localPart): RedirectResponse

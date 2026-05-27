@@ -75,10 +75,13 @@ class DomainConfigService
 
         $globalHostname = (string) config('panel.mail.hostname');
 
-        // Remove the file when: mail hosting is not local, no global hostname is
-        // configured, or the per-domain hostname equals the global one (handled by
-        // frankenphp/sites-enabled/mail/Caddyfile already).
-        if (! $domain->usesLocalMail() || $globalHostname === '' || $mailFqdn === $globalHostname) {
+        // Global hostname's directory is managed manually — never touch it.
+        if ($mailFqdn === $globalHostname) {
+            return;
+        }
+
+        // Remove when mail hosting is not local or no global hostname configured.
+        if (! $domain->usesLocalMail() || $globalHostname === '') {
             if (File::isDirectory($dir)) {
                 File::deleteDirectory($dir);
                 Log::info("Removed webmail Caddyfile directory: {$dir}");
