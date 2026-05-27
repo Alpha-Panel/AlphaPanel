@@ -92,6 +92,15 @@
 	}
 
 	# Mailu direct-path handlers — serve absolute-path links inside admin/webmail/sso pages
+	handle /snappymail/* {
+		reverse_proxy https://mailu-front:443 {
+			transport http {
+				tls_insecure_skip_verify
+			}
+			header_up Host {http.request.hostport}
+			header_up X-Forwarded-Proto https
+		}
+	}
 	handle /static/* {
 		reverse_proxy https://mailu-front:443 {
 			transport http {

@@ -326,6 +326,7 @@ async function saveEdit() {
 
     try {
         await axios.put(updateUrl, {
+            local_part: localPart,
             display_name: editForm.value.display_name,
             quota_bytes: editForm.value.quota_bytes,
             active: editForm.value.active,
@@ -333,6 +334,7 @@ async function saveEdit() {
 
         if (editForm.value.new_password) {
             await axios.post(passwordUrl, {
+                local_part: localPart,
                 password: editForm.value.new_password,
             });
         }

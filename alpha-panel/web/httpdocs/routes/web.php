@@ -717,9 +717,9 @@ Route::middleware('auth')->group(function (): void {
 
             Route::get('domains/{domain}', DomainMailController::class)->name('domain');
 
-            // Stale-Ziggy fallback: when the JS bundle is cached with an old route
-            // registry, ziggy drops the {local} segment and sends it as ?local=info.
-            // This catches those calls and dispatches to MailboxController::update.
+            // Stale-Ziggy / cached-bundle fallback: when JS ships a URL missing the
+            // {local} path segment, accept the call here and resolve local from query
+            // string, body, address field, or Referer URL.
             Route::put('domains/{domain}', [MailboxController::class, 'updateFallback'])->name('mailboxes.update.fallback');
             Route::delete('domains/{domain}', [MailboxController::class, 'destroyFallback'])->name('mailboxes.destroy.fallback');
 
@@ -727,6 +727,9 @@ Route::middleware('auth')->group(function (): void {
                 Route::get('/', [MailboxController::class, 'index'])->name('index');
                 Route::get('/create', [MailboxController::class, 'create'])->name('create');
                 Route::post('/', [MailboxController::class, 'store'])->name('store');
+                // Fallback for URLs missing /{local} — same resolver as above.
+                Route::put('/', [MailboxController::class, 'updateFallback'])->name('update.collection-fallback');
+                Route::delete('/', [MailboxController::class, 'destroyFallback'])->name('destroy.collection-fallback');
                 Route::put('/{local}', [MailboxController::class, 'update'])->name('update');
                 Route::delete('/{local}', [MailboxController::class, 'destroy'])->name('destroy');
                 Route::post('/{local}/password', [MailboxController::class, 'setPassword'])->name('password');

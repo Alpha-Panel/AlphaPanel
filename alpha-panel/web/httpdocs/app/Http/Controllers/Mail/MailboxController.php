@@ -97,13 +97,21 @@ class MailboxController extends Controller
             ->with('success', __('Mailbox created.'));
     }
 
-    public function update(UpdateMailboxRequest $request, Domain $domain, string $localPart): RedirectResponse
+    public function update(UpdateMailboxRequest $request, Domain $domain, string $localPart): RedirectResponse|JsonResponse
     {
         $provider = $this->resolver->for($domain);
         try {
             $provider->updateMailbox($domain, $localPart, $request->validated());
         } catch (MailProviderException $e) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
             return back()->withErrors(['provider' => $e->getMessage()]);
+        }
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json(['message' => __('Mailbox updated.')]);
         }
 
         return back()->with('success', __('Mailbox updated.'));
@@ -114,7 +122,7 @@ class MailboxController extends Controller
      * Tries multiple sources because different stale-Ziggy versions ship the value
      * differently (query string, body field, Referer URL).
      */
-    public function updateFallback(UpdateMailboxRequest $request, Domain $domain): RedirectResponse|JsonResponse
+    public function updateFallback(UpdateMailboxRequest $request, Domain $domain): JsonResponse
     {
         $localPart = $this->resolveLocalPartFromRequest($request);
 
@@ -131,13 +139,24 @@ class MailboxController extends Controller
             return $this->staleBundleResponse($request);
         }
 
-        return $this->update($request, $domain, $localPart);
+        // Direct dispatch — returns JSON so axios doesn't follow a back() 302 into
+        // an infinite loop. update() uses back() which redirects to the Referer
+        // (typically the listing page), and axios.put follows 302 with PUT method
+        // by default, hitting this fallback again forever.
+        $provider = $this->resolver->for($domain);
+        try {
+            $provider->updateMailbox($domain, $localPart, $request->validated());
+        } catch (MailProviderException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['message' => __('Mailbox updated.')]);
     }
 
     /**
-     * Same fallback for DELETE.
+     * Same fallback for DELETE — returns JSON for the same redirect-loop reason.
      */
-    public function destroyFallback(Request $request, Domain $domain): RedirectResponse|JsonResponse
+    public function destroyFallback(Request $request, Domain $domain): JsonResponse
     {
         $localPart = $this->resolveLocalPartFromRequest($request);
 
@@ -145,7 +164,13 @@ class MailboxController extends Controller
             return $this->staleBundleResponse($request);
         }
 
-        return $this->destroy($request, $domain, $localPart);
+        try {
+            $this->resolver->for($domain)->deleteMailbox($domain, $localPart);
+        } catch (MailProviderException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['message' => __('Mailbox deleted.')]);
     }
 
     /**
@@ -156,14 +181,12 @@ class MailboxController extends Controller
      */
     private function staleBundleResponse(Request $request): JsonResponse
     {
-        $message = __('Stale browser cache detected. Page will reload with the latest bundle.');
-
+        // Status 422 — NOT 409. Inertia treats 409 as asset-version mismatch and
+        // triggers auto-reload; chained with a stale bundle this causes an infinite
+        // 302 redirect loop. 422 surfaces as a normal form-error toast.
         return response()->json([
-            'message' => $message,
-            'reload' => true,
-        ], 409)
-            ->header('Clear-Site-Data', '"cache", "storage"')
-            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+            'message' => __('Mailbox identifier missing from request. Reload the page (Ctrl+Shift+R) and retry.'),
+        ], 422);
     }
 
     /**
@@ -211,13 +234,21 @@ class MailboxController extends Controller
         return '';
     }
 
-    public function destroy(Request $request, Domain $domain, string $localPart): RedirectResponse
+    public function destroy(Request $request, Domain $domain, string $localPart): RedirectResponse|JsonResponse
     {
         $this->authorizeDomain($request, $domain);
         try {
             $this->resolver->for($domain)->deleteMailbox($domain, $localPart);
         } catch (MailProviderException $e) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
             return back()->withErrors(['provider' => $e->getMessage()]);
+        }
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json(['message' => __('Mailbox deleted.')]);
         }
 
         return redirect()
@@ -225,7 +256,7 @@ class MailboxController extends Controller
             ->with('success', __('Mailbox deleted.'));
     }
 
-    public function setPassword(SetPasswordRequest $request, Domain $domain, string $localPart): RedirectResponse
+    public function setPassword(SetPasswordRequest $request, Domain $domain, string $localPart): RedirectResponse|JsonResponse
     {
         try {
             $this->resolver->for($domain)->setPassword(
@@ -234,13 +265,21 @@ class MailboxController extends Controller
                 $request->validated()['password'],
             );
         } catch (MailProviderException $e) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
             return back()->withErrors(['provider' => $e->getMessage()]);
+        }
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json(['message' => __('Password updated.')]);
         }
 
         return back()->with('success', __('Password updated.'));
     }
 
-    public function setForwarding(SetForwardingRequest $request, Domain $domain, string $localPart): RedirectResponse
+    public function setForwarding(SetForwardingRequest $request, Domain $domain, string $localPart): RedirectResponse|JsonResponse
     {
         $data = $request->validated();
         try {
@@ -251,7 +290,15 @@ class MailboxController extends Controller
                 $data['keep_local'] ?? true,
             );
         } catch (MailProviderException $e) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
             return back()->withErrors(['provider' => $e->getMessage()]);
+        }
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json(['message' => __('Forwarding updated.')]);
         }
 
         return back()->with('success', __('Forwarding updated.'));
