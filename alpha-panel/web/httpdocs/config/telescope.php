@@ -27,7 +27,7 @@ return [
     |
     */
 
-    'prune_hours' => env('TELESCOPE_PRUNE_HOURS', 48),
+    'prune_hours' => env('TELESCOPE_PRUNE_HOURS', 72),
 
     /*
     |--------------------------------------------------------------------------

@@ -158,13 +158,13 @@ Schedule::command('ssl:renew')
 | Telescope Pruning
 |--------------------------------------------------------------------------
 |
-| Prunes old Telescope entries daily to prevent database bloat.
-| Retention period is configurable via TELESCOPE_PRUNE_HOURS (default: 48).
+| Prunes old Telescope entries hourly to prevent database bloat.
+| Retention period is configurable via TELESCOPE_PRUNE_HOURS (default: 72 = 3 days).
 |
 */
 
-Schedule::command('telescope:prune --hours='.config('telescope.prune_hours', 48))
-    ->daily()
+Schedule::command('telescope:prune --hours='.config('telescope.prune_hours', 72))
+    ->hourly()
     ->name('telescope:prune')
     ->withoutOverlapping()
     ->onFailure(fn () => Log::error('Telescope prune failed'));
