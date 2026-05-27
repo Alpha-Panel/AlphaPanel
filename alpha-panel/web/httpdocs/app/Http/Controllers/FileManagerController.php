@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Domain;
-use App\Services\FileManagerService;
+use App\Services\LocalDomainFileManagerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,9 +23,9 @@ class FileManagerController extends Controller
 
         $domain->load('ftpUser');
 
-        if (! $domain->ftpUser || ! $domain->ftpUser->hasPassword()) {
+        if (! $domain->ftpUser) {
             return redirect()->route('domains.show', $domain)
-                ->with('error', __('FTP user with a stored password is required to use the file manager. Please create or update the FTP user password.'));
+                ->with('error', __('An FTP user is required to use the file manager. Please create one first.'));
         }
 
         $maxUploadBytes = self::phpMaxUploadBytes();
@@ -292,9 +292,9 @@ class FileManagerController extends Controller
     }
 
     /**
-     * Resolve the FileManagerService for a domain.
+     * Resolve the file manager service for a domain.
      */
-    private function resolveFileManager(Domain $domain): FileManagerService
+    private function resolveFileManager(Domain $domain): LocalDomainFileManagerService
     {
         $domain->loadMissing('ftpUser');
 
@@ -302,11 +302,7 @@ class FileManagerController extends Controller
             throw new RuntimeException(__('No FTP user configured for this domain.'));
         }
 
-        if (! $domain->ftpUser->hasPassword()) {
-            throw new RuntimeException(__('FTP password not stored. Please update the FTP user password.'));
-        }
-
-        return FileManagerService::forUser($domain->ftpUser);
+        return LocalDomainFileManagerService::forUser($domain->ftpUser);
     }
 
     /**

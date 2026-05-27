@@ -3,19 +3,19 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Models\Domain;
-use App\Services\FileManagerService;
+use App\Services\LocalDomainFileManagerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 class FileManagerController extends ApiController
 {
-    private function getService(Domain $domain): FileManagerService
+    private function getService(Domain $domain): LocalDomainFileManagerService
     {
         $ftpUser = $domain->ftpUser ?? $domain->parentDomain?->ftpUser;
         abort_unless($ftpUser, 422, __('No FTP user configured for this domain.'));
 
-        return FileManagerService::forUser($ftpUser);
+        return LocalDomainFileManagerService::forUser($ftpUser);
     }
 
     public function index(Domain $domain): JsonResponse
