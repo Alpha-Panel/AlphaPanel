@@ -14,8 +14,25 @@
 
 declare(strict_types=1);
 
+/*
+ * Hard guard: this script must NEVER run under a web SAPI. Even though the
+ * file lives inside the document root, a request like GET /scripts/fm-worker.php
+ * could be routed to PHP-FPM/FrankenPHP. We refuse anything that is not the
+ * CLI binary invoked with a real $argv — no headers, no output, no error
+ * messages that could leak filesystem info to a remote attacker.
+ */
+if (PHP_SAPI !== 'cli' || ! isset($argv) || ! is_array($argv)) {
+    http_response_code(404);
+    exit;
+}
+
 ini_set('display_errors', '0');
 error_reporting(E_ALL);
+
+/** Root prefix every --root value must live under. Defense in depth: even if
+ * the calling Laravel service is compromised and passes an arbitrary path,
+ * the worker refuses anything outside /var/www/vhosts/. */
+const ALLOWED_ROOT_PREFIX = '/var/www/vhosts/';
 
 function fail(string $message, int $code = 1): never
 {
@@ -190,6 +207,20 @@ $root = str_replace('\\', '/', $root);
 $realRoot = realpathNorm($root);
 if ($realRoot === false) {
     fail("Failed to resolve --root: {$root}");
+}
+
+/*
+ * Tenant isolation guard. On a Linux production container the allowed prefix
+ * is /var/www/vhosts/ — every FTP user homedir is provisioned under it. We
+ * refuse anything outside this tree (e.g. /etc, /root, /var/www/AlphaPanel)
+ * so a compromised caller cannot pivot the worker against other paths.
+ *
+ * The realpath check uses the resolved root, blocking symlink-based escape
+ * attempts where $root itself is a symlink pointing outside the vhosts tree.
+ */
+if (PHP_OS_FAMILY !== 'Windows'
+    && ! str_starts_with($realRoot, ALLOWED_ROOT_PREFIX)) {
+    fail('Root outside allowed prefix.');
 }
 
 if (! is_string($action) || $action === '') {
@@ -415,12 +446,8 @@ switch ($action) {
 
     case 'exists':
         $path = $args['path'] ?? '';
-        try {
-            $full = resolvePath($root, $realRoot, $path, allowMissing: false);
-            echo file_exists($full) ? '1' : '0';
-        } catch (Throwable) {
-            echo '0';
-        }
+        $full = resolvePath($root, $realRoot, $path, allowMissing: true);
+        echo file_exists($full) ? '1' : '0';
         exit(0);
 
     default:

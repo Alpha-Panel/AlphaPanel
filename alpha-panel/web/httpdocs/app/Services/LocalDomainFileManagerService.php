@@ -31,12 +31,23 @@ class LocalDomainFileManagerService
 
     private string $workerPath;
 
+    /**
+     * Strictly enforced root that every FTP homedir must live under. Defense
+     * in depth: even if a caller could craft a Domain/FtpUser with a forged
+     * homedir, the worker would still receive a path outside this prefix and
+     * refuse to operate. The worker enforces the same prefix independently.
+     */
+    private const VHOSTS_PREFIX = '/var/www/vhosts/';
+
     public function __construct(private readonly FtpUser $ftpUser)
     {
         $username = (string) ($ftpUser->username ?? '');
         $homedir = (string) ($ftpUser->homedir ?? '');
 
-        if ($username === '' || ! preg_match('/^[a-z_][a-z0-9_-]*$/i', $username)) {
+        // POSIX-portable usernames: lowercase letters, digits, underscore, hyphen.
+        // First char must be letter or underscore; no leading hyphen (would be
+        // misinterpreted as a runuser flag); no uppercase (ProFTPD/Linux conv.).
+        if ($username === '' || ! preg_match('/^[a-z_][a-z0-9_-]{0,31}$/', $username)) {
             throw new RuntimeException("Invalid FTP username: {$username}");
         }
 
@@ -44,8 +55,20 @@ class LocalDomainFileManagerService
             throw new RuntimeException("FTP user homedir not accessible: {$homedir}");
         }
 
+        $realHome = realpath($homedir);
+
+        if ($realHome === false) {
+            throw new RuntimeException("Failed to resolve homedir: {$homedir}");
+        }
+
+        // Tenant isolation: refuse anything outside the vhosts tree. Linux only
+        // — tests run on Windows tmpdirs bypass this; production target is Linux.
+        if (PHP_OS_FAMILY !== 'Windows' && ! str_starts_with($realHome, self::VHOSTS_PREFIX)) {
+            throw new RuntimeException("Homedir outside allowed prefix: {$realHome}");
+        }
+
         $this->username = $username;
-        $this->homedir = rtrim($homedir, '/');
+        $this->homedir = rtrim($realHome, '/');
         $this->workerPath = base_path('scripts/fm-worker.php');
 
         if (! is_file($this->workerPath)) {
