@@ -2,6 +2,7 @@
 
 namespace App\Services\Mail;
 
+use App\Enums\MailHosting;
 use App\Models\ZimbraServerSetting;
 use Illuminate\Support\Facades\Log;
 
@@ -24,6 +25,33 @@ class MailSettingsService
     public function mailEnabled(): bool
     {
         return $this->mailuEnabled() || $this->zimbraEnabled();
+    }
+
+    /**
+     * Whether the panel can serve the given hosting mode right now.
+     * Disabled/Remote are always available (no provider call needed).
+     * Local needs mailu feature; Zimbra needs zimbra feature.
+     */
+    public function isHostingAvailable(MailHosting $hosting): bool
+    {
+        return match ($hosting->requiresFeature()) {
+            'mailu' => $this->mailuEnabled(),
+            'zimbra' => $this->zimbraEnabled(),
+            default => true,
+        };
+    }
+
+    /**
+     * @return list<MailHosting> Hosting modes the user is allowed to pick right
+     *                           now. Disabled is always present so domains can
+     *                           explicitly opt out.
+     */
+    public function availableHostings(): array
+    {
+        return array_values(array_filter(
+            MailHosting::cases(),
+            fn (MailHosting $h) => $this->isHostingAvailable($h),
+        ));
     }
 
     /** @return array<string, mixed> */

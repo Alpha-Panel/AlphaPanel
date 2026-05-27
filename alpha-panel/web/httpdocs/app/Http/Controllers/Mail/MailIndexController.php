@@ -18,12 +18,16 @@ class MailIndexController extends Controller
     {
         $user = $request->user();
 
+        $listableHostings = array_values(array_filter(
+            array_map(
+                fn (MailHosting $h) => $h->value,
+                $this->settings->availableHostings(),
+            ),
+            fn (string $v) => $v !== MailHosting::Disabled->value,
+        ));
+
         $domains = Domain::query()
-            ->whereIn('mail_hosting', [
-                MailHosting::Local->value,
-                MailHosting::Zimbra->value,
-                MailHosting::Remote->value,
-            ])
+            ->whereIn('mail_hosting', $listableHostings)
             ->when(! $user->isAdmin(), fn ($q) => $q->where('owner_user_id', $user->id))
             ->orderBy('fqdn')
             ->get(['id', 'fqdn', 'mail_hosting', 'mail_remote_mx_host', 'mail_remote_mx_priority']);

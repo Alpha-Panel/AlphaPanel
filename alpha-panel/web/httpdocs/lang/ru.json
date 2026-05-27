@@ -1,4 +1,6 @@
 {
+  "Mail hosting is disabled for this domain. Re-enable the provider in panel settings or change the domain's mail hosting mode.": "Почтовый хостинг отключён для этого домена. Включите провайдера в настройках панели или измените режим почтового хостинга домена.",
+  "Mail hosting is disabled for this domain.": "Почтовый хостинг отключён для этого домена.",
   "\":name\" will be removed and can no longer be used to sign in.": "«:name» будет удалён и больше не сможет использоваться для входа.",
   "(leave blank to keep)": "(оставьте пустым, чтобы сохранить)",
   "*/main": "*/main",

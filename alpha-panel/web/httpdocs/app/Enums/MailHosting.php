@@ -33,4 +33,18 @@ enum MailHosting: string
     {
         return $this === self::Local || $this === self::Zimbra;
     }
+
+    /**
+     * Feature flag key required for this hosting mode. Null means no feature
+     * gate (Disabled and Remote — Remote is just an MX pointer set on the
+     * domain row, no provider call needed).
+     */
+    public function requiresFeature(): ?string
+    {
+        return match ($this) {
+            self::Local => 'mailu',
+            self::Zimbra => 'zimbra',
+            default => null,
+        };
+    }
 }

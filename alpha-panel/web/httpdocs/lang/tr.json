@@ -1,4 +1,6 @@
 {
+  "Mail hosting is disabled for this domain. Re-enable the provider in panel settings or change the domain's mail hosting mode.": "Bu domain için posta sunucusu devre dışı. Panel ayarlarından sağlayıcıyı tekrar etkinleştirin veya domainin posta modunu değiştirin.",
+  "Mail hosting is disabled for this domain.": "Bu domain için posta sunucusu devre dışı.",
   "\":name\" will be removed and can no longer be used to sign in.": "\":name\" kaldırılacak ve artık oturum açmak için kullanılamayacak.",
   "(leave blank to keep)": "(korumak için boş bırakın)",
   "*/main": "*/main",

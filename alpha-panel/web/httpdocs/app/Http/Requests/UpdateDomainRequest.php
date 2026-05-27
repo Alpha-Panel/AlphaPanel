@@ -3,8 +3,10 @@
 namespace App\Http\Requests;
 
 use App\Enums\DomainType;
+use App\Enums\MailHosting;
 use App\Enums\SslMethod;
 use App\Rules\NotReservedDomain;
+use App\Services\Mail\MailSettingsService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
@@ -97,7 +99,7 @@ class UpdateDomainRequest extends FormRequest
             'mail_hosting' => [
                 'nullable',
                 'string',
-                Rule::in(['disabled', 'local', 'remote', 'zimbra']),
+                Rule::in($this->allowedMailHostingValues()),
             ],
             'mail_remote_mx_host' => [
                 'nullable',
@@ -119,5 +121,22 @@ class UpdateDomainRequest extends FormRequest
         return [
             'php_version_id.required_if' => 'PHP version is required for Apache + Reverse Proxy domains.',
         ];
+    }
+
+    /**
+     * Hostings the user is allowed to assign right now. Mirror of the rule
+     * used by StoreDomainRequest; keeps Local/Zimbra hidden when their
+     * feature flags are off.
+     *
+     * @return list<string>
+     */
+    private function allowedMailHostingValues(): array
+    {
+        $settings = app(MailSettingsService::class);
+
+        return array_map(
+            fn (MailHosting $h) => $h->value,
+            $settings->availableHostings(),
+        );
     }
 }

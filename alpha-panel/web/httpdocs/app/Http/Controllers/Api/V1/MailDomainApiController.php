@@ -6,6 +6,7 @@ use App\Enums\MailHosting;
 use App\Http\Resources\Api\V1\AliasResource;
 use App\Http\Resources\Api\V1\MailboxResource;
 use App\Models\Domain;
+use App\Services\Mail\Exceptions\MailHostingDisabledException;
 use App\Services\Mail\Exceptions\MailProviderException;
 use App\Services\Mail\Exceptions\MailProviderUnavailableException;
 use App\Services\Mail\MailProviderResolver;
@@ -24,12 +25,19 @@ class MailDomainApiController extends ApiController
     {
         $user = $request->user();
 
+        // Only list domains whose hosting provider is currently enabled.
+        // Remote is always listable (no provider call needed); Local/Zimbra
+        // depend on their feature flags.
+        $listableHostings = array_values(array_filter(
+            array_map(
+                fn (MailHosting $h) => $h->value,
+                $this->settings->availableHostings(),
+            ),
+            fn (string $v) => $v !== MailHosting::Disabled->value,
+        ));
+
         $domains = Domain::query()
-            ->whereIn('mail_hosting', [
-                MailHosting::Local->value,
-                MailHosting::Zimbra->value,
-                MailHosting::Remote->value,
-            ])
+            ->whereIn('mail_hosting', $listableHostings)
             ->when(! $user->isAdmin(), fn ($q) => $q->where('owner_user_id', $user->id))
             ->orderBy('fqdn')
             ->get(['id', 'fqdn', 'mail_hosting', 'mail_remote_mx_host', 'mail_remote_mx_priority']);
@@ -54,7 +62,15 @@ class MailDomainApiController extends ApiController
     {
         $this->authorizeDomain($request, $domain);
 
-        $provider = $this->resolver->for($domain);
+        try {
+            $provider = $this->resolver->for($domain);
+        } catch (MailHostingDisabledException $e) {
+            return response()->json([
+                'message' => __('Mail hosting is disabled for this domain.'),
+                'error' => $e->getMessage(),
+            ], 409);
+        }
+
         $mailboxes = [];
         $aliases = [];
         $providerError = null;

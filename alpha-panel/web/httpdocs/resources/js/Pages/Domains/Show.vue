@@ -712,7 +712,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
 import SidebarProvider from '@/Components/Layout/SidebarProvider.vue';
@@ -849,7 +849,20 @@ const hasStoredFtpPassword = computed(() => Boolean(domain.value.ftp_user?.encry
 const subdomains = computed(() => domain.value.subdomains ?? []);
 
 const mailHosting = computed(() => (domain.value.mail_hosting ?? 'disabled') as string);
-const mailManaged = computed(() => mailHosting.value === 'local' || mailHosting.value === 'zimbra');
+const mailFeaturesPage = usePage<{ features?: { mailu?: boolean; zimbra?: boolean } }>();
+const mailFeatureEnabled = computed(() => {
+    if (mailHosting.value === 'local') {
+        return !!mailFeaturesPage.props.features?.mailu;
+    }
+    if (mailHosting.value === 'zimbra') {
+        return !!mailFeaturesPage.props.features?.zimbra;
+    }
+    // Remote needs no provider, so it's always "usable".
+    return mailHosting.value === 'remote';
+});
+const mailManaged = computed(
+    () => (mailHosting.value === 'local' || mailHosting.value === 'zimbra') && mailFeatureEnabled.value,
+);
 const mailProviderLabel = computed(() => {
     return {
         local: 'Mailu',

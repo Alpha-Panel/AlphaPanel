@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Mail;
 
 use App\Http\Controllers\Controller;
 use App\Models\Domain;
+use App\Services\Mail\Exceptions\MailHostingDisabledException;
 use App\Services\Mail\Exceptions\MailProviderException;
 use App\Services\Mail\Exceptions\MailProviderUnavailableException;
 use App\Services\Mail\MailProviderResolver;
@@ -23,7 +24,14 @@ class DomainMailController extends Controller
             abort(403);
         }
 
-        $provider = $this->resolver->for($domain);
+        try {
+            $provider = $this->resolver->for($domain);
+        } catch (MailHostingDisabledException $e) {
+            return redirect()
+                ->route('domains.show', $domain)
+                ->with('error', __('Mail hosting is disabled for this domain. Re-enable the provider in panel settings or change the domain\'s mail hosting mode.'));
+        }
+
         $mailboxes = [];
         $aliases = [];
         $providerError = null;

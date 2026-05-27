@@ -1,4 +1,6 @@
 {
+  "Mail hosting is disabled for this domain. Re-enable the provider in panel settings or change the domain's mail hosting mode.": "El alojamiento de correo está deshabilitado para este dominio. Vuelva a habilitar el proveedor en la configuración del panel o cambie el modo de alojamiento de correo del dominio.",
+  "Mail hosting is disabled for this domain.": "El alojamiento de correo está deshabilitado para este dominio.",
   "\":name\" will be removed and can no longer be used to sign in.": "\":name\" se eliminará y ya no podrá usarse para iniciar sesión.",
   "(leave blank to keep)": "(dejar en blanco para mantener)",
   "*/main": "*/main",

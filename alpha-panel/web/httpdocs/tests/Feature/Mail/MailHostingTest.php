@@ -24,8 +24,21 @@ class MailHostingTest extends TestCase
         $this->assertFalse(MailHosting::Disabled->isManaged());
     }
 
+    public function test_enum_requires_feature_mapping(): void
+    {
+        $this->assertSame('mailu', MailHosting::Local->requiresFeature());
+        $this->assertSame('zimbra', MailHosting::Zimbra->requiresFeature());
+        $this->assertNull(MailHosting::Remote->requiresFeature());
+        $this->assertNull(MailHosting::Disabled->requiresFeature());
+    }
+
     public function test_resolver_routes_to_correct_provider(): void
     {
+        // Resolver guards each branch with the feature flag — flip both on
+        // so we exercise the routing logic, not the guard.
+        config()->set('panel.features.mailu', true);
+        config()->set('panel.features.zimbra', true);
+
         $resolver = app(MailProviderResolver::class);
 
         $local = new Domain(['fqdn' => 'a.test', 'mail_hosting' => MailHosting::Local->value]);
@@ -52,6 +65,48 @@ class MailHostingTest extends TestCase
 
         $this->expectException(MailHostingDisabledException::class);
         $resolver->for($d);
+    }
+
+    public function test_resolver_throws_when_local_but_mailu_feature_off(): void
+    {
+        // Reproduces the production bug: domain row keeps mail_hosting=local
+        // after the admin disables MAIL_ENABLED in .env. Resolver must refuse
+        // to hand out MailuProvider instead of letting it fail at HTTP time.
+        config()->set('panel.features.mailu', false);
+        config()->set('panel.features.zimbra', false);
+
+        $resolver = app(MailProviderResolver::class);
+        $d = new Domain(['fqdn' => 'g.test']);
+        $d->mail_hosting = MailHosting::Local;
+
+        $this->expectException(MailHostingDisabledException::class);
+        $resolver->for($d);
+    }
+
+    public function test_resolver_throws_when_zimbra_but_zimbra_feature_off(): void
+    {
+        config()->set('panel.features.mailu', false);
+        config()->set('panel.features.zimbra', false);
+        // Also need to ensure no DB row flips it on. ZimbraServerSetting::current()
+        // returns null when no row exists, so the feature stays off.
+
+        $resolver = app(MailProviderResolver::class);
+        $d = new Domain(['fqdn' => 'h.test']);
+        $d->mail_hosting = MailHosting::Zimbra;
+
+        $this->expectException(MailHostingDisabledException::class);
+        $resolver->for($d);
+    }
+
+    public function test_try_for_returns_null_when_provider_disabled(): void
+    {
+        config()->set('panel.features.mailu', false);
+
+        $resolver = app(MailProviderResolver::class);
+        $d = new Domain(['fqdn' => 'i.test']);
+        $d->mail_hosting = MailHosting::Local;
+
+        $this->assertNull($resolver->tryFor($d));
     }
 
     public function test_remote_provider_rejects_mailbox_ops(): void

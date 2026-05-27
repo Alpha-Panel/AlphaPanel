@@ -2,16 +2,19 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\MailHosting;
 use App\Jobs\DeleteDomainJob;
 use App\Jobs\ProvisionDomainJob;
 use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Services\CloudflareDnsService;
 use App\Services\FtpUserService;
+use App\Services\Mail\MailSettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Validation\Rule;
 
 class DomainController extends ApiController
 {
@@ -47,7 +50,7 @@ class DomainController extends ApiController
             'enable_www_redirect' => 'boolean',
             'ftp_username' => 'nullable|string|max:100',
             'ftp_password' => 'nullable|string|min:8',
-            'mail_hosting' => 'nullable|string|in:disabled,local,remote,zimbra',
+            'mail_hosting' => ['nullable', 'string', Rule::in($this->allowedMailHostingValues())],
             'mail_remote_mx_host' => 'nullable|string|max:255|required_if:mail_hosting,remote',
             'mail_remote_mx_priority' => 'nullable|integer|between:0,65535',
         ]);
@@ -104,7 +107,7 @@ class DomainController extends ApiController
             'cors_enabled' => 'boolean',
             'cors_allowed_origins' => 'nullable|string',
             'bypass_reverse_proxy' => 'boolean',
-            'mail_hosting' => 'nullable|string|in:disabled,local,remote,zimbra',
+            'mail_hosting' => ['nullable', 'string', Rule::in($this->allowedMailHostingValues())],
             'mail_remote_mx_host' => 'nullable|string|max:255|required_if:mail_hosting,remote',
             'mail_remote_mx_priority' => 'nullable|integer|between:0,65535',
         ]);
@@ -278,5 +281,16 @@ class DomainController extends ApiController
     private function ensureCanManageDomain(Request $request, Domain $domain): void
     {
         $this->ensureCanViewDomain($request, $domain);
+    }
+
+    /**
+     * @return list<string> Mail hosting values the panel currently accepts.
+     */
+    private function allowedMailHostingValues(): array
+    {
+        return array_map(
+            fn (MailHosting $h) => $h->value,
+            app(MailSettingsService::class)->availableHostings(),
+        );
     }
 }

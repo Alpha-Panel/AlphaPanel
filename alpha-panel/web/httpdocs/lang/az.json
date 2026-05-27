@@ -1,4 +1,6 @@
 {
+  "Mail hosting is disabled for this domain. Re-enable the provider in panel settings or change the domain's mail hosting mode.": "Bu domen üçün poçt hostinqi söndürülüb. Provayderi panel parametrlərindən yenidən aktivləşdirin və ya domenin poçt hostinq rejimini dəyişdirin.",
+  "Mail hosting is disabled for this domain.": "Bu domen üçün poçt hostinqi söndürülüb.",
   "\":name\" will be removed and can no longer be used to sign in.": "\":name\" silinəcək və artıq giriş üçün istifadə edilə bilməyəcək.",
   "(leave blank to keep)": "(saxlamaq üçün boş buraxın)",
   "*/main": "*/main",

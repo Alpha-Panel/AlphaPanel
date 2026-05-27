@@ -1,4 +1,6 @@
 {
+  "Mail hosting is disabled for this domain. Re-enable the provider in panel settings or change the domain's mail hosting mode.": "Mail hosting is disabled for this domain. Re-enable the provider in panel settings or change the domain's mail hosting mode.",
+  "Mail hosting is disabled for this domain.": "Mail hosting is disabled for this domain.",
   "\":name\" will be removed and can no longer be used to sign in.": "\":name\" will be removed and can no longer be used to sign in.",
   "(leave blank to keep)": "(leave blank to keep)",
   "*/main": "*/main",

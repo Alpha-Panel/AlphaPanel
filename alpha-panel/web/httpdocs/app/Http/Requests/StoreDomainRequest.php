@@ -4,10 +4,12 @@ namespace App\Http\Requests;
 
 use App\Enums\DomainMode;
 use App\Enums\DomainType;
+use App\Enums\MailHosting;
 use App\Models\Domain;
 use App\Rules\NoExistingCatchall;
 use App\Rules\NotReservedDomain;
 use App\Rules\RequiresAdmin;
+use App\Services\Mail\MailSettingsService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
@@ -138,7 +140,7 @@ class StoreDomainRequest extends FormRequest
             'mail_hosting' => [
                 'nullable',
                 'string',
-                Rule::in(['disabled', 'local', 'remote', 'zimbra']),
+                Rule::in($this->allowedMailHostingValues()),
             ],
             'mail_remote_mx_host' => [
                 'nullable',
@@ -194,6 +196,23 @@ class StoreDomainRequest extends FormRequest
     {
         return $this->input('type') === 'apache_reverse_proxy'
             && ! $this->filled('parent_domain_id');
+    }
+
+    /**
+     * Hostings the user is allowed to assign right now. Disabled is always
+     * allowed. Local/Zimbra require their feature flag. Remote needs no
+     * provider, so always allowed.
+     *
+     * @return list<string>
+     */
+    private function allowedMailHostingValues(): array
+    {
+        $settings = app(MailSettingsService::class);
+
+        return array_map(
+            fn (MailHosting $h) => $h->value,
+            $settings->availableHostings(),
+        );
     }
 
     private function shouldRequireDnsTargetIp(): bool

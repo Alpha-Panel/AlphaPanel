@@ -9,6 +9,7 @@ use App\Http\Requests\Mail\StoreMailboxRequest;
 use App\Http\Requests\Mail\UpdateMailboxRequest;
 use App\Models\AuditLog;
 use App\Models\Domain;
+use App\Services\Mail\Exceptions\MailHostingDisabledException;
 use App\Services\Mail\Exceptions\MailProviderException;
 use App\Services\Mail\Exceptions\MailProviderUnavailableException;
 use App\Services\Mail\MailProviderResolver;
@@ -26,7 +27,14 @@ class MailboxController extends Controller
     public function index(Request $request, Domain $domain): Response|RedirectResponse
     {
         $this->authorizeDomain($request, $domain);
-        $provider = $this->resolver->for($domain);
+
+        try {
+            $provider = $this->resolver->for($domain);
+        } catch (MailHostingDisabledException $e) {
+            return redirect()
+                ->route('domains.show', $domain)
+                ->with('error', __('Mail hosting is disabled for this domain.'));
+        }
 
         try {
             $mailboxes = $provider->listMailboxes($domain);
@@ -65,19 +73,32 @@ class MailboxController extends Controller
         ]);
     }
 
-    public function create(Request $request, Domain $domain): Response
+    public function create(Request $request, Domain $domain): Response|RedirectResponse
     {
         $this->authorizeDomain($request, $domain);
 
+        try {
+            $provider = $this->resolver->for($domain);
+        } catch (MailHostingDisabledException $e) {
+            return redirect()
+                ->route('domains.show', $domain)
+                ->with('error', __('Mail hosting is disabled for this domain.'));
+        }
+
         return Inertia::render('Mail/Mailboxes/Create', [
             'domain' => ['id' => $domain->id, 'fqdn' => $domain->fqdn],
-            'provider' => $this->resolver->for($domain)->key(),
+            'provider' => $provider->key(),
         ]);
     }
 
     public function store(StoreMailboxRequest $request, Domain $domain): RedirectResponse
     {
-        $provider = $this->resolver->for($domain);
+        try {
+            $provider = $this->resolver->for($domain);
+        } catch (MailHostingDisabledException $e) {
+            return back()->withErrors(['provider' => __('Mail hosting is disabled for this domain.')]);
+        }
+
         $data = $request->validated();
         try {
             $provider->createMailbox(
@@ -107,8 +128,8 @@ class MailboxController extends Controller
 
     public function update(UpdateMailboxRequest $request, Domain $domain, string $localPart): RedirectResponse|JsonResponse
     {
-        $provider = $this->resolver->for($domain);
         try {
+            $provider = $this->resolver->for($domain);
             $provider->updateMailbox($domain, $localPart, $request->validated());
         } catch (MailProviderException $e) {
             if ($request->expectsJson() || $request->ajax()) {
@@ -158,8 +179,8 @@ class MailboxController extends Controller
         // an infinite loop. update() uses back() which redirects to the Referer
         // (typically the listing page), and axios.put follows 302 with PUT method
         // by default, hitting this fallback again forever.
-        $provider = $this->resolver->for($domain);
         try {
+            $provider = $this->resolver->for($domain);
             $provider->updateMailbox($domain, $localPart, $request->validated());
         } catch (MailProviderException $e) {
             return response()->json(['message' => $e->getMessage()], 422);

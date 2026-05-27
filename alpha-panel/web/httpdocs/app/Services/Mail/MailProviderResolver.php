@@ -13,11 +13,22 @@ use Illuminate\Contracts\Container\Container;
 
 class MailProviderResolver
 {
-    public function __construct(private readonly Container $container) {}
+    public function __construct(
+        private readonly Container $container,
+        private readonly MailSettingsService $settings,
+    ) {}
 
     public function for(Domain $domain): MailProviderInterface
     {
-        return match ($domain->mail_hosting) {
+        $hosting = $domain->mail_hosting;
+
+        if (! $this->settings->isHostingAvailable($hosting)) {
+            throw new MailHostingDisabledException(
+                "Mail hosting '{$hosting->value}' is disabled for {$domain->fqdn}."
+            );
+        }
+
+        return match ($hosting) {
             MailHosting::Local => $this->container->make(MailuProvider::class),
             MailHosting::Zimbra => $this->container->make(ZimbraProvider::class),
             MailHosting::Remote => $this->container->make(RemoteProvider::class),
