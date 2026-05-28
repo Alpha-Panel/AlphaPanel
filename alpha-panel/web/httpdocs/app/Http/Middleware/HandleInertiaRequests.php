@@ -93,6 +93,7 @@ class HandleInertiaRequests extends Middleware
             'app' => [
                 'name' => config('app.name'),
                 'logo_url' => asset('img/AlphaPanel-dark.svg'),
+                'version' => $this->panelVersion(),
                 'links' => [
                     'file_manager' => config('services.file_manager_url'),
                     'jenkins' => config('services.jenkins_url'),
@@ -133,6 +134,27 @@ class HandleInertiaRequests extends Middleware
                 false,
             ),
         ];
+    }
+
+    /**
+     * Read the panel version from version.json with mtime-based cache.
+     */
+    private function panelVersion(): ?string
+    {
+        $path = config('panel.compose_project_root').'/version.json';
+
+        if (! File::exists($path)) {
+            return null;
+        }
+
+        $mtime = File::lastModified($path);
+        $cacheKey = "app:version:{$mtime}";
+
+        return Cache::rememberForever($cacheKey, function () use ($path): ?string {
+            $decoded = json_decode((string) File::get($path), true);
+
+            return is_array($decoded) ? ($decoded['version'] ?? null) : null;
+        });
     }
 
     /**

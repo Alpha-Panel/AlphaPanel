@@ -24,6 +24,7 @@ export interface SharedProps {
     app: {
         name: string;
         logo_url?: string;
+        version?: string | null;
         links?: {
             file_manager?: string | null;
             jenkins?: string | null;

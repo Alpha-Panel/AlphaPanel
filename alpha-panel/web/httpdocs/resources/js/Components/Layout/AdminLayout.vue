@@ -20,6 +20,16 @@
         <ProvisionProgressToast />
         <DockerDeployProgressToast />
         <ColorBlindFilters />
+        <div
+            v-if="panelVersion"
+            class="pointer-events-none fixed bottom-3 right-3 z-40 select-none rtl:left-3 rtl:right-auto"
+        >
+            <span
+                class="rounded border border-gray-200 bg-white/70 px-2 py-0.5 text-xs font-mono text-gray-500 backdrop-blur dark:border-gray-800 dark:bg-gray-900/70 dark:text-gray-400"
+            >
+                v{{ panelVersion }}
+            </span>
+        </div>
     </div>
 </template>
 
@@ -43,4 +53,5 @@ const isRtl = computed(() => page.props.text_direction === 'rtl');
 const impersonationActive = computed(
     () => !!(page.props as Record<string, unknown> & { impersonation?: { active?: boolean } }).impersonation?.active
 );
+const panelVersion = computed(() => page.props.app?.version ?? null);
 </script>
