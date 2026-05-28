@@ -22,7 +22,7 @@ class UpdateDomainRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'owner_user_id' => ['sometimes', 'exists:users,id'],
+            'owner_user_id' => ['sometimes', 'nullable', 'exists:users,id'],
             'fqdn' => [
                 'required',
                 'string',
