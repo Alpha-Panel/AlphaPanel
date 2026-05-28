@@ -56,6 +56,7 @@ class ZimbraProvider implements MailProviderInterface
 
     public function listMailboxes(Domain $domain): Collection
     {
+        $this->ensureDomainRegistered($domain);
         $rows = $this->client->searchAccounts($domain->fqdn);
 
         return collect($rows)->map(fn (array $row) => $this->hydrateMailbox($row));
@@ -70,6 +71,7 @@ class ZimbraProvider implements MailProviderInterface
 
     public function createMailbox(Domain $domain, string $localPart, string $password, array $options = []): Mailbox
     {
+        $this->ensureDomainRegistered($domain);
         $address = "{$localPart}@{$domain->fqdn}";
         $existing = $this->client->getAccount($address);
         if ($existing !== null) {
@@ -151,6 +153,7 @@ class ZimbraProvider implements MailProviderInterface
 
     public function listAliases(Domain $domain): Collection
     {
+        $this->ensureDomainRegistered($domain);
         $rows = $this->client->searchAliases($domain->fqdn);
 
         return collect($rows)->map(fn (array $row) => new Alias(
@@ -162,6 +165,7 @@ class ZimbraProvider implements MailProviderInterface
 
     public function createAlias(Domain $domain, string $fromLocalPart, string $toAddress): Alias
     {
+        $this->ensureDomainRegistered($domain);
         $aliasAddress = "{$fromLocalPart}@{$domain->fqdn}";
         $target = $this->client->getAccount($toAddress);
         if ($target === null) {
@@ -204,6 +208,22 @@ class ZimbraProvider implements MailProviderInterface
         }
 
         return new DnsHints(mx: $mx, txt: $txt);
+    }
+
+    /**
+     * Idempotent: ensures the FQDN is registered as a Zimbra domain before
+     * issuing search/account calls. Without this, Zimbra returns a SOAP fault
+     * (account.NO_SUCH_DOMAIN) when the panel knows about the domain but
+     * Zimbra does not.
+     */
+    private function ensureDomainRegistered(Domain $domain): void
+    {
+        if ($this->client->getDomain($domain->fqdn) !== null) {
+            return;
+        }
+
+        $this->client->createDomain($domain->fqdn);
+        Log::info('mail.zimbra.domain.auto_created', ['fqdn' => $domain->fqdn]);
     }
 
     /** @param array<string, mixed> $row */

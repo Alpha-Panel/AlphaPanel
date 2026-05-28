@@ -22,7 +22,9 @@ use SimpleXMLElement;
 class ZimbraSoapClient
 {
     private const TOKEN_CACHE_KEY = 'mail.zimbra.token';
+
     private const NS_ZIMBRA = 'urn:zimbra';
+
     private const NS_ADMIN = 'urn:zimbraAdmin';
 
     public function __construct(private readonly HttpFactory $http) {}
@@ -273,8 +275,30 @@ class ZimbraSoapClient
             $xml = $this->parseXml($body);
             $fault = $xml->xpath('//*[local-name()="Fault"]');
             if ($fault) {
-                $reason = (string) ($fault[0]->Reason->Text ?? $fault[0]->faultstring ?? 'Zimbra SOAP fault');
-                $code = (string) ($fault[0]->Detail->children('urn:zimbra')->Error->Code ?? '');
+                $reasonNodes = $fault[0]->xpath('.//*[local-name()="Text"]');
+                $reason = '';
+                if ($reasonNodes && isset($reasonNodes[0])) {
+                    $reason = trim((string) $reasonNodes[0]);
+                }
+                if ($reason === '') {
+                    $reason = trim((string) ($fault[0]->faultstring ?? ''));
+                }
+                $codeNodes = $fault[0]->xpath('.//*[local-name()="Code" and namespace-uri()="urn:zimbra"]');
+                $code = ($codeNodes && isset($codeNodes[0])) ? trim((string) $codeNodes[0]) : '';
+                $detailNodes = $fault[0]->xpath('.//*[local-name()="Trace" and namespace-uri()="urn:zimbra"]');
+                $trace = ($detailNodes && isset($detailNodes[0])) ? trim((string) $detailNodes[0]) : '';
+
+                if ($reason === '') {
+                    $reason = $code !== '' ? "Zimbra SOAP fault: {$code}" : 'Zimbra SOAP fault';
+                }
+
+                Log::warning('zimbra.fault', [
+                    'code' => $code,
+                    'reason' => $reason,
+                    'trace' => $trace,
+                    'raw' => mb_substr($body, 0, 2000),
+                ]);
+
                 if ($code === 'account.AUTH_FAILED' || $code === 'service.AUTH_REQUIRED') {
                     Cache::forget(self::TOKEN_CACHE_KEY);
                     throw new ZimbraAuthException($reason);
@@ -284,7 +308,10 @@ class ZimbraSoapClient
         } catch (ZimbraAuthException|ZimbraSoapFaultException $e) {
             throw $e;
         } catch (\Throwable $e) {
-            Log::warning('zimbra.fault.parse_failed', ['error' => $e->getMessage()]);
+            Log::warning('zimbra.fault.parse_failed', [
+                'error' => $e->getMessage(),
+                'raw' => mb_substr($body, 0, 2000),
+            ]);
         }
         throw new ZimbraSoapFaultException('Zimbra SOAP request failed.');
     }

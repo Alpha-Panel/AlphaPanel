@@ -401,6 +401,14 @@
                                     >
                                         <i class="fa-solid fa-gears text-xs"></i>
                                     </Link>
+                                    <Link
+                                        v-if="subdomainMailManaged(subdomain)"
+                                        :href="route('mail.domain', subdomain.id)"
+                                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/3"
+                                        v-tooltip="t('Mail')"
+                                    >
+                                        <i class="bx bx-envelope text-xs"></i>
+                                    </Link>
                                     <button
                                         type="button"
                                         @click="deleteDomain(subdomain.id, true, subdomain.fqdn)"
@@ -438,6 +446,22 @@
                                 <Link :href="route('domains.edit', subdomain.id)" class="quick-link">
                                     <i class="fa-solid fa-gears quick-link-icon"></i>
                                     <span class="quick-link-label">{{ t('Vhost Settings') }}</span>
+                                    <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                                </Link>
+
+                                <Link
+                                    v-if="subdomainMailManaged(subdomain)"
+                                    :href="route('mail.domain', subdomain.id)"
+                                    class="quick-link"
+                                >
+                                    <i class="bx bx-envelope quick-link-icon"></i>
+                                    <span class="quick-link-label">{{ t('Mail') }}</span>
+                                    <span
+                                        class="ml-auto mr-2 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                        :class="subdomainMailBadgeClass(subdomain)"
+                                    >
+                                        {{ subdomainMailLabel(subdomain) }}
+                                    </span>
                                     <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                                 </Link>
                             </div>
@@ -863,6 +887,23 @@ const mailFeatureEnabled = computed(() => {
 const mailManaged = computed(
     () => (mailHosting.value === 'local' || mailHosting.value === 'zimbra') && mailFeatureEnabled.value,
 );
+const subdomainMailManaged = (sub: Record<string, any>): boolean => {
+    const h = sub?.mail_hosting;
+    if (h === 'local') return !!mailFeaturesPage.props.features?.mailu;
+    if (h === 'zimbra') return !!mailFeaturesPage.props.features?.zimbra;
+    return false;
+};
+const subdomainMailLabel = (sub: Record<string, any>): string => {
+    const map: Record<string, string> = { local: 'Mailu', zimbra: 'Zimbra' };
+    return map[sub?.mail_hosting] ?? '';
+};
+const subdomainMailBadgeClass = (sub: Record<string, any>): string => {
+    const map: Record<string, string> = {
+        local: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+        zimbra: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+    };
+    return map[sub?.mail_hosting] ?? 'bg-gray-100 text-gray-700';
+};
 const mailProviderLabel = computed(() => {
     return {
         local: 'Mailu',
