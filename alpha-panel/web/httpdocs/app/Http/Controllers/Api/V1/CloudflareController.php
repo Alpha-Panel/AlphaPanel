@@ -96,7 +96,7 @@ class CloudflareController extends ApiController
 
         $domain->update(['dns_provider' => $exists ? 'cloudflare' : 'local']);
 
-        AuditLog::create(['user_id' => $request->user()->id, 'action' => 'cloudflare_sync', 'domain_id' => $domain->id, 'summary' => $fqdn, 'ip_address' => $request->ip()]);
+        AuditLog::create(['user_id' => $request->user()->id, 'action' => 'cloudflare_sync', 'domain_id' => $domain->id, 'summary' => $fqdn]);
 
         return response()->json(['message' => $created ? __('Domain added to Cloudflare successfully.') : __('Cloudflare status synchronized.'), 'data' => $zone]);
     }
@@ -119,7 +119,7 @@ class CloudflareController extends ApiController
 
         $this->cloudflare->purgeZoneCache($zone['zone_id']);
 
-        AuditLog::create(['user_id' => $request->user()->id, 'action' => 'cloudflare_cache_purged', 'domain_id' => $domain->id, 'summary' => $domain->fqdn, 'ip_address' => $request->ip()]);
+        AuditLog::create(['user_id' => $request->user()->id, 'action' => 'cloudflare_cache_purged', 'domain_id' => $domain->id, 'summary' => $domain->fqdn]);
 
         return response()->json(['message' => __('Cache purged.')]);
     }

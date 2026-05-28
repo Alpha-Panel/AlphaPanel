@@ -19,7 +19,7 @@ class PhpVersionController extends ApiController
     public function toggle(Request $request, PhpVersion $version, PhpFpmSupervisorService $service): JsonResponse
     {
         $version->update(['is_enabled' => ! $version->is_enabled]);
-        AuditLog::create(['user_id' => $request->user()->id, 'action' => $version->is_enabled ? 'php_version_enabled' : 'php_version_disabled', 'summary' => "PHP {$version->slug}", 'ip_address' => $request->ip()]);
+        AuditLog::create(['user_id' => $request->user()->id, 'action' => $version->is_enabled ? 'php_version_enabled' : 'php_version_disabled', 'summary' => "PHP {$version->slug}"]);
 
         return response()->json(['data' => ['is_enabled' => $version->fresh()->is_enabled]]);
     }
@@ -39,7 +39,7 @@ class PhpVersionController extends ApiController
         try {
             $path = $service->frankenPhpIniPath();
             file_put_contents($path, $request->input('content'));
-            AuditLog::create(['user_id' => $request->user()->id, 'action' => 'frankenphp_ini_updated', 'summary' => 'FrankenPHP php.ini updated', 'ip_address' => $request->ip()]);
+            AuditLog::create(['user_id' => $request->user()->id, 'action' => 'frankenphp_ini_updated', 'summary' => 'FrankenPHP php.ini updated']);
 
             return response()->json(['message' => __('php.ini updated.')]);
         } catch (\Throwable $e) {
@@ -69,7 +69,7 @@ class PhpVersionController extends ApiController
                 $service->restartFpm($version);
             }
 
-            AuditLog::create(['user_id' => $request->user()->id, 'action' => 'php_ini_updated', 'summary' => "PHP {$version->slug} php.ini updated", 'ip_address' => $request->ip()]);
+            AuditLog::create(['user_id' => $request->user()->id, 'action' => 'php_ini_updated', 'summary' => "PHP {$version->slug} php.ini updated"]);
 
             return response()->json(['message' => __('php.ini updated.')]);
         } catch (\Throwable $e) {

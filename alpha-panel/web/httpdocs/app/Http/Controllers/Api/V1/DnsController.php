@@ -30,7 +30,6 @@ class DnsController extends ApiController
             'action' => 'dns_record_created',
             'domain_id' => $domain->id,
             'summary' => "{$request->input('type')} {$request->input('name')}",
-            'ip_address' => $request->ip(),
         ]);
 
         return response()->json(['data' => $record], 201);
@@ -47,7 +46,6 @@ class DnsController extends ApiController
             'action' => 'dns_record_deleted',
             'domain_id' => $domain->id,
             'summary' => "record #{$request->input('record_id')}",
-            'ip_address' => $request->ip(),
         ]);
 
         return response()->noContent();

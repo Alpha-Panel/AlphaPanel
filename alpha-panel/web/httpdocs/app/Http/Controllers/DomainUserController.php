@@ -71,8 +71,6 @@ class DomainUserController extends Controller
             'action' => 'domain_user_added',
             'domain_id' => $domain->id,
             'summary' => "{$user->name} ({$user->email}) added to {$domain->fqdn}",
-            'ip_address' => $request->ip(),
-            'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
         ]);
 
         return response()->json([
@@ -97,8 +95,6 @@ class DomainUserController extends Controller
             'action' => 'domain_user_removed',
             'domain_id' => $domain->id,
             'summary' => "{$user->name} ({$user->email}) removed from {$domain->fqdn}",
-            'ip_address' => $request->ip(),
-            'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
         ]);
 
         return response()->json([

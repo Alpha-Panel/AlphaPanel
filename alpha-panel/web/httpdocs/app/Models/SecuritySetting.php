@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 
 class SecuritySetting extends Model
 {
@@ -32,6 +33,25 @@ class SecuritySetting extends Model
     public static function instance(): self
     {
         return self::firstOrCreate([]);
+    }
+
+    /**
+     * Safe variant for bootstrap-time callers that may run before the
+     * security_settings table exists (e.g. AppServiceProvider::boot()
+     * during the first `migrate` run) OR when the DB connection itself
+     * is unavailable (e.g. CLI commands run without MySQL up).
+     */
+    public static function tryInstance(): ?self
+    {
+        try {
+            if (! Schema::hasTable((new self)->getTable())) {
+                return null;
+            }
+
+            return self::instance();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function isIpFilterActive(): bool

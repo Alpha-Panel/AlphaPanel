@@ -73,7 +73,7 @@ class BackupController extends ApiController
 
         BackupUploadJob::dispatch(backupRunId: $run->id);
 
-        AuditLog::create(['user_id' => $request->user()->id, 'action' => 'backup_upload_started', 'summary' => 'API: Manual backup triggered', 'ip_address' => $request->ip()]);
+        AuditLog::create(['user_id' => $request->user()->id, 'action' => 'backup_upload_started', 'summary' => 'API: Manual backup triggered']);
 
         return response()->json(['data' => $run], 201);
     }

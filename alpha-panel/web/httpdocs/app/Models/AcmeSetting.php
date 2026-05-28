@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 
 class AcmeSetting extends Model
 {
@@ -63,6 +64,25 @@ class AcmeSetting extends Model
     public static function instance(): self
     {
         return self::firstOrCreate([]);
+    }
+
+    /**
+     * Safe variant of instance() for bootstrap-time callers that may run
+     * before migrations have created the underlying table OR when the DB
+     * connection itself is unreachable. Returns null instead of throwing
+     * so the caller can fall back to defaults.
+     */
+    public static function tryInstance(): ?self
+    {
+        try {
+            if (! Schema::hasTable((new self)->getTable())) {
+                return null;
+            }
+
+            return self::instance();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**

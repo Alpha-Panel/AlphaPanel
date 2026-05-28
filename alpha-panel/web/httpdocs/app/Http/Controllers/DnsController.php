@@ -11,6 +11,7 @@ use App\Services\CloudflareDnsService;
 use App\Services\LocalDnsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -491,8 +492,16 @@ class DnsController extends Controller
                 'ttl' => $recordData['ttl'] ?? 1,
                 'priority' => $recordData['priority'] ?? null,
             ]);
-        } catch (\Throwable) {
-            // Best-effort: CF zone may not exist or API may be down
+        } catch (\Throwable $e) {
+            // Best-effort: CF zone may not exist or API may be down — keep
+            // the primary write that succeeded against the local provider,
+            // but surface the secondary failure so operators can investigate.
+            Log::info('Best-effort CF record sync skipped', [
+                'domain' => $domain->fqdn,
+                'record_type' => $recordData['type'] ?? null,
+                'record_name' => $recordData['name'] ?? null,
+                'exception' => $e,
+            ]);
         }
     }
 
@@ -536,8 +545,15 @@ class DnsController extends Controller
                 'ttl' => (int) ($data['ttl'] ?? 3600),
                 'priority' => isset($data['priority']) ? (int) $data['priority'] : null,
             ]);
-        } catch (\Throwable) {
-            // Best-effort: local zone may not exist
+        } catch (\Throwable $e) {
+            // Best-effort: local zone may not exist — primary write was via
+            // Cloudflare, keep the operation green but record the divergence.
+            Log::info('Best-effort local DNS sync skipped', [
+                'domain' => $domain->fqdn,
+                'record_type' => $type,
+                'record_name' => $name,
+                'exception' => $e,
+            ]);
         }
     }
 
@@ -641,8 +657,6 @@ class DnsController extends Controller
             'action' => $action,
             'domain_id' => $domain->id,
             'summary' => $this->buildAuditSummary($oldState, $newState),
-            'ip_address' => $request->ip(),
-            'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
         ]);
     }
 

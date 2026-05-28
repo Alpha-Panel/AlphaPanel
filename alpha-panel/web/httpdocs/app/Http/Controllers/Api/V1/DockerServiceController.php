@@ -22,7 +22,7 @@ class DockerServiceController extends ApiController
     public function store(StoreDockerServiceRequest $request, DockerServiceManager $manager): JsonResponse
     {
         $service = $manager->create($request->validated());
-        AuditLog::create(['user_id' => $request->user()->id, 'action' => 'docker_service_created', 'summary' => $service->name, 'ip_address' => $request->ip()]);
+        AuditLog::create(['user_id' => $request->user()->id, 'action' => 'docker_service_created', 'summary' => $service->name]);
 
         return response()->json(['data' => $service], 201);
     }
@@ -42,7 +42,7 @@ class DockerServiceController extends ApiController
     public function destroy(Request $request, DockerService $service, DockerServiceManager $manager): Response
     {
         $manager->delete($service);
-        AuditLog::create(['user_id' => $request->user()->id, 'action' => 'docker_service_deleted', 'summary' => $service->name, 'ip_address' => $request->ip()]);
+        AuditLog::create(['user_id' => $request->user()->id, 'action' => 'docker_service_deleted', 'summary' => $service->name]);
 
         return response()->noContent();
     }
@@ -51,7 +51,7 @@ class DockerServiceController extends ApiController
     {
         $validated = $request->validate(['action' => 'required|string|in:start,stop,restart,pull']);
         $result = $manager->performAction($service, $validated['action']);
-        AuditLog::create(['user_id' => $request->user()->id, 'action' => "docker_service_{$validated['action']}", 'summary' => $service->name, 'ip_address' => $request->ip()]);
+        AuditLog::create(['user_id' => $request->user()->id, 'action' => "docker_service_{$validated['action']}", 'summary' => $service->name]);
 
         return response()->json(['data' => $result]);
     }

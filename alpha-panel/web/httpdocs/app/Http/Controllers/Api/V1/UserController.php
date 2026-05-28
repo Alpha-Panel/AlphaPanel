@@ -33,7 +33,7 @@ class UserController extends ApiController
         $validated['password'] = Hash::make($validated['password']);
         $user = User::create($validated);
 
-        AuditLog::create(['user_id' => $request->user()->id, 'action' => 'user_created', 'summary' => $user->email, 'ip_address' => $request->ip()]);
+        AuditLog::create(['user_id' => $request->user()->id, 'action' => 'user_created', 'summary' => $user->email]);
 
         return response()->json(['data' => $user], 201);
     }

@@ -27,7 +27,7 @@ class CronJobController extends ApiController
         $validated = $request->validate($this->rules($request));
         $job = $domain->cronJobs()->create([...$validated, 'created_by' => $request->user()->id]);
 
-        AuditLog::create(['user_id' => $request->user()->id, 'action' => 'cron_job_created', 'domain_id' => $domain->id, 'summary' => "{$job->schedule} {$job->command}", 'ip_address' => $request->ip()]);
+        AuditLog::create(['user_id' => $request->user()->id, 'action' => 'cron_job_created', 'domain_id' => $domain->id, 'summary' => "{$job->schedule} {$job->command}"]);
 
         return response()->json(['data' => $job->fresh(['latestLog', 'creator'])], 201);
     }
@@ -40,7 +40,7 @@ class CronJobController extends ApiController
         $validated = $request->validate($this->rules($request));
         $job->update($validated);
 
-        AuditLog::create(['user_id' => $request->user()->id, 'action' => 'cron_job_updated', 'domain_id' => $domain->id, 'summary' => "{$job->schedule} {$job->command}", 'ip_address' => $request->ip()]);
+        AuditLog::create(['user_id' => $request->user()->id, 'action' => 'cron_job_updated', 'domain_id' => $domain->id, 'summary' => "{$job->schedule} {$job->command}"]);
 
         return response()->json(['data' => $job->fresh()]);
     }
@@ -51,7 +51,7 @@ class CronJobController extends ApiController
         $this->ensureCanModify($request, $job);
 
         $job->delete();
-        AuditLog::create(['user_id' => $request->user()->id, 'action' => 'cron_job_deleted', 'domain_id' => $domain->id, 'summary' => "{$job->schedule} {$job->command}", 'ip_address' => $request->ip()]);
+        AuditLog::create(['user_id' => $request->user()->id, 'action' => 'cron_job_deleted', 'domain_id' => $domain->id, 'summary' => "{$job->schedule} {$job->command}"]);
 
         return response()->noContent();
     }
@@ -62,7 +62,7 @@ class CronJobController extends ApiController
         $this->ensureCanModify($request, $job);
 
         $job->update(['enabled' => ! $job->enabled]);
-        AuditLog::create(['user_id' => $request->user()->id, 'action' => $job->enabled ? 'cron_job_enabled' : 'cron_job_disabled', 'domain_id' => $domain->id, 'summary' => "{$job->schedule} {$job->command}", 'ip_address' => $request->ip()]);
+        AuditLog::create(['user_id' => $request->user()->id, 'action' => $job->enabled ? 'cron_job_enabled' : 'cron_job_disabled', 'domain_id' => $domain->id, 'summary' => "{$job->schedule} {$job->command}"]);
 
         return response()->json(['data' => ['enabled' => $job->enabled]]);
     }

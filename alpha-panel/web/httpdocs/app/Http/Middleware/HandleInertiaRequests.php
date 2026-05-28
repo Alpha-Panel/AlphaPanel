@@ -13,11 +13,6 @@ use Inertia\Middleware;
 class HandleInertiaRequests extends Middleware
 {
     /**
-     * @var array<string, array<string, string>>
-     */
-    private static array $translationCache = [];
-
-    /**
      * The root template that's loaded on the first page visit.
      *
      * @var string
@@ -141,25 +136,31 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
+     * Load locale translations with file-mtime-based cache invalidation.
+     *
+     * The cache key includes the JSON file's modification time, so editing a
+     * lang/*.json file produces a new key and naturally invalidates the
+     * previous entry. This keeps per-request reads off the disk while
+     * remaining safe under Octane (no static class state that leaks between
+     * requests handled by the same worker).
+     *
      * @return array<string, string>
      */
     private function loadLocaleTranslations(string $locale): array
     {
-        if (isset(self::$translationCache[$locale])) {
-            return self::$translationCache[$locale];
-        }
-
         $path = lang_path("{$locale}.json");
 
         if (! File::exists($path)) {
-            self::$translationCache[$locale] = [];
-
-            return self::$translationCache[$locale];
+            return [];
         }
 
-        $decoded = json_decode((string) File::get($path), true);
-        self::$translationCache[$locale] = is_array($decoded) ? $decoded : [];
+        $mtime = File::lastModified($path);
+        $cacheKey = "inertia:translations:{$locale}:{$mtime}";
 
-        return self::$translationCache[$locale];
+        return Cache::rememberForever($cacheKey, function () use ($path): array {
+            $decoded = json_decode((string) File::get($path), true);
+
+            return is_array($decoded) ? $decoded : [];
+        });
     }
 }

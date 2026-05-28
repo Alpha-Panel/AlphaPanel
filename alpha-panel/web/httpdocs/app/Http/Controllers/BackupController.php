@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Events\BackupProgress;
+use App\Helpers\Filesystem;
 use App\Jobs\BackupUploadJob;
 use App\Models\AuditLog;
 use App\Models\BackupRun;
@@ -11,6 +12,7 @@ use App\Services\GoogleDriveService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -102,8 +104,14 @@ class BackupController extends Controller
         try {
             $tokenData = $drive->exchangeCode($code);
         } catch (\Throwable $e) {
+            $errorId = (string) Str::uuid();
+            Log::error('Google OAuth token exchange failed', [
+                'error_id' => $errorId,
+                'exception' => $e,
+            ]);
+
             return redirect()->route('backups.index')
-                ->with('error', __('Failed to exchange authorization code: :message', ['message' => $e->getMessage()]));
+                ->with('error', __('Failed to exchange authorization code. Reference ID: :id', ['id' => $errorId]));
         }
 
         $settings = BackupSetting::instance();
@@ -178,7 +186,17 @@ class BackupController extends Controller
 
             return response()->json(['folders' => $folders]);
         } catch (\Throwable $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            $errorId = (string) Str::uuid();
+            Log::error('Google Drive folder listing failed', [
+                'error_id' => $errorId,
+                'parent_id' => $parentId ?? null,
+                'exception' => $e,
+            ]);
+
+            return response()->json([
+                'error' => __('Failed to list folders. Reference ID: :id', ['id' => $errorId]),
+                'error_id' => $errorId,
+            ], 500);
         }
     }
 
@@ -214,7 +232,18 @@ class BackupController extends Controller
 
             return response()->json($folder);
         } catch (\Throwable $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            $errorId = (string) Str::uuid();
+            Log::error('Google Drive folder create failed', [
+                'error_id' => $errorId,
+                'name' => $validated['name'],
+                'parent_id' => $validated['parent_id'] ?? null,
+                'exception' => $e,
+            ]);
+
+            return response()->json([
+                'error' => __('Failed to create folder. Reference ID: :id', ['id' => $errorId]),
+                'error_id' => $errorId,
+            ], 500);
         }
     }
 
@@ -268,9 +297,7 @@ class BackupController extends Controller
 
         // Cleanup temp files if they exist
         $tempBase = config('backup.local_backup_base').'/'.now()->format('d-M-Y');
-        if (is_dir($tempBase)) {
-            $this->cleanupDir($tempBase);
-        }
+        Filesystem::removeDirectoryRecursive($tempBase);
 
         AuditLog::create([
             'user_id' => $request->user()->id,
@@ -334,7 +361,16 @@ class BackupController extends Controller
 
             return response()->json($quota);
         } catch (\Throwable $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            $errorId = (string) Str::uuid();
+            Log::error('Google Drive quota fetch failed', [
+                'error_id' => $errorId,
+                'exception' => $e,
+            ]);
+
+            return response()->json([
+                'error' => __('Failed to fetch Drive quota. Reference ID: :id', ['id' => $errorId]),
+                'error_id' => $errorId,
+            ], 500);
         }
     }
 
@@ -346,7 +382,17 @@ class BackupController extends Controller
 
             return response()->json(['files' => $files]);
         } catch (\Throwable $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            $errorId = (string) Str::uuid();
+            Log::error('Google Drive file listing failed', [
+                'error_id' => $errorId,
+                'parent_id' => $parentId ?? null,
+                'exception' => $e,
+            ]);
+
+            return response()->json([
+                'error' => __('Failed to list files. Reference ID: :id', ['id' => $errorId]),
+                'error_id' => $errorId,
+            ], 500);
         }
     }
 
@@ -373,7 +419,13 @@ class BackupController extends Controller
                 'Cache-Control' => 'no-store, no-cache, must-revalidate',
             ]);
         } catch (\Throwable $e) {
-            abort(500, $e->getMessage());
+            $errorId = (string) Str::uuid();
+            Log::error('Google Drive file download failed', [
+                'error_id' => $errorId,
+                'file_id' => $fileId,
+                'exception' => $e,
+            ]);
+            abort(500, __('File download failed. Reference ID: :id', ['id' => $errorId]));
         }
     }
 
@@ -409,22 +461,5 @@ class BackupController extends Controller
             'last_page' => $runs->lastPage(),
             'total' => $runs->total(),
         ]);
-    }
-
-    private function cleanupDir(string $dir): void
-    {
-        if (! is_dir($dir)) {
-            return;
-        }
-
-        foreach (glob("{$dir}/*") as $item) {
-            if (is_dir($item)) {
-                $this->cleanupDir($item);
-            } else {
-                @unlink($item);
-            }
-        }
-
-        @rmdir($dir);
     }
 }

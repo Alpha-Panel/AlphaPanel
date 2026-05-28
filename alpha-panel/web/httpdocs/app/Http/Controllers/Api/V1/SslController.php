@@ -33,7 +33,6 @@ class SslController extends ApiController
             'action' => 'ssl_letsencrypt_requested',
             'domain_id' => $domain->id,
             'summary' => $domain->fqdn,
-            'ip_address' => $request->ip(),
         ]);
 
         return response()->json(['data' => $cert], 201);
@@ -50,7 +49,6 @@ class SslController extends ApiController
             'action' => 'ssl_self_signed_generated',
             'domain_id' => $domain->id,
             'summary' => $domain->fqdn,
-            'ip_address' => $request->ip(),
         ]);
 
         return response()->json(['data' => $cert], 201);
@@ -111,7 +109,6 @@ class SslController extends ApiController
             'action' => 'ssl_activated',
             'domain_id' => $domain->id,
             'summary' => "cert #{$cert->id} for {$domain->fqdn}",
-            'ip_address' => $request->ip(),
         ]);
 
         return response()->json(['data' => $domain->fresh('activeSslCertificate')]);

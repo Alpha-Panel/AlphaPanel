@@ -806,8 +806,6 @@ class DomainCloudflareController extends Controller
                 $this->encodeAuditState($oldState),
                 $this->encodeAuditState($newState),
             ),
-            'ip_address' => $request->ip(),
-            'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
         ]);
     }
 

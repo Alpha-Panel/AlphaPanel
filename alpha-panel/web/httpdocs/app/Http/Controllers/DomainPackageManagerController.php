@@ -408,8 +408,6 @@ SH;
             'action' => $action,
             'domain_id' => $domain->id,
             'summary' => $summary,
-            'ip_address' => $request->ip(),
-            'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
         ]);
     }
 }

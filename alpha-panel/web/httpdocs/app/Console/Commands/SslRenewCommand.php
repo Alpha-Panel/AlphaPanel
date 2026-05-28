@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Jobs\SslActivateJob;
 use App\Models\AcmeSetting;
 use App\Models\SslCertificate;
+use App\Services\PortainerService;
 use Illuminate\Console\Command;
 
 class SslRenewCommand extends Command
@@ -17,29 +18,22 @@ class SslRenewCommand extends Command
 
     public function handle(): int
     {
-        $renewDays = 30;
-
-        try {
-            $renewDays = AcmeSetting::instance()->auto_renew_days ?: 30;
-        } catch (\Throwable) {
-            // Table may not exist yet
-        }
+        $renewDays = AcmeSetting::tryInstance()?->auto_renew_days ?: 30;
 
         $query = SslCertificate::query()
-            ->where('auto_renew', true)
-            ->whereNotNull('certificate_pem')
-            ->whereNotNull('not_after')
-            ->whereHas('domain', fn ($q) => $q->where('status', 'active'));
+            ->select('ssl_certificates.*')
+            ->join('domains', 'domains.id', '=', 'ssl_certificates.domain_id')
+            ->where('ssl_certificates.auto_renew', true)
+            ->whereNotNull('ssl_certificates.certificate_pem')
+            ->whereNotNull('ssl_certificates.not_after')
+            ->where('domains.status', 'active')
+            ->whereColumn('ssl_certificates.id', 'domains.active_ssl_certificate_id');
 
         if (! $this->option('force')) {
-            $query->where('not_after', '<=', now()->addDays($renewDays));
+            $query->where('ssl_certificates.not_after', '<=', now()->addDays($renewDays));
         }
 
-        // Only get the active certificate per domain (the one pointed to by active_ssl_certificate_id)
-        $certificates = $query->get()->filter(function (SslCertificate $cert) {
-            return $cert->domain
-                && $cert->domain->active_ssl_certificate_id === $cert->id;
-        });
+        $certificates = $query->with('domain')->get();
 
         if ($certificates->isEmpty()) {
             $this->info('No certificates need renewal.');
@@ -102,7 +96,7 @@ class SslRenewCommand extends Command
         }
 
         try {
-            $portainer = app(\App\Services\PortainerService::class);
+            $portainer = app(PortainerService::class);
             $portainer->restartContainer('mailu-front');
             $this->info('  Mailu front restarted to pick up renewed cert.');
         } catch (\Throwable $e) {

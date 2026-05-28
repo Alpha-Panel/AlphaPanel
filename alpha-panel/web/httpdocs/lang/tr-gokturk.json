@@ -1,4 +1,6 @@
 {
+  "Mail hosting is disabled for this domain. Re-enable the provider in panel settings or change the domain's mail hosting mode.": "𐰉𐰆 𐰑𐰆𐰢𐰀𐰃𐰤 𐰇𐰲𐰇𐰣 𐰖𐰺𐰞𐰍 𐰸𐰆𐰣𐰍𐰃 𐰾𐰇𐰣𐰓𐰇𐰼𐰇𐰠𐰢𐰇𐱁. 𐰋𐰼𐰗𐰇𐰲𐰤𐰃 𐰯𐰀𐰣𐰅𐰠 𐱅𐰇𐰕𐰇𐰢𐰠𐰼𐰃𐰤𐰓𐰅𐰤 𐰸𐰀𐰖𐱃𐰀 𐰀𐰲 𐰖𐰀 𐰑𐰀 𐰑𐰆𐰢𐰀𐰃𐰤 𐰖𐰺𐰞𐰍 𐰸𐰆𐰣𐰍𐰃 𐰚𐰃𐰯𐰃𐰣𐰃 𐱃𐰇𐰔𐰁𐱃.",
+  "Mail hosting is disabled for this domain.": "𐰉𐰆 𐰑𐰆𐰢𐰀𐰃𐰤 𐰇𐰲𐰇𐰣 𐰖𐰺𐰞𐰍 𐰸𐰆𐰣𐰍𐰃 𐰾𐰇𐰣𐰓𐰇𐰼𐰇𐰠𐰢𐰇𐱁.",
   "\":name\" will be removed and can no longer be used to sign in.": "\":name\" 𐰆𐰕 𐰉𐰆𐰠𐰍𐰣𐰓𐰀 𐰍𐰃𐰼𐰢𐰚𐰚𐰀 𐰸𐰆𐰍𐰣𐰢𐰍𐰣 𐰉𐰆𐰠𐰍𐰣 𐰢𐰕.",
   "(leave blank to keep)": "(𐰾𐰀𐰸𐰞𐰀𐰢𐰀𐰚 𐰇𐰲𐰇𐰤 𐰉𐰆𐱁 𐰸𐰀𐰞)",
   "*/main": "*/𐰢𐰀𐰃𐰤",
@@ -1978,6 +1980,7 @@
   "Outbound Relay": "𐰲𐰃𐰸𐰃𐱁𐰞𐰃 𐰆𐰞𐰀𐱁𐱃𐰆𐰺",
   "Zimbra": "𐰕𐰢𐰉𐰺𐰀",
   "Mailu": "𐰢𐰀𐰃𐰞𐰆",
+  "Mailu is disabled": "𐰢𐰀𐰃𐰞𐰆 𐰾𐰇𐰣𐰓𐰇𐰼𐰇𐰠𐰢𐰇𐱁",
   "Disabled (no mail)": "𐰾𐰇𐰣𐰓𐰇𐰼𐰇𐰠𐰢𐰇𐱁 (𐰖𐰺𐰞𐰍 𐰖𐰸)",
   "Local (Mailu)": "𐰃𐰲𐰼𐰚𐰃 (𐰢𐰀𐰃𐰞𐰆)",
   "Remote MX": "𐰲𐰃𐰸𐰺𐰸 MX",

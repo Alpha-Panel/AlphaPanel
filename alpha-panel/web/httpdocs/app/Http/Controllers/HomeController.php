@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -424,8 +425,11 @@ class HomeController extends Controller
 
             $summary['quota_usage'] = $quota['usage'] ?? null;
             $summary['quota_limit'] = $quota['limit'] ?? null;
-        } catch (\Throwable) {
-            // Quota fetch failed — still show the card with connection info
+        } catch (\Throwable $e) {
+            Log::warning('Dashboard Google Drive quota fetch failed', [
+                'exception' => $e,
+            ]);
+            $summary['quota_error'] = true;
         }
 
         return $summary;

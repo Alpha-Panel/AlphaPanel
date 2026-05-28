@@ -61,10 +61,9 @@ class TwoFactorAuthController extends Controller
         return view('auth.2fa');
     }
 
-    public function confirm(Request $request)
+    public function confirm(Request $request): RedirectResponse
     {
-        $confirmed = $this->confirm_verify($request);
-        if (! $confirmed) {
+        if (! $this->confirmVerify($request)) {
             return back()->withErrors('Invalid Two Factor Authentication code');
         }
 
@@ -95,8 +94,7 @@ class TwoFactorAuthController extends Controller
             }
         }
 
-        $confirmed = $this->confirm_verify($request);
-        if (! $confirmed) {
+        if (! $this->confirmVerify($request)) {
             return response()->json(['status' => 'error', 'message' => 'Invalid Two Factor Authentication code']);
         }
         if (session()->has('otp')) {
@@ -107,9 +105,9 @@ class TwoFactorAuthController extends Controller
         return response()->json(['status' => 'success', 'message' => 'Two Factor Authentication code verified']);
     }
 
-    private function confirm_verify($request)
+    private function confirmVerify(Request $request): bool
     {
-        return $request->user()->confirmTwoFactorAuth($request->code);
+        return (bool) $request->user()->confirmTwoFactorAuth($request->code);
     }
 
     public function destroy(Request $request, DisableTwoFactorAuthentication $disable): JsonResponse|RedirectResponse

@@ -2,59 +2,30 @@
 
 namespace App\Services;
 
-use App\Exceptions\PortainerException;
 use App\Models\DockerProject;
 use App\Services\Portainer\ExecResult;
+use App\Services\Portainer\PortainerContainerClient;
+use App\Services\Portainer\PortainerExecClient;
+use App\Services\Portainer\PortainerHttpClient;
+use App\Services\Portainer\PortainerImageClient;
 use App\Services\Portainer\RunResult;
-use GuzzleHttp\Client;
-use Illuminate\Http\Client\PendingRequest;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class PortainerService
 {
-    private string $baseUrl;
+    private PortainerHttpClient $http;
 
-    private string $apiKey;
+    private PortainerImageClient $images;
 
-    private int $endpointId;
+    private PortainerContainerClient $containers;
 
-    private string $dockerSocketProxyUrl;
+    private PortainerExecClient $exec;
 
     public function __construct()
     {
-        $this->baseUrl = rtrim((string) config('panel.portainer_url'), '/');
-        $this->apiKey = (string) config('panel.portainer_api_key');
-        $this->endpointId = (int) config('panel.portainer_endpoint_id', 1);
-        $this->dockerSocketProxyUrl = rtrim((string) config('panel.docker_socket_proxy_url', 'http://docker-socket-proxy:2375'), '/');
-    }
-
-    /**
-     * Build the full Docker API URL proxied through Portainer.
-     */
-    private function dockerApiUrl(string $path): string
-    {
-        return "{$this->baseUrl}/api/endpoints/{$this->endpointId}/docker{$path}";
-    }
-
-    /**
-     * Build a direct Docker API URL via docker-socket-proxy (no Portainer layer).
-     */
-    private function directDockerApiUrl(string $path): string
-    {
-        return "{$this->dockerSocketProxyUrl}{$path}";
-    }
-
-    /**
-     * Get an authenticated HTTP client instance.
-     */
-    private function request(int $timeout = 30): PendingRequest
-    {
-        return Http::withHeaders([
-            'X-API-Key' => $this->apiKey,
-        ])->withOptions([
-            'verify' => false,
-        ])->connectTimeout(5)->timeout($timeout);
+        $this->http = new PortainerHttpClient;
+        $this->images = new PortainerImageClient($this->http);
+        $this->containers = new PortainerContainerClient($this->http, $this->images);
+        $this->exec = new PortainerExecClient($this->http, $this->containers);
     }
 
     /**
@@ -65,20 +36,7 @@ class PortainerService
      */
     public function listContainers(array $filters = [], bool $all = false): array
     {
-        $query = ['all' => $all ? 'true' : 'false'];
-
-        if ($filters) {
-            $query['filters'] = json_encode($filters);
-        }
-
-        $response = $this->request()
-            ->get($this->dockerApiUrl('/containers/json'), $query);
-
-        if (! $response->successful()) {
-            throw new PortainerException("Failed to list containers: {$response->status()} {$response->body()}");
-        }
-
-        return $response->json();
+        return $this->containers->listContainers($filters, $all);
     }
 
     /**
@@ -88,44 +46,7 @@ class PortainerService
      */
     public function findContainerByName(string $name): array
     {
-        $containers = $this->listContainers(
-            filters: ['name' => [$name]],
-            all: false,
-        );
-
-        if (empty($containers)) {
-            throw new PortainerException("Container not found: {$name}");
-        }
-
-        return $containers[0];
-    }
-
-    /**
-     * Resolve a container name to its ID using docker-socket-proxy directly.
-     */
-    private function resolveContainerId(string $containerIdOrName): string
-    {
-        if (preg_match('/^[a-f0-9]{12,64}$/', $containerIdOrName)) {
-            return $containerIdOrName;
-        }
-
-        // Use docker-socket-proxy directly for faster, more reliable resolution
-        $response = Http::connectTimeout(5)->timeout(10)
-            ->get($this->directDockerApiUrl('/containers/json'), [
-                'filters' => json_encode(['name' => [$containerIdOrName]]),
-            ]);
-
-        if ($response->successful()) {
-            $containers = $response->json();
-            if (! empty($containers)) {
-                return $containers[0]['Id'];
-            }
-        }
-
-        // Fallback to Portainer
-        $container = $this->findContainerByName($containerIdOrName);
-
-        return $container['Id'];
+        return $this->containers->findContainerByName($name);
     }
 
     /**
@@ -133,22 +54,7 @@ class PortainerService
      */
     public function startContainer(string $containerIdOrName, int $timeout = 30): bool
     {
-        $containerId = $this->resolveContainerId($containerIdOrName);
-
-        Log::info("Portainer starting container: {$containerIdOrName}");
-
-        $response = $this->request($timeout)
-            ->post($this->dockerApiUrl("/containers/{$containerId}/start"));
-
-        if ($response->successful() || $response->status() === 304) {
-            Log::info("Container {$containerIdOrName} started successfully.");
-
-            return true;
-        }
-
-        Log::error("Failed to start container {$containerIdOrName}: {$response->status()} {$response->body()}");
-
-        return false;
+        return $this->containers->startContainer($containerIdOrName, $timeout);
     }
 
     /**
@@ -156,24 +62,7 @@ class PortainerService
      */
     public function stopContainer(string $containerIdOrName, int $timeout = 30): bool
     {
-        $containerId = $this->resolveContainerId($containerIdOrName);
-
-        Log::info("Portainer stopping container: {$containerIdOrName}");
-
-        $response = $this->request($timeout)
-            ->post($this->dockerApiUrl("/containers/{$containerId}/stop"), [
-                't' => 10,
-            ]);
-
-        if ($response->successful() || $response->status() === 304) {
-            Log::info("Container {$containerIdOrName} stopped successfully.");
-
-            return true;
-        }
-
-        Log::error("Failed to stop container {$containerIdOrName}: {$response->status()} {$response->body()}");
-
-        return false;
+        return $this->containers->stopContainer($containerIdOrName, $timeout);
     }
 
     /**
@@ -181,24 +70,7 @@ class PortainerService
      */
     public function restartContainer(string $containerIdOrName, int $timeout = 30): bool
     {
-        $containerId = $this->resolveContainerId($containerIdOrName);
-
-        Log::info("Portainer restarting container: {$containerIdOrName}");
-
-        $response = $this->request($timeout)
-            ->post($this->dockerApiUrl("/containers/{$containerId}/restart"), [
-                't' => 10,
-            ]);
-
-        if ($response->successful()) {
-            Log::info("Container {$containerIdOrName} restarted successfully.");
-
-            return true;
-        }
-
-        Log::error("Failed to restart container {$containerIdOrName}: {$response->status()} {$response->body()}");
-
-        return false;
+        return $this->containers->restartContainer($containerIdOrName, $timeout);
     }
 
     /**
@@ -208,99 +80,7 @@ class PortainerService
      */
     public function execInContainer(string $containerIdOrName, array $command, int $timeout = 60, ?string $user = null, int $retries = 1): ExecResult
     {
-        $lastException = null;
-
-        for ($attempt = 1; $attempt <= $retries; $attempt++) {
-            try {
-                return $this->doExecInContainer($containerIdOrName, $command, $timeout, $user);
-            } catch (\Throwable $e) {
-                $lastException = $e;
-                if ($attempt < $retries) {
-                    Log::warning("Portainer exec attempt {$attempt}/{$retries} failed for {$containerIdOrName}, retrying in 3s: {$e->getMessage()}");
-                    sleep(3);
-                }
-            }
-        }
-
-        throw $lastException instanceof PortainerException
-            ? $lastException
-            : new PortainerException($lastException->getMessage(), 0, $lastException);
-    }
-
-    /**
-     * Internal exec implementation.
-     *
-     * @param  array<int, string>  $command
-     */
-    private function doExecInContainer(string $containerIdOrName, array $command, int $timeout, ?string $user): ExecResult
-    {
-        $containerId = $this->resolveContainerId($containerIdOrName);
-
-        Log::info("Docker exec in {$containerIdOrName}: ".implode(' ', $command).($user ? " (user: {$user})" : ''));
-
-        $payload = [
-            'AttachStdout' => true,
-            'AttachStderr' => true,
-            'Cmd' => $command,
-            'Env' => ['COLUMNS=220'],
-        ];
-
-        if ($user !== null) {
-            $payload['User'] = $user;
-        }
-
-        // Use docker-socket-proxy directly — bypasses Portainer's streaming proxy
-        // which causes intermittent timeout issues on exec/start.
-        $client = new Client([
-            'connect_timeout' => 10,
-            'timeout' => $timeout,
-        ]);
-
-        $createResponse = $client->post($this->directDockerApiUrl("/containers/{$containerId}/exec"), [
-            'json' => $payload,
-        ]);
-
-        if ($createResponse->getStatusCode() >= 400) {
-            throw new PortainerException("Failed to create exec instance: {$createResponse->getStatusCode()} {$createResponse->getBody()->getContents()}");
-        }
-
-        $execData = json_decode($createResponse->getBody()->getContents(), true);
-        $execId = $execData['Id'] ?? null;
-
-        if (! $execId) {
-            throw new PortainerException('Failed to get exec ID from create response');
-        }
-
-        $startResponse = $client->post($this->directDockerApiUrl("/exec/{$execId}/start"), [
-            'json' => [
-                'Detach' => false,
-                'Tty' => false,
-            ],
-            'timeout' => $timeout,
-        ]);
-
-        if ($startResponse->getStatusCode() >= 400) {
-            throw new PortainerException("Failed to start exec instance: {$startResponse->getStatusCode()}");
-        }
-
-        $rawOutput = $startResponse->getBody()->getContents();
-        $output = $this->demuxDockerStream($rawOutput);
-
-        $inspectResponse = $client->get($this->directDockerApiUrl("/exec/{$execId}/json"), [
-            'timeout' => 10,
-        ]);
-
-        $exitCode = -1;
-        if ($inspectResponse->getStatusCode() < 400) {
-            $inspectData = json_decode($inspectResponse->getBody()->getContents(), true);
-            $exitCode = (int) ($inspectData['ExitCode'] ?? -1);
-        }
-
-        return new ExecResult(
-            exitCode: $exitCode,
-            output: $output['stdout'],
-            errorOutput: $output['stderr'],
-        );
+        return $this->exec->execInContainer($containerIdOrName, $command, $timeout, $user, $retries);
     }
 
     /**
@@ -310,71 +90,7 @@ class PortainerService
      */
     public function createAndRunContainer(array $config, int $timeout = 300): RunResult
     {
-        $image = $config['Image'] ?? 'unknown';
-        Log::info("Portainer creating container from image: {$image}");
-
-        $createResponse = $this->request($timeout)
-            ->post($this->dockerApiUrl('/containers/create'), $config);
-
-        // If image not found locally, attempt to pull it from registry
-        if ($createResponse->status() === 404 && str_contains($createResponse->body(), 'No such image')) {
-            Log::info("Image {$image} not found locally, attempting to pull...");
-
-            $pulled = $this->pullImage(
-                ...array_pad(explode(':', $image, 2), 2, 'latest')
-            );
-
-            if (! $pulled) {
-                throw new PortainerException("Failed to create container: image {$image} not found locally and pull failed");
-            }
-
-            $createResponse = $this->request($timeout)
-                ->post($this->dockerApiUrl('/containers/create'), $config);
-        }
-
-        if (! $createResponse->successful()) {
-            throw new PortainerException("Failed to create container: {$createResponse->status()} {$createResponse->body()}");
-        }
-
-        $containerId = $createResponse->json('Id');
-
-        try {
-            $startResponse = $this->request($timeout)
-                ->post($this->dockerApiUrl("/containers/{$containerId}/start"));
-
-            if (! $startResponse->successful() && $startResponse->status() !== 304) {
-                throw new PortainerException("Failed to start container: {$startResponse->status()} {$startResponse->body()}");
-            }
-
-            $waitResponse = $this->request($timeout)
-                ->post($this->dockerApiUrl("/containers/{$containerId}/wait"));
-
-            $exitCode = $waitResponse->successful()
-                ? (int) $waitResponse->json('StatusCode', -1)
-                : -1;
-
-            $logsResponse = $this->request($timeout)
-                ->get($this->dockerApiUrl("/containers/{$containerId}/logs"), [
-                    'stdout' => 'true',
-                    'stderr' => 'true',
-                ]);
-
-            $output = $logsResponse->successful() ? $logsResponse->body() : '';
-
-            return new RunResult(
-                exitCode: $exitCode,
-                output: $this->stripDockerStreamHeaders($output),
-            );
-        } finally {
-            try {
-                $this->request(10)
-                    ->delete($this->dockerApiUrl("/containers/{$containerId}"), [
-                        'force' => true,
-                    ]);
-            } catch (\Exception $e) {
-                Log::warning("Failed to cleanup container {$containerId}: {$e->getMessage()}");
-            }
-        }
+        return $this->containers->createAndRunContainer($config, $timeout);
     }
 
     /**
@@ -384,19 +100,7 @@ class PortainerService
      */
     public function getContainerStats(string $containerIdOrName): array
     {
-        $containerId = $this->resolveContainerId($containerIdOrName);
-
-        $response = $this->request(10)
-            ->get($this->dockerApiUrl("/containers/{$containerId}/stats"), [
-                'stream' => 'false',
-                'one-shot' => 'true',
-            ]);
-
-        if (! $response->successful()) {
-            throw new PortainerException("Failed to get container stats: {$response->status()}");
-        }
-
-        return $response->json();
+        return $this->containers->getContainerStats($containerIdOrName);
     }
 
     /**
@@ -413,34 +117,7 @@ class PortainerService
         ?string $workingDir = null,
         ?array $env = null,
     ): array {
-        $payload = [
-            'AttachStdin' => true,
-            'AttachStdout' => true,
-            'AttachStderr' => true,
-            'Tty' => true,
-            'Cmd' => $command,
-        ];
-
-        if ($user !== null) {
-            $payload['User'] = $user;
-        }
-
-        if ($workingDir !== null) {
-            $payload['WorkingDir'] = $workingDir;
-        }
-
-        if ($env !== null) {
-            $payload['Env'] = $env;
-        }
-
-        $response = $this->request()
-            ->post($this->dockerApiUrl("/containers/{$containerId}/exec"), $payload);
-
-        if (! $response->successful()) {
-            throw new PortainerException("Failed to create interactive exec: {$response->status()} {$response->body()}");
-        }
-
-        return $response->json();
+        return $this->exec->createInteractiveExec($containerId, $command, $user, $workingDir, $env);
     }
 
     /**
@@ -448,16 +125,7 @@ class PortainerService
      */
     public function getExecWebSocketUrl(string $execId): string
     {
-        $base = rtrim($this->baseUrl, '/');
-        $scheme = str_starts_with($base, 'https') ? 'wss' : 'ws';
-        $host = preg_replace('#^https?://#', '', $base);
-
-        $query = http_build_query([
-            'endpointId' => $this->endpointId,
-            'id' => $execId,
-        ], encoding_type: PHP_QUERY_RFC3986);
-
-        return "{$scheme}://{$host}/api/websocket/exec?{$query}";
+        return $this->exec->getExecWebSocketUrl($execId);
     }
 
     /**
@@ -467,9 +135,7 @@ class PortainerService
      */
     public function getExecWebSocketHeaders(): array
     {
-        return [
-            'X-API-Key' => $this->apiKey,
-        ];
+        return $this->exec->getExecWebSocketHeaders();
     }
 
     /**
@@ -477,20 +143,7 @@ class PortainerService
      */
     public function pullImage(string $image, string $tag = 'latest'): bool
     {
-        Log::info("Portainer pulling image: {$image}:{$tag}");
-
-        $response = $this->request(300)
-            ->post($this->dockerApiUrl("/images/create?fromImage={$image}&tag={$tag}"));
-
-        if ($response->successful()) {
-            Log::info("Image {$image}:{$tag} pulled successfully.");
-
-            return true;
-        }
-
-        Log::error("Failed to pull image {$image}:{$tag}: {$response->status()} {$response->body()}");
-
-        return false;
+        return $this->images->pullImage($image, $tag);
     }
 
     /**
@@ -501,22 +154,7 @@ class PortainerService
      */
     public function createPersistentContainer(array $config, ?string $name = null): string
     {
-        $image = $config['Image'] ?? 'unknown';
-        Log::info("Portainer creating persistent container from image: {$image}".($name ? " (name: {$name})" : ''));
-
-        $url = '/containers/create';
-        if ($name !== null) {
-            $url .= '?name='.urlencode($name);
-        }
-
-        $response = $this->request()
-            ->post($this->dockerApiUrl($url), $config);
-
-        if (! $response->successful()) {
-            throw new PortainerException("Failed to create persistent container: {$response->status()} {$response->body()}");
-        }
-
-        return $response->json('Id');
+        return $this->containers->createPersistentContainer($config, $name);
     }
 
     /**
@@ -524,23 +162,7 @@ class PortainerService
      */
     public function removeContainer(string $containerIdOrName, bool $force = false): bool
     {
-        $containerId = $this->resolveContainerId($containerIdOrName);
-
-        Log::info("Portainer removing container: {$containerIdOrName} (force: ".($force ? 'true' : 'false').')');
-
-        $forceParam = $force ? 'true' : 'false';
-        $response = $this->request()
-            ->delete($this->dockerApiUrl("/containers/{$containerId}?force={$forceParam}&v=true"));
-
-        if ($response->successful() || $response->status() === 404) {
-            Log::info("Container {$containerIdOrName} removed successfully.");
-
-            return true;
-        }
-
-        Log::error("Failed to remove container {$containerIdOrName}: {$response->status()} {$response->body()}");
-
-        return false;
+        return $this->containers->removeContainer($containerIdOrName, $force);
     }
 
     /**
@@ -548,22 +170,7 @@ class PortainerService
      */
     public function getContainerLogs(string $containerIdOrName, int $tail = 200, bool $timestamps = true): string
     {
-        $containerId = $this->resolveContainerId($containerIdOrName);
-
-        $timestampsParam = $timestamps ? 'true' : 'false';
-        $response = $this->request()
-            ->get($this->dockerApiUrl("/containers/{$containerId}/logs"), [
-                'stdout' => 'true',
-                'stderr' => 'true',
-                'tail' => (string) $tail,
-                'timestamps' => $timestampsParam,
-            ]);
-
-        if (! $response->successful()) {
-            throw new PortainerException("Failed to get container logs: {$response->status()} {$response->body()}");
-        }
-
-        return $this->stripDockerStreamHeaders($response->body());
+        return $this->containers->getContainerLogs($containerIdOrName, $tail, $timestamps);
     }
 
     /**
@@ -573,16 +180,7 @@ class PortainerService
      */
     public function inspectContainer(string $containerIdOrName): array
     {
-        $containerId = $this->resolveContainerId($containerIdOrName);
-
-        $response = $this->request()
-            ->get($this->dockerApiUrl("/containers/{$containerId}/json"));
-
-        if (! $response->successful()) {
-            throw new PortainerException("Failed to inspect container: {$response->status()} {$response->body()}");
-        }
-
-        return $response->json();
+        return $this->containers->inspectContainer($containerIdOrName);
     }
 
     /**
@@ -592,14 +190,7 @@ class PortainerService
      */
     public function inspectImage(string $image): array
     {
-        $response = $this->request()
-            ->get($this->dockerApiUrl("/images/{$image}/json"));
-
-        if (! $response->successful()) {
-            throw new PortainerException("Failed to inspect image {$image}: {$response->status()} {$response->body()}");
-        }
-
-        return $response->json();
+        return $this->images->inspectImage($image);
     }
 
     /**
@@ -607,30 +198,7 @@ class PortainerService
      */
     public function connectNetwork(string $containerId, string $networkName): bool
     {
-        Log::info("Portainer connecting container {$containerId} to network: {$networkName}");
-
-        $response = $this->request()
-            ->post($this->dockerApiUrl("/networks/{$networkName}/connect"), [
-                'Container' => $containerId,
-            ]);
-
-        if ($response->successful()) {
-            Log::info("Container {$containerId} connected to network {$networkName} successfully.");
-
-            return true;
-        }
-
-        Log::error("Failed to connect container {$containerId} to network {$networkName}: {$response->status()} {$response->body()}");
-
-        return false;
-    }
-
-    /**
-     * Build the Portainer management API URL (not the Docker passthrough).
-     */
-    private function portainerApiUrl(string $path): string
-    {
-        return "{$this->baseUrl}{$path}";
+        return $this->containers->connectNetwork($containerId, $networkName);
     }
 
     /**
@@ -640,22 +208,7 @@ class PortainerService
      */
     public function createStack(string $name, string $composeContent): array
     {
-        Log::info("Portainer creating stack: {$name}");
-
-        $response = $this->request(300)
-            ->post($this->portainerApiUrl("/api/stacks/create/standalone/string?endpointId={$this->endpointId}"), [
-                'Name' => $name,
-                'StackFileContent' => $composeContent,
-                'Env' => [],
-            ]);
-
-        if (! $response->successful()) {
-            throw new PortainerException("Failed to create stack {$name}: {$response->status()} {$response->body()}");
-        }
-
-        Log::info("Stack {$name} created successfully.");
-
-        return $response->json();
+        return $this->containers->createStack($name, $composeContent);
     }
 
     /**
@@ -665,21 +218,7 @@ class PortainerService
      */
     public function updateStack(int $stackId, string $composeContent): array
     {
-        Log::info("Portainer updating stack ID: {$stackId}");
-
-        $response = $this->request(300)
-            ->put($this->portainerApiUrl("/api/stacks/{$stackId}?endpointId={$this->endpointId}"), [
-                'StackFileContent' => $composeContent,
-                'Env' => [],
-                'Prune' => false,
-                'PullImage' => true,
-            ]);
-
-        if (! $response->successful()) {
-            throw new PortainerException("Failed to update stack {$stackId}: {$response->status()} {$response->body()}");
-        }
-
-        return $response->json();
+        return $this->containers->updateStack($stackId, $composeContent);
     }
 
     /**
@@ -687,16 +226,7 @@ class PortainerService
      */
     public function removeStack(int $stackId): void
     {
-        Log::info("Portainer removing stack ID: {$stackId}");
-
-        $response = $this->request(120)
-            ->delete($this->portainerApiUrl("/api/stacks/{$stackId}?endpointId={$this->endpointId}"));
-
-        if (! $response->successful() && $response->status() !== 404) {
-            throw new PortainerException("Failed to remove stack {$stackId}: {$response->status()} {$response->body()}");
-        }
-
-        Log::info("Stack {$stackId} removed successfully.");
+        $this->containers->removeStack($stackId);
     }
 
     /**
@@ -704,14 +234,7 @@ class PortainerService
      */
     public function startStack(int $stackId): void
     {
-        Log::info("Portainer starting stack ID: {$stackId}");
-
-        $response = $this->request(120)
-            ->post($this->portainerApiUrl("/api/stacks/{$stackId}/start?endpointId={$this->endpointId}"));
-
-        if (! $response->successful()) {
-            throw new PortainerException("Failed to start stack {$stackId}: {$response->status()} {$response->body()}");
-        }
+        $this->containers->startStack($stackId);
     }
 
     /**
@@ -719,14 +242,7 @@ class PortainerService
      */
     public function stopStack(int $stackId): void
     {
-        Log::info("Portainer stopping stack ID: {$stackId}");
-
-        $response = $this->request(120)
-            ->post($this->portainerApiUrl("/api/stacks/{$stackId}/stop?endpointId={$this->endpointId}"));
-
-        if (! $response->successful()) {
-            throw new PortainerException("Failed to stop stack {$stackId}: {$response->status()} {$response->body()}");
-        }
+        $this->containers->stopStack($stackId);
     }
 
     /**
@@ -736,10 +252,7 @@ class PortainerService
      */
     public function listContainersByProject(string $projectName): array
     {
-        return $this->listContainers(
-            filters: ['label' => ["com.docker.compose.project={$projectName}"]],
-            all: true,
-        );
+        return $this->containers->listContainersByProject($projectName);
     }
 
     /**
@@ -747,74 +260,7 @@ class PortainerService
      */
     public function connectProjectContainersToNetwork(string $projectName, string $network = 'vhost_network'): void
     {
-        $containers = $this->listContainersByProject($projectName);
-
-        foreach ($containers as $container) {
-            $id = $container['Id'] ?? '';
-            if (! $id) {
-                continue;
-            }
-
-            try {
-                $this->connectNetwork($id, $network);
-            } catch (\Exception $e) {
-                $names = implode(', ', $container['Names'] ?? [$id]);
-                Log::warning("Failed to connect container {$names} to {$network}: {$e->getMessage()}");
-            }
-        }
-    }
-
-    /**
-     * Demultiplex Docker stream output into stdout and stderr.
-     *
-     * Docker stream format: 8-byte header per frame
-     * - Byte 0: stream type (0=stdin, 1=stdout, 2=stderr)
-     * - Bytes 1-3: padding
-     * - Bytes 4-7: frame size (big-endian uint32)
-     *
-     * @return array{stdout: string, stderr: string}
-     */
-    private function demuxDockerStream(string $raw): array
-    {
-        $stdout = '';
-        $stderr = '';
-        $offset = 0;
-        $length = strlen($raw);
-
-        while ($offset < $length) {
-            if ($offset + 8 > $length) {
-                $stdout .= substr($raw, $offset);
-                break;
-            }
-
-            $header = unpack('Ctype/x3/Nsize', substr($raw, $offset, 8));
-
-            if ($header === false || $offset + 8 + $header['size'] > $length) {
-                $stdout .= substr($raw, $offset);
-                break;
-            }
-
-            $frame = substr($raw, $offset + 8, $header['size']);
-            $offset += 8 + $header['size'];
-
-            match ($header['type']) {
-                1 => $stdout .= $frame,
-                2 => $stderr .= $frame,
-                default => $stdout .= $frame,
-            };
-        }
-
-        return ['stdout' => $stdout, 'stderr' => $stderr];
-    }
-
-    /**
-     * Strip Docker stream headers from log output (simplified).
-     */
-    private function stripDockerStreamHeaders(string $raw): string
-    {
-        $result = $this->demuxDockerStream($raw);
-
-        return $result['stdout'].$result['stderr'];
+        $this->containers->connectProjectContainersToNetwork($projectName, $network);
     }
 
     /**
@@ -826,69 +272,6 @@ class PortainerService
      */
     public function buildImage(DockerProject $project, ?callable $onProgress = null): void
     {
-        $projectPath = $project->projectPath();
-        $imageTag = $project->imageTag();
-
-        Log::info("Building Docker image {$imageTag} from {$projectPath}");
-
-        if (! is_dir($projectPath)) {
-            throw new PortainerException("Project directory not found: {$projectPath}");
-        }
-
-        // Create a temporary tar of the build context
-        $tempTar = tempnam(sys_get_temp_dir(), 'docker_build_').'.tar';
-
-        try {
-            $phar = new \PharData($tempTar);
-            $phar->buildFromDirectory($projectPath);
-
-            if ($onProgress) {
-                $onProgress(20, __('Build context created. Sending to Docker...'));
-            }
-
-            $client = new Client([
-                'connect_timeout' => 10,
-                'timeout' => 600,
-            ]);
-
-            $response = $client->post($this->directDockerApiUrl('/build'), [
-                'query' => [
-                    't' => $imageTag,
-                    'dockerfile' => 'Dockerfile',
-                    'rm' => 'true',
-                ],
-                'headers' => [
-                    'Content-Type' => 'application/x-tar',
-                ],
-                'body' => fopen($tempTar, 'r'),
-            ]);
-
-            $statusCode = $response->getStatusCode();
-
-            if ($statusCode >= 400) {
-                throw new PortainerException("Docker build API returned {$statusCode}: ".$response->getBody()->getContents());
-            }
-
-            // Parse streaming NDJSON build output for errors
-            $body = $response->getBody()->getContents();
-            foreach (explode("\n", trim($body)) as $line) {
-                $line = trim($line);
-                if ($line === '') {
-                    continue;
-                }
-                $decoded = json_decode($line, true);
-                if (isset($decoded['error'])) {
-                    throw new PortainerException('Docker build error: '.$decoded['error']);
-                }
-            }
-
-            Log::info("Docker image {$imageTag} built successfully.");
-
-            if ($onProgress) {
-                $onProgress(90, __('Image built. Finalizing...'));
-            }
-        } finally {
-            @unlink($tempTar);
-        }
+        $this->images->buildImage($project, $onProgress);
     }
 }

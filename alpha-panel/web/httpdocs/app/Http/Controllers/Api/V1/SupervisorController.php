@@ -152,7 +152,6 @@ class SupervisorController extends ApiController
                 'action' => 'supervisor_restarted',
                 'domain_id' => $domain->id,
                 'summary' => $type->label(),
-                'ip_address' => $request->ip(),
             ]);
 
             return response()->json([
@@ -287,7 +286,6 @@ class SupervisorController extends ApiController
                 'domain_id' => $domain->id,
                 'summary' => $command,
                 'details' => $output !== '' ? $output : null,
-                'ip_address' => $request->ip(),
             ]);
 
             return response()->json([

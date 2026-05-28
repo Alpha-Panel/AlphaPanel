@@ -42,8 +42,6 @@ class PhpVersionController extends Controller
                 'user_id' => $request->user()?->id,
                 'action' => 'php_fpm_restarted',
                 'summary' => "PHP {$phpVersion->slug} FPM restarted manually",
-                'ip_address' => $request->ip(),
-                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
             ]);
 
             return response()->json([
@@ -57,8 +55,6 @@ class PhpVersionController extends Controller
                 'user_id' => $request->user()?->id,
                 'action' => 'php_fpm_restart_failed',
                 'summary' => "PHP {$phpVersion->slug}: {$e->getMessage()}",
-                'ip_address' => $request->ip(),
-                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
             ]);
 
             return response()->json([
@@ -84,8 +80,6 @@ class PhpVersionController extends Controller
                 'user_id' => $request->user()?->id,
                 'action' => 'php_fpm_conf_recreated',
                 'summary' => "PHP {$phpVersion->slug} supervisor config recreated from stub",
-                'ip_address' => $request->ip(),
-                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
             ]);
 
             return response()->json([
@@ -99,8 +93,6 @@ class PhpVersionController extends Controller
                 'user_id' => $request->user()?->id,
                 'action' => 'php_fpm_conf_recreate_failed',
                 'summary' => "PHP {$phpVersion->slug}: {$e->getMessage()}",
-                'ip_address' => $request->ip(),
-                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
             ]);
 
             return response()->json([
@@ -140,8 +132,6 @@ class PhpVersionController extends Controller
                 'user_id' => $request->user()?->id,
                 'action' => 'php_ini_updated',
                 'summary' => "PHP {$phpVersion->slug} php.ini updated".($restarted ? ' (FPM restarted)' : ''),
-                'ip_address' => $request->ip(),
-                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
             ]);
 
             $message = $restarted
@@ -159,8 +149,6 @@ class PhpVersionController extends Controller
                 'user_id' => $request->user()?->id,
                 'action' => 'php_ini_update_failed',
                 'summary' => "PHP {$phpVersion->slug}: {$e->getMessage()}",
-                'ip_address' => $request->ip(),
-                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
             ]);
 
             return response()->json([
@@ -194,8 +182,6 @@ class PhpVersionController extends Controller
                 'user_id' => $request->user()?->id,
                 'action' => 'frankenphp_ini_updated',
                 'summary' => 'FrankenPHP php.ini updated (container restarted)',
-                'ip_address' => $request->ip(),
-                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
             ]);
 
             return response()->json([
@@ -209,8 +195,6 @@ class PhpVersionController extends Controller
                 'user_id' => $request->user()?->id,
                 'action' => 'frankenphp_ini_update_failed',
                 'summary' => "FrankenPHP: {$e->getMessage()}",
-                'ip_address' => $request->ip(),
-                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
             ]);
 
             return response()->json([
@@ -251,8 +235,6 @@ class PhpVersionController extends Controller
                 'user_id' => $request->user()?->id,
                 'action' => $action,
                 'summary' => "PHP {$phpVersion->slug} ".($newState ? 'enabled' : 'disabled'),
-                'ip_address' => $request->ip(),
-                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
             ]);
 
             return response()->json([
@@ -269,8 +251,6 @@ class PhpVersionController extends Controller
                 'user_id' => $request->user()?->id,
                 'action' => 'php_version_toggle_failed',
                 'summary' => "PHP {$phpVersion->slug}: {$e->getMessage()}",
-                'ip_address' => $request->ip(),
-                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
             ]);
 
             return response()->json([

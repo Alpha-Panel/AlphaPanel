@@ -58,11 +58,12 @@ class AppServiceProvider extends ServiceProvider
             }
         }
 
-        // Dynamically enable/disable honeypot from database settings
-        try {
-            config()->set('honeypot.enabled', SecuritySetting::instance()->honeypot_enabled);
-        } catch (\Throwable) {
-            // Table may not exist yet (before migration)
+        // Dynamically enable/disable honeypot from database settings.
+        // tryInstance() returns null if the table is missing (e.g. fresh
+        // install before the first migration run); honeypot stays at
+        // whatever the config file declares in that case.
+        if ($setting = SecuritySetting::tryInstance()) {
+            config()->set('honeypot.enabled', $setting->honeypot_enabled);
         }
 
         $this->configureScramble();

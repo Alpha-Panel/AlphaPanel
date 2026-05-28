@@ -1,4 +1,6 @@
 {
+  "Mail hosting is disabled for this domain. Re-enable the provider in panel settings or change the domain's mail hosting mode.": "Bu domain üçün yarlıq qonaqı söndürülmüş. Bergüçni panel tüzüvlerindän qayta aç ya da domain yarlıq qonaqı kipini tüzät.",
+  "Mail hosting is disabled for this domain.": "Bu domain üçün yarlıq qonaqı söndürülmüş.",
   "\":name\" will be removed and can no longer be used to sign in.": "\":name\" silintür kirüsh üçün qollanılmaz.",
   "(leave blank to keep)": "(saqlamak üçün boş qal)",
   "*/main": "*/main",
@@ -1992,6 +1994,7 @@
   "Outbound Relay": "Çıqışlı ulaşturğu",
   "Zimbra": "Zimbra",
   "Mailu": "Mailu",
+  "Mailu is disabled": "Mailu söndürülmüş",
   "Disabled (no mail)": "Söndürülmüş (yarlıq yoq)",
   "Local (Mailu)": "İçreki (Mailu)",
   "Remote MX": "Çıqraqı MX",

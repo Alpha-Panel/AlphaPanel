@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\UploadLimits;
 use App\Models\Domain;
 use App\Services\LocalDomainFileManagerService;
 use Illuminate\Http\JsonResponse;
@@ -28,7 +29,7 @@ class FileManagerController extends Controller
                 ->with('error', __('An FTP user is required to use the file manager. Please create one first.'));
         }
 
-        $maxUploadBytes = self::phpMaxUploadBytes();
+        $maxUploadBytes = UploadLimits::phpMaxUploadBytes();
 
         return Inertia::render('Domains/FileManager', compact('domain', 'maxUploadBytes'));
     }
@@ -121,7 +122,7 @@ class FileManagerController extends Controller
         $this->authorize('manageFiles', $domain);
         $request->session()->save();
 
-        $maxKb = (int) (self::phpMaxUploadBytes() / 1024);
+        $maxKb = (int) (UploadLimits::phpMaxUploadBytes() / 1024);
 
         $request->validate([
             'directory' => ['nullable', 'string'],
@@ -303,29 +304,5 @@ class FileManagerController extends Controller
         }
 
         return LocalDomainFileManagerService::forUser($domain->ftpUser);
-    }
-
-    /**
-     * Get the effective PHP max upload size in bytes.
-     */
-    private static function phpMaxUploadBytes(): int
-    {
-        $parse = static function (string $value): int {
-            $value = trim($value);
-            $last = strtolower($value[strlen($value) - 1]);
-            $num = (int) $value;
-
-            return match ($last) {
-                'g' => $num * 1024 * 1024 * 1024,
-                'm' => $num * 1024 * 1024,
-                'k' => $num * 1024,
-                default => $num,
-            };
-        };
-
-        return min(
-            $parse(ini_get('upload_max_filesize') ?: '2M'),
-            $parse(ini_get('post_max_size') ?: '8M'),
-        );
     }
 }

@@ -87,7 +87,6 @@ class SystemUpdateController extends Controller
             AuditLog::create([
                 'user_id' => $request->user()->id,
                 'action' => 'system_update.check',
-                'ip_address' => $request->ip(),
                 'details' => 'Manual update check performed',
             ]);
 
@@ -114,7 +113,6 @@ class SystemUpdateController extends Controller
         AuditLog::create([
             'user_id' => $request->user()->id,
             'action' => 'system_update.panel.started',
-            'ip_address' => $request->ip(),
             'details' => "Panel update initiated from {$update->from_version}",
         ]);
 
@@ -130,7 +128,6 @@ class SystemUpdateController extends Controller
             AuditLog::create([
                 'user_id' => $request->user()->id,
                 'action' => 'system_update.panel.failed',
-                'ip_address' => $request->ip(),
                 'details' => "Panel update failed: {$e->getMessage()}",
             ]);
 
@@ -165,7 +162,6 @@ class SystemUpdateController extends Controller
         AuditLog::create([
             'user_id' => $request->user()->id,
             'action' => 'system_update.mysql.prepare',
-            'ip_address' => $request->ip(),
             'details' => "MySQL upgrade preparation: {$mysqlVersion} → {$request->input('target_version')}",
         ]);
 
@@ -181,7 +177,6 @@ class SystemUpdateController extends Controller
             AuditLog::create([
                 'user_id' => $request->user()->id,
                 'action' => 'system_update.mysql.prepare_failed',
-                'ip_address' => $request->ip(),
                 'details' => "MySQL upgrade preparation failed: {$e->getMessage()}",
             ]);
 
@@ -198,7 +193,6 @@ class SystemUpdateController extends Controller
         AuditLog::create([
             'user_id' => $request->user()->id,
             'action' => 'system_update.mysql.apply',
-            'ip_address' => $request->ip(),
             'details' => 'MySQL upgrade applied to production',
         ]);
 
@@ -208,7 +202,6 @@ class SystemUpdateController extends Controller
             AuditLog::create([
                 'user_id' => $request->user()->id,
                 'action' => 'system_update.mysql.apply_failed',
-                'ip_address' => $request->ip(),
                 'details' => "MySQL upgrade apply failed: {$e->getMessage()}",
             ]);
 
@@ -236,7 +229,6 @@ class SystemUpdateController extends Controller
         AuditLog::create([
             'user_id' => $request->user()->id,
             'action' => 'system_update.mysql.rollback',
-            'ip_address' => $request->ip(),
             'details' => 'MySQL upgrade rolled back',
         ]);
 
@@ -246,7 +238,6 @@ class SystemUpdateController extends Controller
             AuditLog::create([
                 'user_id' => $request->user()->id,
                 'action' => 'system_update.mysql.rollback_failed',
-                'ip_address' => $request->ip(),
                 'details' => "MySQL upgrade rollback failed: {$e->getMessage()}",
             ]);
 
@@ -274,7 +265,6 @@ class SystemUpdateController extends Controller
         AuditLog::create([
             'user_id' => $request->user()->id,
             'action' => 'system_update.mysql.cleanup',
-            'ip_address' => $request->ip(),
             'details' => 'MySQL backup cleanup requested',
         ]);
 

@@ -10,16 +10,7 @@ use Throwable;
 
 class CloudflareDnsService implements DnsProviderContract
 {
-    private ?CloudflareClient $client = null;
-
-    protected function boot(): void
-    {
-        if ($this->client !== null) {
-            return;
-        }
-
-        $this->client = app(CloudflareClient::class);
-    }
+    public function __construct(private readonly CloudflareClient $client) {}
 
     // ---------------------------------------------------------------
     // DnsProvider contract — domain-level wrappers
@@ -32,13 +23,21 @@ class CloudflareDnsService implements DnsProviderContract
 
             return $this->listRecords($zoneId, $search ?? '');
         } catch (CloudflareException $e) {
-            Log::warning("CloudflareDnsService::getRecords failed for {$domain->fqdn}: {$e->getMessage()}");
+            Log::warning("CloudflareDnsService::getRecords failed for {$domain->fqdn}: {$e->getMessage()}", [
+                'domain' => $domain->fqdn,
+                'exception' => $e,
+            ]);
 
             return [];
         }
     }
 
-    public function createRecord(Domain $domain, array $data): mixed
+    /**
+     * Create a DNS record via Cloudflare. Returns true when the API confirms success.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function createRecord(Domain $domain, array $data): bool
     {
         $zoneId = $this->getZoneId($domain->fqdn);
 
@@ -58,8 +57,12 @@ class CloudflareDnsService implements DnsProviderContract
             try {
                 $this->deleteRecordById($domain, $id);
                 $deleted++;
-            } catch (Throwable) {
-                // skip failures
+            } catch (Throwable $e) {
+                Log::warning('Cloudflare bulk DNS record delete failed', [
+                    'domain' => $domain->fqdn,
+                    'record_id' => $id,
+                    'exception' => $e,
+                ]);
             }
         }
 
@@ -75,8 +78,6 @@ class CloudflareDnsService implements DnsProviderContract
      */
     public function getZoneId(string $domainName): string
     {
-        $this->boot();
-
         $response = $this->client->get('zones', ['name' => $domainName]);
         $zones = $response['result'] ?? [];
 
@@ -96,8 +97,6 @@ class CloudflareDnsService implements DnsProviderContract
      */
     public function listRecords(string $zoneId, string $search = '', string $order = 'type', string $direction = 'asc'): array
     {
-        $this->boot();
-
         $query = [
             'per_page' => 5000,
             'order' => $order,
@@ -127,8 +126,6 @@ class CloudflareDnsService implements DnsProviderContract
      */
     public function addRecord(string $zoneId, array $data): bool
     {
-        $this->boot();
-
         $payload = [
             'type' => $data['type'],
             'name' => $data['name'],
@@ -159,8 +156,6 @@ class CloudflareDnsService implements DnsProviderContract
      */
     public function updateRecord(string $zoneId, string $recordId, array $data): \stdClass
     {
-        $this->boot();
-
         $response = $this->client->put("zones/{$zoneId}/dns_records/{$recordId}", $data);
 
         return json_decode(json_encode($response['result'] ?? []));
@@ -171,14 +166,16 @@ class CloudflareDnsService implements DnsProviderContract
      */
     public function deleteRecord(string $zoneId, string $recordId): bool
     {
-        $this->boot();
-
         try {
             $this->client->delete("zones/{$zoneId}/dns_records/{$recordId}");
 
             return true;
         } catch (CloudflareException $e) {
-            Log::warning("Cloudflare DNS record delete failed for {$zoneId}/{$recordId}: {$e->getMessage()}");
+            Log::warning("Cloudflare DNS record delete failed for {$zoneId}/{$recordId}: {$e->getMessage()}", [
+                'zone_id' => $zoneId,
+                'record_id' => $recordId,
+                'exception' => $e,
+            ]);
 
             return false;
         }
@@ -191,8 +188,6 @@ class CloudflareDnsService implements DnsProviderContract
      */
     public function getRecordDetails(string $zoneId, string $recordId): ?object
     {
-        $this->boot();
-
         $response = $this->client->get("zones/{$zoneId}/dns_records/{$recordId}");
         $result = $response['result'] ?? null;
 
@@ -259,7 +254,11 @@ class CloudflareDnsService implements DnsProviderContract
 
             return $this->ensureARecord($zoneId, $fqdn, $ip, $proxied);
         } catch (CloudflareException $e) {
-            Log::error("Failed to add DNS record for {$fqdn}: {$e->getMessage()}");
+            Log::error("Failed to add DNS record for {$fqdn}: {$e->getMessage()}", [
+                'apex' => $apexDomain,
+                'fqdn' => $fqdn,
+                'exception' => $e,
+            ]);
 
             return false;
         }
@@ -278,7 +277,11 @@ class CloudflareDnsService implements DnsProviderContract
 
             return $apexSynced && $wwwSynced && $issueCaaSynced && $issueWildCaaSynced;
         } catch (Throwable $exception) {
-            Log::warning("Cloudflare apex bootstrap DNS sync failed for {$apexDomain}: {$exception->getMessage()}");
+            Log::warning("Cloudflare apex bootstrap DNS sync failed for {$apexDomain}: {$exception->getMessage()}", [
+                'apex' => $apexDomain,
+                'target_ip' => $targetIp,
+                'exception' => $exception,
+            ]);
 
             return false;
         }
@@ -308,7 +311,11 @@ class CloudflareDnsService implements DnsProviderContract
 
             return $deletedCount;
         } catch (Throwable $e) {
-            Log::error("Failed to delete DNS A record(s) for {$fqdn}: {$e->getMessage()}");
+            Log::error("Failed to delete DNS A record(s) for {$fqdn}: {$e->getMessage()}", [
+                'apex' => $apexDomain,
+                'fqdn' => $fqdn,
+                'exception' => $e,
+            ]);
 
             return 0;
         }
@@ -329,7 +336,6 @@ class CloudflareDnsService implements DnsProviderContract
     public function getZoneSummary(string $domainName): array
     {
         try {
-            $this->boot();
             $zoneId = $this->getZoneId($domainName);
             $response = $this->client->get("zones/{$zoneId}");
             $zone = $response['result'] ?? null;
@@ -347,7 +353,10 @@ class CloudflareDnsService implements DnsProviderContract
                 'original_name_servers' => $this->normalizeStringList($zone['original_name_servers'] ?? []),
             ];
         } catch (Throwable $e) {
-            Log::info("Cloudflare zone lookup failed for {$domainName}: {$e->getMessage()}");
+            Log::info("Cloudflare zone lookup failed for {$domainName}: {$e->getMessage()}", [
+                'domain' => $domainName,
+                'exception' => $e,
+            ]);
 
             return $this->emptyZoneSummary();
         }
@@ -361,13 +370,16 @@ class CloudflareDnsService implements DnsProviderContract
     public function getZoneSetting(string $zoneId, string $setting): ?array
     {
         try {
-            $this->boot();
             $response = $this->client->get("zones/{$zoneId}/settings/{$setting}");
             $result = $response['result'] ?? null;
 
             return is_array($result) ? $result : null;
         } catch (Throwable $exception) {
-            Log::warning("Cloudflare setting fetch failed for {$zoneId}/{$setting}: {$exception->getMessage()}");
+            Log::warning("Cloudflare setting fetch failed for {$zoneId}/{$setting}: {$exception->getMessage()}", [
+                'zone_id' => $zoneId,
+                'setting' => $setting,
+                'exception' => $exception,
+            ]);
 
             return null;
         }
@@ -398,7 +410,6 @@ class CloudflareDnsService implements DnsProviderContract
     public function updateZoneSetting(string $zoneId, string $setting, mixed $value): ?array
     {
         try {
-            $this->boot();
             $response = $this->client->patch("zones/{$zoneId}/settings/{$setting}", [
                 'value' => $value,
             ]);
@@ -406,7 +417,12 @@ class CloudflareDnsService implements DnsProviderContract
 
             return is_array($result) ? $result : null;
         } catch (Throwable $exception) {
-            Log::warning("Cloudflare setting update failed for {$zoneId}/{$setting}: {$exception->getMessage()}");
+            Log::warning("Cloudflare setting update failed for {$zoneId}/{$setting}: {$exception->getMessage()}", [
+                'zone_id' => $zoneId,
+                'setting' => $setting,
+                'value' => $value,
+                'exception' => $exception,
+            ]);
 
             return null;
         }
@@ -418,14 +434,16 @@ class CloudflareDnsService implements DnsProviderContract
     public function purgeZoneCache(string $zoneId): bool
     {
         try {
-            $this->boot();
             $response = $this->client->post("zones/{$zoneId}/purge_cache", [
                 'purge_everything' => true,
             ]);
 
             return $response['success'] ?? false;
         } catch (Throwable $exception) {
-            Log::warning("Cloudflare cache purge failed for {$zoneId}: {$exception->getMessage()}");
+            Log::warning("Cloudflare cache purge failed for {$zoneId}: {$exception->getMessage()}", [
+                'zone_id' => $zoneId,
+                'exception' => $exception,
+            ]);
 
             return false;
         }
@@ -439,13 +457,15 @@ class CloudflareDnsService implements DnsProviderContract
     public function getDnssecStatus(string $zoneId): ?array
     {
         try {
-            $this->boot();
             $response = $this->client->get("zones/{$zoneId}/dnssec");
             $result = $response['result'] ?? null;
 
             return is_array($result) ? $result : null;
         } catch (Throwable $exception) {
-            Log::warning("Cloudflare DNSSEC fetch failed for {$zoneId}: {$exception->getMessage()}");
+            Log::warning("Cloudflare DNSSEC fetch failed for {$zoneId}: {$exception->getMessage()}", [
+                'zone_id' => $zoneId,
+                'exception' => $exception,
+            ]);
 
             return null;
         }
@@ -459,7 +479,6 @@ class CloudflareDnsService implements DnsProviderContract
     public function updateDnssecStatus(string $zoneId, string $status): ?array
     {
         try {
-            $this->boot();
             $response = $this->client->patch("zones/{$zoneId}/dnssec", [
                 'status' => $status,
             ]);
@@ -467,7 +486,11 @@ class CloudflareDnsService implements DnsProviderContract
 
             return is_array($result) ? $result : null;
         } catch (Throwable $exception) {
-            Log::warning("Cloudflare DNSSEC update failed for {$zoneId}: {$exception->getMessage()}");
+            Log::warning("Cloudflare DNSSEC update failed for {$zoneId}: {$exception->getMessage()}", [
+                'zone_id' => $zoneId,
+                'status' => $status,
+                'exception' => $exception,
+            ]);
 
             return null;
         }
@@ -481,7 +504,6 @@ class CloudflareDnsService implements DnsProviderContract
     public function listFirewallRules(string $zoneId): array
     {
         try {
-            $this->boot();
             $rulesetId = $this->getCustomFirewallRulesetId($zoneId);
 
             if ($rulesetId === null) {
@@ -525,7 +547,6 @@ class CloudflareDnsService implements DnsProviderContract
         ?int $priority = null,
     ): bool {
         try {
-            $this->boot();
             $rulesetId = $this->getCustomFirewallRulesetId($zoneId);
 
             // Map legacy action names to Ruleset Engine equivalents.
@@ -573,7 +594,6 @@ class CloudflareDnsService implements DnsProviderContract
     public function deleteFirewallRule(string $zoneId, string $ruleId): bool
     {
         try {
-            $this->boot();
             $rulesetId = $this->getCustomFirewallRulesetId($zoneId);
 
             if ($rulesetId === null) {
@@ -599,8 +619,6 @@ class CloudflareDnsService implements DnsProviderContract
      */
     public function ensureZoneExists(string $domainName): void
     {
-        $this->boot();
-
         try {
             $this->getZoneId($domainName);
 

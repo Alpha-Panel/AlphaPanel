@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\SslCertificateType;
+use App\Exceptions\SslImportException;
 use App\Models\Domain;
 use App\Models\SslCertificate;
 use Carbon\Carbon;
@@ -500,6 +501,107 @@ class SslCertificateService
         }
 
         return null;
+    }
+
+    /**
+     * Parse a combined PEM bundle (key + certs) into its components.
+     *
+     * Splits the bundle into:
+     *  - private_key: the first PRIVATE KEY block (any variant: RSA, EC, ENCRYPTED)
+     *  - certificate: the first CERTIFICATE block (the server cert)
+     *  - ca_bundle:   remaining CERTIFICATE blocks joined, or null if none
+     *
+     * @return array{private_key: string, certificate: string, ca_bundle: ?string}
+     *
+     * @throws SslImportException when the bundle is missing a key or a cert.
+     */
+    public function parsePemBundle(string $pem): array
+    {
+        preg_match('/-----BEGIN (RSA |EC |ENCRYPTED )?PRIVATE KEY-----.*?-----END (RSA |EC |ENCRYPTED )?PRIVATE KEY-----/s', $pem, $keyMatch);
+        $privateKey = $keyMatch[0] ?? null;
+
+        preg_match_all('/-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----/s', $pem, $certMatches);
+        $certs = $certMatches[0] ?? [];
+
+        $serverCert = $certs[0] ?? null;
+        $caBundle = count($certs) > 1 ? implode("\n", array_slice($certs, 1)) : null;
+
+        if ($privateKey === null || $serverCert === null) {
+            throw new SslImportException(__('PEM file must contain at least a private key and a certificate.'));
+        }
+
+        return [
+            'private_key' => $privateKey,
+            'certificate' => $serverCert,
+            'ca_bundle' => $caBundle,
+        ];
+    }
+
+    /**
+     * Find an existing CSR-only record for the domain whose private key matches
+     * the uploaded key (i.e. user generated a CSR here and is now uploading
+     * the matching CA-signed cert). Returns null if no match.
+     */
+    public function findMatchingCsrRecord(Domain $domain, string $uploadedKeyPem): ?SslCertificate
+    {
+        $csrRecords = $domain->sslCertificates()
+            ->whereNotNull('csr_pem')
+            ->whereNotNull('private_key_pem')
+            ->whereNull('certificate_pem')
+            ->get();
+
+        $normalizedUploaded = trim($uploadedKeyPem);
+
+        foreach ($csrRecords as $csrRecord) {
+            if (trim((string) $csrRecord->private_key_pem) === $normalizedUploaded) {
+                return $csrRecord;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Promote a CSR-only record to a fully signed certificate.
+     *
+     * @param  array{certificate: string, private_key: string, ca_bundle?: ?string, label?: ?string}  $validated
+     *
+     * @throws SslImportException when the supplied key/cert pair does not match.
+     */
+    public function completeCsrWithCertificate(SslCertificate $csrRecord, Domain $domain, array $validated): void
+    {
+        if (! $this->validateKeyMatchesCert($validated['certificate'], $validated['private_key'])) {
+            throw new SslImportException(__('The private key does not match the certificate.'));
+        }
+
+        $caBundlePem = $validated['ca_bundle'] ?? null;
+        $fullchainPem = $this->buildFullchain($validated['certificate'], $caBundlePem);
+        $meta = $this->parseCertificatePem($fullchainPem);
+
+        $csrRecord->update([
+            'certificate_pem' => $fullchainPem,
+            'ca_bundle_pem' => $caBundlePem,
+            'issuer' => $meta['issuer'],
+            'not_before' => $meta['not_before'] ? Carbon::parse($meta['not_before']) : null,
+            'not_after' => $meta['not_after'] ? Carbon::parse($meta['not_after']) : null,
+            'fingerprint_sha256' => $meta['fingerprint_sha256'],
+            'label' => $validated['label'] ?? "Custom Certificate - {$domain->fqdn}",
+        ]);
+
+        Log::info("Completed CSR record ID {$csrRecord->id} with uploaded certificate for {$domain->fqdn}.");
+    }
+
+    /**
+     * Delete the on-disk PEM files written during activation (best-effort).
+     * Safe to call whether or not the directory exists.
+     */
+    public function deleteCertDiskFiles(Domain $domain, SslCertificate $certificate): void
+    {
+        $certDir = "{$this->activeCertBasePath}/{$domain->fqdn}/{$certificate->id}";
+
+        if (File::isDirectory($certDir)) {
+            File::deleteDirectory($certDir);
+        }
     }
 
     /**

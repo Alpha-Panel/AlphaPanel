@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\FtpUser;
 use FTP\Connection;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use League\Flysystem\Filesystem;
 use League\Flysystem\Ftp\FtpAdapter;
 use League\Flysystem\Ftp\FtpConnectionOptions;
@@ -212,8 +213,12 @@ class FileManagerService
                     return $target;
                 }
             }
-        } catch (\Throwable) {
-            // Parent listing failed
+        } catch (\Throwable $e) {
+            Log::debug('FileManager parent listing failed', [
+                'parent_path' => $parentPath,
+                'name' => $name,
+                'exception' => $e,
+            ]);
         }
 
         return null;
@@ -250,7 +255,12 @@ class FileManagerService
     {
         try {
             $conn = $this->openRawFtpConnection();
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            Log::warning('FileManager raw FTP connection failed', [
+                'path' => $path,
+                'exception' => $e,
+            ]);
+
             return [];
         }
 

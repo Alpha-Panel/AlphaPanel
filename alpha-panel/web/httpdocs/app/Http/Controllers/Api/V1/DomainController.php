@@ -73,7 +73,6 @@ class DomainController extends ApiController
             'action' => 'domain_created',
             'domain_id' => $domain->id,
             'summary' => $domain->fqdn,
-            'ip_address' => $request->ip(),
         ]);
 
         return response()->json(['data' => $domain->fresh(['owner', 'phpVersion'])], 201);
@@ -120,7 +119,6 @@ class DomainController extends ApiController
             'action' => 'domain_updated',
             'domain_id' => $domain->id,
             'summary' => $domain->fqdn,
-            'ip_address' => $request->ip(),
         ]);
 
         if ($domain->wasChanged(['mail_hosting', 'mail_remote_mx_host', 'mail_remote_mx_priority'])) {
@@ -129,7 +127,6 @@ class DomainController extends ApiController
                 'action' => 'domain_mail_hosting_changed',
                 'domain_id' => $domain->id,
                 'summary' => $domain->fqdn.': '.($previousMailHosting?->value ?? 'null').' → '.($domain->mail_hosting?->value ?? 'null'),
-                'ip_address' => $request->ip(),
             ]);
         }
 
@@ -144,7 +141,6 @@ class DomainController extends ApiController
             'user_id' => $request->user()->id,
             'action' => 'domain_deleted',
             'summary' => $domain->fqdn,
-            'ip_address' => $request->ip(),
         ]);
 
         dispatch(new DeleteDomainJob($domain));

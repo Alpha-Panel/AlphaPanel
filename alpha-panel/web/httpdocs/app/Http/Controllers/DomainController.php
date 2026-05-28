@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Domain\ProvisionDomainAction;
+use App\Actions\Domain\ProvisionDomainValidationException;
 use App\Enums\DomainMode;
 use App\Enums\DomainType;
 use App\Enums\MailHosting;
@@ -21,7 +23,6 @@ use App\Services\CloudflareDnsService;
 use App\Services\DomainConfigService;
 use App\Services\FtpUserService;
 use App\Services\LaravelPackageDetector;
-use App\Services\LocalDnsService;
 use App\Services\Mail\Exceptions\MailProviderException;
 use App\Services\Mail\MailDnsService;
 use App\Services\Mail\MailProviderResolver;
@@ -100,162 +101,17 @@ class DomainController extends Controller
 
     public function store(
         StoreDomainRequest $request,
-        FtpUserService $ftpUserService,
-        CloudflareDnsService $cloudflareDnsService,
-        LocalDnsService $localDnsService,
-        ServerNetworkInfoService $serverNetworkInfoService,
+        ProvisionDomainAction $provision,
     ): RedirectResponse|JsonResponse {
-        $data = $request->validated();
-        $parentDomainId = (int) ($data['parent_domain_id'] ?? 0);
-        $inheritParentRootPath = (bool) ($data['inherit_parent_root_path'] ?? false);
-        $cloudflareMode = (string) ($data['cloudflare_mode'] ?? 'skip');
-        $dnsProvider = (string) ($data['dns_provider'] ?? ($cloudflareMode !== 'skip' ? 'cloudflare' : 'local'));
-        $requestedSubdomainDnsRecord = (bool) ($data['create_dns_record'] ?? false);
-        $dnsTargetIp = isset($data['dns_target_ip']) ? trim((string) $data['dns_target_ip']) : '';
-        $dnsTargetIp = $dnsTargetIp !== '' ? $dnsTargetIp : null;
-        $serverNetworkIps = $serverNetworkInfoService->getServerIpAddresses();
-        $dnsTargetScope = $dnsTargetIp !== null
-            ? $this->resolveDnsTargetScope($dnsTargetIp, $serverNetworkIps)
-            : null;
-        $createDnsRecord = false;
-        $dnsRecordShouldBeProxied = false;
-
-        // Force fqdn for wildcard catch-all regardless of what was submitted
-        if (($data['mode'] ?? null) === DomainMode::WildcardCatchall->value) {
-            $data['fqdn'] = '*';
-        }
-
-        if ($parentDomainId > 0) {
-            $parentDomain = Domain::query()
-                ->select(['id', 'fqdn', 'owner_user_id', 'dns_provider', 'root_path', 'type'])
-                ->findOrFail($parentDomainId);
-            $this->authorize('view', $parentDomain);
-            $data['owner_user_id'] = $parentDomain->owner_user_id;
-
-            $requestedRootPath = trim((string) ($data['root_path'] ?? ''));
-            if ($inheritParentRootPath) {
-                $data['root_path'] = $parentDomain->getWebRootPath();
-            } elseif ($requestedRootPath === '') {
-                $data['root_path'] = null;
-            } else {
-                $data['root_path'] = $requestedRootPath;
-            }
-
-            $data['dns_provider'] = $parentDomain->dns_provider?->value ?? 'local';
-            $parentUsesCloudflare = $parentDomain->usesCloudflare();
-
-            if ($parentUsesCloudflare) {
-                $createDnsRecord = $requestedSubdomainDnsRecord;
-            }
-
-            if ($createDnsRecord && ($dnsTargetIp === null || $dnsTargetScope === null)) {
-                return $this->storeValidationErrorResponse(
-                    $request,
-                    field: 'dns_target_ip',
-                    message: __('Selected DNS target IP is not valid for this server.'),
-                );
-            }
-
-            $dnsRecordShouldBeProxied = $createDnsRecord && $dnsTargetScope === 'public';
-        } elseif ($request->user()->isAdmin() && ! empty($data['owner_user_id'])) {
-            // Admin chose an owner
-        } else {
-            $data['owner_user_id'] = $request->user()->id;
-        }
-
-        if ($parentDomainId === 0) {
-            $requestedRootPath = trim((string) ($data['root_path'] ?? ''));
-            $data['root_path'] = $requestedRootPath === '' ? null : $requestedRootPath;
-        }
-
-        // Addon domains: inherit root_path from linked domain when not explicitly provided
-        if (($data['mode'] ?? null) === DomainMode::Addon->value) {
-            $linkedDomainId = $data['linked_domain_id'] ?? null;
-            if ($linkedDomainId && ! $request->filled('root_path')) {
-                $linkedDomain = Domain::with('linkedDomain')->find($linkedDomainId);
-                if ($linkedDomain) {
-                    $data['root_path'] = $linkedDomain->getWebRootPath();
-                }
-            }
-        }
-
-        $isCloudflare = $dnsProvider === 'cloudflare';
-        $shouldCreateApexDnsRecords = $parentDomainId === 0 && $isCloudflare && $cloudflareMode === 'add';
-
-        if ($shouldCreateApexDnsRecords && ($dnsTargetIp === null || $dnsTargetScope === null)) {
+        try {
+            $domain = $provision->execute($request->validated(), $request->user());
+        } catch (ProvisionDomainValidationException $exception) {
             return $this->storeValidationErrorResponse(
                 $request,
-                field: 'dns_target_ip',
-                message: __('Selected DNS target IP is not valid for this server.'),
+                field: $exception->field,
+                message: $exception->userMessage,
             );
         }
-
-        if ($parentDomainId === 0 && $isCloudflare && $cloudflareMode === 'add') {
-            try {
-                $cloudflareDnsService->ensureZoneExists((string) $data['fqdn']);
-            } catch (\Throwable $exception) {
-                return $this->storeValidationErrorResponse(
-                    $request,
-                    field: 'cloudflare_mode',
-                    message: __('Cloudflare zone could not be added: :message', ['message' => $exception->getMessage()]),
-                );
-            }
-
-            if ($shouldCreateApexDnsRecords) {
-                $synced = $cloudflareDnsService->syncApexBootstrapRecords(
-                    (string) $data['fqdn'],
-                    (string) $dnsTargetIp,
-                    $dnsTargetScope === 'public',
-                );
-
-                if (! $synced) {
-                    return $this->storeValidationErrorResponse(
-                        $request,
-                        field: 'dns_target_ip',
-                        message: __('Cloudflare DNS records could not be created. Please try again.'),
-                    );
-                }
-            }
-        }
-
-        if ($parentDomainId === 0) {
-            $data['dns_provider'] = $dnsProvider;
-        }
-
-        $data['modsecurity_enabled'] = true;
-        $data['modsecurity_mode'] = 'detection_only';
-
-        $ftpUsername = $data['ftp_username'] ?? null;
-        $ftpPassword = $data['ftp_password'] ?? null;
-        unset($data['ftp_username'], $data['ftp_password'], $data['create_dns_record'], $data['cloudflare_mode'], $data['dns_target_ip'], $data['inherit_parent_root_path']);
-
-        $domain = Domain::create($data);
-
-        // Create local DNS zone with default template if using local DNS
-        if ($parentDomainId === 0 && $domain->usesLocalDns()) {
-            try {
-                $localDnsService->createZone($domain);
-            } catch (\Throwable $e) {
-                Log::error("Local DNS zone creation failed for {$domain->fqdn}: {$e->getMessage()}");
-            }
-        }
-
-        $this->applyMailHosting($domain);
-
-        if ($ftpUsername && $ftpPassword) {
-            $ftpUserService->addUser($domain, $ftpUsername, $ftpPassword);
-        }
-
-        ProvisionDomainJob::dispatch(
-            $domain,
-            triggeredBy: $request->user()->id,
-            createDnsRecord: $createDnsRecord,
-            locale: app()->getLocale(),
-            dnsTargetIp: $createDnsRecord ? $dnsTargetIp : null,
-            dnsProxied: $dnsRecordShouldBeProxied,
-            actorIpAddress: $request->ip(),
-            actorPort: is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
-        );
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -358,7 +214,6 @@ class DomainController extends Controller
                 'action' => 'domain_mail_hosting_changed',
                 'domain_id' => $domain->id,
                 'summary' => $domain->fqdn.': '.($previousMailHosting?->value ?? 'null').' → '.($domain->mail_hosting?->value ?? 'null'),
-                'ip_address' => $request->ip(),
             ]);
         }
 
@@ -528,8 +383,6 @@ class DomainController extends Controller
                 'action' => 'ftp_permissions_fixed',
                 'domain_id' => $domain->id,
                 'summary' => "chown {$username}:www-data -R on {$domain->getBasePath()}",
-                'ip_address' => $request->ip(),
-                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
             ]);
 
             return response()->json([
@@ -544,8 +397,6 @@ class DomainController extends Controller
                 'action' => 'ftp_permissions_fix_failed',
                 'domain_id' => $domain->id,
                 'summary' => $exception->getMessage(),
-                'ip_address' => $request->ip(),
-                'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
             ]);
 
             return response()->json([
@@ -569,8 +420,6 @@ class DomainController extends Controller
             'action' => 'ssl_queued',
             'domain_id' => $domain->id,
             'summary' => "SSL certificate operation queued for {$domain->fqdn}.",
-            'ip_address' => $request->ip(),
-            'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
         ]);
 
         SslActivateJob::dispatch(
@@ -870,22 +719,6 @@ class DomainController extends Controller
         }
 
         return $map;
-    }
-
-    /**
-     * @param  array{public: array<int, string>, private: array<int, string>}  $serverNetworkIps
-     */
-    private function resolveDnsTargetScope(string $dnsTargetIp, array $serverNetworkIps): ?string
-    {
-        if (in_array($dnsTargetIp, $serverNetworkIps['public'] ?? [], true)) {
-            return 'public';
-        }
-
-        if (in_array($dnsTargetIp, $serverNetworkIps['private'] ?? [], true)) {
-            return 'private';
-        }
-
-        return null;
     }
 
     private function storeValidationErrorResponse(

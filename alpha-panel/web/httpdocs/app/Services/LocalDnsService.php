@@ -53,8 +53,12 @@ class LocalDnsService implements DnsProviderContract
             try {
                 $this->deleteRecordById($domain, $id);
                 $deleted++;
-            } catch (\Throwable) {
-                // skip missing records
+            } catch (\Throwable $e) {
+                Log::warning('Local DNS record delete skipped', [
+                    'domain' => $domain->fqdn,
+                    'record_id' => $id,
+                    'exception' => $e,
+                ]);
             }
         }
 

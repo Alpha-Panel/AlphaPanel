@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\SslCertificateType;
 use App\Enums\SslMethod;
 use App\Events\SslOperationProgress;
+use App\Exceptions\SslImportException;
 use App\Http\Requests\GenerateCsrRequest;
 use App\Http\Requests\UploadCertificateRequest;
 use App\Jobs\SslActivateJob;
@@ -15,12 +16,10 @@ use App\Services\Acme\AcmeService;
 use App\Services\DomainConfigService;
 use App\Services\ReloadService;
 use App\Services\SslCertificateService;
-use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -102,8 +101,6 @@ class SslCertificateController extends Controller
             'action' => 'ssl_letsencrypt_queued',
             'domain_id' => $domain->id,
             'summary' => "Let's Encrypt certificate requested for {$domain->fqdn} via {$validated['validation_method']}.",
-            'ip_address' => $request->ip(),
-            'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
         ]);
 
         return redirect()
@@ -152,8 +149,6 @@ class SslCertificateController extends Controller
             'action' => 'ssl_self_signed_created',
             'domain_id' => $domain->id,
             'summary' => "Self-signed certificate generated for {$domain->fqdn}.",
-            'ip_address' => $request->ip(),
-            'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
         ]);
 
         return redirect()
@@ -212,8 +207,6 @@ class SslCertificateController extends Controller
             'action' => 'ssl_csr_generated',
             'domain_id' => $domain->id,
             'summary' => "CSR generated for {$validated['common_name']} on {$domain->fqdn}.",
-            'ip_address' => $request->ip(),
-            'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
         ]);
 
         return redirect()
@@ -251,11 +244,11 @@ class SslCertificateController extends Controller
             Log::info("SSL upload attempt for {$domain->fqdn}: key length=".strlen($validated['private_key']).', cert length='.strlen($validated['certificate']));
 
             // Check if the uploaded key matches an existing CSR record's key
-            $existingCsr = $this->findMatchingCsrRecord($domain, $validated['private_key']);
+            $existingCsr = $this->sslCertificateService->findMatchingCsrRecord($domain, $validated['private_key']);
 
             if ($existingCsr) {
                 Log::info("Found matching CSR record ID {$existingCsr->id} for {$domain->fqdn}.");
-                $this->completeCsrWithCert($existingCsr, $domain, $validated);
+                $this->sslCertificateService->completeCsrWithCertificate($existingCsr, $domain, $validated);
                 $certificate = $existingCsr->fresh();
             } else {
                 $certificate = $this->sslCertificateService->storeUploadedCert(
@@ -267,15 +260,19 @@ class SslCertificateController extends Controller
                 );
                 Log::info("SSL certificate uploaded for {$domain->fqdn}, record ID: {$certificate->id}.");
             }
-        } catch (\Exception $e) {
+        } catch (SslImportException $e) {
+            return redirect()
+                ->route('domains.ssl.index', $domain)
+                ->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
             Log::error("SSL upload failed for {$domain->fqdn}: {$e->getMessage()}", [
-                'exception' => $e::class,
-                'trace' => $e->getTraceAsString(),
+                'domain' => $domain->fqdn,
+                'exception' => $e,
             ]);
 
             return redirect()
                 ->route('domains.ssl.index', $domain)
-                ->with('error', __('Certificate upload failed: :error', ['error' => $e->getMessage()]));
+                ->with('error', __('Certificate upload failed. Please contact support.'));
         }
 
         AuditLog::create([
@@ -283,8 +280,6 @@ class SslCertificateController extends Controller
             'action' => 'ssl_certificate_uploaded',
             'domain_id' => $domain->id,
             'summary' => "Custom certificate uploaded for {$domain->fqdn}.",
-            'ip_address' => $request->ip(),
-            'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
         ]);
 
         return redirect()
@@ -319,8 +314,6 @@ class SslCertificateController extends Controller
             'action' => 'ssl_certificate_activated',
             'domain_id' => $domain->id,
             'summary' => "SSL certificate ID {$certificate->id} activated for {$domain->fqdn}.",
-            'ip_address' => $request->ip(),
-            'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
         ]);
 
         return redirect()
@@ -425,15 +418,23 @@ class SslCertificateController extends Controller
         ]);
 
         try {
-            $this->completeCsrWithCert($certificate, $domain, array_merge($validated, [
+            $this->sslCertificateService->completeCsrWithCertificate($certificate, $domain, array_merge($validated, [
                 'private_key' => $certificate->private_key_pem,
             ]));
-        } catch (\Exception $e) {
-            Log::error("CSR completion failed for {$domain->fqdn}: {$e->getMessage()}");
+        } catch (SslImportException $e) {
+            return redirect()
+                ->route('domains.ssl.index', $domain)
+                ->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error("CSR completion failed for {$domain->fqdn}: {$e->getMessage()}", [
+                'domain' => $domain->fqdn,
+                'certificate_id' => $certificate->id,
+                'exception' => $e,
+            ]);
 
             return redirect()
                 ->route('domains.ssl.index', $domain)
-                ->with('error', __('Certificate installation failed: :error', ['error' => $e->getMessage()]));
+                ->with('error', __('Certificate installation failed. Please contact support.'));
         }
 
         AuditLog::create([
@@ -441,8 +442,6 @@ class SslCertificateController extends Controller
             'action' => 'ssl_csr_completed',
             'domain_id' => $domain->id,
             'summary' => "CSR completed with signed certificate for {$domain->fqdn}.",
-            'ip_address' => $request->ip(),
-            'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
         ]);
 
         return redirect()
@@ -484,43 +483,34 @@ class SslCertificateController extends Controller
             'pem_file' => ['required', 'file', 'mimes:pem,txt', 'max:102400'],
         ]);
 
-        $content = file_get_contents($request->file('pem_file')->path());
-
-        // Extract private key
-        preg_match('/-----BEGIN (RSA |EC |ENCRYPTED )?PRIVATE KEY-----.*?-----END (RSA |EC |ENCRYPTED )?PRIVATE KEY-----/s', $content, $keyMatch);
-        $privateKey = $keyMatch[0] ?? null;
-
-        // Extract all certificates
-        preg_match_all('/-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----/s', $content, $certMatches);
-        $certs = $certMatches[0] ?? [];
-
-        $serverCert = $certs[0] ?? null;
-        $caBundle = count($certs) > 1 ? implode("\n", array_slice($certs, 1)) : null;
-
-        if (! $privateKey || ! $serverCert) {
-            return redirect()->route('domains.ssl.index', $domain)
-                ->with('error', __('PEM file must contain at least a private key and a certificate.'));
-        }
-
-        if (! $this->sslCertificateService->validateKeyMatchesCert($serverCert, $privateKey)) {
-            return redirect()->route('domains.ssl.index', $domain)
-                ->with('error', __('The private key does not match the certificate.'));
-        }
+        $content = (string) file_get_contents($request->file('pem_file')->path());
 
         try {
+            $parts = $this->sslCertificateService->parsePemBundle($content);
+
             $certificate = $this->sslCertificateService->storeUploadedCert(
                 $domain,
-                $serverCert,
-                $privateKey,
-                $caBundle,
+                $parts['certificate'],
+                $parts['private_key'],
+                $parts['ca_bundle'],
             );
 
             Log::info("PEM file imported for {$domain->fqdn}, certificate ID: {$certificate->id}.");
-        } catch (\Exception $e) {
-            Log::error("PEM import failed for {$domain->fqdn}: {$e->getMessage()}");
+        } catch (SslImportException $e) {
+            return redirect()->route('domains.ssl.index', $domain)
+                ->with('error', $e->getMessage());
+        } catch (\RuntimeException $e) {
+            // storeUploadedCert throws RuntimeException for key/cert mismatch — user input error.
+            return redirect()->route('domains.ssl.index', $domain)
+                ->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error("PEM import failed for {$domain->fqdn}: {$e->getMessage()}", [
+                'domain' => $domain->fqdn,
+                'exception' => $e,
+            ]);
 
             return redirect()->route('domains.ssl.index', $domain)
-                ->with('error', __('PEM import failed: :error', ['error' => $e->getMessage()]));
+                ->with('error', __('PEM import failed. Please contact support.'));
         }
 
         AuditLog::create([
@@ -528,8 +518,6 @@ class SslCertificateController extends Controller
             'action' => 'ssl_pem_imported',
             'domain_id' => $domain->id,
             'summary' => "PEM file imported for {$domain->fqdn}.",
-            'ip_address' => $request->ip(),
-            'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
         ]);
 
         return redirect()->route('domains.ssl.index', $domain)
@@ -551,7 +539,7 @@ class SslCertificateController extends Controller
         }
 
         // Delete cert files from disk (if written during activation)
-        $this->deleteCertDiskFiles($domain, $certificate);
+        $this->sslCertificateService->deleteCertDiskFiles($domain, $certificate);
 
         $label = $certificate->label;
         $certificate->delete();
@@ -561,73 +549,10 @@ class SslCertificateController extends Controller
             'action' => 'ssl_certificate_deleted',
             'domain_id' => $domain->id,
             'summary' => "SSL certificate \"{$label}\" deleted for {$domain->fqdn}.",
-            'ip_address' => $request->ip(),
-            'port' => is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
         ]);
 
         return redirect()
             ->route('domains.ssl.index', $domain)
             ->with('success', __('SSL certificate deleted successfully.'));
-    }
-
-    /**
-     * Find an existing CSR record whose private key matches the uploaded key.
-     */
-    private function findMatchingCsrRecord(Domain $domain, string $uploadedKeyPem): ?SslCertificate
-    {
-        $csrRecords = $domain->sslCertificates()
-            ->whereNotNull('csr_pem')
-            ->whereNotNull('private_key_pem')
-            ->whereNull('certificate_pem')
-            ->get();
-
-        foreach ($csrRecords as $csrRecord) {
-            if (trim($csrRecord->private_key_pem) === trim($uploadedKeyPem)) {
-                return $csrRecord;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Complete a CSR record by adding the signed certificate content.
-     */
-    private function completeCsrWithCert(SslCertificate $csrRecord, Domain $domain, array $validated): void
-    {
-        if (! $this->sslCertificateService->validateKeyMatchesCert($validated['certificate'], $validated['private_key'])) {
-            throw new \RuntimeException(__('The private key does not match the certificate.'));
-        }
-
-        $caBundlePem = $validated['ca_bundle'] ?? null;
-        $fullchainPem = $caBundlePem !== null
-            ? trim($validated['certificate'])."\n".trim($caBundlePem)."\n"
-            : $validated['certificate'];
-
-        $meta = $this->sslCertificateService->parseCertificatePem($fullchainPem);
-
-        $csrRecord->update([
-            'certificate_pem' => $fullchainPem,
-            'ca_bundle_pem' => $caBundlePem,
-            'issuer' => $meta['issuer'],
-            'not_before' => $meta['not_before'] ? Carbon::parse($meta['not_before']) : null,
-            'not_after' => $meta['not_after'] ? Carbon::parse($meta['not_after']) : null,
-            'fingerprint_sha256' => $meta['fingerprint_sha256'],
-            'label' => $validated['label'] ?? "Custom Certificate - {$domain->fqdn}",
-        ]);
-
-        Log::info("Completed CSR record ID {$csrRecord->id} with uploaded certificate for {$domain->fqdn}.");
-    }
-
-    /**
-     * Delete certificate-related disk files (written during activation).
-     */
-    private function deleteCertDiskFiles(Domain $domain, SslCertificate $certificate): void
-    {
-        $certDir = config('panel.letsencrypt_custom_base')."/{$domain->fqdn}/{$certificate->id}";
-
-        if (File::isDirectory($certDir)) {
-            File::deleteDirectory($certDir);
-        }
     }
 }
