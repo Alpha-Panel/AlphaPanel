@@ -175,7 +175,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'update' => [
-        'github_repo' => env('PANEL_GITHUB_REPO', 'alphapanel/alphapanel-docker'),
+        'github_repo' => env('PANEL_GITHUB_REPO', 'Alpha-Panel/AlphaPanel'),
         'agent_url' => env('UPDATE_AGENT_URL', 'http://update-agent:8100'),
         'agent_secret' => env('UPDATE_AGENT_SECRET'),
         'check_interval' => (int) env('UPDATE_CHECK_INTERVAL', 86400),

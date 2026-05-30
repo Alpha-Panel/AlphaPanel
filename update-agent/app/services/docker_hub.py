@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import json
 import logging
 import re
 from dataclasses import dataclass
-from pathlib import Path
 
 import httpx
+
+from app.services.panel_ops import run_cmd
 
 logger = logging.getLogger(__name__)
 
@@ -25,15 +25,31 @@ class MysqlVersionInfo:
     major_upgrade_available: bool
 
 
-def _read_current_mysql_version(project_root: str) -> str:
-    """Read the current MySQL version from version.json services block."""
-    version_file = Path(project_root) / "version.json"
-    try:
-        data = json.loads(version_file.read_text(encoding="utf-8"))
-        return data.get("services", {}).get("mysql", "0.0.0")
-    except (FileNotFoundError, json.JSONDecodeError) as exc:
-        logger.warning("Could not read MySQL version from version.json: %s", exc)
+async def _read_current_mysql_version(project_root: str) -> str:
+    """Read the current MySQL version from the running container's image tag.
+
+    Uses ``docker inspect`` to get the actual deployed image — not a stale
+    version.json. This is the source of truth: if the container is running
+    mysql:9.7.0, that is what we compare against Docker Hub.
+    """
+    result = await run_cmd(
+        "docker inspect --format '{{.Config.Image}}' mysql",
+        timeout=10,
+    )
+
+    if not result.ok:
+        logger.warning("Could not inspect mysql container: %s", result.stderr)
         return "0.0.0"
+
+    # Output format: "mysql:9.7.0" or just "9.7.0" if image is local
+    image = result.stdout.strip().strip("'\"")
+    tag = image.rsplit(":", 1)[-1] if ":" in image else image
+
+    if not _STABLE_TAG_RE.match(tag):
+        logger.warning("MySQL image tag is not a stable semver: %s", tag)
+        return "0.0.0"
+
+    return tag
 
 
 def _parse_version(tag: str) -> tuple[int, int, int]:
@@ -46,7 +62,17 @@ async def check_mysql_updates(
     project_root: str,
 ) -> MysqlVersionInfo:
     """Query Docker Hub for available MySQL version updates."""
-    current = _read_current_mysql_version(project_root)
+    current = await _read_current_mysql_version(project_root)
+
+    # Cannot detect current version → never report a phantom update.
+    if current == "0.0.0":
+        return MysqlVersionInfo(
+            current=current,
+            latest_minor=current,
+            latest_major=current,
+            minor_update_available=False,
+            major_upgrade_available=False,
+        )
 
     stable_tags: list[str] = []
     url: str | None = f"{DOCKER_HUB_API}?page_size=100"

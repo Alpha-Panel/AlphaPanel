@@ -562,8 +562,9 @@ services:
       MYSQL_USER: ${PANEL_DB_USER}
       MYSQL_PASSWORD: ${PANEL_DB_PASS}
       MYSQL_HOST: mysql
-      GITHUB_REPO: ${PANEL_GITHUB_REPO:-alphapanel/alphapanel-docker}
+      GITHUB_REPO: ${PANEL_GITHUB_REPO:-Alpha-Panel/AlphaPanel}
       PROJECT_ROOT: /project
+      MYSQL_UPDATE_CHECK: ${MYSQL_UPDATE_CHECK:-true}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - .:/project

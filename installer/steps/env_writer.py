@@ -97,7 +97,8 @@ def write_root_env(path: Path, form: dict[str, Any], secrets: dict[str, str]) ->
 
     add("\n# ─── Update Agent ───\n")
     add(_env_line("UPDATE_AGENT_SECRET", secrets["update_agent_secret"]))
-    add(_env_line("PANEL_GITHUB_REPO", "alphapanel/alphapanel-docker"))
+    add(_env_line("PANEL_GITHUB_REPO", "Alpha-Panel/AlphaPanel"))
+    add(_env_line("MYSQL_UPDATE_CHECK", "true"))
 
     add("\n# ─── CrowdSec ───\n")
     add(_env_line("CROWDSEC_FIREWALL_BOUNCER_KEY", secrets["crowdsec_firewall_bouncer_key"]))
@@ -254,7 +255,8 @@ PANEL_SSH_KEY_PATH=/root/.ssh/alphapanel_ed25519
 # ─── Update Agent ───
 UPDATE_AGENT_URL=http://update-agent:8100
 UPDATE_AGENT_SECRET={update_agent_secret}
-PANEL_GITHUB_REPO=alphapanel/alphapanel-docker
+PANEL_GITHUB_REPO=Alpha-Panel/AlphaPanel
+MYSQL_UPDATE_CHECK=true
 UPDATE_AUTO_CHECK=true
 """
     if not text.endswith("\n"):

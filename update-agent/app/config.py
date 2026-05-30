@@ -12,8 +12,9 @@ class Settings(BaseSettings):
     mysql_password: str = ""
     mysql_host: str = "mysql"
     mysql_port: int = 3306
-    github_repo: str = "alphapanel/alphapanel-docker"
+    github_repo: str = "Alpha-Panel/AlphaPanel"
     project_root: str = "/project"
+    mysql_update_check: bool = True
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Request
 
 from app.auth import require_auth
 from app.config import Settings, get_settings
-from app.services.docker_hub import check_mysql_updates
+from app.services.docker_hub import MysqlVersionInfo, check_mysql_updates
 from app.services.github import check_panel_update
 
 router = APIRouter(tags=["check"])
@@ -26,10 +26,21 @@ async def check_updates(
         project_root=settings.project_root,
     )
 
-    mysql_info = await check_mysql_updates(
-        client=client,
-        project_root=settings.project_root,
-    )
+    if settings.mysql_update_check:
+        mysql_info = await check_mysql_updates(
+            client=client,
+            project_root=settings.project_root,
+        )
+    else:
+        # MySQL check disabled by operator. Report no update available
+        # with a placeholder current version so the panel UI stays clean.
+        mysql_info = MysqlVersionInfo(
+            current="disabled",
+            latest_minor="disabled",
+            latest_major="disabled",
+            minor_update_available=False,
+            major_upgrade_available=False,
+        )
 
     return {
         "panel": asdict(panel_info),

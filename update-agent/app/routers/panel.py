@@ -20,13 +20,15 @@ async def _perform_panel_update(task_id: str, settings: Settings) -> None:
     project_root = settings.project_root
     steps = [
         (5, "Enabling maintenance mode"),
-        (15, "Pulling latest code"),
-        (30, "Installing PHP dependencies"),
-        (45, "Running database migrations"),
-        (60, "Building frontend assets"),
-        (75, "Optimizing application"),
-        (85, "Recreating panel container"),
-        (92, "Waiting for container health"),
+        (12, "Pulling latest code"),
+        (22, "Installing PHP dependencies"),
+        (35, "Running database migrations"),
+        (50, "Building frontend assets"),
+        (60, "Optimizing application"),
+        (72, "Rebuilding Docker images"),
+        (85, "Applying compose changes"),
+        (92, "Recreating panel container"),
+        (96, "Waiting for container health"),
         (100, "Disabling maintenance mode"),
     ]
 
@@ -121,8 +123,46 @@ async def _perform_panel_update(task_id: str, settings: Settings) -> None:
         if not result.ok:
             logger.warning("artisan optimize failed (non-fatal): %s", result.stderr)
 
-        # Step 7: Recreate container
+        # Step 7: Rebuild images (handles Dockerfile + compose.yaml changes)
         task_manager.update_task(task_id, steps[6][0], steps[6][1], TaskStatus.IN_PROGRESS)
+        result = await run_cmd(
+            f"docker compose -f {project_root}/docker-compose.yaml build",
+            cwd=project_root,
+            timeout=1800,
+        )
+        if not result.ok:
+            task_manager.update_task(
+                task_id, steps[6][0],
+                f"Docker build failed: {result.stderr}",
+                TaskStatus.FAILED,
+            )
+            await compose_exec("alpha_panel_web", "php artisan up", project_root, timeout=30)
+            return
+
+        # Step 8: Bring up all changed services except update-agent (self).
+        # docker compose up -d only recreates services whose image/config changed.
+        # update-agent is excluded because it cannot kill its own container mid-update.
+        task_manager.update_task(task_id, steps[7][0], steps[7][1], TaskStatus.IN_PROGRESS)
+        services_result = await run_cmd(
+            f"docker compose -f {project_root}/docker-compose.yaml config --services",
+            cwd=project_root,
+            timeout=15,
+        )
+        if services_result.ok:
+            target_services = [
+                s.strip()
+                for s in services_result.stdout.splitlines()
+                if s.strip() and s.strip() != "update-agent"
+            ]
+            if target_services:
+                result = await compose_up(target_services, project_root, force_recreate=False)
+                if not result.ok:
+                    logger.warning("compose up (non-self services) failed: %s", result.stderr)
+        else:
+            logger.warning("Could not list compose services: %s", services_result.stderr)
+
+        # Step 9: Force-recreate panel container to guarantee fresh code/env.
+        task_manager.update_task(task_id, steps[8][0], steps[8][1], TaskStatus.IN_PROGRESS)
         result = await compose_up(
             ["alpha_panel_web"],
             project_root,
@@ -130,14 +170,14 @@ async def _perform_panel_update(task_id: str, settings: Settings) -> None:
         )
         if not result.ok:
             task_manager.update_task(
-                task_id, steps[6][0],
+                task_id, steps[8][0],
                 f"Container recreate failed: {result.stderr}",
                 TaskStatus.FAILED,
             )
             return
 
-        # Step 8: Wait for healthy
-        task_manager.update_task(task_id, steps[7][0], steps[7][1], TaskStatus.IN_PROGRESS)
+        # Step 10: Wait for healthy
+        task_manager.update_task(task_id, steps[9][0], steps[9][1], TaskStatus.IN_PROGRESS)
         for attempt in range(30):
             await asyncio.sleep(2)
             health_result = await run_cmd(
@@ -153,8 +193,8 @@ async def _perform_panel_update(task_id: str, settings: Settings) -> None:
         else:
             logger.warning("Container did not reach healthy state within 60s, proceeding anyway")
 
-        # Step 9: Maintenance mode off
-        task_manager.update_task(task_id, steps[8][0], steps[8][1], TaskStatus.IN_PROGRESS)
+        # Step 11: Maintenance mode off
+        task_manager.update_task(task_id, steps[10][0], steps[10][1], TaskStatus.IN_PROGRESS)
         result = await compose_exec(
             "alpha_panel_web",
             "php artisan up",
@@ -165,7 +205,10 @@ async def _perform_panel_update(task_id: str, settings: Settings) -> None:
             logger.warning("Could not disable maintenance mode: %s", result.stderr)
 
         task_manager.update_task(
-            task_id, 100, "Panel update completed successfully", TaskStatus.COMPLETED
+            task_id, 100,
+            "Panel update completed. If update-agent itself was changed, "
+            "run: docker compose up -d --force-recreate update-agent",
+            TaskStatus.COMPLETED,
         )
 
     except Exception as exc:
