@@ -112,8 +112,19 @@ async def _perform_panel_update(task_id: str, settings: Settings) -> None:
             await compose_exec("alpha_panel_web", "php artisan up", project_root, timeout=30)
             return
 
-        # Step 6: Optimize
+        # Step 6: Clear stale caches, then re-optimize.
+        # `optimize:clear` is required before `optimize`; otherwise old config,
+        # route, view, and event caches survive the update and serve stale data.
         task_manager.update_task(task_id, steps[5][0], steps[5][1], TaskStatus.IN_PROGRESS)
+        result = await compose_exec(
+            "alpha_panel_web",
+            "php artisan optimize:clear",
+            project_root,
+            timeout=60,
+        )
+        if not result.ok:
+            logger.warning("artisan optimize:clear failed (non-fatal): %s", result.stderr)
+
         result = await compose_exec(
             "alpha_panel_web",
             "php artisan optimize",
