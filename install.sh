@@ -3,7 +3,7 @@
 # Installs prerequisites, then hands off to the Python Flask wizard.
 set -euo pipefail
 
-REPO_URL="${ALPHAPANEL_REPO_URL:-git@github.com:Alpha-Panel/AlphaPanel.git}"
+REPO_URL="${ALPHAPANEL_REPO_URL:-https://github.com/Alpha-Panel/AlphaPanel.git}"
 INSTALL_DIR="${ALPHAPANEL_INSTALL_DIR:-/opt/alphapanel-docker}"
 INSTALLER_PORT="${ALPHAPANEL_INSTALLER_PORT:-5000}"
 MIN_DISK_GB="${ALPHAPANEL_MIN_DISK_GB:-50}"
