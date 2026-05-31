@@ -437,18 +437,6 @@
                             </div>
 
                             <div v-show="getSubdomainTab(subdomain.id) === 'most_used'" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                                <Link :href="route('domains.ssl.index', subdomain.id)" class="quick-link">
-                                    <i class="fa-brands fa-expeditedssl quick-link-icon"></i>
-                                    <span class="quick-link-label">{{ t('SSL Certificate') }}</span>
-                                    <i class="fa-solid fa-angle-right quick-link-arrow"></i>
-                                </Link>
-
-                                <Link :href="route('domains.edit', subdomain.id)" class="quick-link">
-                                    <i class="fa-solid fa-gears quick-link-icon"></i>
-                                    <span class="quick-link-label">{{ t('Vhost Settings') }}</span>
-                                    <i class="fa-solid fa-angle-right quick-link-arrow"></i>
-                                </Link>
-
                                 <Link
                                     v-if="subdomainMailManaged(subdomain)"
                                     :href="route('mail.domain', subdomain.id)"
@@ -467,6 +455,11 @@
                             </div>
 
                             <div v-show="getSubdomainTab(subdomain.id) === 'configuration'" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                <Link :href="route('domains.edit', subdomain.id)" class="quick-link">
+                                  <i class="fa-solid fa-gears quick-link-icon"></i>
+                                  <span class="quick-link-label">{{ t('Vhost Settings') }}</span>
+                                  <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                                </Link>
                                 <Link
                                     v-if="subdomain.type === 'apache_reverse_proxy'"
                                     :href="route('domains.php.index', subdomain.id)"
@@ -505,6 +498,11 @@
                             </div>
 
                             <div v-show="getSubdomainTab(subdomain.id) === 'security'" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                <Link :href="route('domains.ssl.index', subdomain.id)" class="quick-link">
+                                  <i class="fa-brands fa-expeditedssl quick-link-icon"></i>
+                                  <span class="quick-link-label">{{ t('SSL Certificate') }}</span>
+                                  <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                                </Link>
                                 <Link :href="route('domains.modsecurity.index', subdomain.id)" class="quick-link">
                                     <i class="fa-solid fa-shield-virus quick-link-icon"></i>
                                     <span class="quick-link-label">{{ t('WAF') }}</span>

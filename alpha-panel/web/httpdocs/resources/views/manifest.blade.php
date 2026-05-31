@@ -9,7 +9,7 @@
     "background_color": "#293045",
     "start_url": "/",
     "manifest_version": 2,
-    "version": "1.0.2",
+    "version": "1.0.3",
     "shortcuts": [
         {
             "name": "AlphaPanel",

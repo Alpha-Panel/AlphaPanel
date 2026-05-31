@@ -1,5 +1,5 @@
 {
-  "version": "1.0.2",
+  "version": "1.0.3",
   "channel": "stable",
   "min_php": "8.4",
   "services": {
