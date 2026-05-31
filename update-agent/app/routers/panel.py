@@ -50,6 +50,19 @@ async def _perform_panel_update(task_id: str, settings: Settings) -> None:
 
         # Step 2: Git pull
         task_manager.update_task(task_id, steps[1][0], steps[1][1], TaskStatus.IN_PROGRESS)
+
+        # This image has no ssh client, so an SSH origin (the installer's historical
+        # default) makes `git pull` fail with "cannot run ssh". Rewrite the GitHub SSH
+        # transport to public HTTPS at fetch time. Idempotent, credential-free for the
+        # public repo, and preserves the configured repo/fork path (only transport changes).
+        remote_result = await run_cmd(
+            'git config url."https://github.com/".insteadOf "git@github.com:"',
+            cwd=project_root,
+            timeout=15,
+        )
+        if not remote_result.ok:
+            logger.warning("Could not rewrite git SSH remote to HTTPS: %s", remote_result.stderr)
+
         result = await run_cmd("git pull --ff-only", cwd=project_root, timeout=120)
         if not result.ok:
             task_manager.update_task(
