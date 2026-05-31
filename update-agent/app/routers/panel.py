@@ -7,7 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends
 
 from app.auth import require_auth
 from app.config import Settings, get_settings
-from app.services.panel_ops import compose_exec, compose_up, run_cmd
+from app.services.panel_ops import compose_exec, compose_up, ensure_https_git_remote, run_cmd
 from app.services.task_manager import TaskStatus, task_manager
 
 logger = logging.getLogger(__name__)
@@ -51,15 +51,9 @@ async def _perform_panel_update(task_id: str, settings: Settings) -> None:
         # Step 2: Git pull
         task_manager.update_task(task_id, steps[1][0], steps[1][1], TaskStatus.IN_PROGRESS)
 
-        # This image has no ssh client, so an SSH origin (the installer's historical
-        # default) makes `git pull` fail with "cannot run ssh". Rewrite the GitHub SSH
-        # transport to public HTTPS at fetch time. Idempotent, credential-free for the
-        # public repo, and preserves the configured repo/fork path (only transport changes).
-        remote_result = await run_cmd(
-            'git config url."https://github.com/".insteadOf "git@github.com:"',
-            cwd=project_root,
-            timeout=15,
-        )
+        # Guarantee HTTPS transport before pulling (image has no ssh client). Also run at
+        # agent startup; repeated here so a long-running agent self-corrects per update.
+        remote_result = await ensure_https_git_remote(project_root)
         if not remote_result.ok:
             logger.warning("Could not rewrite git SSH remote to HTTPS: %s", remote_result.stderr)
 

@@ -1,10 +1,15 @@
+import logging
 from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.config import get_settings
 from app.routers import check, health, mysql, mysql_config, panel, status
+from app.services.panel_ops import ensure_https_git_remote
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -14,6 +19,16 @@ async def lifespan(application: FastAPI):
         timeout=httpx.Timeout(30.0, connect=10.0),
         headers={"Accept": "application/json"},
     )
+
+    # Self-heal git transport on boot: the image has no ssh client, so an SSH origin
+    # would break automated pulls. Best-effort — a failure here must not block startup.
+    try:
+        result = await ensure_https_git_remote(get_settings().project_root)
+        if not result.ok:
+            logger.warning("Startup git transport normalization failed: %s", result.stderr)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Startup git transport normalization errored: %s", exc)
+
     yield
     await application.state.http_client.aclose()
 

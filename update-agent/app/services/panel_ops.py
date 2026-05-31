@@ -70,6 +70,22 @@ async def run_cmd(
     return result
 
 
+async def ensure_https_git_remote(project_root: str) -> CommandResult:
+    """Force the GitHub SSH transport to public HTTPS for the project repo.
+
+    The agent image ships without an ssh client, so an SSH origin (the installer's
+    historical default) breaks `git pull` with "cannot run ssh". Rewriting the
+    transport is idempotent, credential-free for the public repo, and preserves the
+    configured repo/fork path (only the transport changes). Run at agent startup and
+    before each update so existing SSH-cloned servers self-correct without manual steps.
+    """
+    return await run_cmd(
+        'git config url."https://github.com/".insteadOf "git@github.com:"',
+        cwd=project_root,
+        timeout=15,
+    )
+
+
 def _compose_base(project_root: str) -> str:
     """Return the base docker compose command with the project compose file."""
     return f"docker compose -f {project_root}/docker-compose.yaml"
