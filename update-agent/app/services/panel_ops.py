@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -84,6 +85,35 @@ async def ensure_https_git_remote(project_root: str) -> CommandResult:
         cwd=project_root,
         timeout=15,
     )
+
+
+async def ensure_compose_project_name(
+    reference_containers: tuple[str, ...] = ("alpha_panel_web", "mysql", "frankenphp"),
+) -> str | None:
+    """Resolve and export COMPOSE_PROJECT_NAME for the running stack.
+
+    The agent runs `docker compose -f /project/docker-compose.yaml`, whose implied
+    project name is the mount-dir basename ("project"). The operator started the stack
+    from the install directory, so the live containers carry a different project name —
+    making `docker compose exec/up` target an empty project and fail with
+    "service ... is not running". Read the real project name from a running container's
+    compose label and export it to the process environment so every compose call the
+    agent makes (panel and MySQL flows alike) targets the live stack. Idempotent.
+    """
+    fmt = '{{ index .Config.Labels "com.docker.compose.project" }}'
+    for name in reference_containers:
+        result = await run_cmd(
+            f"docker inspect --format '{fmt}' {name}",
+            timeout=10,
+        )
+        project = result.stdout.strip() if result.ok else ""
+        if project:
+            os.environ["COMPOSE_PROJECT_NAME"] = project
+            logger.info("Resolved compose project name '%s' from container '%s'", project, name)
+            return project
+
+    logger.warning("Could not resolve compose project name from any reference container")
+    return None
 
 
 def _compose_base(project_root: str) -> str:

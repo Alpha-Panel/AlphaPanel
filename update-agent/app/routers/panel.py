@@ -7,7 +7,13 @@ from fastapi import APIRouter, BackgroundTasks, Depends
 
 from app.auth import require_auth
 from app.config import Settings, get_settings
-from app.services.panel_ops import compose_exec, compose_up, ensure_https_git_remote, run_cmd
+from app.services.panel_ops import (
+    compose_exec,
+    compose_up,
+    ensure_compose_project_name,
+    ensure_https_git_remote,
+    run_cmd,
+)
 from app.services.task_manager import TaskStatus, task_manager
 
 logger = logging.getLogger(__name__)
@@ -33,6 +39,11 @@ async def _perform_panel_update(task_id: str, settings: Settings) -> None:
     ]
 
     try:
+        # Ensure compose commands target the live stack (re-resolve in case the panel
+        # container was down when the agent booted). Without this, exec/up hit an empty
+        # project and fail with "service ... is not running".
+        await ensure_compose_project_name()
+
         # Step 1: Maintenance mode on
         task_manager.update_task(task_id, steps[0][0], steps[0][1], TaskStatus.IN_PROGRESS)
         result = await compose_exec(

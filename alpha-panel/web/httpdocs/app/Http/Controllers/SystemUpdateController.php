@@ -11,7 +11,6 @@ use App\Services\UpdateService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -55,7 +54,7 @@ class SystemUpdateController extends Controller
         return Inertia::render('System/Updates', [
             'current_version' => $service->getCurrentVersion(),
             'agent_healthy' => $service->isAgentHealthy(),
-            'cached_check' => Cache::get('system:latest_version_check'),
+            'cached_check' => $service->reconciledCheck(),
             'mysql_stage' => $mysqlStage,
             'active_progress' => $activeProgress,
             'recent_updates' => SystemUpdate::query()

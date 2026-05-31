@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\ZimbraServerSetting;
 use App\Services\ImpersonationService;
 use App\Services\Mail\MailSettingsService;
+use App\Services\UpdateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
@@ -129,7 +130,7 @@ class HandleInertiaRequests extends Middleware
             'translations' => fn () => $this->loadLocaleTranslations($locale),
             'vapid_public_key' => config('webpush.vapid.public_key'),
             'update_available' => fn () => rescue(
-                fn () => $user?->hasRole('admin') ? (bool) Cache::get('system:update_available', false) : false,
+                fn () => $user?->hasRole('admin') ? app(UpdateService::class)->hasOutstandingUpdate() : false,
                 false,
                 false,
             ),

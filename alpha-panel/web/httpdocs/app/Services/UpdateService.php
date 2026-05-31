@@ -114,6 +114,82 @@ class UpdateService
     }
 
     /**
+     * Return the cached update check reconciled against the live version.json.
+     *
+     * A manual update (operator pulls + rebuilds outside the panel flow) changes
+     * version.json but leaves the 6h cache untouched, so the panel keeps warning about
+     * an update that is already applied. Drop any cached update whose target the current
+     * version already meets, and self-correct the cache so the badge clears without
+     * waiting for the TTL or a manual re-check.
+     *
+     * @return array{panel_update: array|null, mysql_update: array|null}|null
+     */
+    public function reconciledCheck(): ?array
+    {
+        $cached = Cache::get('system:latest_version_check');
+
+        if (! is_array($cached)) {
+            return null;
+        }
+
+        $current = $this->getCurrentVersion();
+        $currentPanel = (string) ($current['version'] ?? '0.0.0');
+        $currentMysql = (string) ($current['services']['mysql'] ?? '0.0.0');
+
+        $panelUpdate = $cached['panel_update'] ?? null;
+        if (is_array($panelUpdate) && $this->versionGte($currentPanel, (string) ($panelUpdate['latest_version'] ?? '0.0.0'))) {
+            $panelUpdate = null;
+        }
+
+        $mysqlUpdate = $cached['mysql_update'] ?? null;
+        if (is_array($mysqlUpdate) && $this->versionGte($currentMysql, (string) ($mysqlUpdate['target_version'] ?? '0.0.0'))) {
+            $mysqlUpdate = null;
+        }
+
+        $reconciled = ['panel_update' => $panelUpdate, 'mysql_update' => $mysqlUpdate];
+
+        if ($panelUpdate === null && $mysqlUpdate === null) {
+            Cache::forget('system:update_available');
+            Cache::forget('system:latest_version_check');
+
+            return null;
+        }
+
+        if ($reconciled !== $cached) {
+            Cache::put('system:update_available', true, now()->addHours(6));
+            Cache::put('system:latest_version_check', $reconciled, now()->addHours(6));
+        }
+
+        return $reconciled;
+    }
+
+    /**
+     * Whether a real, still-outstanding update exists (reconciled against version.json).
+     */
+    public function hasOutstandingUpdate(): bool
+    {
+        $reconciled = $this->reconciledCheck();
+
+        return is_array($reconciled) && (! empty($reconciled['panel_update']) || ! empty($reconciled['mysql_update']));
+    }
+
+    /**
+     * Semver-style "current >= target" comparison. Returns false when either side is
+     * not a plain numeric version, so an unknown value never falsely clears a warning.
+     */
+    private function versionGte(string $current, string $target): bool
+    {
+        $current = ltrim(trim($current), 'vV');
+        $target = ltrim(trim($target), 'vV');
+
+        if (! preg_match('/^\d+(\.\d+)*$/', $current) || ! preg_match('/^\d+(\.\d+)*$/', $target)) {
+            return false;
+        }
+
+        return version_compare($current, $target, '>=');
+    }
+
+    /**
      * Trigger panel code update. Returns task_id.
      */
     public function updatePanel(): string

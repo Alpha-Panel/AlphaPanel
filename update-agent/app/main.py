@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.routers import check, health, mysql, mysql_config, panel, status
-from app.services.panel_ops import ensure_https_git_remote
+from app.services.panel_ops import ensure_compose_project_name, ensure_https_git_remote
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +28,13 @@ async def lifespan(application: FastAPI):
             logger.warning("Startup git transport normalization failed: %s", result.stderr)
     except Exception as exc:  # noqa: BLE001
         logger.warning("Startup git transport normalization errored: %s", exc)
+
+    # Resolve the live stack's compose project name so `docker compose` calls target the
+    # running containers instead of an empty "project" namespace. Best-effort.
+    try:
+        await ensure_compose_project_name()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Startup compose project resolution errored: %s", exc)
 
     yield
     await application.state.http_client.aclose()
