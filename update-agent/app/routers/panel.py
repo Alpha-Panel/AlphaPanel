@@ -33,8 +33,8 @@ async def _perform_panel_update(task_id: str, settings: Settings) -> None:
         (60, "Optimizing application"),
         (72, "Rebuilding Docker images"),
         (85, "Applying compose changes"),
-        (92, "Recreating panel container"),
-        (96, "Waiting for container health"),
+        (92, "Restarting panel processes"),
+        (96, "Verifying container is running"),
         (100, "Disabling maintenance mode"),
     ]
 
@@ -190,37 +190,37 @@ async def _perform_panel_update(task_id: str, settings: Settings) -> None:
         else:
             logger.warning("Could not list compose services: %s", services_result.stderr)
 
-        # Step 9: Force-recreate panel container to guarantee fresh code/env.
+        # Step 9: Restart supervised processes inside the panel container.
+        # Mirrors the Jenkins pattern (`docker exec -u root frankenphp
+        # supervisorctl restart all`): refreshes php-fpm, queue workers,
+        # reverb, scheduler, terminal proxy, etc. so the new code is served.
+        # Skips compose project-name resolution entirely — robust regardless
+        # of which directory the stack was launched from.
         task_manager.update_task(task_id, steps[8][0], steps[8][1], TaskStatus.IN_PROGRESS)
-        result = await compose_up(
-            ["alpha_panel_web"],
-            project_root,
-            force_recreate=True,
+        result = await run_cmd(
+            "docker exec -u root -i alpha_panel_web supervisorctl restart all",
+            timeout=60,
         )
         if not result.ok:
             task_manager.update_task(
                 task_id, steps[8][0],
-                f"Container recreate failed: {result.stderr}",
+                f"Panel restart failed: {result.stderr}",
                 TaskStatus.FAILED,
             )
             return
 
-        # Step 10: Wait for healthy
+        # Step 10: Confirm container is still running and supervised processes are healthy.
         task_manager.update_task(task_id, steps[9][0], steps[9][1], TaskStatus.IN_PROGRESS)
-        for attempt in range(30):
+        for _attempt in range(30):
             await asyncio.sleep(2)
             health_result = await run_cmd(
-                f"docker compose -f {project_root}/docker-compose.yaml "
-                f"ps --format '{{{{.Status}}}}' alpha_panel_web",
+                "docker inspect --format '{{.State.Status}}' alpha_panel_web",
                 timeout=10,
             )
-            if health_result.ok and "healthy" in health_result.stdout.lower():
-                break
-            if health_result.ok and "running" in health_result.stdout.lower():
-                # Running but no healthcheck defined -- good enough
+            if health_result.ok and health_result.stdout.strip().lower() == "running":
                 break
         else:
-            logger.warning("Container did not reach healthy state within 60s, proceeding anyway")
+            logger.warning("alpha_panel_web is not in 'running' state after restart")
 
         # Step 11: Maintenance mode off
         task_manager.update_task(task_id, steps[10][0], steps[10][1], TaskStatus.IN_PROGRESS)
@@ -235,8 +235,9 @@ async def _perform_panel_update(task_id: str, settings: Settings) -> None:
 
         task_manager.update_task(
             task_id, 100,
-            "Panel update completed. If update-agent itself was changed, "
-            "run: docker compose up -d --force-recreate update-agent",
+            "Panel update completed. If the alpha_panel_web Dockerfile or "
+            "update-agent itself changed, run from the install dir: "
+            "docker compose up -d --force-recreate alpha_panel_web update-agent",
             TaskStatus.COMPLETED,
         )
 

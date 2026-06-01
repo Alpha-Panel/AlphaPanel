@@ -126,10 +126,24 @@ async def compose_exec(
     command: str,
     project_root: str,
     timeout: int = 300,
+    user: str = "root",
 ) -> CommandResult:
-    """Execute a command inside a running compose service container."""
-    base = _compose_base(project_root)
-    cmd = f"{base} exec -T {service} {command}"
+    """Execute a command inside a known stack container by name.
+
+    Uses ``docker exec -u <user>`` directly rather than ``docker compose
+    exec``, so the call does not depend on compose project-name resolution.
+    Every service the agent talks to (``alpha_panel_web``, ``mysql``, ...)
+    pins ``container_name:`` in docker-compose.yaml, so the service name
+    doubles as the container name and is found regardless of how the stack
+    was launched or which directory the compose file lives in.
+
+    Defaulting to ``-u root`` mirrors the Jenkins pattern
+    (``docker exec -u root frankenphp supervisorctl restart all``) and
+    sidesteps permission failures when a future image adds a non-root
+    ``USER`` directive — composer/npm/artisan all need write access to
+    ``vendor/``, ``node_modules/``, ``bootstrap/cache/``, and storage.
+    """
+    cmd = f"docker exec -u {user} -i {service} {command}"
     return await run_cmd(cmd, cwd=project_root, timeout=timeout)
 
 
