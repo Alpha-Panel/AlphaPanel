@@ -283,6 +283,10 @@ class GoogleDriveService
         $drive = $this->bootDrive();
         $client = $this->bootClient();
 
+        if (! is_file($localPath)) {
+            throw new \RuntimeException("Backup archive missing, cannot upload: {$localPath}");
+        }
+
         $fileName = basename($localPath);
         $fileSize = filesize($localPath);
         $chunkSize = config('backup.chunk_size_mb') * 1024 * 1024;

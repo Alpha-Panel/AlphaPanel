@@ -1,7 +1,7 @@
 {
-  "version": "1.0.5",
+  "version": "1.0.6",
   "channel": "stable",
-  "min_php": "8.4",
+  "min_php": "8.5",
   "services": {
     "mysql": "9.7.0",
     "redis": "7.4.8",

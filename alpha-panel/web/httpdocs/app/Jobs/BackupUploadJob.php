@@ -14,6 +14,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -46,6 +47,19 @@ class BackupUploadJob implements ShouldQueue
         public int $backupRunId,
     ) {}
 
+    /**
+     * Guarantee only one backup runs at a time. The job runs far longer than the
+     * queue's retry_after, so without this lock a "stuck" reservation gets re-queued
+     * and a second worker runs the same backup concurrently — both write identical
+     * archive paths and race on tar/unlink (filesize(): stat failed).
+     *
+     * @return array<int, object>
+     */
+    public function middleware(): array
+    {
+        return [(new WithoutOverlapping('backup-upload'))->dontRelease()->expireAfter(10800)];
+    }
+
     public function handle(GoogleDriveService $driveService): void
     {
         $run = BackupRun::findOrFail($this->backupRunId);
@@ -66,7 +80,7 @@ class BackupUploadJob implements ShouldQueue
         }
 
         $datetime = now()->format('d-M-Y');
-        $tempBase = config('backup.local_backup_base').'/'.$datetime;
+        $tempBase = config('backup.local_backup_base').'/'.$datetime.'/'.$this->backupRunId;
         $this->totalFiles = 0;
         $this->totalBytes = 0;
         $backupsUrl = route('backups.index');
@@ -94,7 +108,7 @@ class BackupUploadJob implements ShouldQueue
             if (is_dir($vhostsPath)) {
                 $websiteDirs = array_values(array_filter(
                     array_map(fn ($name) => "{$vhostsPath}/{$name}", scandir($vhostsPath) ?: []),
-                    fn ($path) => is_dir($path) && ! in_array(basename($path), ['.', '..', ...$exclude])
+                    fn ($path) => is_dir($path) && ! str_starts_with(basename($path), '.') && ! in_array(basename($path), $exclude)
                 ));
             }
 

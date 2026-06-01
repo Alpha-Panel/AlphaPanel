@@ -495,6 +495,19 @@ class BackupTest extends TestCase
         $response->assertForbidden();
     }
 
+    public function test_backup_job_prevents_concurrent_runs(): void
+    {
+        $job = new BackupUploadJob(1);
+
+        $middleware = $job->middleware();
+
+        $this->assertCount(1, $middleware);
+        $this->assertInstanceOf(
+            \Illuminate\Queue\Middleware\WithoutOverlapping::class,
+            $middleware[0]
+        );
+    }
+
     /**
      * Helper to check string containment (PHPUnit 11 compatible).
      */
