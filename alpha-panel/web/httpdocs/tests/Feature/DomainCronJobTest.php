@@ -2,9 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Enums\DomainMode;
+use App\Enums\DomainType;
+use App\Jobs\ExecuteDomainCronJob;
 use App\Models\Domain;
 use App\Models\DomainCronJob;
 use App\Models\User;
+use App\Services\Portainer\ExecResult;
+use App\Services\PortainerService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
@@ -261,6 +266,61 @@ class DomainCronJobTest extends TestCase
             'user_id' => $owner->id,
             'action' => 'cron_job_created',
             'domain_id' => $domain->id,
+        ]);
+    }
+
+    public function test_subdomain_cron_job_runs_in_subdomain_path_as_parent_ftp_user(): void
+    {
+        $owner = User::factory()->create();
+
+        $parent = Domain::factory()->create([
+            'owner_user_id' => $owner->id,
+            'type' => DomainType::CaddyWebServer,
+        ]);
+        $parent->ftpUser()->create([
+            'username' => 'parentftp',
+            'homedir' => "/var/www/vhosts/{$parent->fqdn}",
+            'uid' => 20000 + $parent->id,
+        ]);
+
+        $subdomain = Domain::factory()->create([
+            'owner_user_id' => $owner->id,
+            'parent_domain_id' => $parent->id,
+            'fqdn' => 'api.'.$parent->fqdn,
+            'type' => DomainType::CaddyWebServer,
+            'mode' => DomainMode::Subdomain,
+        ]);
+
+        $cronJob = DomainCronJob::factory()->create([
+            'domain_id' => $subdomain->id,
+            'command' => 'php artisan schedule:run',
+            'created_by' => $owner->id,
+        ]);
+
+        $capturedUser = null;
+        $capturedScript = null;
+
+        $portainer = $this->mock(PortainerService::class);
+        $portainer->shouldReceive('execInContainer')
+            ->once()
+            ->andReturnUsing(function (string $container, array $command, int $timeout, ?string $user) use (&$capturedUser, &$capturedScript): ExecResult {
+                $capturedUser = $user;
+                $capturedScript = $command[2] ?? null;
+
+                return new ExecResult(0, 'ok', '');
+            });
+
+        (new ExecuteDomainCronJob($cronJob))->handle($portainer);
+
+        $this->assertSame('parentftp', $capturedUser);
+        $this->assertStringContainsString(
+            "/var/www/vhosts/{$parent->fqdn}/subdomains/api",
+            (string) $capturedScript,
+        );
+
+        $this->assertDatabaseHas('domain_cron_job_logs', [
+            'domain_cron_job_id' => $cronJob->id,
+            'status' => 'success',
         ]);
     }
 }

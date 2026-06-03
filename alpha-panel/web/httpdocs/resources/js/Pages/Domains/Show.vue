@@ -484,6 +484,12 @@
                             </div>
 
                             <div v-show="getSubdomainTab(subdomain.id) === 'automation'" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                <Link v-if="can('domain.cron-jobs.view')" :href="route('domains.cron-jobs.index', subdomain.id)" class="quick-link">
+                                    <i class="fa-solid fa-clock quick-link-icon"></i>
+                                    <span class="quick-link-label">{{ t('Cron Jobs') }}</span>
+                                    <i class="fa-solid fa-angle-right quick-link-arrow"></i>
+                                </Link>
+
                                 <Link :href="route('domains.supervisor.index', subdomain.id)" class="quick-link">
                                     <i class="fa-brands fa-laravel quick-link-icon"></i>
                                     <span class="quick-link-label">{{ t('Laravel Processes') }}</span>

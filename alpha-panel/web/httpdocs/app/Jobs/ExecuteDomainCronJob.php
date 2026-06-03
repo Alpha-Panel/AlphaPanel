@@ -21,7 +21,7 @@ class ExecuteDomainCronJob implements ShouldQueue
 
     public function handle(PortainerService $portainer): void
     {
-        $this->cronJob->loadMissing('domain.ftpUser');
+        $this->cronJob->loadMissing(['domain.ftpUser', 'domain.parentDomain.ftpUser']);
         $domain = $this->cronJob->domain;
 
         $log = DomainCronJobLog::create([
@@ -56,8 +56,9 @@ class ExecuteDomainCronJob implements ShouldQueue
                 {$command}
                 SH;
 
-            // Run as the domain's FTP user for filesystem isolation
-            $execUser = $domain->ftpUser?->username;
+            // Run as the domain's FTP user for filesystem isolation.
+            // Subdomains have no FtpUser of their own; they inherit the parent's.
+            $execUser = $domain->getEffectiveFtpUsername();
 
             // Select container based on domain type:
             // - Apache/legacy sites → php-code-server (users already provisioned, multi-PHP)
