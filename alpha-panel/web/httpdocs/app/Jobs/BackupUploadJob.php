@@ -51,13 +51,20 @@ class BackupUploadJob implements ShouldQueue
      * Guarantee only one backup runs at a time. The job runs far longer than the
      * queue's retry_after, so without this lock a "stuck" reservation gets re-queued
      * and a second worker runs the same backup concurrently — both write identical
-     * archive paths and race on tar/unlink (filesize(): stat failed).
+     * archive paths and race on tar/unlink (filesize(): stat failed) and on Drive
+     * deleteOldBackups (404 File not found: <fileId>).
+     *
+     * CRITICAL: expireAfter MUST be strictly greater than the queue's retry_after.
+     * If they are equal, the lock dies at the exact moment retry_after re-reserves the
+     * payload, so a backup running longer than retry_after spawns a duplicate that
+     * finds the lock already expired and runs concurrently. Lock at 24h outlives any
+     * realistic backup and any number of retry_after re-reservations within it.
      *
      * @return array<int, object>
      */
     public function middleware(): array
     {
-        return [(new WithoutOverlapping('backup-upload'))->dontRelease()->expireAfter(10800)];
+        return [(new WithoutOverlapping('backup-upload'))->dontRelease()->expireAfter(86400)];
     }
 
     public function handle(GoogleDriveService $driveService): void
