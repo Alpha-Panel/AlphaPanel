@@ -40,6 +40,12 @@ FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-php8.5-bookworm
 
 COPY --from=builder /usr/local/bin/frankenphp /usr/local/bin/frankenphp
 
+# Refresh install-php-extensions to the latest 2.x. The copy bundled in the base
+# image resolves `memcached` to a PECL version with no REST metadata on PHP 8.5
+# ("Package memcached Version 3.4.0 does not have REST xml available" → install
+# failed). The current 2.x installer builds memcached from source for PHP 8.5.
+COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /usr/local/bin/
+
 RUN install-php-extensions \
         pdo_mysql \
         gd \
