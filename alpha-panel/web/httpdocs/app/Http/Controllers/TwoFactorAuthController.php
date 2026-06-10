@@ -11,6 +11,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Laravel\Fortify\Actions\DisableTwoFactorAuthentication;
@@ -94,9 +95,25 @@ class TwoFactorAuthController extends Controller
             }
         }
 
+        $throttleKey = '2fa-verify:'.$request->user()->id;
+
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => __('Too many attempts. Please try again in :seconds seconds.', [
+                    'seconds' => RateLimiter::availableIn($throttleKey),
+                ]),
+            ], 429);
+        }
+
         if (! $this->confirmVerify($request)) {
+            RateLimiter::hit($throttleKey, 60);
+
             return response()->json(['status' => 'error', 'message' => 'Invalid Two Factor Authentication code']);
         }
+
+        RateLimiter::clear($throttleKey);
+
         if (session()->has('otp')) {
             session()->remove('otp');
         }

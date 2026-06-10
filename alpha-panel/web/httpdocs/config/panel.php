@@ -171,6 +171,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | OAuth (AlphaCenter SSO)
+    |--------------------------------------------------------------------------
+    | Server-side allowlist of permitted `redirect_uri` values for the OAuth
+    | authorization flow. The authorization endpoint rejects any request whose
+    | `redirect_uri` is not an exact match in this list, preventing open-redirect
+    | based account takeover. Set PANEL_OAUTH_REDIRECT_URIS to a comma-separated
+    | list of fully-qualified callback URLs.
+    */
+    'oauth' => [
+        'redirect_uris' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('PANEL_OAUTH_REDIRECT_URIS', ''))
+        ))),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | System Updates
     |--------------------------------------------------------------------------
     */

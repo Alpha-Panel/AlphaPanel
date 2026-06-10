@@ -50,6 +50,11 @@ class DatabaseController extends Controller
             $mysqlAdmin->createDatabase($validated['db_name']);
             $mysqlAdmin->createUser($validated['db_user'], $validated['db_password']);
             $mysqlAdmin->grantPrivileges($validated['db_name'], $validated['db_user']);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => __('Invalid database name or username.'),
+            ], 422);
         } catch (\Throwable $e) {
             Log::error("MySQL provision failed for {$validated['db_name']}: {$e->getMessage()}");
 
@@ -104,6 +109,8 @@ class DatabaseController extends Controller
             ]);
 
             return response()->json(['status' => 'success', 'message' => __('User created successfully.')]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['status' => 'error', 'message' => __('Invalid database username.')], 422);
         } catch (\Throwable $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }

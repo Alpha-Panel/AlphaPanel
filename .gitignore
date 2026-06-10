@@ -169,6 +169,9 @@ frankenphp/waf/generated/*
 alpha-panel/web/logs/
 crowdsec/data/*
 !crowdsec/data/.gitkeep
+# Firewall bouncer config holds the LAPI API key — never commit (ship .example).
+# If already tracked: git rm --cached crowdsec/bouncers/crowdsec-firewall-bouncer.yaml
+crowdsec/bouncers/crowdsec-firewall-bouncer.yaml
 *.log
 
 

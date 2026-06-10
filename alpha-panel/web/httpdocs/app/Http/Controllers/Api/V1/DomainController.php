@@ -7,6 +7,9 @@ use App\Jobs\DeleteDomainJob;
 use App\Jobs\ProvisionDomainJob;
 use App\Models\AuditLog;
 use App\Models\Domain;
+use App\Rules\SafeCaddyDirectives;
+use App\Rules\ValidDomainRootPath;
+use App\Rules\ValidHostname;
 use App\Services\CloudflareDnsService;
 use App\Services\FtpUserService;
 use App\Services\Mail\MailSettingsService;
@@ -40,11 +43,16 @@ class DomainController extends ApiController
         $this->ensureAdmin($request);
 
         $validated = $request->validate([
-            'fqdn' => 'required|string|max:255|unique:domains,fqdn',
+            'fqdn' => ['required', 'string', 'max:255', 'unique:domains,fqdn', new ValidHostname],
             'type' => 'required|string|in:legacy,modern',
             'owner_user_id' => 'nullable|integer|exists:users,id',
             'parent_domain_id' => 'nullable|integer|exists:domains,id',
-            'root_path' => 'nullable|string|max:500',
+            'root_path' => [
+                'nullable',
+                'string',
+                'max:500',
+                new ValidDomainRootPath(fn (): ?string => $this->resolveRootPathApex($request)),
+            ],
             'php_version_id' => 'nullable|integer|exists:php_versions,id',
             'dns_provider' => 'nullable|string|in:local,cloudflare,none',
             'enable_www_redirect' => 'boolean',
@@ -94,15 +102,20 @@ class DomainController extends ApiController
         $validated = $request->validate([
             'type' => 'sometimes|string|in:legacy,modern',
             'status' => 'sometimes|string|in:active,disabled,pending_cert,failed',
-            'root_path' => 'nullable|string|max:500',
+            'root_path' => [
+                'nullable',
+                'string',
+                'max:500',
+                new ValidDomainRootPath(fn (): ?string => $domain->getApexDomain()),
+            ],
             'php_version_id' => 'nullable|integer|exists:php_versions,id',
             'dns_provider' => 'nullable|string|in:local,cloudflare,none',
             'enable_www_redirect' => 'boolean',
             'additional_hostnames' => 'nullable|array',
-            'additional_hostnames.*' => 'string',
+            'additional_hostnames.*' => ['string', 'max:255', new ValidHostname],
             'enable_worker' => 'boolean',
             'worker_num' => 'nullable|integer|min:1|max:256',
-            'custom_caddy_directives' => 'nullable|string',
+            'custom_caddy_directives' => ['nullable', 'string', 'max:5000', new SafeCaddyDirectives(strict: false)],
             'cors_enabled' => 'boolean',
             'cors_allowed_origins' => 'nullable|string',
             'bypass_reverse_proxy' => 'boolean',
@@ -277,6 +290,26 @@ class DomainController extends ApiController
     private function ensureCanManageDomain(Request $request, Domain $domain): void
     {
         $this->ensureCanViewDomain($request, $domain);
+    }
+
+    /**
+     * Apex hostname whose jail a custom root_path must live inside on create.
+     * Mirrors Domain::getApexDomain(): a subdomain inherits the parent FQDN,
+     * any other mode jails to its own submitted FQDN.
+     */
+    private function resolveRootPathApex(Request $request): ?string
+    {
+        $parentId = $request->input('parent_domain_id');
+        if ($parentId) {
+            $parentFqdn = Domain::query()->whereKey($parentId)->value('fqdn');
+            if (is_string($parentFqdn) && $parentFqdn !== '') {
+                return $parentFqdn;
+            }
+        }
+
+        $fqdn = trim((string) $request->input('fqdn', ''));
+
+        return $fqdn === '' ? null : $fqdn;
     }
 
     /**

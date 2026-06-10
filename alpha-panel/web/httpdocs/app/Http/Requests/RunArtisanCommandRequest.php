@@ -22,7 +22,6 @@ class RunArtisanCommandRequest extends FormRequest
         'queue:restart',
         'migrate',
         'migrate:status',
-        'migrate:fresh',
         'storage:link',
         'storage:unlink',
         'schedule:list',

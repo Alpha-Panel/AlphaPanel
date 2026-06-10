@@ -5,7 +5,11 @@ namespace App\Http\Requests;
 use App\Enums\DomainType;
 use App\Enums\MailHosting;
 use App\Enums\SslMethod;
+use App\Models\Domain;
 use App\Rules\NotReservedDomain;
+use App\Rules\SafeCaddyDirectives;
+use App\Rules\ValidDomainRootPath;
+use App\Rules\ValidHostname;
 use App\Services\Mail\MailSettingsService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -23,18 +27,27 @@ class UpdateDomainRequest extends FormRequest
     {
         return [
             'owner_user_id' => ['sometimes', 'nullable', 'exists:users,id'],
-            'fqdn' => [
+            'fqdn' => array_filter([
                 'required',
                 'string',
                 'max:255',
                 Rule::unique('domains', 'fqdn')->ignore($this->route('domain')),
                 new NotReservedDomain,
-            ],
+                // Catch-all domains use the literal "*" and have no RFC hostname
+                // to validate; every other mode must be a real hostname so it
+                // cannot inject directives when written into the Caddyfile.
+                $this->existingDomain()?->isCatchall() ? null : new ValidHostname(allowWildcard: true),
+            ]),
             'type' => ['required', new Enum(DomainType::class)],
-            'root_path' => ['nullable', 'string', 'max:500'],
+            'root_path' => [
+                'nullable',
+                'string',
+                'max:500',
+                new ValidDomainRootPath(fn (): ?string => $this->existingDomain()?->getApexDomain()),
+            ],
             'enable_www_redirect' => ['boolean'],
             'additional_hostnames' => ['nullable', 'array'],
-            'additional_hostnames.*' => ['string', 'max:255'],
+            'additional_hostnames.*' => ['string', 'max:255', new ValidHostname],
             'enable_worker' => ['boolean'],
             'worker_num' => [
                 Rule::excludeIf(fn () => ! $this->boolean('enable_worker')),
@@ -80,21 +93,7 @@ class UpdateDomainRequest extends FormRequest
                 'string',
                 'max:5000',
                 Rule::requiredIf(fn () => $this->boolean('bypass_reverse_proxy')),
-                function (string $attribute, mixed $value, \Closure $fail): void {
-                    if ($value === null || $value === '') {
-                        return;
-                    }
-
-                    $blocked = ['import', '{env.', '{system.', 'exec', '{http.vars.'];
-                    $lower = strtolower((string) $value);
-                    foreach ($blocked as $pattern) {
-                        if (str_contains($lower, $pattern)) {
-                            $fail(__('Custom Caddy directives contain a blocked pattern: :pattern', ['pattern' => $pattern]));
-
-                            return;
-                        }
-                    }
-                },
+                new SafeCaddyDirectives(strict: false),
             ],
             'mail_hosting' => [
                 'nullable',
@@ -121,6 +120,26 @@ class UpdateDomainRequest extends FormRequest
         return [
             'php_version_id.required_if' => 'PHP version is required for Apache + Reverse Proxy domains.',
         ];
+    }
+
+    /**
+     * Resolve the domain being updated. Used to derive the apex for the
+     * root-path jail and the mode for hostname validation, both of which must
+     * come from server-trusted state rather than the request body.
+     */
+    private function existingDomain(): ?Domain
+    {
+        $route = $this->route('domain');
+
+        if ($route instanceof Domain) {
+            return $route;
+        }
+
+        if ($route === null) {
+            return null;
+        }
+
+        return Domain::find($route);
     }
 
     /**

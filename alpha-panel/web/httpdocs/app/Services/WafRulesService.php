@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Domain;
 use App\Models\WafGlobalIpRule;
+use App\Rules\IpOrCidr;
 use Illuminate\Support\Facades\File;
 
 class WafRulesService
@@ -42,10 +43,15 @@ class WafRulesService
         $allow = [];
         $deny = [];
         foreach ($rules as $rule) {
+            $ip = trim((string) $rule->ip_or_cidr);
+            if (! IpOrCidr::isValid($ip)) {
+                continue;
+            }
+
             if ($rule->action === 'allow') {
-                $allow[] = $rule->ip_or_cidr;
+                $allow[] = $ip;
             } elseif ($rule->action === 'deny') {
-                $deny[] = $rule->ip_or_cidr;
+                $deny[] = $ip;
             }
         }
 
@@ -98,21 +104,21 @@ class WafRulesService
             ->where('enabled', true)
             ->pluck('ip_or_cidr')
             ->map(fn ($ip) => trim((string) $ip))
-            ->filter()
+            ->filter(fn ($ip) => IpOrCidr::isValid($ip))
             ->values()
             ->all();
         $globalSet = array_flip($globalRules);
 
         $allow = collect($domain->modsecurity_ip_allowlist ?? [])
             ->map(fn ($ip) => trim((string) $ip))
-            ->filter()
+            ->filter(fn ($ip) => IpOrCidr::isValid($ip))
             ->reject(fn ($ip) => isset($globalSet[$ip]))
             ->values()
             ->all();
 
         $deny = collect($domain->modsecurity_ip_blocklist ?? [])
             ->map(fn ($ip) => trim((string) $ip))
-            ->filter()
+            ->filter(fn ($ip) => IpOrCidr::isValid($ip))
             ->reject(fn ($ip) => isset($globalSet[$ip]))
             ->values()
             ->all();

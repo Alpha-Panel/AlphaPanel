@@ -9,6 +9,8 @@ use App\Models\Domain;
 use App\Rules\NoExistingCatchall;
 use App\Rules\NotReservedDomain;
 use App\Rules\RequiresAdmin;
+use App\Rules\ValidDomainRootPath;
+use App\Rules\ValidHostname;
 use App\Services\Mail\MailSettingsService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -38,17 +40,20 @@ class StoreDomainRequest extends FormRequest
                 'max:255',
                 'unique:domains,fqdn',
                 new NotReservedDomain,
-                // FQDN regex for regular domain modes
+                // RFC-1123 hostname for regular domain modes.
                 in_array($this->input('mode'), [
                     DomainMode::Main->value,
                     DomainMode::Subdomain->value,
                     DomainMode::Addon->value,
                 ], true)
-                    ? 'regex:/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i'
+                    ? new ValidHostname
                     : null,
                 // Wildcard subdomain: must be *.something.tld
                 $this->input('mode') === DomainMode::WildcardSubdomain->value
-                    ? 'regex:/^\*\.(?=.{1,251}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i'
+                    ? 'starts_with:*.'
+                    : null,
+                $this->input('mode') === DomainMode::WildcardSubdomain->value
+                    ? new ValidHostname(allowWildcard: true)
                     : null,
                 // Catch-all: must be literal *, admin only, no existing one
                 $this->input('mode') === DomainMode::WildcardCatchall->value
@@ -74,7 +79,12 @@ class StoreDomainRequest extends FormRequest
                 'exists:domains,id',
             ],
             'type' => ['required', new Enum(DomainType::class)],
-            'root_path' => ['nullable', 'string', 'max:500'],
+            'root_path' => [
+                'nullable',
+                'string',
+                'max:500',
+                new ValidDomainRootPath(fn (): ?string => $this->resolveRootPathApex()),
+            ],
             'inherit_parent_root_path' => [
                 Rule::excludeIf(fn () => ! $this->filled('parent_domain_id')),
                 'sometimes',
@@ -88,7 +98,7 @@ class StoreDomainRequest extends FormRequest
             ],
             'enable_www_redirect' => ['boolean'],
             'additional_hostnames' => ['nullable', 'array'],
-            'additional_hostnames.*' => ['string', 'max:255'],
+            'additional_hostnames.*' => ['string', 'max:255', new ValidHostname],
             'enable_worker' => ['boolean'],
             'worker_num' => [
                 Rule::excludeIf(fn () => ! $this->boolean('enable_worker')),
@@ -196,6 +206,27 @@ class StoreDomainRequest extends FormRequest
     {
         return $this->input('type') === 'apache_reverse_proxy'
             && ! $this->filled('parent_domain_id');
+    }
+
+    /**
+     * Apex hostname whose jail a custom root_path must live inside. Mirrors
+     * Domain::getApexDomain()/getBasePath() so the jail matches the directory
+     * the panel actually provisions: a subdomain inherits the parent's FQDN,
+     * any other mode jails to its own FQDN.
+     */
+    private function resolveRootPathApex(): ?string
+    {
+        $parentId = $this->input('parent_domain_id');
+        if ($parentId) {
+            $parentFqdn = Domain::query()->whereKey($parentId)->value('fqdn');
+            if (is_string($parentFqdn) && $parentFqdn !== '') {
+                return $parentFqdn;
+            }
+        }
+
+        $fqdn = trim((string) $this->input('fqdn', ''));
+
+        return $fqdn === '' ? null : $fqdn;
     }
 
     /**

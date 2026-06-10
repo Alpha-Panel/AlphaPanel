@@ -54,6 +54,7 @@ class DomainDirectoryService
     {
         $iniPath = escapeshellarg("{$domain->getWebRootPath()}/.user.ini");
         $openBasedir = implode(':', [$domain->getBasePath(), '/tmp', '/dev/urandom']);
+        $escapedOpenBasedir = escapeshellarg($openBasedir);
 
         $container = $domain->type === DomainType::CaddyWebServer
             ? 'frankenphp'
@@ -66,9 +67,12 @@ class DomainDirectoryService
             'sh', '-c', "chattr -i {$iniPath} 2>/dev/null || true",
         ]);
 
-        // Write the .user.ini file — use printf to avoid literal newline issues in shell
+        // Write the .user.ini file — use printf to avoid literal newline issues
+        // in shell. The open_basedir value (fqdn-derived) is passed as a printf
+        // argument via %s rather than interpolated into the format string, so it
+        // cannot inject shell syntax even if a path contains metacharacters.
         $result = $portainer->execInContainer($container, [
-            'sh', '-c', "printf '; AlphaPanel -- DO NOT MODIFY\nopen_basedir = {$openBasedir}\n' > {$iniPath}",
+            'sh', '-c', "printf '; AlphaPanel -- DO NOT MODIFY\nopen_basedir = %s\n' {$escapedOpenBasedir} > {$iniPath}",
         ]);
 
         if (! $result->isSuccessful()) {

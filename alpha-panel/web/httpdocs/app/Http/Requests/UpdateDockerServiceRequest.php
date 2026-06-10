@@ -26,7 +26,7 @@ class UpdateDockerServiceRequest extends FormRequest
                 Rule::unique('docker_services', 'name')->ignore($this->route('dockerService')),
             ],
             'display_name' => ['nullable', 'string', 'max:255'],
-            'hostname' => ['nullable', 'string', 'max:255'],
+            'hostname' => ['nullable', 'string', 'max:255', 'regex:/^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?$/'],
             'restart_policy' => ['required', 'string', Rule::in(['no', 'always', 'unless-stopped', 'on-failure'])],
             'environment_variables' => ['nullable', 'array'],
             'environment_variables.*' => ['string'],
@@ -52,6 +52,7 @@ class UpdateDockerServiceRequest extends FormRequest
         return [
             'name.regex' => __('Service name must start with a lowercase letter or number and contain only lowercase letters, numbers, and hyphens.'),
             'name.unique' => __('A Docker service with this name already exists.'),
+            'hostname.regex' => __('Hostname contains invalid characters.'),
         ];
     }
 
@@ -62,7 +63,115 @@ class UpdateDockerServiceRequest extends FormRequest
     {
         $validator->after(function (Validator $validator): void {
             $this->validateHostPortConflicts($validator);
+            $this->validateVolumePaths($validator);
         });
+    }
+
+    /**
+     * Reject volume binds that escape the managed base path or target sensitive host paths.
+     *
+     * The user must never be able to bind an arbitrary host path (e.g. /, /etc, the Docker
+     * socket) into a container, which would grant host-root capability. Host paths are
+     * constrained to the configured managed base prefix.
+     */
+    private function validateVolumePaths(Validator $validator): void
+    {
+        $volumes = $this->input('volumes', []);
+        if (! is_array($volumes) || $volumes === []) {
+            return;
+        }
+
+        $base = $this->managedVolumeBasePath();
+
+        foreach ($volumes as $index => $vol) {
+            if (! is_array($vol)) {
+                continue;
+            }
+
+            $hostPath = isset($vol['host_path']) ? trim((string) $vol['host_path']) : '';
+            $containerPath = isset($vol['container_path']) ? trim((string) $vol['container_path']) : '';
+
+            if ($hostPath !== '' && ! $this->isAllowedHostPath($hostPath, $base)) {
+                $validator->errors()->add(
+                    "volumes.{$index}.host_path",
+                    __('Host path must be inside the managed volume directory and may not reference sensitive system paths.'),
+                );
+            }
+
+            if ($containerPath !== '' && $this->isForbiddenContainerPath($containerPath)) {
+                $validator->errors()->add(
+                    "volumes.{$index}.container_path",
+                    __('Container path is not allowed.'),
+                );
+            }
+        }
+    }
+
+    /**
+     * Resolve the configured managed volume base path with a safe fallback.
+     */
+    private function managedVolumeBasePath(): string
+    {
+        $base = (string) config('panel.docker_services.volume_base_path', '/var/lib/docker-managed');
+
+        return rtrim($base, '/');
+    }
+
+    /**
+     * Determine whether a host path is safe to bind-mount.
+     */
+    private function isAllowedHostPath(string $hostPath, string $base): bool
+    {
+        if (str_contains($hostPath, '..') || str_contains($hostPath, "\0")) {
+            return false;
+        }
+
+        if (! str_starts_with($hostPath, '/')) {
+            return false;
+        }
+
+        $forbiddenPrefixes = [
+            '/etc',
+            '/root',
+            '/proc',
+            '/sys',
+            '/dev',
+            '/boot',
+            '/var/run',
+            '/run',
+            '/var/lib/docker',
+        ];
+
+        $normalized = rtrim($hostPath, '/');
+
+        if ($normalized === '' || $normalized === '/') {
+            return false;
+        }
+
+        foreach ($forbiddenPrefixes as $prefix) {
+            if ($normalized === $prefix || str_starts_with($normalized.'/', $prefix.'/')) {
+                return false;
+            }
+        }
+
+        return str_starts_with($normalized.'/', $base.'/');
+    }
+
+    /**
+     * Determine whether a container path targets a forbidden mount point.
+     */
+    private function isForbiddenContainerPath(string $containerPath): bool
+    {
+        if (str_contains($containerPath, "\0")) {
+            return true;
+        }
+
+        $normalized = rtrim(trim($containerPath), '/');
+
+        return in_array($normalized, [
+            '/var/run/docker.sock',
+            '/run/docker.sock',
+        ], true);
     }
 
     /**

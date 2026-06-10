@@ -1,7 +1,10 @@
 <?php
 declare(strict_types=1);
 
-$cfg['blowfish_secret'] = getenv('PMA_BLOWFISH_SECRET') ?: 'q!XcGz^#fAPRWMGTaj#KF&%FowP0kEQ@';
+// PMA_BLOWFISH_SECRET must be set in the environment (the installer generates a
+// random 32-char value). No hardcoded fallback: a shared/default secret lets an
+// attacker forge the cookie-auth encryption and is treated as a hard requirement.
+$cfg['blowfish_secret'] = (string) getenv('PMA_BLOWFISH_SECRET');
 
 $cfg['DefaultLang'] = 'en';
 $cfg['ServerDefault'] = 1;

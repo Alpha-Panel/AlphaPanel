@@ -43,14 +43,18 @@ class ExecuteDomainCronJob implements ShouldQueue
                 $command = escapeshellcmd($command);
             }
 
-            // Build a sandboxed script that prevents directory traversal
+            // Build a sandboxed script that prevents directory traversal.
+            // The base path is passed as a positional argument ($1), never
+            // string-interpolated into the script body, so an fqdn-derived path
+            // cannot inject shell syntax into the `case` guard.
             $escapedWebRoot = escapeshellarg($webRoot);
             $escapedBasePath = escapeshellarg($basePath);
             $script = <<<SH
+                BASE="\$1"
                 cd {$escapedWebRoot} 2>/dev/null || cd {$escapedBasePath} 2>/dev/null || { echo "ERROR: Working directory not found"; exit 126; }
                 REAL_CWD=\$(realpath "\$PWD")
                 case "\$REAL_CWD" in
-                    {$basePath}|{$basePath}/*) ;;
+                    "\$BASE"|"\$BASE"/*) ;;
                     *) echo "ERROR: Access denied - working directory outside domain root"; exit 126 ;;
                 esac
                 {$command}
@@ -69,7 +73,7 @@ class ExecuteDomainCronJob implements ShouldQueue
 
             $result = $portainer->execInContainer(
                 $container,
-                ['sh', '-c', $script],
+                ['sh', '-c', $script, 'alphapanel-cron', $basePath],
                 300,
                 $execUser,
             );

@@ -23,6 +23,8 @@ class DomainIpRuleController extends Controller
 
     public function index(Request $request, Domain $domain): Response
     {
+        $this->authorize('update', $domain);
+
         $rules = $domain->ipRules()
             ->with('creator:id,name')
             ->orderByDesc('created_at')
@@ -36,6 +38,8 @@ class DomainIpRuleController extends Controller
 
     public function updateMode(UpdateDomainIpAccessModeRequest $request, Domain $domain): JsonResponse
     {
+        $this->authorize('update', $domain);
+
         $oldMode = $domain->ip_access_mode?->value ?? 'none';
         $newMode = $request->validated('ip_access_mode');
 
@@ -55,6 +59,8 @@ class DomainIpRuleController extends Controller
 
     public function store(StoreDomainIpRuleRequest $request, Domain $domain): JsonResponse
     {
+        $this->authorize('update', $domain);
+
         $rule = $domain->ipRules()->create([
             ...$request->validated(),
             'created_by' => $request->user()->id,
@@ -86,6 +92,9 @@ class DomainIpRuleController extends Controller
 
     public function destroy(Request $request, Domain $domain, DomainIpRule $rule): JsonResponse
     {
+        $this->authorize('update', $domain);
+        abort_unless($rule->domain_id === $domain->id, 404);
+
         $ipAddress = $rule->ip_address;
         $path = $rule->path;
 

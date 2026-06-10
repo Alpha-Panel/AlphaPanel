@@ -24,6 +24,8 @@ class DockerProjectDomainBindingController extends Controller
 
     public function index(Request $request, Domain $domain): Response
     {
+        $this->authorize('update', $domain);
+
         $domain->load('dockerProjectBindings.dockerProject');
 
         $availableProjects = DockerProject::whereIn('status', ['running', 'stopped', 'failed'])
@@ -38,6 +40,8 @@ class DockerProjectDomainBindingController extends Controller
 
     public function store(StoreDockerProjectDomainBindingRequest $request, Domain $domain): RedirectResponse|JsonResponse
     {
+        $this->authorize('update', $domain);
+
         $binding = $domain->dockerProjectBindings()->create($request->validated());
         $binding->load('dockerProject');
 
@@ -72,6 +76,9 @@ class DockerProjectDomainBindingController extends Controller
 
     public function destroy(Request $request, Domain $domain, DockerProjectDomainBinding $binding): RedirectResponse|JsonResponse
     {
+        $this->authorize('update', $domain);
+        abort_unless($binding->domain_id === $domain->id, 404);
+
         $projectName = $binding->dockerProject->display_name ?? $binding->dockerProject->name;
         $serviceName = $binding->service_name;
         $containerPort = $binding->container_port;

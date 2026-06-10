@@ -12,6 +12,11 @@ from app.services.panel_ops import CommandResult, run_cmd
 
 logger = logging.getLogger(__name__)
 
+# Strict semver guard for any version string written into .env. Prevents a
+# malformed or injected value (e.g. with newlines/shell metacharacters) from
+# corrupting the env file or flowing into later shell commands.
+_VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
+
 
 def _mysql_cli(host: str, port: int, user: str, password: str) -> str:
     """Build the base mysql CLI invocation string."""
@@ -266,7 +271,19 @@ def get_mysql_version_from_env(project_root: str) -> str:
 
 
 def set_mysql_version_in_env(project_root: str, version: str) -> None:
-    """Update (or add) MYSQL_VERSION in the project .env file."""
+    """Update (or add) MYSQL_VERSION in the project .env file.
+
+    Validates the version against strict semver before writing so a malformed
+    or injected value can never reach the .env file or downstream commands.
+    """
+    candidate = (version or "").strip()
+    if not _VERSION_RE.match(candidate):
+        raise ValueError(
+            f"Refusing to write invalid MYSQL_VERSION '{version}'. "
+            "Expected MAJOR.MINOR.PATCH."
+        )
+    version = candidate
+
     env_path = Path(project_root) / ".env"
     if not env_path.exists():
         env_path.write_text(f"MYSQL_VERSION={version}\n", encoding="utf-8")

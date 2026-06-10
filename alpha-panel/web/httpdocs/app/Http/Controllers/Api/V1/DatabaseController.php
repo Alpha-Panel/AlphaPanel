@@ -45,11 +45,14 @@ class DatabaseController extends ApiController
         $db = ManagedDatabase::create([
             'domain_id' => $domain->id,
             'db_name' => $validated['db_name'],
+            'created_by' => $request->user()->id,
         ]);
 
         ManagedDatabaseUser::create([
             'managed_database_id' => $db->id,
-            'username' => $validated['db_user'],
+            'db_user' => $validated['db_user'],
+            'db_password_encrypted' => $validated['db_password'],
+            'created_by' => $request->user()->id,
         ]);
 
         return response()->json(['data' => $db->load('databaseUsers')], 201);
@@ -62,7 +65,7 @@ class DatabaseController extends ApiController
 
         foreach ($database->databaseUsers as $user) {
             try {
-                $mysql->dropUser($user->username);
+                $mysql->dropUser($user->db_user);
             } catch (\Throwable) {
             }
         }
@@ -89,7 +92,9 @@ class DatabaseController extends ApiController
 
         $user = ManagedDatabaseUser::create([
             'managed_database_id' => $database->id,
-            'username' => $validated['db_user'],
+            'db_user' => $validated['db_user'],
+            'db_password_encrypted' => $validated['db_password'],
+            'created_by' => $request->user()->id,
         ]);
 
         return response()->json(['data' => $user], 201);
@@ -101,7 +106,8 @@ class DatabaseController extends ApiController
         $this->ensureUserBelongsToDomain($user, $domain);
 
         $validated = $request->validate(['password' => 'required|string|min:8']);
-        $mysql->updateUserPassword($user->username, $validated['password']);
+        $mysql->changePassword($user->db_user, $validated['password']);
+        $user->update(['db_password_encrypted' => $validated['password']]);
 
         return response()->json(['message' => __('Password updated.')]);
     }
@@ -112,7 +118,7 @@ class DatabaseController extends ApiController
         $this->ensureUserBelongsToDomain($user, $domain);
 
         try {
-            $mysql->dropUser($user->username);
+            $mysql->dropUser($user->db_user);
         } catch (\Throwable) {
         }
 

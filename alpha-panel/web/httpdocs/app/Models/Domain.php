@@ -362,17 +362,62 @@ class Domain extends Model
             return $this->linkedDomain->getWebRootPath();
         }
 
-        if ($this->root_path) {
+        $base = $this->getBasePath();
+
+        if ($this->root_path && $this->isRootPathWithinJail($this->root_path)) {
             return $this->root_path;
         }
-
-        $base = $this->getBasePath();
 
         if ($this->type === DomainType::CaddyWebServer) {
             return "{$base}/httpdocs/public";
         }
 
         return "{$base}/httpdocs";
+    }
+
+    /**
+     * Defense in depth: a custom root_path is only honoured when it is absolute,
+     * traversal-free, and resolves inside this domain's own jail. Anything else
+     * (a value smuggled past validation, a legacy row pointing at another
+     * tenant) falls back to the safe default web root instead of being trusted.
+     *
+     * The jail is the apex directory (`/var/www/vhosts/{apex}`) so a subdomain
+     * may legitimately share the parent apex's web root, but no domain can point
+     * outside its registrable tree.
+     */
+    private function isRootPathWithinJail(string $rootPath): bool
+    {
+        if (! str_starts_with($rootPath, '/') || str_contains($rootPath, '..')) {
+            return false;
+        }
+
+        if (preg_match('/[\r\n\0]/', $rootPath) === 1) {
+            return false;
+        }
+
+        $canonicalRoot = $this->normalizePath($rootPath);
+        $canonicalJail = $this->normalizePath($this->jailRootPath());
+
+        if ($canonicalJail === '') {
+            return false;
+        }
+
+        return $canonicalRoot === $canonicalJail
+            || str_starts_with($canonicalRoot, $canonicalJail.'/');
+    }
+
+    /**
+     * The directory a custom root_path must live inside. Catch-all domains use
+     * the dedicated wildcard tree; every other mode is jailed to its apex
+     * directory under /var/www/vhosts.
+     */
+    private function jailRootPath(): string
+    {
+        if ($this->isCatchall()) {
+            return '/var/www/vhosts/wildcard';
+        }
+
+        return '/var/www/vhosts/'.$this->getApexDomain();
     }
 
     private function normalizePath(string $path): string

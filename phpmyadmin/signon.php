@@ -59,7 +59,6 @@ $panelDbFallbackHost = getenv('PANEL_DB_FALLBACK_HOST') ?: '';
 $panelDbName = getenv('PANEL_DB_NAME') ?: 'alphapanel';
 $panelDbUser = getenv('PANEL_DB_USER') ?: 'alphapanel';
 $panelDbPass = getenv('PANEL_DB_PASS') ?: '';
-$panelDbRootPass = getenv('PANEL_DB_ROOT_PASS') ?: '';
 $panelDbPort = (int)(getenv('PANEL_DB_PORT') ?: 3306);
 $enforceIp = (getenv('PMA_SSO_ENFORCE_IP') ?: '0') === '1';
 $requestIp = (string)($_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? '');
@@ -70,76 +69,63 @@ $hosts = array_values(array_filter(array_unique([
     'mysql',
 ])));
 
-// Her host için denenecek kullanıcı/şifre kombinasyonları.
-// Önce panel kullanıcısı, bağlantı başarısız olursa root ile dene (MySQL Docker varsayılan olarak root@% açıktır).
-$credentialSets = array_values(array_filter([
-    ['user' => $panelDbUser, 'pass' => $panelDbPass],
-    $panelDbRootPass !== '' ? ['user' => 'root', 'pass' => $panelDbRootPass] : null,
-]));
-
+// Token lookup uses ONLY the panel DB user. That account owns the panel database
+// and therefore can read phpmyadmin_sso_tokens. The previous MySQL root fallback
+// is removed: handing root credentials to the phpMyAdmin container is a privilege
+// escalation path and is unnecessary for this query. Fail closed if it cannot connect.
 $row = null;
 $mysqli = null;
-$connectErrors = [];
-$usedHost = '';
 
 foreach ($hosts as $host) {
-    foreach ($credentialSets as $cred) {
-        try {
-            $conn = @mysqli_connect($host, $cred['user'], $cred['pass'], $panelDbName, $panelDbPort);
-            if(!$conn){
-                die("Could not connect to database");
-            }
-        } catch (Throwable $e) {
-            $connectErrors[] = "{$host}@{$cred['user']}:".$e->getMessage();
-            continue;
-        }
-
-        if (!$conn) {
-            $connectErrors[] = "{$host}@{$cred['user']}:".mysqli_connect_error();
-            continue;
-        }
-
-        mysqli_set_charset($conn, 'utf8mb4');
-
-        $stmt = mysqli_prepare(
-            $conn,
-            "SELECT mysql_user, mysql_pass, mysql_host, mysql_port, client_ip, expires_at
-             FROM phpmyadmin_sso_tokens
-             WHERE token = ? LIMIT 1"
-        );
-        if (!$stmt) {
-            $connectErrors[] = "{$host}@{$cred['user']}:prepare-failed";
-            mysqli_close($conn);
-            continue;
-        }
-
-        mysqli_stmt_bind_param($stmt, 's', $token);
-        mysqli_stmt_execute($stmt);
-
-        $res = mysqli_stmt_get_result($stmt);
-        $lookup = $res ? mysqli_fetch_assoc($res) : null;
-        mysqli_stmt_close($stmt);
-
-        if (!$lookup) {
-            mysqli_close($conn);
-            continue;
-        }
-
-        $row = $lookup;
-        $mysqli = $conn;
-        $usedHost = "{$host}@{$cred['user']}";
-        break 2;
+    $conn = @mysqli_connect($host, $panelDbUser, $panelDbPass, $panelDbName, $panelDbPort);
+    if (!$conn) {
+        continue;
     }
+
+    mysqli_set_charset($conn, 'utf8mb4');
+
+    $stmt = mysqli_prepare(
+        $conn,
+        "SELECT mysql_user, mysql_pass, mysql_host, mysql_port, client_ip, expires_at
+         FROM phpmyadmin_sso_tokens
+         WHERE token = ? LIMIT 1"
+    );
+    if (!$stmt) {
+        mysqli_close($conn);
+        continue;
+    }
+
+    mysqli_stmt_bind_param($stmt, 's', $token);
+    mysqli_stmt_execute($stmt);
+
+    $res = mysqli_stmt_get_result($stmt);
+    $lookup = $res ? mysqli_fetch_assoc($res) : null;
+    mysqli_stmt_close($stmt);
+
+    if (!$lookup) {
+        mysqli_close($conn);
+        continue;
+    }
+
+    $row = $lookup;
+    $mysqli = $conn;
+    break;
 }
 
 
 if (!$row || !$mysqli) {
-    error_log('[phpmyadmin-sso] token lookup failed token='.substr($token, 0, 12).' host='.implode(',', $hosts).' db='.$panelDbName.' err='.implode('|', $connectErrors));
+    error_log('[phpmyadmin-sso] token lookup failed');
     http_response_code(403);
     exit('Token not found');
 }
 
-// Decrypt mysql_pass — Laravel 'encrypted' cast uses AES-256-CBC with APP_KEY
+// Decrypt mysql_pass — Laravel 'encrypted' cast uses AES-256-CBC with APP_KEY.
+//
+// Residual risk / follow-up: PANEL_APP_KEY is the panel's APP_KEY shared into this
+// container so it can decrypt mysql_pass. Sharing the panel's master key here means
+// a compromise of the phpMyAdmin container exposes the key used to decrypt all
+// panel-encrypted data. This should move to a dedicated key used only for SSO token
+// payloads. Not changed now because it would break the existing SSO flow.
 $panelAppKey = getenv('PANEL_APP_KEY') ?: '';
 if ($panelAppKey !== '' && ($row['mysql_pass'] ?? '') !== '') {
     $appKeyRaw = $panelAppKey;
@@ -192,7 +178,7 @@ if (
     }
 
     mysqli_close($mysqli);
-    error_log('[phpmyadmin-sso] ip mismatch token host='.$usedHost.' expected='.(string)$row['client_ip'].' actual='.$requestIp);
+    error_log('[phpmyadmin-sso] token rejected: client IP mismatch');
     http_response_code(403);
     exit('Token IP mismatch');
 }
@@ -217,7 +203,6 @@ $authHosts = array_values(array_filter(array_unique([
 ])));
 $authConn = null;
 $authHost = '';
-$authErrors = [];
 
 foreach ($authHosts as $host) {
     try {
@@ -229,12 +214,10 @@ foreach ($authHosts as $host) {
             $targetPort
         );
     } catch (Throwable $e) {
-        $authErrors[] = "{$host}:".$e->getMessage();
         continue;
     }
 
     if (!$tmpConn) {
-        $authErrors[] = "{$host}:".mysqli_connect_error();
         continue;
     }
 
@@ -244,7 +227,7 @@ foreach ($authHosts as $host) {
 }
 
 if (!$authConn) {
-    error_log('[phpmyadmin-sso] mysql auth failed hosts='.implode(',', $authHosts).' port='.$targetPort.' user='.(string)$row['mysql_user'].' err='.implode('|', $authErrors));
+    error_log('[phpmyadmin-sso] SSO MySQL auth failed');
     http_response_code(403);
     exit('MySQL auth failed for SSO user');
 }
@@ -256,7 +239,7 @@ $_SESSION['PMA_single_signon_password'] = (string)$row['mysql_pass'];
 $_SESSION['PMA_single_signon_host']     = $authHost !== '' ? $authHost : $targetHost;
 $_SESSION['PMA_single_signon_port']     = $targetPort;
 $_SESSION['PMA_SSO_BOOTSTRAP_ATTEMPTS'] = 0;
-error_log('[phpmyadmin-sso] token accepted sid='.session_id().' host='.$usedHost.' user='.(string)$row['mysql_user']);
+error_log('[phpmyadmin-sso] token accepted');
 
 // Session mutlaka yazılsın
 session_write_close();

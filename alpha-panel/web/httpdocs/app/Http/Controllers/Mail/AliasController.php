@@ -46,6 +46,8 @@ class AliasController extends Controller
 
     public function store(StoreAliasRequest $request, Domain $domain): RedirectResponse
     {
+        $this->authorizeDomain($request, $domain);
+
         $data = $request->validated();
         try {
             $this->resolver->for($domain)->createAlias(

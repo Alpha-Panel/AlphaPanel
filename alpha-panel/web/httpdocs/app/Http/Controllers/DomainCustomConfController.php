@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Domain;
+use App\Rules\SafeCaddyDirectives;
 use App\Services\ReloadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,7 +31,7 @@ class DomainCustomConfController extends Controller
         $this->authorize('update', $domain);
 
         $request->validate([
-            'content' => ['nullable', 'string', 'max:65536'],
+            'content' => ['nullable', 'string', 'max:65536', new SafeCaddyDirectives],
         ]);
 
         $content = $request->string('content')->toString();

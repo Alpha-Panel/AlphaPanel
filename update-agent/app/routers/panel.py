@@ -241,10 +241,12 @@ async def _perform_panel_update(task_id: str, settings: Settings) -> None:
             TaskStatus.COMPLETED,
         )
 
-    except Exception as exc:
+    except Exception:
         logger.exception("Panel update failed with unexpected error")
         task_manager.update_task(
-            task_id, 0, f"Unexpected error: {exc}", TaskStatus.FAILED
+            task_id, 0,
+            "Panel update failed due to an unexpected error. Check agent logs.",
+            TaskStatus.FAILED,
         )
         # Best-effort recovery: try to bring panel back up
         try:

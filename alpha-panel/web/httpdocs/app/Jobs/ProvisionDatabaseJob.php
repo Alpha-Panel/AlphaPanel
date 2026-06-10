@@ -55,6 +55,12 @@ class ProvisionDatabaseJob implements ShouldQueue
             DatabaseProvisionProgress::dispatch(
                 $this->userId, $domainId, $db->db_name, 'Database created successfully!', 'completed',
             );
+        } catch (\InvalidArgumentException $e) {
+            Log::error("Database provision rejected invalid identifier for database id {$db->id}");
+
+            DatabaseProvisionProgress::dispatch(
+                $this->userId, $domainId, $db->db_name, 'Failed: invalid database name or username.', 'failed',
+            );
         } catch (\Throwable $e) {
             Log::error("Database provision failed for {$db->db_name}: {$e->getMessage()}");
 

@@ -20,21 +20,25 @@ class ModSecurityController extends ApiController
 
     public function show(Domain $domain): JsonResponse
     {
+        $this->authorize('viewModSecurity', $domain);
+
         return response()->json(['data' => $domain->only(self::FIELDS)]);
     }
 
     public function update(Request $request, Domain $domain): JsonResponse
     {
+        $this->authorize('manageModSecurity', $domain);
+
         $validated = $request->validate([
             'modsecurity_enabled' => 'boolean',
             'modsecurity_mode' => 'nullable|string|in:detection_only,on',
             'modsecurity_ip_allowlist' => 'nullable|array',
-            'modsecurity_ip_allowlist.*' => 'string',
+            'modsecurity_ip_allowlist.*' => 'string|max:64',
             'modsecurity_ip_blocklist' => 'nullable|array',
-            'modsecurity_ip_blocklist.*' => 'string',
+            'modsecurity_ip_blocklist.*' => 'string|max:64',
             'modsecurity_disabled_rule_ids' => 'nullable|array',
             'modsecurity_disabled_rule_ids.*' => 'string',
-            'modsecurity_custom_rules' => 'nullable|string',
+            'modsecurity_custom_rules' => 'nullable|string|max:20000',
         ]);
 
         $domain->update($validated);
@@ -44,6 +48,8 @@ class ModSecurityController extends ApiController
 
     public function logs(Domain $domain, WafLogService $wafLogService): JsonResponse
     {
+        $this->authorize('viewModSecurity', $domain);
+
         $logs = $wafLogService->getLogsForDomain($domain);
 
         return response()->json(['data' => $logs]);

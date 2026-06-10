@@ -30,8 +30,15 @@ class UserController extends ApiController
             'admin' => 'boolean',
         ]);
 
+        $isAdminFlag = (bool) ($validated['admin'] ?? false);
+        unset($validated['admin']);
+
         $validated['password'] = Hash::make($validated['password']);
         $user = User::create($validated);
+
+        if ($isAdminFlag) {
+            $user->forceFill(['admin' => true])->save();
+        }
 
         AuditLog::create(['user_id' => $request->user()->id, 'action' => 'user_created', 'summary' => $user->email]);
 
@@ -49,6 +56,9 @@ class UserController extends ApiController
             'admin' => 'boolean',
         ]);
 
+        $isAdminFlag = array_key_exists('admin', $validated) ? (bool) $validated['admin'] : null;
+        unset($validated['admin']);
+
         if (isset($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
         } else {
@@ -56,6 +66,10 @@ class UserController extends ApiController
         }
 
         $user->update($validated);
+
+        if ($isAdminFlag !== null) {
+            $user->forceFill(['admin' => $isAdminFlag])->save();
+        }
 
         return response()->json(['data' => $user->fresh()]);
     }

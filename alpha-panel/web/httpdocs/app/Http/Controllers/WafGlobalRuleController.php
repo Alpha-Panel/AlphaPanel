@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\WafGlobalIpRule;
+use App\Rules\IpOrCidr;
 use App\Services\ReloadService;
 use App\Services\WafRulesService;
 use Illuminate\Http\RedirectResponse;
@@ -30,7 +31,7 @@ class WafGlobalRuleController extends Controller
         abort_unless($user->isAdmin(), 403);
 
         $validated = $request->validate([
-            'ip_or_cidr' => ['required', 'string', 'max:64'],
+            'ip_or_cidr' => ['required', 'string', 'max:64', new IpOrCidr],
             'action' => ['required', 'string', 'in:allow,deny'],
             'note' => ['nullable', 'string', 'max:255'],
             'enabled' => ['nullable', 'boolean'],
@@ -56,7 +57,7 @@ class WafGlobalRuleController extends Controller
         abort_unless($user->isAdmin(), 403);
 
         $validated = $request->validate([
-            'ip_or_cidr' => ['required', 'string', 'max:64'],
+            'ip_or_cidr' => ['required', 'string', 'max:64', new IpOrCidr],
             'action' => ['required', 'string', 'in:allow,deny'],
             'note' => ['nullable', 'string', 'max:255'],
             'enabled' => ['required', 'boolean'],

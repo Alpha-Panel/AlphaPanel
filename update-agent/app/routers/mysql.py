@@ -3,10 +3,12 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
+import shlex
 import shutil
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from app.auth import require_auth
 from app.config import Settings, get_settings
@@ -35,9 +37,24 @@ router = APIRouter(tags=["mysql"])
 
 _MYSQL_CONTAINER = "mysql"
 
+# Strict semver (major.minor.patch) for any version value that ends up in a
+# shell command or is written to .env. Rejects tags, ranges, and injection.
+_VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
+
 
 class PrepareRequest(BaseModel):
     target_version: str
+
+    @field_validator("target_version")
+    @classmethod
+    def _validate_target_version(cls, value: str) -> str:
+        candidate = (value or "").strip()
+        if not _VERSION_RE.match(candidate):
+            raise ValueError(
+                "target_version must be in the form MAJOR.MINOR.PATCH "
+                "(e.g. 8.4.0)."
+            )
+        return candidate
 
 
 def _human_size(num_bytes: int) -> str:
@@ -69,9 +86,13 @@ async def _perform_prepare(task_id: str, target_version: str, settings: Settings
         )
         manifest = await validate_target_image(target_version)
         if not manifest.ok:
+            logger.error(
+                "Image mysql:%s manifest check failed: %s",
+                target_version, manifest.stderr.strip()[:500],
+            )
             task_manager.update_task(
                 task_id, 5,
-                f"Image mysql:{target_version} not found in registry: {manifest.stderr.strip()[:200]}",
+                f"Image mysql:{target_version} not found or not accessible in registry.",
                 TaskStatus.FAILED,
             )
             return
@@ -124,11 +145,12 @@ async def _perform_prepare(task_id: str, target_version: str, settings: Settings
                 "Removing stale previous backup",
                 TaskStatus.IN_PROGRESS,
             )
-            cleanup = await run_cmd(f"rm -rf {backup_dir}", timeout=600)
+            cleanup = await run_cmd(f"rm -rf {shlex.quote(backup_dir)}", timeout=600)
             if not cleanup.ok:
+                logger.error("Failed to remove stale backup: %s", cleanup.stderr[:500])
                 task_manager.update_task(
                     task_id, 25,
-                    f"Failed to remove stale backup: {cleanup.stderr[:200]}",
+                    "Failed to remove stale backup directory. Check agent logs.",
                     TaskStatus.FAILED,
                 )
                 return
@@ -141,9 +163,10 @@ async def _perform_prepare(task_id: str, target_version: str, settings: Settings
         )
         cp_result = await cp_data_dir(data_dir, backup_dir, timeout=7200)
         if not cp_result.ok:
+            logger.error("Backup copy failed: %s", cp_result.stderr[:500])
             task_manager.update_task(
                 task_id, 30,
-                f"Backup copy failed: {cp_result.stderr[:200]}",
+                "Backup copy failed. Check agent logs for details.",
                 TaskStatus.FAILED,
             )
             return
@@ -180,10 +203,13 @@ async def _perform_prepare(task_id: str, target_version: str, settings: Settings
             TaskStatus.COMPLETED,
         )
 
-    except Exception as exc:
+    except Exception:
         logger.exception("MySQL upgrade preparation failed")
         task_manager.update_task(
-            task_id, 0, f"Unexpected error: {exc}", TaskStatus.FAILED,
+            task_id, 0,
+            "MySQL upgrade preparation failed due to an unexpected error. "
+            "Check agent logs.",
+            TaskStatus.FAILED,
         )
 
 
@@ -272,11 +298,14 @@ async def _perform_apply(task_id: str, settings: Settings) -> None:
             )
             return
 
-        # Phase 6: Sanity verify version
+        # Phase 6: Sanity verify version.
+        # Pass the password via MYSQL_PWD on the in-container env rather than as
+        # a -p<secret> argv token, and shlex.quote it as defense-in-depth so a
+        # password with shell metacharacters cannot break out of the command.
         task_manager.update_task(task_id, 80, "Verifying server version", TaskStatus.IN_PROGRESS)
         version_check = await run_cmd(
-            f"docker exec {_MYSQL_CONTAINER} mysql -uroot "
-            f"-p{password} -N -e 'SELECT VERSION()'",
+            f"docker exec -e MYSQL_PWD={shlex.quote(password)} {_MYSQL_CONTAINER} "
+            f"mysql -uroot -N -e 'SELECT VERSION()'",
             timeout=30,
         )
         if version_check.ok:
@@ -300,10 +329,13 @@ async def _perform_apply(task_id: str, settings: Settings) -> None:
             TaskStatus.COMPLETED,
         )
 
-    except Exception as exc:
+    except Exception:
         logger.exception("MySQL upgrade apply failed")
         task_manager.update_task(
-            task_id, 0, f"Unexpected error: {exc}", TaskStatus.FAILED,
+            task_id, 0,
+            "MySQL upgrade apply failed due to an unexpected error. "
+            "Check agent logs.",
+            TaskStatus.FAILED,
         )
 
 
@@ -491,10 +523,12 @@ async def _perform_rollback(task_id: str, settings: Settings) -> None:
             TaskStatus.COMPLETED,
         )
 
-    except Exception as exc:
+    except Exception:
         logger.exception("MySQL rollback failed")
         task_manager.update_task(
-            task_id, 0, f"Unexpected error: {exc}", TaskStatus.FAILED,
+            task_id, 0,
+            "MySQL rollback failed due to an unexpected error. Check agent logs.",
+            TaskStatus.FAILED,
         )
 
 

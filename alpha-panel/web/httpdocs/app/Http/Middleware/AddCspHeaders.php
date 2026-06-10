@@ -33,7 +33,7 @@ class AddCspHeaders
 
         $csp = implode('; ', [
             "default-src 'self'",
-            "script-src 'strict-dynamic' 'unsafe-eval' 'nonce-{$nonce}'" . $captchaDomains['script'],
+            "script-src 'strict-dynamic' 'nonce-{$nonce}'" . $captchaDomains['script'],
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' data: https://fonts.gstatic.com",
             "img-src 'self' data: blob: https://www.gravatar.com",

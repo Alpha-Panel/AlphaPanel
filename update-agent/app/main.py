@@ -3,7 +3,6 @@ from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.routers import check, health, mysql, mysql_config, panel, status
@@ -40,19 +39,18 @@ async def lifespan(application: FastAPI):
     await application.state.http_client.aclose()
 
 
+# Internal server-to-server API: disable interactive docs and the OpenAPI
+# schema so the surface (and the secret-bearing route list) is not exposed.
+# No CORS middleware is registered — this endpoint is called by the panel
+# backend, never directly by a browser, so no cross-origin access is granted.
 app = FastAPI(
     title="AlphaPanel Update Agent",
     version="1.0.0",
     description="Handles automated updates and upgrades for the AlphaPanel hosting stack.",
     lifespan=lifespan,
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
 )
 
 app.include_router(health.router)

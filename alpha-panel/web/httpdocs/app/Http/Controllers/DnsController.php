@@ -193,12 +193,30 @@ class DnsController extends Controller
             $data = $this->cloudflare->buildRecordData($validated);
             $submittedData = $data;
 
+            // The zone is the apex (example.com) but the caller may only be
+            // authorised for a single label within it (e.g. a subdomain). Reject
+            // any record whose name falls outside this domain's own subtree so a
+            // tenant cannot create/edit records for a sibling domain or the apex.
+            $scopeError = $this->recordScopeError($domain, $apexDomain, (string) ($data['name'] ?? ''), (string) ($data['type'] ?? ''));
+            if ($scopeError !== null) {
+                return $this->dnsScopeDenied($scopeError);
+            }
+
             if ($isUpdate && $dnsId !== null) {
                 $existingRecord = $this->fetchRecordSafely($zoneId, $dnsId);
                 $oldState = [
                     'record' => $this->normalizeRecordForAudit($existingRecord),
                     'dns_id' => $dnsId,
                 ];
+
+                // Re-fetch the target and verify the record being edited also
+                // belongs to this domain's scope — the submitted name passing the
+                // check above is not enough if dns_id points at another record.
+                $existingScopeError = $this->existingRecordScopeError($domain, $apexDomain, $existingRecord);
+                if ($existingScopeError !== null) {
+                    return $this->dnsScopeDenied($existingScopeError);
+                }
+
                 $this->cloudflare->updateRecord($zoneId, $dnsId, $data);
                 $updatedRecord = $this->fetchRecordSafely($zoneId, $dnsId);
 
@@ -315,6 +333,14 @@ class DnsController extends Controller
                 'record' => $this->normalizeRecordForAudit($record),
                 'dns_id' => $dnsId,
             ];
+
+            // Verify the record being deleted belongs to this domain's subtree
+            // before touching the shared apex zone — a subdomain-scoped caller
+            // must not delete the apex or a sibling domain's records by id.
+            $existingScopeError = $this->existingRecordScopeError($domain, $apexDomain, $record);
+            if ($existingScopeError !== null) {
+                return $this->dnsScopeDenied($existingScopeError);
+            }
 
             $this->cloudflare->deleteRecord($zoneId, $dnsId);
             $afterRecord = $this->fetchRecordSafely($zoneId, $dnsId);
@@ -555,6 +581,91 @@ class DnsController extends Controller
                 'exception' => $e,
             ]);
         }
+    }
+
+    /**
+     * Validate that a submitted record name (and type) is inside the requesting
+     * domain's own DNS subtree. Returns a human-readable reason when it is out
+     * of scope, or null when the operation is allowed.
+     *
+     * The apex zone is shared by every domain under it, so authorisation on a
+     * single label (a subdomain) must not grant write access to siblings, the
+     * apex record, or zone-level NS/SOA records.
+     */
+    private function recordScopeError(Domain $domain, string $apex, string $recordName, string $recordType): ?string
+    {
+        $name = $this->normalizeRecordName($recordName, $apex);
+        $scope = strtolower(trim($domain->fqdn, '.'));
+        $type = strtoupper(trim($recordType));
+
+        if ($name === '') {
+            return __('The DNS record name is invalid for this domain.');
+        }
+
+        // Subdomain-scoped callers may never touch zone-level records.
+        if ($domain->isSubdomain() && in_array($type, ['NS', 'SOA'], true)) {
+            return __('You are not allowed to modify zone-level records for this domain.');
+        }
+
+        // Subdomain-scoped callers may never touch the apex record itself.
+        if ($domain->isSubdomain() && $name === strtolower(trim($apex, '.'))) {
+            return __('You are not allowed to modify the apex record for this domain.');
+        }
+
+        if ($name === $scope || str_ends_with($name, '.'.$scope)) {
+            return null;
+        }
+
+        return __('The DNS record name must belong to this domain.');
+    }
+
+    /**
+     * Verify a record fetched from the provider (by id) belongs to this domain's
+     * subtree before it is updated or deleted. Fails closed when the record
+     * cannot be read, so an unverifiable id never mutates the shared zone.
+     */
+    private function existingRecordScopeError(Domain $domain, string $apex, ?object $record): ?string
+    {
+        if (! is_object($record) || ! isset($record->name) || ! is_string($record->name)) {
+            return __('The target DNS record could not be verified for this domain.');
+        }
+
+        return $this->recordScopeError(
+            $domain,
+            $apex,
+            $record->name,
+            isset($record->type) && is_string($record->type) ? $record->type : '',
+        );
+    }
+
+    private function dnsScopeDenied(string $message): JsonResponse
+    {
+        return response()->json([
+            'status' => 'error',
+            'message' => $message,
+        ], 403);
+    }
+
+    /**
+     * Normalise a record name to a lowercase absolute FQDN within the zone.
+     * Cloudflare accepts relative names ("www", "@") and absolute ones; this
+     * collapses them to a comparable absolute form rooted at the apex.
+     */
+    private function normalizeRecordName(string $recordName, string $apex): string
+    {
+        $name = strtolower(trim($recordName));
+        $apex = strtolower(trim($apex, '.'));
+        $name = rtrim($name, '.');
+
+        if ($name === '' || $name === '@') {
+            return $apex;
+        }
+
+        if ($name === $apex || str_ends_with($name, '.'.$apex)) {
+            return $name;
+        }
+
+        return $name.'.'.$apex;
     }
 
     /**

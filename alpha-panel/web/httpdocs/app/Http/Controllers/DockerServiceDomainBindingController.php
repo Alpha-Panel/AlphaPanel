@@ -24,6 +24,8 @@ class DockerServiceDomainBindingController extends Controller
 
     public function index(Request $request, Domain $domain): Response
     {
+        $this->authorize('update', $domain);
+
         $domain->load('dockerServiceBindings.dockerService');
 
         $availableServices = DockerService::where('status', 'running')
@@ -39,6 +41,8 @@ class DockerServiceDomainBindingController extends Controller
 
     public function store(StoreDockerServiceDomainBindingRequest $request, Domain $domain): RedirectResponse|JsonResponse
     {
+        $this->authorize('update', $domain);
+
         $binding = $domain->dockerServiceBindings()->create($request->validated());
         $binding->load('dockerService');
 
@@ -72,6 +76,9 @@ class DockerServiceDomainBindingController extends Controller
 
     public function destroy(Request $request, Domain $domain, DockerServiceDomainBinding $binding): RedirectResponse|JsonResponse
     {
+        $this->authorize('update', $domain);
+        abort_unless($binding->domain_id === $domain->id, 404);
+
         $serviceName = $binding->dockerService->display_name;
         $containerPort = $binding->container_port;
         $pathPrefix = $binding->path_prefix;

@@ -47,12 +47,36 @@ class TaskInfo:
 class TaskManager:
     """In-memory async task manager with SSE subscription support."""
 
+    # Cap retained tasks to bound memory. The agent only ever runs a handful of
+    # long operations; old completed/failed task records have no value once read
+    # by the panel, so we evict the oldest beyond this many.
+    _MAX_TASKS = 200
+
     def __init__(self) -> None:
         self._tasks: dict[str, TaskInfo] = {}
+
+    def _evict_oldest(self) -> None:
+        """Drop oldest tasks (insertion order) past the retention cap.
+
+        Prefers evicting closed (terminal) tasks; only removes an unfinished
+        task if the table is still over cap after closed ones are gone, so an
+        in-flight operation's progress is not silently dropped.
+        """
+        while len(self._tasks) > self._MAX_TASKS:
+            # Try to drop the oldest closed task first.
+            victim = next(
+                (tid for tid, t in self._tasks.items() if t._closed),
+                None,
+            )
+            if victim is None:
+                # All remaining tasks are still running; drop the oldest.
+                victim = next(iter(self._tasks))
+            self._tasks.pop(victim, None)
 
     def create_task(self) -> str:
         task_id = str(uuid.uuid4())
         self._tasks[task_id] = TaskInfo(task_id=task_id)
+        self._evict_oldest()
         return task_id
 
     def update_task(

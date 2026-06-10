@@ -88,9 +88,9 @@ Route::any('/mail/index.php', function (Request $request) {
 })->name('mail.webmail.compat');
 
 // OAuth authorization code flow (no auth middleware — guest-facing)
-Route::get('/oauth/authorize', [OAuthController::class, 'show'])->name('oauth.authorize');
-Route::post('/oauth/authorize', [OAuthController::class, 'submit'])->name('oauth.authorize.submit');
-Route::post('/oauth/check-user', [OAuthController::class, 'checkUser'])->name('oauth.check-user');
+Route::get('/oauth/authorize', [OAuthController::class, 'show'])->middleware('throttle:20,1')->name('oauth.authorize');
+Route::post('/oauth/authorize', [OAuthController::class, 'submit'])->middleware('throttle:10,1')->name('oauth.authorize.submit');
+Route::post('/oauth/check-user', [OAuthController::class, 'checkUser'])->middleware('throttle:10,1')->name('oauth.check-user');
 Route::post('/locale', function (Request $request) {
     $supportedLocales = config('app.supported_locales', ['tr', 'tr-gokturk', 'gokturk-latin', 'az', 'en', 'de', 'es', 'fr', 'ru']);
 
@@ -145,7 +145,7 @@ Route::middleware('auth')->group(function (): void {
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth')->group(function (): void {
-    Route::post('2fa-verify', [TwoFactorAuthController::class, 'verify'])->name('two-factor.verify');
+    Route::post('2fa-verify', [TwoFactorAuthController::class, 'verify'])->middleware('throttle:6,1')->name('two-factor.verify');
     Route::get('otp-challenge', [TwoFactorAuthController::class, 'challenge'])->name('otp.challenge');
 });
 

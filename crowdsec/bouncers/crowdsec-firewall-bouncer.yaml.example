@@ -1,0 +1,12 @@
+mode: nftables
+update_frequency: 10s
+log_mode: file
+log_dir: /var/log/
+log_level: info
+
+# CrowdSec Local API (Docker compose crowdsec service, host'dan localhost:8080)
+api_url: http://127.0.0.1:8080
+
+# MUST equal CROWDSEC_FIREWALL_BOUNCER_KEY in the root .env. The installer writes
+# the real key into crowdsec/bouncers/crowdsec-firewall-bouncer.yaml (git-ignored).
+api_key: CHANGE_ME_MATCH_CROWDSEC_FIREWALL_BOUNCER_KEY

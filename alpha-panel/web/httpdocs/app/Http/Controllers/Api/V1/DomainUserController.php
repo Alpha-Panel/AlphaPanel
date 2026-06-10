@@ -12,6 +12,8 @@ class DomainUserController extends ApiController
 {
     public function index(Domain $domain): JsonResponse
     {
+        $this->authorize('view', $domain);
+
         $users = $domain->authorizedUsers()->get(['users.id', 'users.name', 'users.email']);
 
         return response()->json(['data' => $users]);
@@ -19,6 +21,8 @@ class DomainUserController extends ApiController
 
     public function store(Request $request, Domain $domain): JsonResponse
     {
+        $this->authorize('update', $domain);
+
         $validated = $request->validate(['user_id' => 'required|integer|exists:users,id']);
 
         $domain->authorizedUsers()->syncWithoutDetaching([$validated['user_id']]);
@@ -29,6 +33,8 @@ class DomainUserController extends ApiController
 
     public function destroy(Domain $domain, User $user): Response
     {
+        $this->authorize('update', $domain);
+
         $domain->authorizedUsers()->detach($user->id);
 
         return response()->noContent();

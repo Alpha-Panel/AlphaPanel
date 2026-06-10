@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -10,6 +11,16 @@ import httpx
 logger = logging.getLogger(__name__)
 
 GITHUB_API = "https://api.github.com"
+
+# owner/repo with the characters GitHub actually permits. Validating before the
+# value is interpolated into an API URL prevents path traversal / SSRF-style
+# redirection of the release check to an attacker-chosen endpoint.
+_REPO_RE = re.compile(r"^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$")
+
+
+def _validate_repo(github_repo: str) -> bool:
+    """Return True if github_repo is a safe 'owner/name' slug."""
+    return bool(_REPO_RE.match((github_repo or "").strip()))
 
 
 @dataclass
@@ -42,8 +53,30 @@ async def check_panel_update(
     github_repo: str,
     project_root: str,
 ) -> PanelVersionInfo:
-    """Check the latest GitHub release for the panel repository."""
+    """Check the latest GitHub release for the panel repository.
+
+    SECURITY TODO (supply chain): this only resolves the *latest release tag*
+    and reports it. The actual deploy path (`git pull --ff-only` in
+    routers/panel.py) follows the configured remote's branch tip and performs
+    no integrity check. Releases should be cryptographically signed (signed
+    git tags / cosign) and the deploy pinned to a verified, signed tag rather
+    than the branch tip, so a compromised upstream or MITM cannot push
+    arbitrary code into the running stack. Tracked separately; not changed here
+    to avoid breaking the existing update mechanics.
+    """
     current = _read_current_version(project_root)
+
+    # Fail closed on a malformed repo slug so a bad config value cannot be
+    # interpolated into the GitHub API URL.
+    if not _validate_repo(github_repo):
+        logger.error("Refusing GitHub check for invalid repo slug: %r", github_repo)
+        return PanelVersionInfo(
+            current=current,
+            latest=current,
+            update_available=False,
+            release_notes="",
+            release_url="",
+        )
 
     url = f"{GITHUB_API}/repos/{github_repo}/releases/latest"
     try:

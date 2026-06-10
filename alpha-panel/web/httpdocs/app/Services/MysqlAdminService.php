@@ -32,11 +32,22 @@ class MysqlAdminService
     }
 
     /**
-     * Sanitize an identifier (database name or username) to prevent SQL injection.
+     * Validate a MySQL identifier (database name or username) and return it unchanged.
+     *
+     * Rejects anything that is not a safe identifier instead of silently stripping
+     * characters, which previously masked malicious input and returned null on
+     * invalid UTF-8. Must match MySQL's unquoted identifier rules and the 64-char
+     * length limit. Call sites still wrap the result in backticks/quotes.
+     *
+     * @throws \InvalidArgumentException when the identifier is empty, too long, or malformed
      */
     protected function sanitizeIdentifier(string $identifier): string
     {
-        return preg_replace('/[^a-zA-Z0-9_]/', '', $identifier);
+        if (! preg_match('/^[A-Za-z_][A-Za-z0-9_]{0,63}$/', $identifier)) {
+            throw new \InvalidArgumentException('Invalid MySQL identifier.');
+        }
+
+        return $identifier;
     }
 
     /**
@@ -67,7 +78,15 @@ class MysqlAdminService
     }
 
     /**
-     * Grant all privileges on a database to a user.
+     * Grant all privileges on a single database to a user.
+     *
+     * WITH GRANT OPTION is intentionally omitted so tenants cannot re-grant or
+     * escalate privileges to other accounts. ALL PRIVILEGES scoped to one database
+     * is the normal shared-hosting model.
+     *
+     * Follow-up: the '%' host is overly broad. Scoping new accounts to a known
+     * source host (e.g. the app/container subnet) would tighten the blast radius,
+     * but is deferred here because it would break existing tenant connections.
      *
      * @throws PDOException
      */
@@ -76,7 +95,7 @@ class MysqlAdminService
         $db = $this->connect();
         $safeDb = $this->sanitizeIdentifier($dbName);
         $safeUser = $this->sanitizeIdentifier($username);
-        $db->exec("GRANT ALL PRIVILEGES ON `{$safeDb}`.* TO '{$safeUser}'@'%' WITH GRANT OPTION");
+        $db->exec("GRANT ALL PRIVILEGES ON `{$safeDb}`.* TO '{$safeUser}'@'%'");
         $db->exec('FLUSH PRIVILEGES');
         Log::info("Granted privileges on {$safeDb} to {$safeUser}");
     }

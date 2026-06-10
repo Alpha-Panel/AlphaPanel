@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\IpOrCidr;
+use App\Rules\SafeModSecurityRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -24,12 +26,12 @@ class UpdateDomainModSecurityRequest extends FormRequest
                 Rule::in(['active', 'detection_only']),
             ],
             'modsecurity_ip_allowlist' => ['nullable', 'array'],
-            'modsecurity_ip_allowlist.*' => ['string', 'max:64'],
+            'modsecurity_ip_allowlist.*' => ['string', 'max:64', new IpOrCidr],
             'modsecurity_ip_blocklist' => ['nullable', 'array'],
-            'modsecurity_ip_blocklist.*' => ['string', 'max:64'],
+            'modsecurity_ip_blocklist.*' => ['string', 'max:64', new IpOrCidr],
             'modsecurity_disabled_rule_ids' => ['nullable', 'array'],
             'modsecurity_disabled_rule_ids.*' => ['integer', 'min:1'],
-            'modsecurity_custom_rules' => ['nullable', 'string', 'max:20000'],
+            'modsecurity_custom_rules' => ['nullable', 'string', 'max:20000', new SafeModSecurityRules],
         ];
     }
 }

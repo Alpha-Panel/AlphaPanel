@@ -23,8 +23,8 @@ class ApacheConfigRenderer
             return;
         }
 
-        $fqdn = $domain->fqdn;
-        $rootPath = $domain->getWebRootPath();
+        $fqdn = $this->sanitizeConfigValue($domain->fqdn);
+        $rootPath = $this->sanitizeConfigValue($domain->getWebRootPath());
         $logPath = "{$domain->getBasePath()}/logs";
 
         $lines = [];
@@ -37,7 +37,10 @@ class ApacheConfigRenderer
 
         $additionalHostnames = $domain->additional_hostnames ?? [];
         foreach ($additionalHostnames as $hostname) {
-            $lines[] = "        ServerAlias {$hostname}";
+            $hostname = $this->sanitizeConfigValue((string) $hostname);
+            if ($hostname !== '') {
+                $lines[] = "        ServerAlias {$hostname}";
+            }
         }
 
         $lines[] = '';
@@ -68,5 +71,20 @@ class ApacheConfigRenderer
     public function apacheConfigPath(string $fqdn): string
     {
         return "{$this->apacheSitesBasePath}/{$fqdn}.conf";
+    }
+
+    /**
+     * Strip characters that carry structural meaning in an Apache vhost from a
+     * value interpolated into a directive (fqdn, hostname, document root).
+     * Newlines could open new directives and angle brackets could open/close
+     * container blocks; neither appears in a valid hostname or path, so removing
+     * them is non-destructive for good input while blocking injection that
+     * bypasses request validation.
+     */
+    private function sanitizeConfigValue(string $value): string
+    {
+        $sanitized = preg_replace('/[\r\n\0<>]/', '', $value);
+
+        return is_string($sanitized) ? trim($sanitized) : '';
     }
 }

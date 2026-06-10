@@ -13,6 +13,8 @@ class DomainIpAccessController extends ApiController
 {
     public function index(Domain $domain): JsonResponse
     {
+        $this->authorize('view', $domain);
+
         return response()->json([
             'data' => [
                 'mode' => $domain->ip_access_mode,
@@ -23,7 +25,9 @@ class DomainIpAccessController extends ApiController
 
     public function updateMode(Request $request, Domain $domain): JsonResponse
     {
-        $validated = $request->validate(['mode' => 'required|string|in:disabled,whitelist,blacklist']);
+        $this->authorize('update', $domain);
+
+        $validated = $request->validate(['mode' => 'required|string|in:none,whitelist,blacklist']);
         $domain->update(['ip_access_mode' => $validated['mode']]);
 
         return response()->json(['data' => ['mode' => $domain->fresh()->ip_access_mode]]);
@@ -31,6 +35,8 @@ class DomainIpAccessController extends ApiController
 
     public function store(StoreDomainIpRuleRequest $request, Domain $domain): JsonResponse
     {
+        $this->authorize('update', $domain);
+
         $rule = $domain->ipRules()->create($request->validated());
 
         return response()->json(['data' => $rule], 201);
@@ -38,6 +44,7 @@ class DomainIpAccessController extends ApiController
 
     public function destroy(Domain $domain, DomainIpRule $rule): Response
     {
+        $this->authorize('update', $domain);
         abort_unless($rule->domain_id === $domain->id, 404);
         $rule->delete();
 

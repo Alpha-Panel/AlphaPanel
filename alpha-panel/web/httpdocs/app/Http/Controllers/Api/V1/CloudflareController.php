@@ -20,22 +20,28 @@ class CloudflareController extends ApiController
 
     public function __construct(private readonly CloudflareDnsService $cloudflare) {}
 
-    public function index(Domain $domain): JsonResponse
+    public function index(Request $request, Domain $domain): JsonResponse
     {
+        $this->ensureAdmin($request);
+
         $zone = $this->cloudflare->getZoneSummary($this->targetFqdn($domain));
 
         return response()->json(['data' => $zone]);
     }
 
-    public function summary(Domain $domain): JsonResponse
+    public function summary(Request $request, Domain $domain): JsonResponse
     {
+        $this->ensureAdmin($request);
+
         $zone = $this->cloudflare->getZoneSummary($this->targetFqdn($domain));
 
         return response()->json(['data' => $zone]);
     }
 
-    public function settings(Domain $domain): JsonResponse
+    public function settings(Request $request, Domain $domain): JsonResponse
     {
+        $this->ensureAdmin($request);
+
         $fqdn = $this->targetFqdn($domain);
         $zone = $this->cloudflare->getZoneSummary($fqdn);
         $settings = [];
@@ -50,8 +56,10 @@ class CloudflareController extends ApiController
         return response()->json(['data' => ['zone' => $zone, 'settings' => $settings]]);
     }
 
-    public function dnssecStatus(Domain $domain): JsonResponse
+    public function dnssecStatus(Request $request, Domain $domain): JsonResponse
     {
+        $this->ensureAdmin($request);
+
         $zone = $this->cloudflare->getZoneSummary($this->targetFqdn($domain));
         $status = null;
 
@@ -62,8 +70,10 @@ class CloudflareController extends ApiController
         return response()->json(['data' => $status]);
     }
 
-    public function firewallRules(Domain $domain): JsonResponse
+    public function firewallRules(Request $request, Domain $domain): JsonResponse
     {
+        $this->ensureAdmin($request);
+
         $zone = $this->cloudflare->getZoneSummary($this->targetFqdn($domain));
         $rules = [];
 
@@ -157,7 +167,14 @@ class CloudflareController extends ApiController
         $zone = $this->cloudflare->getZoneSummary($this->targetFqdn($domain));
         abort_unless(($zone['exists'] ?? false) && is_string($zone['zone_id'] ?? null), 422, 'Zone not on Cloudflare.');
 
-        $rule = $this->cloudflare->createFirewallRule($zone['zone_id'], $request->validated()['description'] ?? '', $request->validated()['expression'] ?? '', $request->validated()['action'] ?? 'block');
+        $validated = $request->validated();
+        $rule = $this->cloudflare->createFirewallRule(
+            $zone['zone_id'],
+            $validated['expression'] ?? '',
+            $validated['action'] ?? 'block',
+            $validated['description'] ?? null,
+            $validated['priority'] ?? null,
+        );
 
         return response()->json(['data' => $rule], 201);
     }

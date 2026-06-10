@@ -17,7 +17,10 @@ class StoreDnsRecordRequest extends FormRequest
     {
         return [
             'record_type' => ['required', 'string', Rule::in(['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'SRV', 'CAA', 'HTTPS', 'NS'])],
-            'name' => ['required', 'string', 'max:255'],
+            // DNS record name: labels plus the apex/relative/wildcard/root forms
+            // ("@", "*"). Whitespace and control characters are rejected so a
+            // name cannot smuggle anything past the cross-tenant scope check.
+            'name' => ['required', 'string', 'max:255', 'regex:/^(?:@|\*|(?:\*\.)?(?:[a-z0-9_](?:[a-z0-9_-]{0,61}[a-z0-9_])?\.?)+)$/i'],
             'content' => ['required', 'string', 'max:4096'],
             'ttl' => ['nullable', 'integer', 'min:1'],
             'proxied' => ['nullable', 'boolean'],

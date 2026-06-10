@@ -105,6 +105,9 @@ def write_root_env(path: Path, form: dict[str, Any], secrets: dict[str, str]) ->
     add(_env_line("CROWDSEC_DASHBOARD_API_KEY", secrets["crowdsec_dashboard_api_key"]))
     add(_env_line("CROWDSEC_LAPI_URL", "http://crowdsec:8080"))
 
+    add("\n# ─── Redis ───\n")
+    add(_env_line("REDIS_PASSWORD", secrets["redis_password"]))
+
     add("\n# ─── Reverb ───\n")
     add(_env_line("REVERB_APP_ID", secrets["reverb_app_id"]))
     add(_env_line("REVERB_APP_KEY", secrets["reverb_app_key"]))
@@ -192,6 +195,7 @@ def write_laravel_env(
     text = _replace_env_line(text, "APP_KEY", secrets["app_key"])
     text = _replace_env_line(text, "APP_URL", f"https://{form['panel_domain']}:8443")
     text = _replace_env_line(text, "DB_PASSWORD", secrets["panel_db_pass"])
+    text = _replace_env_line(text, "REDIS_PASSWORD", secrets["redis_password"])
     text = _replace_env_line(text, "CLOUDFLARE_API_TOKEN", form["cf_api_token"])
     text = _replace_env_line(text, "REVERB_APP_ID", secrets["reverb_app_id"])
     text = _replace_env_line(text, "REVERB_APP_KEY", secrets["reverb_app_key"])

@@ -13,7 +13,9 @@ class PmaSsoApiController extends ApiController
 {
     public function admin(Request $request): JsonResponse
     {
-        abort_unless($request->user()?->isAdmin(), 403);
+        $user = $request->user();
+        abort_unless($user?->isAdmin(), 403);
+        abort_unless($user->tokenCan('pma:admin') || $user->tokenCan('*'), 403);
 
         $pmaBase = rtrim((string) config('services.phpmyadmin.base_url', ''), '/');
         abort_unless($pmaBase !== '', 500, 'PHPMYADMIN_URL ayari bulunamadi.');

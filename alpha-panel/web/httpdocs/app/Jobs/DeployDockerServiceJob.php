@@ -197,19 +197,64 @@ class DeployDockerServiceJob implements ShouldQueue
     private function buildBinds(DockerService $service): array
     {
         $binds = [];
-        $volumeBase = config('panel.docker_services.volume_base_path');
+        $volumeBase = rtrim((string) config('panel.docker_services.volume_base_path', '/var/lib/docker-managed'), '/');
 
         foreach ($service->volumes ?? [] as $vol) {
             $hostPath = $vol['host_path'] ?? "{$volumeBase}/{$service->name}/data";
             $containerPath = $vol['container_path'] ?? '';
             $mode = $vol['mode'] ?? 'rw';
 
-            if ($containerPath) {
-                $binds[] = "{$hostPath}:{$containerPath}:{$mode}";
+            if (! $containerPath) {
+                continue;
             }
+
+            $this->assertHostPathAllowed((string) $hostPath, $volumeBase);
+            $this->assertContainerPathAllowed((string) $containerPath);
+
+            $mode = $mode === 'ro' ? 'ro' : 'rw';
+
+            $binds[] = "{$hostPath}:{$containerPath}:{$mode}";
         }
 
         return $binds;
+    }
+
+    /**
+     * Defense-in-depth: refuse to bind a host path outside the managed base or onto
+     * a sensitive system location, even if request validation was bypassed.
+     */
+    private function assertHostPathAllowed(string $hostPath, string $volumeBase): void
+    {
+        $hostPath = trim($hostPath);
+
+        if ($hostPath === '' || ! str_starts_with($hostPath, '/') || str_contains($hostPath, '..') || str_contains($hostPath, "\0")) {
+            throw new \RuntimeException("Refusing to bind unsafe host path: {$hostPath}");
+        }
+
+        $normalized = rtrim($hostPath, '/');
+        $forbiddenPrefixes = ['/etc', '/root', '/proc', '/sys', '/dev', '/boot', '/var/run', '/run', '/var/lib/docker'];
+
+        foreach ($forbiddenPrefixes as $prefix) {
+            if ($normalized === $prefix || str_starts_with($normalized.'/', $prefix.'/')) {
+                throw new \RuntimeException("Refusing to bind sensitive host path: {$hostPath}");
+            }
+        }
+
+        if (! str_starts_with($normalized.'/', $volumeBase.'/')) {
+            throw new \RuntimeException("Host path is outside the managed volume base: {$hostPath}");
+        }
+    }
+
+    /**
+     * Defense-in-depth: never let the Docker socket be mounted into a container.
+     */
+    private function assertContainerPathAllowed(string $containerPath): void
+    {
+        $normalized = rtrim(trim($containerPath), '/');
+
+        if (str_contains($containerPath, "\0") || in_array($normalized, ['/var/run/docker.sock', '/run/docker.sock'], true)) {
+            throw new \RuntimeException("Refusing to mount onto forbidden container path: {$containerPath}");
+        }
     }
 
     /**

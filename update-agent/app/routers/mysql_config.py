@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.auth import require_auth
 from app.config import Settings, get_settings
@@ -22,7 +22,9 @@ router = APIRouter(tags=["mysql-config"])
 
 
 class WriteConfigRequest(BaseModel):
-    content: str
+    # Cap config body size: these are small MySQL .cnf files. A bound prevents
+    # a giant payload from exhausting memory/disk on write.
+    content: str = Field(max_length=65536)
 
 
 async def _perform_restart(task_id: str, project_root: str) -> None:
@@ -64,9 +66,10 @@ async def put_config_file(
     try:
         write_config_file(settings.project_root, filename, body.content)
     except OSError as exc:
+        logger.exception("Failed to write MySQL config file %s", filename)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to write config file: {exc}",
+            detail="Failed to write config file.",
         ) from exc
     return {"status": "ok", "filename": filename}
 

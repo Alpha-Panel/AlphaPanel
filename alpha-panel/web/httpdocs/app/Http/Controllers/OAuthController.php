@@ -19,6 +19,7 @@ class OAuthController extends Controller
     public function show(Request $request): View|RedirectResponse
     {
         abort_unless($request->filled('redirect_uri') && filter_var($request->redirect_uri, FILTER_VALIDATE_URL), 400, 'Invalid redirect_uri.');
+        abort_unless(in_array($request->redirect_uri, config('panel.oauth.redirect_uris'), true), 400, 'Unregistered redirect_uri.');
         abort_unless($request->filled('state'), 400, 'state required.');
 
         if (Auth::check()) {
@@ -46,10 +47,12 @@ class OAuthController extends Controller
             return response()->json(['found' => false]);
         }
 
+        $hasWebauthn = $user->webAuthnCredentials()->whereEnabled()->exists();
+
         return response()->json([
             'found' => true,
-            'email' => $user->email,
-            'has_webauthn' => $user->webAuthnCredentials()->whereEnabled()->exists(),
+            'email' => $hasWebauthn ? $user->email : null,
+            'has_webauthn' => $hasWebauthn,
             'has_password' => ! is_null($user->password),
         ]);
     }
@@ -61,6 +64,7 @@ class OAuthController extends Controller
             'password' => 'required|string',
             'redirect_uri' => 'required|url',
             'state' => 'required|string',
+            'code' => 'sometimes|nullable|string',
         ];
 
         $settings = SecuritySetting::instance();
@@ -70,6 +74,8 @@ class OAuthController extends Controller
         }
 
         $validated = $request->validate($rules);
+
+        abort_unless(in_array($validated['redirect_uri'], config('panel.oauth.redirect_uris'), true), 400, 'Unregistered redirect_uri.');
 
         if ($settings->isCaptchaEnabled()) {
             if (! $security->verifyCaptcha($validated['captcha_token'], $request->ip())) {
@@ -93,6 +99,16 @@ class OAuthController extends Controller
             return back()
                 ->withInput(['login' => $validated['login'], 'redirect_uri' => $validated['redirect_uri'], 'state' => $validated['state']])
                 ->withErrors(['login' => 'Bu hesapta passkey aktif — parola ile giriş engellenmiştir.']);
+        }
+
+        if ($user->two_factor_confirmed) {
+            $code = (string) ($validated['code'] ?? '');
+
+            if ($code === '' || ! $user->confirmTwoFactorAuth($code)) {
+                return back()
+                    ->withInput(['login' => $validated['login'], 'redirect_uri' => $validated['redirect_uri'], 'state' => $validated['state']])
+                    ->withErrors(['code' => __('Invalid Two Factor Authentication code')]);
+            }
         }
 
         return $this->issueCodeAndRedirect($user, $validated['redirect_uri'], $validated['state']);

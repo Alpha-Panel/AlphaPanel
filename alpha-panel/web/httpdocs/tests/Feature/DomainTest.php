@@ -111,10 +111,10 @@ class DomainTest extends TestCase
             'fqdn' => 'custom.com',
             'owner_user_id' => $owner->id,
             'type' => DomainType::CaddyWebServer,
-            'root_path' => '/custom/path/public',
+            'root_path' => '/var/www/vhosts/custom.com/httpdocs/public',
         ]);
 
-        $this->assertEquals('/custom/path/public', $domain->getWebRootPath());
+        $this->assertEquals('/var/www/vhosts/custom.com/httpdocs/public', $domain->getWebRootPath());
     }
 
     public function test_owner_can_update_domain_root_path(): void
@@ -129,7 +129,7 @@ class DomainTest extends TestCase
         $response = $this->actingAs($owner)->put(route('domains.update', $domain), [
             'fqdn' => $domain->fqdn,
             'type' => $domain->type->value,
-            'root_path' => '/var/www/vhosts/custom-root/httpdocs/public',
+            'root_path' => '/var/www/vhosts/'.$domain->fqdn.'/httpdocs/public',
             'enable_www_redirect' => (bool) $domain->enable_www_redirect,
             'enable_worker' => (bool) $domain->enable_worker,
             'worker_watch' => (bool) $domain->worker_watch,
@@ -138,7 +138,7 @@ class DomainTest extends TestCase
         $response->assertRedirect(route('domains.show', $domain));
         $this->assertDatabaseHas('domains', [
             'id' => $domain->id,
-            'root_path' => '/var/www/vhosts/custom-root/httpdocs/public',
+            'root_path' => '/var/www/vhosts/'.$domain->fqdn.'/httpdocs/public',
         ]);
         Queue::assertPushed(ProvisionDomainJob::class);
     }

@@ -7,6 +7,7 @@ use App\Enums\IpAccessMode;
 use App\Enums\SupervisorType;
 use App\Models\Domain;
 use App\Models\DomainIpRule;
+use App\Rules\SafeCaddyDirectives;
 use App\Services\SslCertificateService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
@@ -190,14 +191,14 @@ class CaddyConfigRenderer
      */
     public function writeCaddyConfig(Domain $domain, bool $withTls): void
     {
-        $fqdn = $domain->fqdn;
+        $fqdn = $this->sanitizeConfigValue($domain->fqdn);
 
         if (in_array(strtolower($fqdn), array_map('strtolower', config('panel.system_reserved_domains', [])), true)) {
             Log::warning("Refusing to overwrite system-reserved domain Caddyfile: {$fqdn}");
 
             return;
         }
-        $rootPath = $domain->getWebRootPath();
+        $rootPath = $this->sanitizeConfigValue($domain->getWebRootPath());
 
         // Special rendering for wildcard and catch-all modes
         if ($domain->isWildcardSubdomain()) {
@@ -347,6 +348,10 @@ class CaddyConfigRenderer
         // Additional hostname redirects
         $additionalHostnames = $domain->additional_hostnames ?? [];
         foreach ($additionalHostnames as $hostname) {
+            $hostname = $this->sanitizeConfigValue((string) $hostname);
+            if ($hostname === '') {
+                continue;
+            }
             $lines = array_merge($lines, $this->renderHttpRedirectWithAcme(
                 $hostname, "https://{$fqdn}{uri}", '    ', $domain,
             ));
@@ -421,7 +426,10 @@ class CaddyConfigRenderer
         }
 
         foreach (($domain->additional_hostnames ?? []) as $hostname) {
-            $extraHostnames[] = $hostname;
+            $hostname = $this->sanitizeConfigValue((string) $hostname);
+            if ($hostname !== '') {
+                $extraHostnames[] = $hostname;
+            }
         }
 
         foreach ($extraHostnames as $hostname) {
@@ -469,8 +477,18 @@ class CaddyConfigRenderer
             return $this->renderWildcardCors($indent);
         }
 
-        // Single specific origin — use exact match
-        $origins = array_map('trim', explode(',', $origins));
+        // Single specific origin — use exact match. Sanitize each origin so a
+        // smuggled newline/brace/backtick can't escape the header directive or
+        // the expression matcher (defense in depth on top of request validation).
+        $origins = array_values(array_filter(array_map(
+            fn (string $origin): string => $this->sanitizeConfigValue(trim($origin)),
+            explode(',', $origins),
+        ), static fn (string $origin): bool => $origin !== ''));
+
+        if ($origins === []) {
+            return $this->renderWildcardCors($indent);
+        }
+
         $firstOrigin = $origins[0];
 
         return $this->renderSpecificOriginCors($indent, $firstOrigin, $origins);
@@ -597,15 +615,13 @@ class CaddyConfigRenderer
         if ($domain->bypass_reverse_proxy && ! empty($domain->custom_caddy_directives)) {
             $directives = $domain->custom_caddy_directives;
 
-            // Defense-in-depth: block dangerous patterns even if validation was bypassed
-            $blocked = ['import', '{env.', '{system.', 'exec', '{http.vars.'];
-            $lower = strtolower($directives);
-            foreach ($blocked as $pattern) {
-                if (str_contains($lower, $pattern)) {
-                    Log::warning("Blocked dangerous Caddy directive for {$fqdn}: contains '{$pattern}'");
+            // Defense-in-depth: re-run the same denylist/allowlist used at the
+            // validation layer so a directive that slipped past (legacy row,
+            // direct DB write) is still refused before it reaches the config.
+            if (! $this->customDirectivesAreSafe($directives)) {
+                Log::warning("Blocked dangerous Caddy directives for {$fqdn} due to security policy");
 
-                    return ["{$indent}# Custom directives blocked due to security policy"];
-                }
+                return ["{$indent}# Custom directives blocked due to security policy"];
             }
 
             $lines = [];
@@ -1044,6 +1060,38 @@ class CaddyConfigRenderer
         }
 
         return $lines;
+    }
+
+    /**
+     * Strip characters that carry structural meaning in a Caddyfile from a
+     * value that is interpolated into a server block (fqdn, hostname, root path,
+     * CORS origin). Valid hostnames, paths and origins never contain newlines,
+     * braces or backticks, so removing them is non-destructive for good input
+     * while neutralising directive-injection attempts that slip past validation.
+     */
+    private function sanitizeConfigValue(string $value): string
+    {
+        $sanitized = preg_replace('/[\r\n\0{}`]/', '', $value);
+
+        return is_string($sanitized) ? trim($sanitized) : '';
+    }
+
+    /**
+     * Run a block of custom Caddy directives through the shared SafeCaddyDirectives
+     * policy. Returns false if the policy reports any violation.
+     */
+    private function customDirectivesAreSafe(string $directives): bool
+    {
+        $failed = false;
+        (new SafeCaddyDirectives(strict: false))->validate(
+            'custom_caddy_directives',
+            $directives,
+            function () use (&$failed): void {
+                $failed = true;
+            },
+        );
+
+        return ! $failed;
     }
 
     /**

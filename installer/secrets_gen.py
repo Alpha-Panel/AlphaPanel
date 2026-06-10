@@ -35,6 +35,7 @@ def gen_all_panel_secrets() -> dict[str, str]:
         "crowdsec_firewall_bouncer_key": gen_hex(32),
         "crowdsec_dashboard_api_key": gen_hex(32),
         "update_agent_secret": gen_hex(32),
+        "redis_password": gen_hex(24),
         "reverb_app_id": gen_hex(4),
         "reverb_app_key": gen_hex(16),
         "reverb_app_secret": gen_hex(32),

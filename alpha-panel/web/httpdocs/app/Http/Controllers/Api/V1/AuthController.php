@@ -24,6 +24,7 @@ class AuthController extends ApiController
             'email' => 'required|email',
             'password' => 'required|string',
             'device_name' => 'sometimes|string|max:255',
+            'code' => 'sometimes|nullable|string',
         ]);
 
         $user = User::where('email', $request->email)->first();
@@ -34,9 +35,32 @@ class AuthController extends ApiController
             ]);
         }
 
+        if ($user->webAuthnCredentials()->whereEnabled()->exists()) {
+            throw ValidationException::withMessages([
+                'email' => [__('Bu hesapta passkey aktif — parola ile giriş engellenmiştir.')],
+            ]);
+        }
+
+        if ($user->two_factor_confirmed) {
+            $code = (string) $request->input('code', '');
+
+            if ($code === '' || ! $user->confirmTwoFactorAuth($code)) {
+                throw ValidationException::withMessages([
+                    'code' => [__('Invalid Two Factor Authentication code')],
+                ]);
+            }
+        }
+
         $expiresAt = now()->addMinutes(self::ACCESS_TOKEN_TTL_MINUTES);
         $deviceName = $request->input('device_name', 'alphacenter');
 
+        /**
+         * @todo SECURITY (H-4): tokens are minted with full `['*']` abilities.
+         * Consider deriving the ability set from the user's roles/permissions so a
+         * compromised AlphaCenter token cannot perform every panel action. Left as
+         * `['*']` deliberately in this pass to avoid breaking the AlphaCenter
+         * integration — change requires a coordinated product decision.
+         */
         $sanctumToken = $user->createToken($deviceName, ['*'], $expiresAt);
 
         $rawRefresh = Str::random(64);
@@ -77,6 +101,7 @@ class AuthController extends ApiController
         // Revoke old token and issue a new one (rotation)
         $tokenRow->update(['revoked_at' => now(), 'last_used_at' => now()]);
 
+        /** @todo SECURITY (H-4): see login() — minted with full ['*'] abilities; revisit as a product decision. */
         $sanctumToken = $user->createToken('alphacenter-refresh', ['*'], $expiresAt);
 
         $rawRefresh = Str::random(64);
@@ -99,7 +124,10 @@ class AuthController extends ApiController
 
     public function token(Request $request): JsonResponse
     {
-        $request->validate(['code' => 'required|string']);
+        $request->validate([
+            'code' => 'required|string',
+            'redirect_uri' => 'required|string',
+        ]);
 
         $authCode = OAuthAuthorizationCode::where('code', $request->input('code'))->first();
 
@@ -107,10 +135,13 @@ class AuthController extends ApiController
             return response()->json(['message' => 'Invalid or expired authorization code.'], 401);
         }
 
+        abort_unless($authCode->redirect_uri === $request->input('redirect_uri'), 400, 'redirect_uri mismatch.');
+
         $authCode->update(['used_at' => now()]);
 
         $user = $authCode->user;
         $expiresAt = now()->addMinutes(self::ACCESS_TOKEN_TTL_MINUTES);
+        /** @todo SECURITY (H-4): see login() — minted with full ['*'] abilities; revisit as a product decision. */
         $sanctumToken = $user->createToken('alphacenter-oauth', ['*'], $expiresAt);
 
         $rawRefresh = Str::random(64);

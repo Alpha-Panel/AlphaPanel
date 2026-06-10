@@ -160,7 +160,6 @@ services:
     ports:
       - "${PUBLIC_NETWORK_IP}:80:80"
       - "443:443"
-      - "${PRIVATE_NETWORK_IP}:2019:2019"
 
   crowdsec:
     image: crowdsecurity/crowdsec:v1.7.6
@@ -335,12 +334,17 @@ services:
     container_name: redis
     hostname: redis.niyazi.org
     restart: always
+    # 2026-06-10 security audit (H-10): require a password when REDIS_PASSWORD is set.
+    # Conditional so existing installs without the var keep working until they set it.
+    command: ["sh", "-c", "if [ -n \"$$REDIS_PASSWORD\" ]; then exec redis-server --requirepass \"$$REDIS_PASSWORD\" --save 60 1; else exec redis-server --save 60 1; fi"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
     volumes:
       - ./redis:/data
     ports:
       - "${PRIVATE_NETWORK_IP}:6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
       interval: 10s
       timeout: 3s
       retries: 5

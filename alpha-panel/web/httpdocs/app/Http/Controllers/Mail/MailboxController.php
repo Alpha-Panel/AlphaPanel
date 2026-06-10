@@ -93,6 +93,8 @@ class MailboxController extends Controller
 
     public function store(StoreMailboxRequest $request, Domain $domain): RedirectResponse
     {
+        $this->authorizeDomain($request, $domain);
+
         try {
             $provider = $this->resolver->for($domain);
         } catch (MailHostingDisabledException $e) {
@@ -128,6 +130,8 @@ class MailboxController extends Controller
 
     public function update(UpdateMailboxRequest $request, Domain $domain, string $localPart): RedirectResponse|JsonResponse
     {
+        $this->authorizeDomain($request, $domain);
+
         try {
             $provider = $this->resolver->for($domain);
             $provider->updateMailbox($domain, $localPart, $request->validated());
@@ -160,6 +164,8 @@ class MailboxController extends Controller
      */
     public function updateFallback(UpdateMailboxRequest $request, Domain $domain): JsonResponse
     {
+        $this->authorizeDomain($request, $domain);
+
         $localPart = $this->resolveLocalPartFromRequest($request);
 
         Log::warning('mail.mailbox.updateFallback.invoked', [
@@ -201,6 +207,8 @@ class MailboxController extends Controller
      */
     public function destroyFallback(Request $request, Domain $domain): JsonResponse
     {
+        $this->authorizeDomain($request, $domain);
+
         $localPart = $this->resolveLocalPartFromRequest($request);
 
         if ($localPart === '') {
@@ -315,6 +323,8 @@ class MailboxController extends Controller
 
     public function setPassword(SetPasswordRequest $request, Domain $domain, string $localPart): RedirectResponse|JsonResponse
     {
+        $this->authorizeDomain($request, $domain);
+
         try {
             $this->resolver->for($domain)->setPassword(
                 $domain,
@@ -345,6 +355,8 @@ class MailboxController extends Controller
 
     public function setForwarding(SetForwardingRequest $request, Domain $domain, string $localPart): RedirectResponse|JsonResponse
     {
+        $this->authorizeDomain($request, $domain);
+
         $data = $request->validated();
         try {
             $this->resolver->for($domain)->setForwarding(

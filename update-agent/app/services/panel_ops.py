@@ -3,9 +3,39 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
+import shlex
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
+
+# Patterns that may carry secrets in a command line. Used to redact before any
+# command string is written to logs (which may ship to aggregators).
+#   -p<secret>           mysql/mysqladmin inline password (no space)
+#   --password=<secret>  long-form password flag
+#   token / secret-ish env assignments inline on the command
+_SECRET_PATTERNS = [
+    (re.compile(r"(-p)(?!\s)(\S+)"), r"\1***"),
+    (re.compile(r"(--password=)(\S+)"), r"\1***"),
+    (re.compile(r"(?i)((?:password|secret|token)=)(\S+)"), r"\1***"),
+]
+
+
+def _redact(text: str) -> str:
+    """Mask likely secrets in a command/argument string for safe logging."""
+    redacted = text
+    for pattern, repl in _SECRET_PATTERNS:
+        redacted = pattern.sub(repl, redacted)
+    return redacted
+
+
+def _program_only(shell_cmd: str) -> str:
+    """Return just the program name (first token) for low-detail logging."""
+    try:
+        tokens = shlex.split(shell_cmd)
+    except ValueError:
+        return shell_cmd.split()[0] if shell_cmd.split() else "<command>"
+    return tokens[0] if tokens else "<command>"
 
 
 @dataclass
@@ -30,7 +60,9 @@ async def run_cmd(
     else:
         shell_cmd = cmd
 
-    logger.info("Running: %s (cwd=%s, timeout=%ds)", shell_cmd, cwd, timeout)
+    logger.info(
+        "Running: %s (cwd=%s, timeout=%ds)", _redact(shell_cmd), cwd, timeout
+    )
 
     proc = await asyncio.create_subprocess_shell(
         shell_cmd,
@@ -50,7 +82,7 @@ async def run_cmd(
         return CommandResult(
             returncode=-1,
             stdout="",
-            stderr=f"Command timed out after {timeout}s: {shell_cmd}",
+            stderr=f"Command timed out after {timeout}s: {_redact(shell_cmd)}",
         )
 
     result = CommandResult(
@@ -60,12 +92,18 @@ async def run_cmd(
     )
 
     if not result.ok:
+        # Log the program name plus a redacted command line; stdout/stderr can
+        # legitimately contain secrets echoed by tools, so keep them at debug.
         logger.error(
-            "Command failed (rc=%d): %s\nstdout: %s\nstderr: %s",
+            "Command failed (rc=%d): %s",
             result.returncode,
-            shell_cmd,
-            result.stdout[:500],
-            result.stderr[:500],
+            _redact(shell_cmd),
+        )
+        logger.debug(
+            "Failed command output for %s — stdout: %s | stderr: %s",
+            _program_only(shell_cmd),
+            _redact(result.stdout[:500]),
+            _redact(result.stderr[:500]),
         )
 
     return result
