@@ -81,7 +81,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
  && rm -rf /var/lib/apt/lists/*
 
 # Install code-server
-ARG CODE_SERVER_VERSION=4.121.0
+ARG CODE_SERVER_VERSION=4.123.0
 RUN curl -fsSL https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/code-server_${CODE_SERVER_VERSION}_amd64.deb -o code-server.deb \
  && dpkg -i code-server.deb \
  && rm code-server.deb
