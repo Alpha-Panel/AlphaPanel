@@ -194,9 +194,6 @@ services:
       dockerfile: Dockerfile
     container_name: php-code-server
     hostname: php-code-server
-    dns:
-      - 1.1.1.1
-      - 1.0.0.1
     restart: always
     user: root
     security_opt:
