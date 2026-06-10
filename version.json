@@ -4,10 +4,10 @@
   "min_php": "8.5",
   "services": {
     "mysql": "9.7.0",
-    "redis": "7.4.8",
-    "vaultwarden": "1.35.4",
+    "redis": "8.6.4",
+    "vaultwarden": "1.36.0",
     "meilisearch": "1.16",
     "crowdsec": "1.7.6",
-    "portainer": "2.39.1"
+    "portainer": "2.39.3"
   }
 }

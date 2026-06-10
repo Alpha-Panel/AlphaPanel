@@ -330,7 +330,7 @@ services:
       - vhost_network
 
   redis:
-    image: redis:7.4.8-alpine
+    image: redis:8.6.4-alpine3.23
     container_name: redis
     hostname: redis.niyazi.org
     restart: always
@@ -360,7 +360,7 @@ services:
       - vhost_network
 
   password:
-    image: "vaultwarden/server:1.35.4-alpine"
+    image: "vaultwarden/server:1.36.0-alpine"
     hostname: "${VAULTWARDEN_DOMAIN}"
     container_name: password
     restart: always
@@ -530,7 +530,7 @@ services:
       - n8n_internal
 
   portainer:
-    image: portainer/portainer-ce:2.39.1
+    image: portainer/portainer-ce:2.39.3
     restart: always
     container_name: portainer
     environment:
@@ -545,7 +545,7 @@ services:
       - vhost_network
 
   portainer_agent:
-    image: portainer/agent:2.39.1-alpine
+    image: portainer/agent:2.39.3-alpine
     container_name: portainer-agent
     restart: always
     volumes:
