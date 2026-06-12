@@ -649,6 +649,15 @@ function getUrlParam(paramName) {
   return ( match && match.length > 1 ) ? match[1] : null;
 }
 
+function isSafeCallback(target, callbackName) {
+  if (!callbackName || !/^[A-Za-z_$][0-9A-Za-z_$]*$/.test(callbackName)) {
+    return false;
+  }
+
+  return Object.prototype.hasOwnProperty.call(target, callbackName) &&
+    typeof target[callbackName] === 'function';
+}
+
 function use(items) {
   function useTinymce3(url) {
     if (!usingTinymce3()) { return; }
@@ -729,9 +738,9 @@ function use(items) {
     useCkeditor3(url);
 
     useFckeditor2(url);
-  } else if (callback && window[callback]) {
+  } else if (isSafeCallback(window, callback)) {
     window[callback](getSelectedItems());
-  } else if (callback && parent[callback]) {
+  } else if (isSafeCallback(parent, callback)) {
     parent[callback](getSelectedItems());
   } else if (window.opener) { // standalone button or other situations
     window.opener.SetUrl(getSelectedItems());
