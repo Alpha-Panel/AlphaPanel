@@ -88,8 +88,11 @@ php-code-server/*/fpm.d/*.conf
 php-code-server/supervisor.d/php-fpm-*.conf
 
 # PHP ini files — user-customizable at runtime via panel.
-# Stubs tracked as php.ini.stub; actual php.ini files are gitignored.
+# Stubs tracked as php.ini.stub; actual php.ini files are gitignored so that
+# git pull never overwrites per-server tuning changes made through the panel.
 php-code-server/*/php.ini
+frankenphp/php.ini
+!frankenphp/php.ini.stub
 
 
 # =============================================================================

@@ -163,6 +163,11 @@ if [ ! -f "${INSTALL_DIR}/ftp-config/users.env" ]; then
 fi
 
 say "Materializing stub files (php.ini, supervisor confs)..."
+# FrankenPHP main php.ini — panel-editable, mounted into the frankenphp container.
+# Materialized from stub once; gitignored afterward so pulls never clobber tuning.
+stub="${INSTALL_DIR}/frankenphp/php.ini.stub"
+target="${INSTALL_DIR}/frankenphp/php.ini"
+[ -f "$stub" ] && [ ! -f "$target" ] && cp "$stub" "$target"
 for ver in 7.0 7.1 7.2 7.3 7.4 8.0 8.1 8.2 8.3 8.4 8.5; do
     stub="${INSTALL_DIR}/php-code-server/${ver}/php.ini.stub"
     target="${INSTALL_DIR}/php-code-server/${ver}/php.ini"
