@@ -649,6 +649,24 @@ function getUrlParam(paramName) {
   return ( match && match.length > 1 ) ? match[1] : null;
 }
 
+var allowedCallbacks = {
+  SetUrl: true
+};
+
+function isSafeCallback(target, callbackName) {
+  if (!callbackName || !/^[A-Za-z_$][0-9A-Za-z_$]*$/.test(callbackName)) {
+    return false;
+  }
+
+  return Object.prototype.hasOwnProperty.call(target, callbackName) &&
+    typeof target[callbackName] === 'function';
+}
+
+function isAllowedSafeCallback(target, callbackName) {
+  return Object.prototype.hasOwnProperty.call(allowedCallbacks, callbackName) &&
+    isSafeCallback(target, callbackName);
+}
+
 function use(items) {
   function useTinymce3(url) {
     if (!usingTinymce3()) { return; }
@@ -729,9 +747,9 @@ function use(items) {
     useCkeditor3(url);
 
     useFckeditor2(url);
-  } else if (callback && window[callback]) {
+  } else if (isAllowedSafeCallback(window, callback)) {
     window[callback](getSelectedItems());
-  } else if (callback && parent[callback]) {
+  } else if (isAllowedSafeCallback(parent, callback)) {
     parent[callback](getSelectedItems());
   } else if (window.opener) { // standalone button or other situations
     window.opener.SetUrl(getSelectedItems());
