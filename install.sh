@@ -179,6 +179,24 @@ for ver in 7.0 7.1 7.2 7.3 7.4 8.0 8.1 8.2 8.3 8.4 8.5; do
 done
 ok "Stub files materialized."
 
+say "Preparing data directories and permissions..."
+# n8n runs as the unprivileged `node` user (UID/GID 1000) inside the container.
+# Its bind-mounted dirs must be owned by 1000:1000, otherwise n8n cannot create
+# /home/node/.n8n ("mkdir: permission denied") and the container crash-loops.
+# deploy_cache and the backup target share the same UID for the same reason.
+mkdir -p \
+    "${INSTALL_DIR}/n8n/data" \
+    "${INSTALL_DIR}/n8n/files" \
+    "${INSTALL_DIR}/deploy_cache" \
+    /root/backup
+if [ "$(id -u)" = "0" ]; then
+    chmod -R u+rwX,g+rwX "${INSTALL_DIR}/n8n" "${INSTALL_DIR}/deploy_cache" /root/backup
+    chown -R 1000:1000  "${INSTALL_DIR}/n8n" "${INSTALL_DIR}/deploy_cache" /root/backup
+    ok "Data directories ready (owned by 1000:1000)."
+else
+    warn "Not root — skipped chown. Run: sudo chown -R 1000:1000 n8n deploy_cache /root/backup"
+fi
+
 HOST_IP=$(ip route get 1.1.1.1 2>/dev/null \
     | awk '/src/ {for(i=1;i<=NF;i++) if($i=="src") print $(i+1); exit}' \
     || echo "localhost")
