@@ -1,4 +1,4 @@
-{
+
   "Mail hosting is disabled for this domain. Re-enable the provider in panel settings or change the domain's mail hosting mode.": "Mail hosting is disabled for this domain. Re-enable the provider in panel settings or change the domain's mail hosting mode.",
   "Mail hosting is disabled for this domain.": "Mail hosting is disabled for this domain.",
   "\":name\" will be removed and can no longer be used to sign in.": "\":name\" will be removed and can no longer be used to sign in.",
@@ -2040,6 +2040,10 @@
   "permissions selected": "permissions selected",
   "php.ini updated.": "php.ini updated.",
   "phpMyAdmin": "phpMyAdmin",
+  "pgAdmin": "pgAdmin",
+  "Database Management": "Database Management",
+  "No PostgreSQL databases yet. Create one above.": "No PostgreSQL databases yet. Create one above.",
+  "Create PostgreSQL Database": "Create PostgreSQL Database",
   "post_max_size": "post_max_size",
   "reCAPTCHA Version": "reCAPTCHA Version",
   "reCAPTCHA v3 works invisibly in the background. Users will not see a checkbox.": "reCAPTCHA v3 works invisibly in the background. Users will not see a checkbox.",

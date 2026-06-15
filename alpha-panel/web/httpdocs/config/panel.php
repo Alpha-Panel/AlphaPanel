@@ -89,6 +89,16 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | PostgreSQL Admin (for managed PostgreSQL databases)
+    |--------------------------------------------------------------------------
+    */
+    'pg_admin_host' => env('POSTGRESQL_HOST', 'postgres'),
+    'pg_admin_port' => (int) env('POSTGRESQL_PORT', 5432),
+    'pg_admin_user' => env('POSTGRESQL_USER', 'admin'),
+    'pg_admin_pass' => env('POSTGRESQL_PASSWORD', ''),
+
+    /*
+    |--------------------------------------------------------------------------
     | Certbot
     |--------------------------------------------------------------------------
     */

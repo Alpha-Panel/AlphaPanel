@@ -99,6 +99,7 @@ class HandleInertiaRequests extends Middleware
                     'file_manager' => config('services.file_manager_url'),
                     'jenkins' => config('services.jenkins_url'),
                     'n8n' => config('services.n8n_url'),
+                    'pgadmin' => config('services.pgadmin.url'),
                 ],
             ],
             'features' => function () {

@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateManagedDatabaseUserPasswordRequest;
 use App\Models\Domain;
 use App\Models\ManagedDatabase;
 use App\Models\ManagedDatabaseUser;
+use App\Models\ManagedPostgresDatabase;
 use App\Services\MysqlAdminService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,7 +27,11 @@ class DatabaseController extends Controller
             ->where('domain_id', $domain->id)
             ->get();
 
-        return Inertia::render('Databases/Index', compact('domain', 'databases'));
+        $pgDatabases = ManagedPostgresDatabase::with('pgDatabaseUsers')
+            ->where('domain_id', $domain->id)
+            ->get();
+
+        return Inertia::render('Databases/Index', compact('domain', 'databases', 'pgDatabases'));
     }
 
     public function json(Request $request, Domain $domain): JsonResponse

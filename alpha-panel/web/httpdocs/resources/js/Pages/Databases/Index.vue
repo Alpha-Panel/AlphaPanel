@@ -10,12 +10,16 @@
                 />
                 <Toast />
 
-                <div class="space-y-4 md:space-y-6">
+                <div class="flex items-start gap-6">
+                    <div class="min-w-0 flex-1 space-y-6">
+
+                    <!-- MySQL Databases -->
+                    <div class="space-y-4">
                     <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <h3 class="flex items-center gap-2 text-lg font-semibold text-gray-800 dark:text-white/90">
-                                <i class="bx bx-data text-xl text-brand-500"></i>
-                                {{ t('Databases') }}
+                                <i class="lni lni-mysql text-xl text-brand-500"></i>
+                                MySQL
                             </h3>
                             <button
                                 type="button"
@@ -29,7 +33,7 @@
                     </div>
 
                     <div v-if="dbList.length === 0" class="rounded-2xl border border-gray-200 bg-white p-8 text-center dark:border-gray-800 dark:bg-white/3">
-                        <i class="bx bx-data text-3xl text-gray-400"></i>
+                        <i class="lni lni-mysql text-3xl text-gray-400"></i>
                         <p class="mt-2 text-gray-500 dark:text-gray-400">{{ t('No databases yet. Create one above.') }}</p>
                     </div>
 
@@ -42,7 +46,7 @@
                             <div class="mb-3 flex items-start justify-between gap-3">
                                 <div>
                                     <h4 class="flex items-center gap-2 font-semibold text-gray-800 dark:text-white/90">
-                                        <i class="bx bx-data text-lg text-brand-500"></i>
+                                        <i class="lni lni-mysql text-lg text-brand-500"></i>
                                         {{ db.db_name }}
                                     </h4>
                                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -282,6 +286,396 @@
                             </div>
                         </div>
                     </div>
+                    </div><!-- end MySQL section -->
+
+                    <!-- PostgreSQL Databases -->
+                    <div class="space-y-4">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <h3 class="flex items-center gap-2 text-lg font-semibold text-gray-800 dark:text-white/90">
+                                <i class="lni lni-postgresql text-xl text-success-500"></i>
+                                PostgreSQL
+                            </h3>
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-2 rounded-lg bg-success-500 px-4 py-2.5 text-sm font-medium text-white shadow-theme-xs hover:bg-success-600"
+                                @click="openCreatePgDatabaseModal"
+                            >
+                                <i class="bx bx-plus text-base"></i>
+                                {{ t('Create Database') }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div v-if="pgDbList.length === 0" class="rounded-2xl border border-gray-200 bg-white p-8 text-center dark:border-gray-800 dark:bg-white/3">
+                        <i class="lni lni-postgresql text-3xl text-gray-400"></i>
+                        <p class="mt-2 text-gray-500 dark:text-gray-400">{{ t('No PostgreSQL databases yet. Create one above.') }}</p>
+                    </div>
+
+                    <div v-else class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                    <div
+                        v-for="db in pgDbList"
+                        :key="`pg-${db.id}`"
+                        class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6"
+                    >
+                        <div class="mb-3 flex items-start justify-between gap-3">
+                            <div>
+                                <h4 class="flex items-center gap-2 font-semibold text-gray-800 dark:text-white/90">
+                                    <i class="lni lni-postgresql text-lg text-success-500"></i>
+                                    {{ db.db_name }}
+                                </h4>
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    {{ t('Host') }}: postgres:5432
+                                    <span class="mx-1">•</span>
+                                    {{ t('Created') }}: {{ formatDate(db.created_at) }}
+                                    <span class="mx-1">•</span>
+                                    {{ db.pg_database_users.length }} {{ t('user') }}{{ db.pg_database_users.length === 1 ? '' : 's' }}
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <button
+                                    type="button"
+                                    @click="togglePgUserForm(db.id)"
+                                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-success-500/40 text-success-600 hover:bg-success-500/10 dark:text-success-300"
+                                    :title="t('Add User')"
+                                >
+                                    <i class="bx bx-user-plus text-base"></i>
+                                </button>
+                                <button
+                                    type="button"
+                                    @click="deletePgDatabase(db)"
+                                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-error-500/40 text-error-500 hover:bg-error-500/10"
+                                    :title="t('Delete Database')"
+                                >
+                                    <i class="bx bx-trash text-base"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50 dark:bg-gray-800/40">
+                                    <tr class="text-left text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                        <th class="px-3 py-2">{{ t('User') }}</th>
+                                        <th class="px-3 py-2 text-right">{{ t('Actions') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template v-if="db.pg_database_users.length > 0">
+                                        <template v-for="pgUser in db.pg_database_users" :key="`pg-entry-${pgUser.id}`">
+                                            <tr class="border-t border-gray-100 dark:border-gray-800">
+                                                <td class="px-3 py-2 text-gray-700 dark:text-gray-300">
+                                                    <span class="inline-flex items-center gap-1.5">
+                                                        <i class="bx bx-user text-gray-500 dark:text-gray-400"></i>
+                                                        {{ pgUser.pg_user }}
+                                                    </span>
+                                                </td>
+                                                <td class="px-3 py-2">
+                                                    <div class="flex justify-end gap-1.5">
+                                                        <button
+                                                            type="button"
+                                                            class="inline-flex h-7 w-7 items-center justify-center rounded border border-warning-500/40 text-warning-600 hover:bg-warning-500/10 dark:text-warning-300"
+                                                            :title="t('Change Password')"
+                                                            @click="togglePgPasswordForm(pgUser.id)"
+                                                        >
+                                                            <i class="bx bx-key text-sm"></i>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            class="inline-flex h-7 w-7 items-center justify-center rounded border border-error-500/40 text-error-500 hover:bg-error-500/10"
+                                                            :title="t('Delete User')"
+                                                            @click="deletePgUser(pgUser, db)"
+                                                        >
+                                                            <i class="bx bx-trash text-sm"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr
+                                                v-if="pgPasswordForms[pgUser.id]?.open"
+                                                class="border-t border-gray-100 bg-gray-50/60 dark:border-gray-800 dark:bg-gray-800/30"
+                                            >
+                                                <td colspan="2" class="px-3 py-3">
+                                                    <form @submit.prevent="updatePgUserPassword(pgUser)" class="grid grid-cols-1 gap-2 md:grid-cols-3">
+                                                        <div>
+                                                            <label class="mb-1 block text-xs font-medium text-gray-500">{{ t('New Password') }}</label>
+                                                            <div class="relative">
+                                                                <input
+                                                                    v-model="pgPasswordForms[pgUser.id].pg_password"
+                                                                    :type="pgPasswordForms[pgUser.id].show_password ? 'text' : 'password'"
+                                                                    class="form-input pr-20"
+                                                                    :placeholder="t('Min 8 chars')"
+                                                                />
+                                                                <div class="absolute inset-y-0 right-1 flex items-center gap-1">
+                                                                    <button
+                                                                        type="button"
+                                                                        class="password-icon-btn"
+                                                                        :title="t('Show/Hide')"
+                                                                        @click="pgPasswordForms[pgUser.id].show_password = !pgPasswordForms[pgUser.id].show_password"
+                                                                    >
+                                                                        <i :class="pgPasswordForms[pgUser.id].show_password ? 'bx bx-show' : 'bx bx-hide'"></i>
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        class="password-icon-btn"
+                                                                        :disabled="pgPasswordForms[pgUser.id].pg_password === ''"
+                                                                        :title="t('Copy')"
+                                                                        @click="copyPgPasswordForUser(pgUser.id)"
+                                                                    >
+                                                                        <i :class="pgPasswordForms[pgUser.id].copied_password ? 'bx bx-check' : 'bx bx-copy'"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <label class="mb-1 block text-xs font-medium text-gray-500">{{ t('Confirm Password') }}</label>
+                                                            <input
+                                                                v-model="pgPasswordForms[pgUser.id].pg_password_confirmation"
+                                                                :type="pgPasswordForms[pgUser.id].show_password ? 'text' : 'password'"
+                                                                class="form-input"
+                                                                :placeholder="t('Repeat password')"
+                                                            />
+                                                        </div>
+                                                        <div class="flex items-end gap-2">
+                                                            <button
+                                                                type="button"
+                                                                class="inline-flex h-10 items-center gap-1.5 rounded-lg border border-gray-300 px-3 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                                                                @click="generatePgPasswordForUser(pgUser.id)"
+                                                            >
+                                                                <i class="bx bx-shuffle"></i>
+                                                                {{ t('Generate') }}
+                                                            </button>
+                                                            <button
+                                                                type="submit"
+                                                                :disabled="pgPasswordForms[pgUser.id].submitting"
+                                                                class="inline-flex h-10 items-center gap-1.5 rounded-lg bg-warning-500 px-4 text-sm font-medium text-white hover:bg-warning-600 disabled:opacity-50"
+                                                            >
+                                                                <i class="bx bx-save"></i>
+                                                                {{ pgPasswordForms[pgUser.id].submitting ? '...' : t('Update') }}
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </template>
+                                    <tr v-else class="border-t border-gray-100 dark:border-gray-800">
+                                        <td colspan="2" class="px-3 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                                            {{ t('No users') }}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div v-if="pgUserForms[db.id]?.open" class="mt-3 rounded-xl border border-gray-200 p-3 dark:border-gray-700">
+                            <h5 class="mb-3 flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                <i class="bx bx-user-plus text-success-500"></i>
+                                {{ t('Add Database User') }}
+                            </h5>
+                            <form @submit.prevent="addPgUser(db)" class="grid grid-cols-1 gap-2 md:grid-cols-3">
+                                <div>
+                                    <label class="mb-1 block text-xs font-medium text-gray-500">{{ t('Username') }}</label>
+                                    <input
+                                        v-model="pgUserForms[db.id].pg_user"
+                                        type="text"
+                                        class="form-input"
+                                        :placeholder="t('pg_user')"
+                                    />
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-xs font-medium text-gray-500">{{ t('Password') }}</label>
+                                    <div class="relative">
+                                        <input
+                                            v-model="pgUserForms[db.id].pg_password"
+                                            :type="pgUserForms[db.id].show_password ? 'text' : 'password'"
+                                            class="form-input pr-20"
+                                            :placeholder="t('Min 8 chars')"
+                                        />
+                                        <div class="absolute inset-y-0 right-1 flex items-center gap-1">
+                                            <button
+                                                type="button"
+                                                class="password-icon-btn"
+                                                :title="t('Show/Hide')"
+                                                @click="pgUserForms[db.id].show_password = !pgUserForms[db.id].show_password"
+                                            >
+                                                <i :class="pgUserForms[db.id].show_password ? 'bx bx-show' : 'bx bx-hide'"></i>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                class="password-icon-btn"
+                                                :disabled="pgUserForms[db.id].pg_password === ''"
+                                                :title="t('Copy')"
+                                                @click="copyPgUserPassword(db.id)"
+                                            >
+                                                <i :class="pgUserForms[db.id].copied_password ? 'bx bx-check' : 'bx bx-copy'"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-xs font-medium text-gray-500">{{ t('Confirm Password') }}</label>
+                                    <input
+                                        v-model="pgUserForms[db.id].pg_password_confirmation"
+                                        :type="pgUserForms[db.id].show_password ? 'text' : 'password'"
+                                        class="form-input"
+                                        :placeholder="t('Repeat password')"
+                                    />
+                                </div>
+                                <div class="md:col-span-3 flex items-center justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        class="inline-flex h-10 items-center gap-1.5 rounded-lg border border-gray-300 px-3 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                                        @click="generatePgUserPassword(db.id)"
+                                    >
+                                        <i class="bx bx-shuffle"></i>
+                                        {{ t('Generate') }}
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        :disabled="pgUserForms[db.id].submitting"
+                                        class="inline-flex h-10 items-center gap-1.5 rounded-lg bg-success-500 px-4 text-sm font-medium text-white hover:bg-success-600 disabled:opacity-50"
+                                    >
+                                        <i class="bx bx-save"></i>
+                                        {{ pgUserForms[db.id].submitting ? '...' : t('Save User') }}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div><!-- end PG db card -->
+                    </div><!-- end PG grid -->
+                    </div><!-- end PG space-y-4 -->
+                    </div><!-- end flex-1 min-w-0 -->
+
+                    <!-- Admin right panel (admin-only) -->
+                    <div v-if="isAdmin" class="hidden w-56 shrink-0 xl:block">
+                        <div class="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/3">
+                            <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{{ t('Admin Tools') }}</p>
+                            <div class="space-y-2">
+                                <a
+                                    :href="route('pma.admin.sso')"
+                                    target="_blank"
+                                    rel="noopener"
+                                    class="flex items-center gap-2.5 rounded-lg border border-blue-light-500/40 px-3 py-2.5 text-sm font-medium text-blue-light-600 hover:bg-blue-light-500/10 dark:text-blue-light-300"
+                                >
+                                    <i class="lni lni-mysql text-base"></i>
+                                    phpMyAdmin
+                                </a>
+                                <a
+                                    v-if="pgAdminUrl"
+                                    :href="route('pgadmin.sso')"
+                                    target="_blank"
+                                    rel="noopener"
+                                    class="flex items-center gap-2.5 rounded-lg border border-success-500/40 px-3 py-2.5 text-sm font-medium text-success-600 hover:bg-success-500/10 dark:text-success-300"
+                                >
+                                    <i class="lni lni-postgresql text-base"></i>
+                                    pgAdmin
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                </div><!-- end outer flex -->
+
+                <!-- Create PostgreSQL Database Modal -->
+                <div
+                    v-if="showCreatePgDatabaseModal"
+                    class="fixed inset-0 z-1200000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+                >
+                    <div class="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-theme-xl dark:border-gray-800 dark:bg-gray-900">
+                        <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-800 md:px-6">
+                            <h4 class="text-base font-semibold text-gray-800 dark:text-white/90">{{ t('Create PostgreSQL Database') }}</h4>
+                            <button
+                                type="button"
+                                class="text-2xl leading-none text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                                :disabled="creatingPg"
+                                @click="closeCreatePgDatabaseModal"
+                            >
+                                &times;
+                            </button>
+                        </div>
+                        <div class="p-5 md:p-6">
+                            <div class="mb-4 flex justify-end">
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-1.5 rounded-lg border border-success-500/40 px-3 py-1.5 text-xs font-medium text-success-600 hover:bg-success-50 dark:text-success-300 dark:hover:bg-success-500/10"
+                                    @click="generateCreatePgPassword"
+                                >
+                                    <i class="bx bx-shuffle"></i>
+                                    {{ t('Generate Password') }}
+                                </button>
+                            </div>
+
+                            <form @submit.prevent="createPgDatabase" class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <div>
+                                    <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">{{ t('Database Name') }}</label>
+                                    <input v-model="createPgForm.db_name" type="text" class="form-input" :placeholder="t('my_database')" />
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">{{ t('Username') }}</label>
+                                    <input v-model="createPgForm.pg_user" type="text" class="form-input" :placeholder="t('my_user')" />
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">{{ t('Password') }}</label>
+                                    <div class="relative">
+                                        <input
+                                            v-model="createPgForm.pg_password"
+                                            :type="createPgPasswordVisible ? 'text' : 'password'"
+                                            class="form-input pr-20"
+                                            :placeholder="t('Min 8 chars')"
+                                        />
+                                        <div class="absolute inset-y-0 right-1 flex items-center gap-1">
+                                            <button
+                                                type="button"
+                                                class="password-icon-btn"
+                                                :title="t('Show/Hide')"
+                                                @click="createPgPasswordVisible = !createPgPasswordVisible"
+                                            >
+                                                <i :class="createPgPasswordVisible ? 'bx bx-show' : 'bx bx-hide'"></i>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                class="password-icon-btn"
+                                                :disabled="createPgForm.pg_password === ''"
+                                                :title="t('Copy')"
+                                                @click="copyCreatePgPassword"
+                                            >
+                                                <i :class="createPgPasswordCopied ? 'bx bx-check' : 'bx bx-copy'"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">{{ t('Confirm Password') }}</label>
+                                    <input
+                                        v-model="createPgForm.pg_password_confirmation"
+                                        :type="createPgPasswordVisible ? 'text' : 'password'"
+                                        class="form-input"
+                                        :placeholder="t('Repeat password')"
+                                    />
+                                </div>
+
+                                <div class="md:col-span-2 flex items-center justify-end gap-2 pt-1">
+                                    <button
+                                        type="button"
+                                        class="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                                        :disabled="creatingPg"
+                                        @click="closeCreatePgDatabaseModal"
+                                    >
+                                        {{ t('Cancel') }}
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        :disabled="creatingPg"
+                                        class="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-success-500 px-4 text-sm font-medium text-white hover:bg-success-600 disabled:opacity-50"
+                                    >
+                                        <i class="bx bx-plus"></i>
+                                        {{ creatingPg ? '...' : t('Create') }}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
 
                 <div
@@ -390,8 +784,10 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
+import { useCan } from '@/Composables/useCan';
+import type { SharedProps } from '@/types/inertia';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
 import SidebarProvider from '@/Components/Layout/SidebarProvider.vue';
 import AdminLayout from '@/Components/Layout/AdminLayout.vue';
@@ -404,6 +800,7 @@ import { formatDateTime } from '@/utils/dateTime';
 const props = defineProps<{
     domain: Record<string, any>;
     databases: Array<Record<string, any>>;
+    pgDatabases: Array<Record<string, any>>;
 }>();
 const { t } = useI18n();
 
@@ -444,12 +841,56 @@ interface DatabaseUserPasswordForm {
     submitting: boolean;
 }
 
+interface PgDatabaseUser {
+    id: number;
+    pg_user: string;
+}
+
+interface ManagedPostgresDatabase {
+    id: number;
+    db_name: string;
+    created_at?: string | null;
+    pg_database_users: PgDatabaseUser[];
+}
+
+interface PgUserForm {
+    open: boolean;
+    pg_user: string;
+    pg_password: string;
+    pg_password_confirmation: string;
+    show_password: boolean;
+    copied_password: boolean;
+    submitting: boolean;
+}
+
+interface PgPasswordForm {
+    open: boolean;
+    pg_password: string;
+    pg_password_confirmation: string;
+    show_password: boolean;
+    copied_password: boolean;
+    submitting: boolean;
+}
+
+const { isAdmin } = useCan();
+const page = usePage<SharedProps>();
+const pgAdminUrl = computed(() => (page.props.app as any)?.links?.pgadmin ?? null);
+
 const { addToast } = useToast();
+
+// MySQL state
 const dbList = ref<ManagedDatabase[]>([...(props.databases as ManagedDatabase[])]);
 const creating = ref(false);
 const showCreateDatabaseModal = ref(false);
 const userForms = reactive<Record<number, DatabaseUserForm>>({});
 const passwordForms = reactive<Record<number, DatabaseUserPasswordForm>>({});
+
+// PostgreSQL state
+const pgDbList = ref<ManagedPostgresDatabase[]>([...(props.pgDatabases as ManagedPostgresDatabase[])]);
+const creatingPg = ref(false);
+const showCreatePgDatabaseModal = ref(false);
+const pgUserForms = reactive<Record<number, PgUserForm>>({});
+const pgPasswordForms = reactive<Record<number, PgPasswordForm>>({});
 
 const createForm = ref({
     db_name: '',
@@ -459,6 +900,15 @@ const createForm = ref({
 });
 const createPasswordVisible = ref(false);
 const createPasswordCopied = ref(false);
+
+const createPgForm = ref({
+    db_name: '',
+    pg_user: '',
+    pg_password: '',
+    pg_password_confirmation: '',
+});
+const createPgPasswordVisible = ref(false);
+const createPgPasswordCopied = ref(false);
 
 const resetCreateForm = (): void => {
     createForm.value = {
@@ -775,6 +1225,218 @@ const deleteUser = async (user: DatabaseUser): Promise<void> => {
         }));
         addToast('success', res.data.message || t('Database user deleted.'));
         await loadDatabases();
+    } catch (error: any) {
+        addToast('error', error.response?.data?.message || t('Failed to delete user'));
+    }
+};
+
+// ── PostgreSQL functions ─────────────────────────────────────────────────────
+
+const resetCreatePgForm = (): void => {
+    createPgForm.value = { db_name: '', pg_user: '', pg_password: '', pg_password_confirmation: '' };
+    createPgPasswordVisible.value = false;
+    createPgPasswordCopied.value = false;
+};
+
+const openCreatePgDatabaseModal = (): void => {
+    showCreatePgDatabaseModal.value = true;
+};
+
+const closeCreatePgDatabaseModal = (): void => {
+    showCreatePgDatabaseModal.value = false;
+    resetCreatePgForm();
+};
+
+const ensurePgUserForm = (databaseId: number): PgUserForm => {
+    if (!pgUserForms[databaseId]) {
+        pgUserForms[databaseId] = {
+            open: false, pg_user: '', pg_password: '', pg_password_confirmation: '',
+            show_password: false, copied_password: false, submitting: false,
+        };
+    }
+    return pgUserForms[databaseId];
+};
+
+const ensurePgPasswordForm = (userId: number): PgPasswordForm => {
+    if (!pgPasswordForms[userId]) {
+        pgPasswordForms[userId] = {
+            open: false, pg_password: '', pg_password_confirmation: '',
+            show_password: false, copied_password: false, submitting: false,
+        };
+    }
+    return pgPasswordForms[userId];
+};
+
+const togglePgUserForm = (databaseId: number): void => {
+    ensurePgUserForm(databaseId).open = !ensurePgUserForm(databaseId).open;
+};
+
+const togglePgPasswordForm = (userId: number): void => {
+    ensurePgPasswordForm(userId).open = !ensurePgPasswordForm(userId).open;
+};
+
+const loadPgDatabases = async (): Promise<void> => {
+    const response = await axios.get(`/domains/${props.domain.id}/postgres-databases/json`);
+    pgDbList.value = response.data as ManagedPostgresDatabase[];
+};
+
+const generateCreatePgPassword = (): void => {
+    const password = generateRandomPassword();
+    createPgForm.value.pg_password = password;
+    createPgForm.value.pg_password_confirmation = password;
+    createPgPasswordVisible.value = true;
+    createPgPasswordCopied.value = false;
+};
+
+const generatePgUserPassword = (databaseId: number): void => {
+    const form = ensurePgUserForm(databaseId);
+    const password = generateRandomPassword();
+    form.pg_password = password;
+    form.pg_password_confirmation = password;
+    form.show_password = true;
+    form.copied_password = false;
+};
+
+const generatePgPasswordForUser = (userId: number): void => {
+    const form = ensurePgPasswordForm(userId);
+    const password = generateRandomPassword();
+    form.pg_password = password;
+    form.pg_password_confirmation = password;
+    form.show_password = true;
+    form.copied_password = false;
+};
+
+const copyCreatePgPassword = async (): Promise<void> => {
+    const copied = await copyToClipboard(createPgForm.value.pg_password);
+    if (!copied) { return; }
+    createPgPasswordCopied.value = true;
+    addToast('success', t('Copied!'));
+    setTimeout(() => { createPgPasswordCopied.value = false; }, 1500);
+};
+
+const copyPgUserPassword = async (databaseId: number): Promise<void> => {
+    const form = ensurePgUserForm(databaseId);
+    const copied = await copyToClipboard(form.pg_password);
+    if (!copied) { return; }
+    form.copied_password = true;
+    addToast('success', t('Copied!'));
+    setTimeout(() => { form.copied_password = false; }, 1500);
+};
+
+const copyPgPasswordForUser = async (userId: number): Promise<void> => {
+    const form = ensurePgPasswordForm(userId);
+    const copied = await copyToClipboard(form.pg_password);
+    if (!copied) { return; }
+    form.copied_password = true;
+    addToast('success', t('Copied!'));
+    setTimeout(() => { form.copied_password = false; }, 1500);
+};
+
+const createPgDatabase = async (): Promise<void> => {
+    if (!createPgForm.value.db_name || !createPgForm.value.pg_user || !createPgForm.value.pg_password) {
+        addToast('warning', t('Database name, username and password are required.'));
+        return;
+    }
+    if (createPgForm.value.pg_password !== createPgForm.value.pg_password_confirmation) {
+        addToast('warning', t('Password confirmation does not match.'));
+        return;
+    }
+    creatingPg.value = true;
+    try {
+        const res = await axios.post(`/domains/${props.domain.id}/postgres-databases`, createPgForm.value);
+        addToast('success', res.data.message || t('Database created successfully.'));
+        closeCreatePgDatabaseModal();
+        await loadPgDatabases();
+    } catch (error: any) {
+        addToast('error', error.response?.data?.message || t('Failed to create database'));
+    } finally {
+        creatingPg.value = false;
+    }
+};
+
+const addPgUser = async (database: ManagedPostgresDatabase): Promise<void> => {
+    const form = ensurePgUserForm(database.id);
+    if (!form.pg_user || !form.pg_password) {
+        addToast('warning', t('Username and password are required.'));
+        return;
+    }
+    if (form.pg_password !== form.pg_password_confirmation) {
+        addToast('warning', t('Password confirmation does not match.'));
+        return;
+    }
+    form.submitting = true;
+    try {
+        const res = await axios.post(`/domains/${props.domain.id}/postgres-databases/${database.id}/users`, {
+            pg_user: form.pg_user,
+            pg_password: form.pg_password,
+            pg_password_confirmation: form.pg_password_confirmation,
+        });
+        addToast('success', res.data.message || t('User created successfully.'));
+        form.pg_user = '';
+        form.pg_password = '';
+        form.pg_password_confirmation = '';
+        form.show_password = false;
+        form.copied_password = false;
+        form.open = false;
+        await loadPgDatabases();
+    } catch (error: any) {
+        addToast('error', error.response?.data?.message || t('Failed to create user'));
+    } finally {
+        form.submitting = false;
+    }
+};
+
+const updatePgUserPassword = async (pgUser: PgDatabaseUser): Promise<void> => {
+    const form = ensurePgPasswordForm(pgUser.id);
+    if (!form.pg_password) {
+        addToast('warning', t('Password is required.'));
+        return;
+    }
+    if (form.pg_password !== form.pg_password_confirmation) {
+        addToast('warning', t('Password confirmation does not match.'));
+        return;
+    }
+    form.submitting = true;
+    try {
+        const res = await axios.put(`/domains/${props.domain.id}/postgres-databases/users/${pgUser.id}/password`, {
+            pg_password: form.pg_password,
+            pg_password_confirmation: form.pg_password_confirmation,
+        });
+        addToast('success', res.data.message || t('Password updated.'));
+        form.pg_password = '';
+        form.pg_password_confirmation = '';
+        form.show_password = false;
+        form.copied_password = false;
+        form.open = false;
+        await loadPgDatabases();
+    } catch (error: any) {
+        addToast('error', error.response?.data?.message || t('Failed to update password'));
+    } finally {
+        form.submitting = false;
+    }
+};
+
+const deletePgDatabase = async (database: ManagedPostgresDatabase): Promise<void> => {
+    if (!confirm(t('Delete database :name and all its users?', { name: database.db_name }))) {
+        return;
+    }
+    try {
+        const res = await axios.delete(`/domains/${props.domain.id}/postgres-databases/${database.id}`);
+        addToast('success', res.data.message || t('Database deleted.'));
+        await loadPgDatabases();
+    } catch (error: any) {
+        addToast('error', error.response?.data?.message || t('Failed to delete database'));
+    }
+};
+
+const deletePgUser = async (pgUser: PgDatabaseUser, database: ManagedPostgresDatabase): Promise<void> => {
+    if (!confirm(t('Remove user :name?', { name: pgUser.pg_user }))) {
+        return;
+    }
+    try {
+        const res = await axios.delete(`/domains/${props.domain.id}/postgres-databases/users/${pgUser.id}`);
+        addToast('success', res.data.message || t('Database user deleted.'));
+        await loadPgDatabases();
     } catch (error: any) {
         addToast('error', error.response?.data?.message || t('Failed to delete user'));
     }

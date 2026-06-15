@@ -59,6 +59,7 @@ services:
       CODE_SERVER_DOMAIN: ${CODE_SERVER_DOMAIN}
       VAULTWARDEN_DOMAIN: ${VAULTWARDEN_DOMAIN}
       N8N_DOMAIN: ${N8N_DOMAIN}
+      PGADMIN_DOMAIN: ${PGADMIN_DOMAIN}
       PORTAINER_DOMAIN: ${PORTAINER_DOMAIN}
       JENKINS_DOMAIN: ${JENKINS_DOMAIN:-}
       CF_API_TOKEN: ${CF_API_TOKEN}
@@ -453,15 +454,16 @@ services:
       - vhost_network
 
   postgres:
-    image: postgres:16-alpine
-    container_name: n8n-postgres
+    image: postgis/postgis:${POSTGRESQL_VERSION}-alpine
+    container_name: postgres
     restart: always
     environment:
       POSTGRES_USER: "${POSTGRESQL_USER}"
       POSTGRES_PASSWORD: "${POSTGRESQL_PASSWORD}"
       POSTGRES_DB: n8n
     volumes:
-      - ./postgres:/var/lib/postgresql/data
+      - ./postgres:/var/lib/postgresql
+      - /root/backup:/backup
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRESQL_USER} -d n8n"]
       interval: 10s
@@ -469,7 +471,28 @@ services:
       retries: 5
       start_period: 15s
     networks:
-      - n8n_internal
+      - vhost_network
+
+  pgadmin:
+    image: dpage/pgadmin4:9.15.0
+    container_name: pgadmin
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "${PGADMIN_EMAIL}"
+      PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_PASSWORD}"
+      PGADMIN_CONFIG_SERVER_MODE: "True"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      PGADMIN_CONFIG_AUTHENTICATION_SOURCES: "['internal']"
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "False"
+      PGADMIN_CONFIG_WTF_CSRF_ENABLED: "False"
+    volumes:
+      - ./pgadmin/data:/var/lib/pgadmin
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+    networks:
+      - vhost_network
 
   n8n:
     build:
@@ -524,7 +547,6 @@ services:
       - /root/backup:/home/node/backup
     networks:
       - vhost_network
-      - n8n_internal
 
   portainer:
     image: portainer/portainer-ce:2.39.3
@@ -600,9 +622,3 @@ networks:
     name: vhost_network
     driver: bridge
 
-  # Internal-only network for n8n ↔ postgres. Hosted user sites on vhost_network
-  # cannot reach the n8n DB. n8n itself joins both networks for ingress + DB access.
-  n8n_internal:
-    name: n8n_internal
-    driver: bridge
-    internal: true

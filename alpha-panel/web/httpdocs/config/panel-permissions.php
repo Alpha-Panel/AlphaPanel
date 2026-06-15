@@ -47,6 +47,7 @@ return [
             'panel.backups.view' => 'View backups',
             'panel.backups.manage' => 'Create and restore backups',
             'panel.phpmyadmin.access' => 'Access phpMyAdmin SSO',
+            'panel.pgadmin.access' => 'Access pgAdmin',
             'panel.docker.actions' => 'Execute Docker container actions',
             'panel.domains.create' => 'Create new domains',
             'panel.domains.delete' => 'Delete domains',

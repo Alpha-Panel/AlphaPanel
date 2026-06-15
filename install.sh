@@ -184,17 +184,20 @@ say "Preparing data directories and permissions..."
 # Its bind-mounted dirs must be owned by 1000:1000, otherwise n8n cannot create
 # /home/node/.n8n ("mkdir: permission denied") and the container crash-loops.
 # deploy_cache and the backup target share the same UID for the same reason.
+# pgAdmin4 runs as UID/GID 5050 inside the container; its data dir must match.
 mkdir -p \
     "${INSTALL_DIR}/n8n/data" \
     "${INSTALL_DIR}/n8n/files" \
     "${INSTALL_DIR}/deploy_cache" \
+    "${INSTALL_DIR}/pgadmin/data" \
     /root/backup
 if [ "$(id -u)" = "0" ]; then
     chmod -R u+rwX,g+rwX "${INSTALL_DIR}/n8n" "${INSTALL_DIR}/deploy_cache" /root/backup
     chown -R 1000:1000  "${INSTALL_DIR}/n8n" "${INSTALL_DIR}/deploy_cache" /root/backup
-    ok "Data directories ready (owned by 1000:1000)."
+    chown -R 5050:5050  "${INSTALL_DIR}/pgadmin/data"
+    ok "Data directories ready (owned by 1000:1000 / pgadmin 5050:5050)."
 else
-    warn "Not root — skipped chown. Run: sudo chown -R 1000:1000 n8n deploy_cache /root/backup"
+    warn "Not root — skipped chown. Run: sudo chown -R 1000:1000 n8n deploy_cache /root/backup && sudo chown -R 5050:5050 pgadmin/data"
 fi
 
 HOST_IP=$(ip route get 1.1.1.1 2>/dev/null \

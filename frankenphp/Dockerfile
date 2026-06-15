@@ -48,6 +48,8 @@ COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /u
 
 RUN install-php-extensions \
         pdo_mysql \
+        pdo_pgsql \
+        pgsql \
         gd \
         intl \
         zip \
@@ -81,7 +83,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends supervisor e2fsprogs tzdata ghostscript \
  && rm -rf /var/lib/apt/lists/*
 
-# Docker CLI (Docker resmi repo)
+# Docker CLI (Docker resmi repo) + PostgreSQL 18 client (PGDG repo)
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
  && install -m 0755 -d /etc/apt/keyrings \
@@ -90,8 +92,12 @@ RUN apt-get update \
  && chmod a+r /etc/apt/keyrings/docker.gpg \
  && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian bookworm stable" \
     > /etc/apt/sources.list.d/docker.list \
+ && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+    | gpg --dearmor -o /etc/apt/keyrings/pgdg.gpg \
+ && echo "deb [signed-by=/etc/apt/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
+    > /etc/apt/sources.list.d/pgdg.list \
  && apt-get update \
- && apt-get install -y --no-install-recommends docker-ce-cli vim openssh-client default-mysql-client \
+ && apt-get install -y --no-install-recommends docker-ce-cli vim openssh-client default-mysql-client postgresql-client-18 \
  && rm -rf /var/lib/apt/lists/*
 
 # Node.js 22.x (Vite 7+ requires Node.js 20.19+ or 22.12+)

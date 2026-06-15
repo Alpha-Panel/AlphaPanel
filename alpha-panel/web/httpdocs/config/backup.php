@@ -23,4 +23,12 @@ return [
         'password' => env('DB_PASSWORD', ''),
         'exclude' => ['information_schema', 'performance_schema', 'mysql', 'sys', 'phpmyadmin'],
     ],
+
+    'postgres' => [
+        'host' => env('POSTGRESQL_HOST', 'postgres'),
+        'port' => (int) env('POSTGRESQL_PORT', 5432),
+        'username' => env('POSTGRESQL_USER', 'admin'),
+        'password' => env('POSTGRESQL_PASSWORD', ''),
+        'exclude' => ['postgres', 'template0', 'template1'],
+    ],
 ];

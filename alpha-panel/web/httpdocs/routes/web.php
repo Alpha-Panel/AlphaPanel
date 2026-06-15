@@ -3,6 +3,8 @@
 use App\Http\Controllers\AcmeSettingController;
 use App\Http\Controllers\AdminPushNotificationController;
 use App\Http\Controllers\AlertSettingController;
+use App\Http\Controllers\Api\V1\PgAdminAuthController;
+use App\Http\Controllers\Api\V1\PgAdminSsoController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\BackupController;
@@ -47,6 +49,7 @@ use App\Http\Controllers\PanelSslController;
 use App\Http\Controllers\PhpSettingsController;
 use App\Http\Controllers\PhpVersionController;
 use App\Http\Controllers\PmaSsoController;
+use App\Http\Controllers\PostgresDatabaseController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SecuritySettingController;
@@ -266,6 +269,18 @@ Route::middleware('auth')->group(function (): void {
         ->name('domains.databases.users.password');
     Route::delete('domains/{domain}/databases/users/{user}', [DatabaseController::class, 'destroyUser'])
         ->name('domains.databases.users.destroy');
+
+    // PostgreSQL Database Management (per domain)
+    Route::get('domains/{domain}/postgres-databases/json', [PostgresDatabaseController::class, 'json'])->name('domains.postgres-databases.json');
+    Route::post('domains/{domain}/postgres-databases', [PostgresDatabaseController::class, 'store'])->name('domains.postgres-databases.store');
+    Route::delete('domains/{domain}/postgres-databases/{pgDatabase}', [PostgresDatabaseController::class, 'destroyDatabase'])
+        ->name('domains.postgres-databases.destroy');
+    Route::post('domains/{domain}/postgres-databases/{pgDatabase}/users', [PostgresDatabaseController::class, 'storeUser'])
+        ->name('domains.postgres-databases.users.store');
+    Route::put('domains/{domain}/postgres-databases/users/{pgUser}/password', [PostgresDatabaseController::class, 'updateUserPassword'])
+        ->name('domains.postgres-databases.users.password');
+    Route::delete('domains/{domain}/postgres-databases/users/{pgUser}', [PostgresDatabaseController::class, 'destroyUser'])
+        ->name('domains.postgres-databases.users.destroy');
 
     // PHP Settings (per domain)
     Route::get('domains/{domain}/php', [PhpSettingsController::class, 'index'])->name('domains.php.index');
@@ -630,6 +645,10 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/pma/admin/sso', [PmaSsoController::class, 'admin'])
         ->name('pma.admin.sso');
 
+    // pgAdmin SSO — browser redirected here from sidebar; validates panel session, mints proxy token
+    Route::get('/api/pgadmin/sso', [PgAdminSsoController::class, 'redirect'])
+        ->name('pgadmin.sso');
+
     // MySQL Configuration (admin)
     Route::middleware('permission:panel.mysql-config.manage')->prefix('settings/mysql-config')->name('settings.mysql-config.')->group(function (): void {
         Route::get('/', [MysqlConfigController::class, 'index'])->name('index');
@@ -756,3 +775,9 @@ Route::middleware('auth')->group(function (): void {
         });
     });
 });
+
+// pgAdmin forward_auth — called by Caddy (server-side), not a browser session.
+// Reads pgadmin_sso proxy token cookie, validates against cache.
+Route::get('/api/pgadmin/auth', [PgAdminAuthController::class, 'check'])
+    ->name('pgadmin.auth')
+    ->middleware('web');

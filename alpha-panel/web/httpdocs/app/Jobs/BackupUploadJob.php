@@ -156,7 +156,13 @@ class BackupUploadJob implements ShouldQueue
             $this->broadcastProgress($run, __('Starting database backups...'));
             $this->backupDatabases($driveService, $dateFolderId, $tempBase, $run, $databases);
 
-            // Phase 3: Cleanup old backups on Drive (95-99%)
+            // Phase 3: PostgreSQL backups (non-blocking: failure here does not abort websites/mysql)
+            if ($this->isCancelled($run)) {
+                return;
+            }
+            $this->backupPostgresIfAvailable($driveService, $dateFolderId, $tempBase, $run);
+
+            // Phase 4: Cleanup old backups on Drive (95-99%)
             if ($this->isCancelled($run)) {
                 return;
             }
@@ -363,6 +369,112 @@ class BackupUploadJob implements ShouldQueue
             $this->currentFilePercent = 100;
 
             // Remove local archive immediately after upload
+            @unlink($archivePath);
+        }
+    }
+
+    private function backupPostgresIfAvailable(GoogleDriveService $driveService, string $dateFolderId, string $tempBase, BackupRun $run): void
+    {
+        $pgConfig = config('backup.postgres');
+        $pgDatabases = [];
+
+        try {
+            $pgPdo = new PDO(
+                "pgsql:host={$pgConfig['host']};port={$pgConfig['port']};dbname=postgres;connect_timeout=5",
+                $pgConfig['username'],
+                $pgConfig['password'],
+                [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+            );
+            $allPgDbs = $pgPdo->query("SELECT datname FROM pg_database WHERE datistemplate = false")->fetchAll(PDO::FETCH_COLUMN);
+            $pgDatabases = array_values(array_filter($allPgDbs, fn ($db) => ! in_array($db, $pgConfig['exclude'] ?? [])));
+        } catch (\Throwable $e) {
+            Log::warning("PostgreSQL backup skipped: {$e->getMessage()}");
+
+            return;
+        }
+
+        if (empty($pgDatabases)) {
+            return;
+        }
+
+        $this->itemsTotal += count($pgDatabases);
+        $this->broadcastProgress($run, __('Starting PostgreSQL backups...'));
+        $this->backupPostgresDatabases($driveService, $dateFolderId, $tempBase, $run, $pgDatabases);
+    }
+
+    /** @param array<string> $databases */
+    private function backupPostgresDatabases(GoogleDriveService $driveService, string $dateFolderId, string $tempBase, BackupRun $run, array $databases): void
+    {
+        $pgConfig = config('backup.postgres');
+        $host = $pgConfig['host'];
+        $port = $pgConfig['port'];
+        $username = $pgConfig['username'];
+        $password = $pgConfig['password'];
+
+        $postgresFolderId = $driveService->findOrCreateFolderPath('postgres', $dateFolderId);
+        $tempDir = "{$tempBase}/postgres";
+        @mkdir($tempDir, 0755, true);
+
+        foreach ($databases as $dbName) {
+            if ($this->isCancelled($run)) {
+                return;
+            }
+
+            $sqlPath = "{$tempDir}/{$dbName}.sql";
+            $archivePath = "{$tempDir}/{$dbName}.tar.gz";
+            $this->currentFileName = "{$dbName}.tar.gz";
+            $this->currentFilePercent = 0;
+
+            $this->broadcastProgress($run, __('Dumping :name...', ['name' => $dbName]));
+
+            $dumpCmd = sprintf(
+                'PGPASSWORD=%s pg_dump -h %s -p %s -U %s -F p %s > %s',
+                escapeshellarg($password),
+                escapeshellarg($host),
+                escapeshellarg((string) $port),
+                escapeshellarg($username),
+                escapeshellarg($dbName),
+                escapeshellarg($sqlPath)
+            );
+
+            $result = Process::timeout(0)->run($dumpCmd);
+
+            if ($result->failed() || ! file_exists($sqlPath) || filesize($sqlPath) === 0) {
+                Log::warning("Failed to dump PostgreSQL {$dbName}: {$result->errorOutput()}");
+                @unlink($sqlPath);
+                $this->itemsDone++;
+
+                continue;
+            }
+
+            $this->broadcastProgress($run, __('Compressing :name...', ['name' => "{$dbName}.tar.gz"]));
+
+            $tarResult = Process::timeout(0)->run(
+                sprintf('tar -czf %s -C %s %s', escapeshellarg($archivePath), escapeshellarg($tempDir), escapeshellarg("{$dbName}.sql"))
+            );
+
+            @unlink($sqlPath);
+
+            if ($tarResult->failed()) {
+                Log::warning("Failed to compress PostgreSQL {$dbName}: {$tarResult->errorOutput()}");
+                $this->itemsDone++;
+
+                continue;
+            }
+
+            $this->currentFilePercent = 0;
+            $this->broadcastProgress($run, __('Uploading :name...', ['name' => "{$dbName}.tar.gz"]));
+
+            $driveService->uploadFile($archivePath, $postgresFolderId, function (int $chunkPercent) use ($run, $dbName) {
+                $this->currentFilePercent = $chunkPercent;
+                $this->throttledBroadcast($run, __('Uploading :name...', ['name' => "{$dbName}.tar.gz"]));
+            });
+
+            $this->totalFiles++;
+            $this->totalBytes += filesize($archivePath) ?: 0;
+            $this->itemsDone++;
+            $this->currentFilePercent = 100;
+
             @unlink($archivePath);
         }
     }

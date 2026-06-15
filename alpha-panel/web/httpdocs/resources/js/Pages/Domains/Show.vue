@@ -177,7 +177,7 @@
                             </template>
 
                             <Link v-if="can('domain.databases.view')" :href="route('domains.databases.index', domain.id)" class="quick-link">
-                                <i class="fa-solid fa-database quick-link-icon"></i>
+                                <i class="lni lni-mysql quick-link-icon"></i>
                                 <span class="quick-link-label">{{ t('Databases') }}</span>
                                 <i class="fa-solid fa-angle-right quick-link-arrow"></i>
                             </Link>

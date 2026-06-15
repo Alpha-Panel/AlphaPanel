@@ -1,4 +1,4 @@
-{
+
   "Mail hosting is disabled for this domain. Re-enable the provider in panel settings or change the domain's mail hosting mode.": "E-Mail-Hosting ist für diese Domain deaktiviert. Aktivieren Sie den Anbieter in den Paneleinstellungen oder ändern Sie den Mail-Hosting-Modus der Domain.",
   "Mail hosting is disabled for this domain.": "E-Mail-Hosting ist für diese Domain deaktiviert.",
   "\":name\" will be removed and can no longer be used to sign in.": "\":name\" wird entfernt und kann nicht mehr zur Anmeldung verwendet werden.",
@@ -1975,6 +1975,10 @@
   "permissions": "Berechtigungen",
   "permissions selected": "Berechtigungen ausgewählt",
   "phpMyAdmin": "phpMyAdmin",
+  "pgAdmin": "pgAdmin",
+  "Database Management": "Datenbankverwaltung",
+  "No PostgreSQL databases yet. Create one above.": "Noch keine PostgreSQL-Datenbanken. Erstellen Sie eine oben.",
+  "Create PostgreSQL Database": "PostgreSQL-Datenbank erstellen",
   "post_max_size": "post_max_size",
   "reCAPTCHA Version": "reCAPTCHA-Version",
   "reCAPTCHA v3 works invisibly in the background. Users will not see a checkbox.": "reCAPTCHA v3 arbeitet unsichtbar im Hintergrund. Benutzer sehen kein Kontrollkästchen.",

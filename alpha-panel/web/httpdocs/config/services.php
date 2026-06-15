@@ -39,6 +39,7 @@ return [
     'n8n_url' => env('N8N_URL'),
     'file_manager_url' => env('FILE_MANAGER_URL'),
     'pma_url' => env('PHPMYADMIN_URL'),
+    'pgadmin_url' => env('PGADMIN_URL'),
 
     'phpmyadmin' => [
         'base_url' => env('PHPMYADMIN_URL'),
@@ -47,6 +48,11 @@ return [
         'mysql_host' => env('PMA_MYSQL_HOST', 'mysql'),
         'mysql_port' => (int) env('PMA_MYSQL_PORT', 3306),
         'token_ttl_seconds' => (int) env('PMA_SSO_TOKEN_TTL', 120),
+    ],
+
+    'pgadmin' => [
+        'url' => env('PGADMIN_URL'),
+        'cookie_domain' => env('PGADMIN_SSO_COOKIE_DOMAIN'),
     ],
 
     'crowdsec' => [

@@ -15,6 +15,7 @@ _DIRS = [
     "vaultwarden/data",
     "mysql/data",
     "postgres",
+    "pgadmin/data",
     "redis",
     "meilisearch/data",
     "meilisearch/tmp",

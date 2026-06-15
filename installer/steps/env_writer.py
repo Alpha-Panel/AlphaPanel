@@ -44,9 +44,14 @@ def write_root_env(path: Path, form: dict[str, Any], secrets: dict[str, str]) ->
         )
     )
 
-    add("\n# ─── PostgreSQL (N8N) ───\n")
+    add("\n# ─── PostgreSQL ───\n")
     add(_env_line("POSTGRESQL_USER", _POSTGRESQL_USER))
     add(_env_line("POSTGRESQL_PASSWORD", secrets["postgresql_password"], quoted=True))
+
+    add("\n# ─── pgAdmin ───\n")
+    add(_env_line("PGADMIN_DOMAIN", form["pgadmin_domain"]))
+    add(_env_line("PGADMIN_EMAIL", form["admin_email"]))
+    add(_env_line("PGADMIN_PASSWORD", secrets["pgadmin_password"], quoted=True))
 
     add("\n# ─── Network ───\n")
     add(_env_line("PRIVATE_NETWORK_IP", form["private_ip"]))
@@ -57,6 +62,7 @@ def write_root_env(path: Path, form: dict[str, Any], secrets: dict[str, str]) ->
         "base_domain",
         "panel_domain",
         "pma_domain",
+        "pgadmin_domain",
         "code_server_domain",
         "vaultwarden_domain",
         "n8n_domain",
@@ -211,6 +217,7 @@ def write_laravel_env(
     mysql_root_password = secrets["mysql_root_password"]
     crowdsec_dash_key = secrets["crowdsec_dashboard_api_key"]
     update_agent_secret = secrets["update_agent_secret"]
+    postgresql_password = secrets["postgresql_password"]
 
     appended = f"""
 # ─── Search ───
@@ -239,6 +246,12 @@ PMA_URL=https://{pma_domain}:8443/index.php?server=2
 PHPMYADMIN_URL=https://{pma_domain}
 PMA_ADMIN_USER=root
 PMA_ADMIN_PASS={mysql_root_password}
+POSTGRESQL_HOST=postgres
+POSTGRESQL_PORT=5432
+POSTGRESQL_USER={_POSTGRESQL_USER}
+POSTGRESQL_PASSWORD={postgresql_password}
+PGADMIN_URL=https://{form['pgadmin_domain']}:8443
+PGADMIN_SSO_COOKIE_DOMAIN=.{form['base_domain']}
 JENKINS_URL=https://{jenkins_domain}
 PANEL_DB_HOST=mysql
 PANEL_DB_PORT=3306

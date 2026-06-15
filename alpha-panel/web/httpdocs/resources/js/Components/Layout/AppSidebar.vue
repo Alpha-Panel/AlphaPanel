@@ -463,12 +463,28 @@ const menuGroups = computed(() => {
                     });
                 }
 
+                const dbMgmtSubItems: SidebarSubItem[] = [];
                 if (can('panel.phpmyadmin.access')) {
-                    items.push({
-                        iconClass: 'lni lni-mysql',
+                    dbMgmtSubItems.push({
                         name: t('phpMyAdmin'),
                         href: route('pma.admin.sso'),
+                        iconClass: 'lni lni-mysql',
                         external: true,
+                    });
+                }
+                if (can('panel.pgadmin.access') && externalLinks.value.pgadmin) {
+                    dbMgmtSubItems.push({
+                        name: t('pgAdmin'),
+                        href: route('pgadmin.sso'),
+                        iconClass: 'lni lni-postgresql',
+                        external: true,
+                    });
+                }
+                if (dbMgmtSubItems.length > 0) {
+                    items.push({
+                        iconClass: 'bx bx-data',
+                        name: t('Database Management'),
+                        subItems: dbMgmtSubItems,
                     });
                 }
 
