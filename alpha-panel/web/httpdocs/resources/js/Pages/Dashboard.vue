@@ -517,144 +517,6 @@
                     </div>
 
                     <div class="flex flex-col gap-4 md:gap-6">
-                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
-                            <div class="mb-4 flex items-center">
-                                <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
-                                    <i class="bx bx-time-five mr-1"></i>
-                                    {{ t('Recent Domains') }}
-                                </h4>
-                                <div class="ml-auto flex items-center gap-3">
-                                    <Link
-                                        :href="route('domains.index', { create: true })"
-                                        class="inline-flex items-center gap-1 text-xs font-medium text-brand-500 hover:text-brand-600"
-                                    >
-                                        <i class="bx bx-plus text-sm"></i>
-                                        {{ t('Add New') }}
-                                    </Link>
-                                    <Link
-                                        :href="route('domains.index')"
-                                        class="inline-flex items-center gap-1 text-xs font-medium text-brand-500 hover:text-brand-600"
-                                    >
-                                        {{ t('View all') }}
-                                        <i class="bx bx-right-arrow-alt text-sm"></i>
-                                    </Link>
-                                </div>
-                            </div>
-
-                            <div class="max-h-80 overflow-x-hidden overflow-y-auto">
-                                <table class="w-full text-sm">
-                                    <thead class="sticky top-0 z-10 bg-white dark:bg-gray-900">
-                                        <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                                            <th class="pb-3">{{ t('Domain') }}</th>
-                                            <th class="pb-3">{{ t('Type') }}</th>
-                                            <th class="pb-3">{{ t('Status') }}</th>
-                                            <th class="pb-3">{{ t('Created') }}</th>
-                                            <th class="pb-3 text-center">{{ t('Actions') }}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr
-                                            v-if="recentDomains.length === 0"
-                                            class="border-b border-gray-100 dark:border-gray-800"
-                                        >
-                                            <td colspan="5" class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                                                {{ t('No domains yet.') }}
-                                            </td>
-                                        </tr>
-                                        <tr
-                                            v-for="domain in recentDomains"
-                                            :key="domain.id"
-                                            class="border-b border-gray-100 last:border-0 dark:border-gray-800"
-                                        >
-                                            <td class="py-3 align-top">
-                                                <Link
-                                                    :href="domain.show_url"
-                                                    class="font-semibold text-brand-500 hover:text-brand-600"
-                                                >
-                                                    {{ domain.fqdn }}
-                                                </Link>
-                                                <p v-if="domain.php_version" class="text-xs text-gray-500 dark:text-gray-400">
-                                                    PHP {{ domain.php_version }}
-                                                </p>
-                                            </td>
-                                            <td class="py-3 align-top">
-                                                <span
-                                                    :class="[
-                                                        'inline-flex rounded-full px-2 py-1 text-xs font-semibold',
-                                                        domain.type === 'caddy_web_server'
-                                                            ? 'bg-blue-light-500/15 text-blue-light-700 dark:text-blue-light-300'
-                                                            : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-                                                    ]"
-                                                >
-                                                    {{ domain.type_label ?? formatDomainType(domain.type) }}
-                                                </span>
-                                            </td>
-                                            <td class="py-3 align-top">
-                                                <span
-                                                    :class="[
-                                                        'inline-flex rounded-full px-2 py-1 text-xs font-semibold',
-                                                        domainStatusClass(domain.status),
-                                                    ]"
-                                                >
-                                                    {{ domain.status_label ?? formatDomainStatus(domain.status) }}
-                                                </span>
-                                            </td>
-                                            <td class="py-3 align-top text-xs text-gray-500 dark:text-gray-400">
-                                                {{ domain.created_ago }}
-                                            </td>
-                                            <td class="py-3 align-top text-center">
-                                                <div class="flex justify-center gap-1">
-                                                    <Link
-                                                        :href="route('domains.files.index', domain.id)"
-                                                        class="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-brand-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-brand-400"
-                                                        v-tooltip="t('File Manager')"
-                                                    >
-                                                        <i class="bx bx-folder text-sm"></i>
-                                                    </Link>
-                                                    <Link
-                                                        :href="route('domains.dns.index', domain.id)"
-                                                        class="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-blue-light-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-blue-light-400"
-                                                        v-tooltip="t('DNS')"
-                                                    >
-                                                        <i class="bx bx-globe text-sm"></i>
-                                                    </Link>
-                                                    <Link
-                                                        :href="route('domains.cloudflare.manage', domain.id)"
-                                                        class="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-warning-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-warning-400"
-                                                        v-tooltip="t('Cloudflare')"
-                                                    >
-                                                        <i class="bx bx-cloud text-sm"></i>
-                                                    </Link>
-                                                    <button
-                                                        v-if="domain.cloudflare_enabled"
-                                                        :key="`ua-${domain.id}-${domain.under_attack}`"
-                                                        @click="toggleUnderAttack(domain)"
-                                                        :disabled="underAttackLoading === domain.id"
-                                                        :class="[
-                                                            'inline-flex h-6 w-6 items-center justify-center rounded disabled:opacity-50',
-                                                            domain.under_attack
-                                                                ? 'bg-error-500/20 text-error-600 hover:bg-error-500/30 dark:text-error-400'
-                                                                : 'text-gray-500 hover:bg-gray-100 hover:text-error-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-error-400',
-                                                        ]"
-                                                        v-tooltip="t('Under Attack Mode') + '\n' + (domain.under_attack ? t('On') : t('Off'))"
-                                                    >
-                                                        <i :class="['bx text-sm', underAttackLoading === domain.id ? 'bx-loader-alt animate-spin' : 'bx-shield']"></i>
-                                                    </button>
-                                                    <span
-                                                        v-else
-                                                        class="inline-flex h-6 w-6 items-center justify-center rounded text-gray-300 dark:text-gray-600 cursor-not-allowed"
-                                                        v-tooltip="t('Cloudflare is not active for this domain.')"
-                                                    >
-                                                        <i class="bx bx-shield text-sm"></i>
-                                                    </span>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
                         <div v-if="isAdmin" class="grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-2">
                         <div
                             class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3"
@@ -848,6 +710,145 @@
                             </div>
                         </div>
                         </div><!-- end MySQL+PG grid -->
+
+                        <!-- Recent Domains (full width, bottom) -->
+                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
+                            <div class="mb-4 flex items-center">
+                                <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
+                                    <i class="bx bx-time-five mr-1"></i>
+                                    {{ t('Recent Domains') }}
+                                </h4>
+                                <div class="ml-auto flex items-center gap-3">
+                                    <Link
+                                        :href="route('domains.index', { create: true })"
+                                        class="inline-flex items-center gap-1 text-xs font-medium text-brand-500 hover:text-brand-600"
+                                    >
+                                        <i class="bx bx-plus text-sm"></i>
+                                        {{ t('Add New') }}
+                                    </Link>
+                                    <Link
+                                        :href="route('domains.index')"
+                                        class="inline-flex items-center gap-1 text-xs font-medium text-brand-500 hover:text-brand-600"
+                                    >
+                                        {{ t('View all') }}
+                                        <i class="bx bx-right-arrow-alt text-sm"></i>
+                                    </Link>
+                                </div>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead class="sticky top-0 z-10 bg-white dark:bg-gray-900">
+                                        <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                                            <th class="pb-3">{{ t('Domain') }}</th>
+                                            <th class="pb-3">{{ t('Type') }}</th>
+                                            <th class="pb-3">{{ t('Status') }}</th>
+                                            <th class="pb-3">{{ t('Created') }}</th>
+                                            <th class="pb-3 text-center">{{ t('Actions') }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr
+                                            v-if="recentDomains.length === 0"
+                                            class="border-b border-gray-100 dark:border-gray-800"
+                                        >
+                                            <td colspan="5" class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                                                {{ t('No domains yet.') }}
+                                            </td>
+                                        </tr>
+                                        <tr
+                                            v-for="domain in recentDomains"
+                                            :key="domain.id"
+                                            class="border-b border-gray-100 last:border-0 dark:border-gray-800"
+                                        >
+                                            <td class="py-3 align-top">
+                                                <Link
+                                                    :href="domain.show_url"
+                                                    class="font-semibold text-brand-500 hover:text-brand-600"
+                                                >
+                                                    {{ domain.fqdn }}
+                                                </Link>
+                                                <p v-if="domain.php_version" class="text-xs text-gray-500 dark:text-gray-400">
+                                                    PHP {{ domain.php_version }}
+                                                </p>
+                                            </td>
+                                            <td class="py-3 align-top">
+                                                <span
+                                                    :class="[
+                                                        'inline-flex rounded-full px-2 py-1 text-xs font-semibold',
+                                                        domain.type === 'caddy_web_server'
+                                                            ? 'bg-blue-light-500/15 text-blue-light-700 dark:text-blue-light-300'
+                                                            : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+                                                    ]"
+                                                >
+                                                    {{ domain.type_label ?? formatDomainType(domain.type) }}
+                                                </span>
+                                            </td>
+                                            <td class="py-3 align-top">
+                                                <span
+                                                    :class="[
+                                                        'inline-flex rounded-full px-2 py-1 text-xs font-semibold',
+                                                        domainStatusClass(domain.status),
+                                                    ]"
+                                                >
+                                                    {{ domain.status_label ?? formatDomainStatus(domain.status) }}
+                                                </span>
+                                            </td>
+                                            <td class="py-3 align-top text-xs text-gray-500 dark:text-gray-400">
+                                                {{ domain.created_ago }}
+                                            </td>
+                                            <td class="py-3 align-top text-center">
+                                                <div class="flex justify-center gap-1">
+                                                    <Link
+                                                        :href="route('domains.files.index', domain.id)"
+                                                        class="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-brand-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-brand-400"
+                                                        v-tooltip="t('File Manager')"
+                                                    >
+                                                        <i class="bx bx-folder text-sm"></i>
+                                                    </Link>
+                                                    <Link
+                                                        :href="route('domains.dns.index', domain.id)"
+                                                        class="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-blue-light-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-blue-light-400"
+                                                        v-tooltip="t('DNS')"
+                                                    >
+                                                        <i class="bx bx-globe text-sm"></i>
+                                                    </Link>
+                                                    <Link
+                                                        :href="route('domains.cloudflare.manage', domain.id)"
+                                                        class="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-warning-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-warning-400"
+                                                        v-tooltip="t('Cloudflare')"
+                                                    >
+                                                        <i class="bx bx-cloud text-sm"></i>
+                                                    </Link>
+                                                    <button
+                                                        v-if="domain.cloudflare_enabled"
+                                                        :key="`ua-${domain.id}-${domain.under_attack}`"
+                                                        @click="toggleUnderAttack(domain)"
+                                                        :disabled="underAttackLoading === domain.id"
+                                                        :class="[
+                                                            'inline-flex h-6 w-6 items-center justify-center rounded disabled:opacity-50',
+                                                            domain.under_attack
+                                                                ? 'bg-error-500/20 text-error-600 hover:bg-error-500/30 dark:text-error-400'
+                                                                : 'text-gray-500 hover:bg-gray-100 hover:text-error-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-error-400',
+                                                        ]"
+                                                        v-tooltip="t('Under Attack Mode') + '\n' + (domain.under_attack ? t('On') : t('Off'))"
+                                                    >
+                                                        <i :class="['bx text-sm', underAttackLoading === domain.id ? 'bx-loader-alt animate-spin' : 'bx-shield']"></i>
+                                                    </button>
+                                                    <span
+                                                        v-else
+                                                        class="inline-flex h-6 w-6 items-center justify-center rounded text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                                                        v-tooltip="t('Cloudflare is not active for this domain.')"
+                                                    >
+                                                        <i class="bx bx-shield text-sm"></i>
+                                                    </span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </AdminLayout>
