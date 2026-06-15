@@ -195,7 +195,7 @@ class HomeController extends Controller
             ->whereNull('parent_domain_id')
             ->when(! $user->isAdmin(), fn ($query) => $query->where('owner_user_id', $user->id))
             ->latest()
-            ->limit(8)
+            ->limit(5)
             ->get();
 
         $cloudflare = app(CloudflareDnsService::class);

@@ -516,13 +516,8 @@
                         </div>
                     </div>
 
-                    <div :class="['grid grid-cols-1 gap-4 md:gap-6', isAdmin ? 'xl:grid-cols-12' : '']">
-                        <div
-                            :class="[
-                                'rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3',
-                                isAdmin ? 'xl:col-span-4' : '',
-                            ]"
-                        >
+                    <div class="flex flex-col gap-4 md:gap-6">
+                        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3">
                             <div class="mb-4 flex items-center">
                                 <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
                                     <i class="bx bx-time-five mr-1"></i>
@@ -660,9 +655,9 @@
                             </div>
                         </div>
 
+                        <div v-if="isAdmin" class="grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-2">
                         <div
-                            v-if="isAdmin"
-                            class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 xl:col-span-4"
+                            class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3"
                         >
                             <div class="mb-4 flex items-center">
                                 <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
@@ -705,7 +700,7 @@
                             </div>
 
                             <div v-else class="max-h-80 overflow-auto">
-                                <table class="w-full min-w-170 text-sm">
+                                <table class="w-full text-sm">
                                     <thead class="sticky top-0 z-10 bg-white dark:bg-gray-900">
                                         <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
                                             <th class="pb-3">{{ t('ID') }}</th>
@@ -750,7 +745,7 @@
                                             <td class="py-3">
                                                 <code
                                                     v-if="process.info"
-                                                    class="inline-block max-w-60 truncate text-xs text-blue-light-600 dark:text-blue-light-300"
+                                                    class="inline-block max-w-32 truncate text-xs text-blue-light-600 dark:text-blue-light-300"
                                                     :title="process.info"
                                                 >
                                                     {{ truncate(process.info, 80) }}
@@ -765,8 +760,7 @@
 
                         <!-- PostgreSQL Processes -->
                         <div
-                            v-if="isAdmin"
-                            class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 xl:col-span-4"
+                            class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3"
                         >
                             <div class="mb-4 flex items-center">
                                 <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
@@ -796,7 +790,7 @@
                             </div>
 
                             <div v-else class="max-h-80 overflow-auto">
-                                <table class="w-full min-w-120 text-sm">
+                                <table class="w-full text-sm">
                                     <thead class="sticky top-0 z-10 bg-white dark:bg-gray-900">
                                         <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
                                             <th class="pb-3">{{ t('PID') }}</th>
@@ -841,7 +835,7 @@
                                             <td class="py-3">
                                                 <code
                                                     v-if="process.query"
-                                                    class="inline-block max-w-48 truncate text-xs text-purple-600 dark:text-purple-300"
+                                                    class="inline-block max-w-32 truncate text-xs text-purple-600 dark:text-purple-300"
                                                     :title="process.query"
                                                 >
                                                     {{ truncate(process.query, 80) }}
@@ -853,6 +847,7 @@
                                 </table>
                             </div>
                         </div>
+                        </div><!-- end MySQL+PG grid -->
                     </div>
                 </div>
             </AdminLayout>
