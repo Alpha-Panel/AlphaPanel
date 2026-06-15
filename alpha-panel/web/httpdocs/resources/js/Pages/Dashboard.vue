@@ -1024,7 +1024,7 @@ const VISIBLE_DASHBOARD_POLL_MS = 20000;
 const HIDDEN_DASHBOARD_POLL_MS = 60000;
 
 const dashboard = ref<DashboardPayload>(props.dashboard);
-const showSleeping = ref<boolean>(dashboard.value.mysql_monitor?.show_sleeping ?? false);
+const showSleeping = ref<boolean>(localStorage.getItem('dashboard:show_sleeping') === 'true');
 const dockerActionLoading = ref<string | null>(null);
 const containerSearch = ref('');
 const cpuHistory = ref<number[]>([]);
@@ -1309,6 +1309,7 @@ const isDockerActionLoading = (action: DockerAction, containerId: string): boole
 
 const toggleSleeping = (): void => {
     showSleeping.value = !showSleeping.value;
+    localStorage.setItem('dashboard:show_sleeping', String(showSleeping.value));
 };
 
 const ensureApexCharts = async (): Promise<boolean> => {
