@@ -14,6 +14,7 @@ use App\Services\GoogleDriveService;
 use App\Services\HostMetricsService;
 use App\Services\MysqlAdminService;
 use App\Services\PortainerService;
+use App\Services\PostgresAdminService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -34,6 +35,8 @@ class HomeController extends Controller
 
     private const GOOGLE_DRIVE_SUMMARY_CACHE_KEY = 'dashboard:google-drive-summary:v1';
 
+    private const POSTGRES_PROCESS_LIST_CACHE_KEY = 'dashboard:postgres-process-list:v1';
+
     private const HOST_METRICS_CACHE_SECONDS = 15;
 
     private const DOCKER_SERVICES_CACHE_SECONDS = 20;
@@ -43,6 +46,8 @@ class HomeController extends Controller
     private const CROWDSEC_SUMMARY_CACHE_SECONDS = 20;
 
     private const GOOGLE_DRIVE_SUMMARY_CACHE_SECONDS = 120;
+
+    private const POSTGRES_PROCESS_LIST_CACHE_SECONDS = 15;
 
     public function index(Request $request): Response
     {
@@ -60,6 +65,7 @@ class HomeController extends Controller
                 'host_metrics' => null,
                 'docker_services' => null,
                 'mysql_monitor' => null,
+                'postgres_monitor' => null,
                 'crowdsec' => null,
                 'google_drive' => null,
                 'active_backup' => $user->isAdmin()
@@ -153,6 +159,7 @@ class HomeController extends Controller
             'host_metrics' => $user->isAdmin() ? $this->buildHostMetrics($useCache) : null,
             'docker_services' => $user->isAdmin() ? $this->buildDockerServices($useCache) : null,
             'mysql_monitor' => $user->isAdmin() ? $this->buildMysqlMonitor($showSleeping, $useCache) : null,
+            'postgres_monitor' => $user->isAdmin() ? $this->buildPostgresMonitor($useCache) : null,
             'crowdsec' => $user->isAdmin() ? $this->buildCrowdSecSummary($useCache) : null,
             'google_drive' => $user->isAdmin() ? $this->buildGoogleDriveSummary($useCache) : null,
             'active_backup' => $user->isAdmin()
@@ -358,6 +365,50 @@ class HomeController extends Controller
             return [
                 'has_error' => true,
                 'show_sleeping' => $showSleeping,
+                'total_connections' => 0,
+                'processes' => [],
+            ];
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildPostgresMonitor(bool $useCache): array
+    {
+        try {
+            /** @var PostgresAdminService $postgres */
+            $postgres = app(PostgresAdminService::class);
+
+            $allProcesses = $useCache
+                ? Cache::remember(
+                    self::POSTGRES_PROCESS_LIST_CACHE_KEY,
+                    now()->addSeconds(self::POSTGRES_PROCESS_LIST_CACHE_SECONDS),
+                    fn (): array => $postgres->getProcessList(),
+                )
+                : $postgres->getProcessList();
+
+            $filtered = collect($allProcesses)
+                ->take(20)
+                ->map(fn (array $row): array => [
+                    'pid' => (int) ($row['pid'] ?? 0),
+                    'user' => (string) ($row['usename'] ?? '-'),
+                    'database' => (string) ($row['datname'] ?? '-'),
+                    'state' => (string) ($row['state'] ?? '-'),
+                    'duration' => (int) ($row['duration_seconds'] ?? 0),
+                    'query' => (string) ($row['query'] ?? ''),
+                ])
+                ->values()
+                ->all();
+
+            return [
+                'has_error' => false,
+                'total_connections' => count($allProcesses),
+                'processes' => $filtered,
+            ];
+        } catch (\Throwable) {
+            return [
+                'has_error' => true,
                 'total_connections' => 0,
                 'processes' => [],
             ];

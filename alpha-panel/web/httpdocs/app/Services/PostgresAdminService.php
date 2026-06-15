@@ -207,4 +207,28 @@ class PostgresAdminService
         $db->exec("ALTER USER \"{$safe}\" WITH PASSWORD ".$db->quote($newPassword));
         Log::info("Changed password for PostgreSQL user: {$safe}");
     }
+
+    /**
+     * Return active backend processes from pg_stat_activity.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getProcessList(): array
+    {
+        $stmt = $this->connect()->query(
+            "SELECT pid,
+                    usename,
+                    datname,
+                    state,
+                    wait_event_type,
+                    wait_event,
+                    COALESCE(EXTRACT(EPOCH FROM (now() - query_start))::int, 0) AS duration_seconds,
+                    LEFT(query, 200) AS query
+             FROM pg_stat_activity
+             WHERE pid <> pg_backend_pid()
+             ORDER BY duration_seconds DESC"
+        );
+
+        return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    }
 }

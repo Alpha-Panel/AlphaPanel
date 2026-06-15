@@ -2138,5 +2138,8 @@
   "Webmail (Snappymail) is the user-facing UI at the Webmail URL above.": "Webmail (Snappymail), yukarıdaki Webmail URL adresinde kullanıcıya yönelik arayüzdür.",
   "Mailu API token not configured": "Mailu API token tanımlı değil",
   "Run on the server: docker compose exec alpha_panel_web php artisan mail:bootstrap": "Sunucuda çalıştır: docker compose exec alpha_panel_web php artisan mail:bootstrap",
-  "Webmail": "Webmail"
+  "Webmail": "Webmail",
+  "PostgreSQL Processes": "PostgreSQL Süreçleri",
+  "PostgreSQL unreachable": "PostgreSQL'e ulaşılamıyor",
+  "PID": "PID"
 }

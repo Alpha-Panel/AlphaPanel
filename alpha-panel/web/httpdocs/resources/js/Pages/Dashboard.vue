@@ -520,7 +520,7 @@
                         <div
                             :class="[
                                 'rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3',
-                                isAdmin ? 'xl:col-span-6' : '',
+                                isAdmin ? 'xl:col-span-4' : '',
                             ]"
                         >
                             <div class="mb-4 flex items-center">
@@ -662,7 +662,7 @@
 
                         <div
                             v-if="isAdmin"
-                            class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 xl:col-span-6"
+                            class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 xl:col-span-4"
                         >
                             <div class="mb-4 flex items-center">
                                 <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
@@ -762,6 +762,97 @@
                                 </table>
                             </div>
                         </div>
+
+                        <!-- PostgreSQL Processes -->
+                        <div
+                            v-if="isAdmin"
+                            class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 xl:col-span-4"
+                        >
+                            <div class="mb-4 flex items-center">
+                                <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">
+                                    <i class="bx bx-data mr-1"></i>
+                                    {{ t('PostgreSQL Processes') }}
+                                </h4>
+                                <div v-if="!metricsLoading" class="ml-auto flex items-center gap-2">
+                                    <span class="inline-flex rounded-full bg-purple-500/15 px-2.5 py-1 text-xs font-semibold text-purple-700 dark:text-purple-300">
+                                        {{ postgresMonitor?.total_connections ?? 0 }} {{ t('connections') }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div v-if="metricsLoading" class="space-y-3">
+                                <div v-for="n in 4" :key="n" class="flex items-center gap-3">
+                                    <div class="h-4 w-8 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                    <div class="h-4 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                    <div class="h-4 w-20 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                    <div class="h-4 w-10 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                    <div class="h-4 flex-1 animate-pulse rounded bg-gray-200 dark:bg-gray-800"></div>
+                                </div>
+                            </div>
+
+                            <div v-else-if="postgresMonitor?.has_error" class="py-6 text-center text-gray-500 dark:text-gray-400">
+                                <i class="bx bx-error-circle text-3xl"></i>
+                                <p class="mt-2 text-sm">{{ t('PostgreSQL unreachable') }}</p>
+                            </div>
+
+                            <div v-else class="max-h-80 overflow-auto">
+                                <table class="w-full min-w-120 text-sm">
+                                    <thead class="sticky top-0 z-10 bg-white dark:bg-gray-900">
+                                        <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                                            <th class="pb-3">{{ t('PID') }}</th>
+                                            <th class="pb-3">{{ t('User') }}</th>
+                                            <th class="pb-3">{{ t('DB') }}</th>
+                                            <th class="pb-3">{{ t('Time') }}</th>
+                                            <th class="pb-3">{{ t('State') }}</th>
+                                            <th class="pb-3">{{ t('Query') }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr
+                                            v-if="!postgresMonitor?.processes?.length"
+                                            class="border-b border-gray-100 dark:border-gray-800"
+                                        >
+                                            <td colspan="6" class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                                                {{ t('No active processes') }}
+                                            </td>
+                                        </tr>
+                                        <tr
+                                            v-for="process in postgresMonitor?.processes"
+                                            :key="process.pid"
+                                            class="border-b border-gray-100 last:border-0 dark:border-gray-800"
+                                        >
+                                            <td class="py-3 text-xs text-gray-500 dark:text-gray-400">
+                                                {{ process.pid }}
+                                            </td>
+                                            <td class="py-3">
+                                                <span class="inline-flex rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                                                    {{ process.user || '-' }}
+                                                </span>
+                                            </td>
+                                            <td class="py-3 text-xs text-gray-500 dark:text-gray-400">
+                                                {{ process.database || '-' }}
+                                            </td>
+                                            <td class="py-3 text-xs font-semibold" :class="pgDurationClass(process.duration)">
+                                                {{ process.duration }}s
+                                            </td>
+                                            <td class="py-3 text-xs" :class="pgStateClass(process.state)">
+                                                {{ process.state }}
+                                            </td>
+                                            <td class="py-3">
+                                                <code
+                                                    v-if="process.query"
+                                                    class="inline-block max-w-48 truncate text-xs text-purple-600 dark:text-purple-300"
+                                                    :title="process.query"
+                                                >
+                                                    {{ truncate(process.query, 80) }}
+                                                </code>
+                                                <span v-else class="text-xs text-gray-500 dark:text-gray-400">-</span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </AdminLayout>
@@ -850,6 +941,21 @@ interface MysqlMonitor {
     processes: MysqlProcess[];
 }
 
+interface PostgresProcess {
+    pid: number;
+    user: string;
+    database: string;
+    state: string;
+    duration: number;
+    query: string;
+}
+
+interface PostgresMonitor {
+    has_error: boolean;
+    total_connections: number;
+    processes: PostgresProcess[];
+}
+
 interface CrowdSecSummary {
     configured: boolean;
     has_error: boolean;
@@ -884,6 +990,7 @@ interface DashboardPayload {
     host_metrics: HostMetrics | null;
     docker_services: DockerServices | null;
     mysql_monitor: MysqlMonitor | null;
+    postgres_monitor: PostgresMonitor | null;
     crowdsec: CrowdSecSummary | null;
     google_drive: GoogleDriveSummary | null;
     active_backup: ActiveBackup | null;
@@ -948,6 +1055,7 @@ const stats = computed(() => dashboard.value.stats);
 const hostMetrics = computed(() => dashboard.value.host_metrics);
 const dockerServices = computed(() => dashboard.value.docker_services);
 const mysqlMonitor = computed(() => dashboard.value.mysql_monitor);
+const postgresMonitor = computed(() => dashboard.value.postgres_monitor);
 const crowdsec = computed(() => dashboard.value.crowdsec);
 const googleDrive = computed(() => dashboard.value.google_drive);
 const recentDomains = computed(() => dashboard.value.recent_domains ?? []);
@@ -1124,6 +1232,30 @@ const mysqlCommandClass = (command: string): string => {
     }
 
     if (command === 'Sleep') {
+        return 'text-gray-500 dark:text-gray-400';
+    }
+
+    return 'text-blue-light-700 dark:text-blue-light-300';
+};
+
+const pgDurationClass = (seconds: number): string => {
+    if (seconds > 10) {
+        return 'text-error-600 dark:text-error-300';
+    }
+
+    if (seconds > 3) {
+        return 'text-warning-600 dark:text-warning-300';
+    }
+
+    return 'text-gray-500 dark:text-gray-400';
+};
+
+const pgStateClass = (state: string): string => {
+    if (state === 'active') {
+        return 'text-success-600 dark:text-success-300';
+    }
+
+    if (state === 'idle') {
         return 'text-gray-500 dark:text-gray-400';
     }
 

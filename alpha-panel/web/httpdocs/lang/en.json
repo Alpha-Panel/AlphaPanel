@@ -1,4 +1,4 @@
-
+{
   "Mail hosting is disabled for this domain. Re-enable the provider in panel settings or change the domain's mail hosting mode.": "Mail hosting is disabled for this domain. Re-enable the provider in panel settings or change the domain's mail hosting mode.",
   "Mail hosting is disabled for this domain.": "Mail hosting is disabled for this domain.",
   "\":name\" will be removed and can no longer be used to sign in.": "\":name\" will be removed and can no longer be used to sign in.",
@@ -2122,5 +2122,8 @@
   "IMAP / POP3": "IMAP / POP3",
   "How Mailu works in this panel": "How Mailu works in this panel",
   "Mailu API token not configured": "Mailu API token not configured",
-  "Webmail": "Webmail"
+  "Webmail": "Webmail",
+  "PostgreSQL Processes": "PostgreSQL Processes",
+  "PostgreSQL unreachable": "PostgreSQL unreachable",
+  "PID": "PID"
 }
