@@ -21,6 +21,7 @@ RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
       apache2-utils \
       ssl-cert \
       vim \
+      git \
       e2fsprogs \
       lsb-release \
       ghostscript \

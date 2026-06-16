@@ -97,7 +97,7 @@ RUN apt-get update \
  && echo "deb [signed-by=/etc/apt/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
     > /etc/apt/sources.list.d/pgdg.list \
  && apt-get update \
- && apt-get install -y --no-install-recommends docker-ce-cli vim openssh-client default-mysql-client postgresql-client-18 \
+ && apt-get install -y --no-install-recommends docker-ce-cli vim openssh-client git default-mysql-client postgresql-client-18 \
  && rm -rf /var/lib/apt/lists/*
 
 # Node.js 22.x (Vite 7+ requires Node.js 20.19+ or 22.12+)
