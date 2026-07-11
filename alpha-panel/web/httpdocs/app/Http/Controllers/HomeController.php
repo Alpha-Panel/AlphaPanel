@@ -7,6 +7,7 @@ use App\Models\BackupRun;
 use App\Models\BackupSetting;
 use App\Models\Domain;
 use App\Models\ManagedDatabase;
+use App\Models\ManagedPostgresDatabase;
 use App\Models\User;
 use App\Services\CloudflareDnsService;
 use App\Services\CrowdSecService;
@@ -179,8 +180,10 @@ class HomeController extends Controller
 
         return [
             'total_domains' => (clone $domainQuery)->whereNull('parent_domain_id')->count(),
+            'total_mysql_db' => ManagedDatabase::count(),
+            'total_postgresql_db' => ManagedPostgresDatabase::count(),
             'subdomains' => (clone $domainQuery)->whereNotNull('parent_domain_id')->count(),
-            'total_databases' => ManagedDatabase::count(),
+            'total_databases' => ManagedDatabase::count() + ManagedPostgresDatabase::count(),
             'total_users' => User::count(),
         ];
     }

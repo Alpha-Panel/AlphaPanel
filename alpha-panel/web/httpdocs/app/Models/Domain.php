@@ -368,7 +368,7 @@ class Domain extends Model
             return $this->root_path;
         }
 
-        if ($this->type === DomainType::CaddyWebServer) {
+        if ($this->type === DomainType::CaddyWebServer || $this->type === DomainType::CaddyFastCgi) {
             return "{$base}/httpdocs/public";
         }
 

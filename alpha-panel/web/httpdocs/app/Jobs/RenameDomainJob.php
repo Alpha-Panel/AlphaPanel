@@ -83,6 +83,8 @@ class RenameDomainJob implements ShouldQueue
                 if ($domain->phpVersion) {
                     $reloadService->reloadPhpFpm($domain->phpVersion);
                 }
+            } elseif ($domain->type === DomainType::CaddyFastCgi && $domain->phpVersion) {
+                $reloadService->reloadPhpFpm($domain->phpVersion);
             }
 
             $this->progress($domain, 95, 'Requesting SSL certificate for new domain...');

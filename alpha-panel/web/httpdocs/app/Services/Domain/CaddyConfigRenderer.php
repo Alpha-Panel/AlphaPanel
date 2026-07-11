@@ -833,6 +833,11 @@ class CaddyConfigRenderer
             } else {
                 $lines[] = "{$indent}php_server";
             }
+        } elseif ($domain->type === DomainType::CaddyFastCgi) {
+            // FastCGI mode: per-process open_basedir isolation via FPM pool config.
+            // Socket is written to /run/php/{fqdn}.sock in php-code-server, which is
+            // bind-mounted into frankenphp at the same path so Caddy can reach it.
+            $lines[] = "{$indent}php_fastcgi unix//run/php/{$domain->fqdn}.sock";
         } elseif ($domain->type === DomainType::ApacheReverseProxy) {
             $forwardedPort = (int) ($domain->forwarded_port ?? 443);
             $lines[] = "{$indent}reverse_proxy http://php-code-server:80 {";

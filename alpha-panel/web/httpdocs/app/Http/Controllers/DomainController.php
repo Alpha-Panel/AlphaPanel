@@ -200,7 +200,8 @@ class DomainController extends Controller
             unset($validated['owner_user_id']);
         }
 
-        if (($validated['type'] ?? null) !== 'apache_reverse_proxy') {
+        $phpFpmTypes = ['apache_reverse_proxy', 'caddy_fastcgi'];
+        if (! in_array($validated['type'] ?? null, $phpFpmTypes, true)) {
             $validated['php_version_id'] = null;
         }
 

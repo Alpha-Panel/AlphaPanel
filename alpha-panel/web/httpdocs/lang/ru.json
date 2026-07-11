@@ -221,6 +221,7 @@
   "Caddy": "Caddy",
   "Caddy Reverse Proxy": "Caddy обратный прокси",
   "Caddy Web Server": "Веб-сервер Caddy",
+  "Caddy + FastCGI": "Caddy + FastCGI",
   "Cancel": "Отмена",
   "Cannot add rules to Docker chains.": "Невозможно добавить правила в цепочки Docker.",
   "Cannot delete protected rule.": "Невозможно удалить защищённое правило.",

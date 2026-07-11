@@ -470,11 +470,13 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+    ports:
+      - "${PRIVATE_NETWORK_IP}:5432:5432"
     networks:
       - vhost_network
 
   pgadmin:
-    image: dpage/pgadmin4:9.15.0
+    image: dpage/pgadmin4:9.16
     container_name: pgadmin
     restart: always
     depends_on:
@@ -486,8 +488,14 @@ services:
       PGADMIN_CONFIG_SERVER_MODE: "True"
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
       PGADMIN_CONFIG_AUTHENTICATION_SOURCES: "['internal']"
+      PGADMIN_CONFIG_WTF_CSRF_ENABLED: "True"
+      PGADMIN_CONFIG_PROXY_X_FOR_COUNT: "1"
+      PGADMIN_CONFIG_PROXY_X_PROTO_COUNT: "1"
+      PGADMIN_CONFIG_PROXY_X_HOST_COUNT: "1"
+      PGADMIN_CONFIG_PROXY_X_PORT_COUNT: "1"
       PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "False"
-      PGADMIN_CONFIG_WTF_CSRF_ENABLED: "False"
+      PGADMIN_CONFIG_SESSION_COOKIE_SECURE: "True"
+      PGADMIN_CONFIG_SESSION_COOKIE_SAMESITE: "'Lax'"
     volumes:
       - ./pgadmin/data:/var/lib/pgadmin
       - ./pgadmin/servers.json:/pgadmin4/servers.json:ro

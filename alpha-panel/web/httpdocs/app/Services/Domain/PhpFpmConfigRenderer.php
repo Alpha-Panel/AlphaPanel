@@ -19,7 +19,8 @@ class PhpFpmConfigRenderer
      */
     public function writePhpFpmConfig(Domain $domain): void
     {
-        if ($domain->type !== DomainType::ApacheReverseProxy || ! $domain->phpVersion) {
+        $supportedTypes = [DomainType::ApacheReverseProxy, DomainType::CaddyFastCgi];
+        if (! in_array($domain->type, $supportedTypes, true) || ! $domain->phpVersion) {
             return;
         }
 

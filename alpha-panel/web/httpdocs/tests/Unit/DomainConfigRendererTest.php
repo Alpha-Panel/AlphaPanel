@@ -569,6 +569,77 @@ class DomainConfigRendererTest extends TestCase
         $this->assertStringNotContainsString('process.umask', $capturedContent);
     }
 
+    public function test_caddy_fastcgi_type_uses_php_fastcgi_socket_and_writes_fpm_pool(): void
+    {
+        $owner = User::factory()->create();
+        $phpVersion = PhpVersion::firstOrCreate(
+            ['slug' => '8.4'],
+            ['fpm_pool_dir' => '/tmp/test-fpm-pools', 'fpm_service_name' => 'php8.4-fpm', 'is_enabled' => true, 'sort_order' => 84]
+        );
+
+        $domain = Domain::factory()->create([
+            'fqdn' => 'fpm-caddy.test',
+            'owner_user_id' => $owner->id,
+            'type' => DomainType::CaddyFastCgi,
+            'php_version_id' => $phpVersion->id,
+            'enable_worker' => false,
+            'enable_www_redirect' => false,
+            'additional_hostnames' => [],
+        ]);
+
+        $domain->load('phpVersion');
+
+        $capturedCaddy = null;
+        $capturedFpm = null;
+
+        File::shouldReceive('put')
+            ->with(Mockery::on(fn (string $p): bool => str_contains($p, 'fpm-caddy.test.conf')), Mockery::capture($capturedFpm))
+            ->andReturn(true);
+        File::shouldReceive('put')
+            ->with(Mockery::on(fn (string $p): bool => str_contains($p, 'Caddyfile')), Mockery::capture($capturedCaddy))
+            ->andReturn(true);
+        File::shouldReceive('move')->byDefault();
+
+        $this->service->renderWithoutTls($domain);
+
+        // Caddyfile uses php_fastcgi — NOT php_server
+        $this->assertNotNull($capturedCaddy);
+        $this->assertStringContainsString('php_fastcgi unix//run/php/fpm-caddy.test.sock', $capturedCaddy);
+        $this->assertStringNotContainsString('php_server', $capturedCaddy);
+
+        // FPM pool config is written with open_basedir
+        $this->assertNotNull($capturedFpm);
+        $this->assertStringContainsString('[fpm-caddy.test]', $capturedFpm);
+        $this->assertStringContainsString('php_admin_value[open_basedir]', $capturedFpm);
+        $this->assertStringContainsString('listen = /run/php/fpm-caddy.test.sock', $capturedFpm);
+    }
+
+    public function test_caddy_web_server_always_uses_php_server(): void
+    {
+        $owner = User::factory()->create();
+        $domain = Domain::factory()->make([
+            'fqdn' => 'embedded-php.test',
+            'owner_user_id' => $owner->id,
+            'type' => DomainType::CaddyWebServer,
+            'php_version_id' => null,
+            'enable_worker' => false,
+            'enable_www_redirect' => false,
+            'additional_hostnames' => [],
+        ]);
+
+        $capturedContent = null;
+
+        File::shouldReceive('put')
+            ->once()
+            ->with(Mockery::any(), Mockery::capture($capturedContent));
+        File::shouldReceive('move')->once();
+
+        $this->service->renderWithoutTls($domain);
+
+        $this->assertStringContainsString('php_server', $capturedContent);
+        $this->assertStringNotContainsString('php_fastcgi', $capturedContent);
+    }
+
     public function test_www_redirect_blocks_generated_with_tls(): void
     {
         $owner = User::factory()->create();

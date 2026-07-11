@@ -844,6 +844,7 @@ const parentDomainWebRootPath = computed(() => {
     }
 
     return `/var/www/vhosts/${fqdn}/httpdocs/public`;
+
 });
 const breadcrumbs = computed(() => [
     { label: t('Domains'), href: route('domains.index') },
@@ -872,7 +873,7 @@ const isCloudflareManagedForDns = computed(() => {
 
     return cloudflareZoneSummary.value.exists;
 });
-const canManagePhpSettings = computed(() => domain.value.type === 'apache_reverse_proxy');
+const canManagePhpSettings = computed(() => domain.value.type === 'apache_reverse_proxy' || domain.value.type === 'caddy_fastcgi');
 const hasStoredFtpPassword = computed(() => Boolean(domain.value.ftp_user?.encrypted_password));
 const subdomains = computed(() => domain.value.subdomains ?? []);
 
@@ -1157,6 +1158,10 @@ const typeBadge = (type: string): string => {
         return `<span class="inline-flex rounded-full bg-blue-light-500/15 px-2 py-0.5 text-xs font-semibold text-blue-light-700 dark:text-blue-light-300">${t('Caddy Web Server')}</span>`;
     }
 
+    if (type === 'caddy_fastcgi') {
+        return `<span class="inline-flex rounded-full bg-violet-500/15 px-2 py-0.5 text-xs font-semibold text-violet-700 dark:text-violet-300">${t('Caddy + FastCGI')}</span>`;
+    }
+
     return `<span class="inline-flex rounded-full bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-700 dark:bg-gray-700 dark:text-gray-300">${t('Apache + Reverse Proxy')}</span>`;
 };
 
@@ -1187,7 +1192,7 @@ const infoRows = computed(() => {
         { key: 'status', label: t('Status'), value: domainStatusBadge(domain.value.status), html: true },
     ];
 
-    if (domain.value.type === 'apache_reverse_proxy') {
+    if (domain.value.type === 'apache_reverse_proxy' || domain.value.type === 'caddy_fastcgi') {
         rows.push({ key: 'php_version', label: t('PHP Version'), value: domain.value.php_version?.slug ?? t('N/A') });
     }
 

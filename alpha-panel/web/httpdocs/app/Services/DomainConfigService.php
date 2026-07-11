@@ -55,6 +55,8 @@ class DomainConfigService
         if ($domain->type === DomainType::ApacheReverseProxy) {
             $this->apache->writeApacheConfig($domain);
             $this->phpFpm->writePhpFpmConfig($domain);
+        } elseif ($domain->type === DomainType::CaddyFastCgi) {
+            $this->phpFpm->writePhpFpmConfig($domain);
         }
     }
 
@@ -86,6 +88,8 @@ class DomainConfigService
 
         if ($domain->type === DomainType::ApacheReverseProxy) {
             $this->apache->writeApacheConfig($domain);
+            $this->phpFpm->writePhpFpmConfig($domain);
+        } elseif ($domain->type === DomainType::CaddyFastCgi) {
             $this->phpFpm->writePhpFpmConfig($domain);
         }
 

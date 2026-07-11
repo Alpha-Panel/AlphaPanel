@@ -114,7 +114,7 @@ class StoreDomainRequest extends FormRequest
             'php_version_id' => [
                 'nullable',
                 'exists:php_versions,id',
-                Rule::requiredIf(fn () => $this->input('type') === 'apache_reverse_proxy'),
+                Rule::requiredIf(fn () => in_array($this->input('type'), ['apache_reverse_proxy', 'caddy_fastcgi'], true)),
             ],
             'cloudflare_mode' => [
                 'nullable',

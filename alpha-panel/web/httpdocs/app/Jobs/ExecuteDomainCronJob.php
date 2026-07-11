@@ -65,9 +65,9 @@ class ExecuteDomainCronJob implements ShouldQueue
             $execUser = $domain->getEffectiveFtpUsername();
 
             // Select container based on domain type:
-            // - Apache/legacy sites → php-code-server (users already provisioned, multi-PHP)
-            // - Caddy/FrankenPHP sites → frankenphp (users synced at startup)
-            $container = $domain->type === DomainType::ApacheReverseProxy
+            // - Apache/legacy + FastCGI sites → php-code-server (multi-PHP, FPM pools there)
+            // - Caddy/FrankenPHP sites → frankenphp (embedded PHP)
+            $container = in_array($domain->type, [DomainType::ApacheReverseProxy, DomainType::CaddyFastCgi], true)
                 ? 'php-code-server'
                 : 'frankenphp';
 

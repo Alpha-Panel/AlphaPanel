@@ -51,12 +51,13 @@
                         <FormField :label="t('Type')" :error="form.errors.type" required>
                             <select v-model="form.type" class="form-input">
                                 <option value="caddy_web_server">{{ t('Caddy Web Server') }}</option>
+                                <option value="caddy_fastcgi">{{ t('Caddy + FastCGI') }}</option>
                                 <option value="apache_reverse_proxy">{{ t('Apache + Reverse Proxy') }}</option>
                             </select>
                         </FormField>
 
                         <FormField
-                            v-if="form.type === 'apache_reverse_proxy'"
+                            v-if="form.type === 'apache_reverse_proxy' || form.type === 'caddy_fastcgi'"
                             :label="t('PHP Version')"
                             :error="form.errors.php_version_id"
                         >
@@ -401,7 +402,7 @@ const submit = () => {
 };
 
 watch(() => form.type, (type) => {
-    if (type !== 'apache_reverse_proxy') {
+    if (type !== 'apache_reverse_proxy' && type !== 'caddy_fastcgi') {
         form.php_version_id = null;
     }
 });

@@ -88,11 +88,11 @@ class FileManagerController extends Controller
 
         $request->validate([
             'path' => ['required', 'string'],
-            'content' => ['required', 'string'],
+            'content' => ['nullable', 'string'],
         ]);
 
         $fileManager = $this->resolveFileManager($domain);
-        $fileManager->writeFile($request->input('path'), $request->input('content'));
+        $fileManager->writeFile($request->input('path'), $request->input('content') ?? '');
 
         return response()->json(['success' => true]);
     }

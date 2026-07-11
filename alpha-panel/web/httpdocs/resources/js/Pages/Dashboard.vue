@@ -124,7 +124,10 @@
                                     <h3 class="text-2xl font-semibold text-gray-800 dark:text-white/90">
                                         {{ stats.total_databases }}
                                     </h3>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('MySQL') }}</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                      {{ t('MySQL') }}: {{ stats.total_mysql_db }}<br>
+                                      {{ t('PostgreSQL') }}: {{ stats.total_postgresql_db }}
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -778,7 +781,9 @@
                                                         'inline-flex rounded-full px-2 py-1 text-xs font-semibold',
                                                         domain.type === 'caddy_web_server'
                                                             ? 'bg-blue-light-500/15 text-blue-light-700 dark:text-blue-light-300'
-                                                            : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+                                                            : domain.type === 'caddy_fastcgi'
+                                                                ? 'bg-violet-500/15 text-violet-700 dark:text-violet-300'
+                                                                : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
                                                     ]"
                                                 >
                                                     {{ domain.type_label ?? formatDomainType(domain.type) }}
@@ -874,6 +879,8 @@ interface DashboardStats {
     total_domains: number;
     subdomains: number;
     total_databases: number;
+    total_mysql_db: number;
+    total_postgresql_db: number;
     total_users: number;
 }
 
@@ -1192,6 +1199,8 @@ const formatDomainType = (type: string): string => {
     switch (type) {
         case 'caddy_web_server':
             return 'Caddy';
+        case 'caddy_fastcgi':
+            return 'Caddy+FPM';
         case 'apache_reverse_proxy':
             return 'Apache';
         default:

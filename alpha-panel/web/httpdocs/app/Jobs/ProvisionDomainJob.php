@@ -180,6 +180,8 @@ class ProvisionDomainJob implements ShouldQueue
                     if ($domain->phpVersion) {
                         $reloadService->reloadPhpFpm($domain->phpVersion);
                     }
+                } elseif ($domain->type === DomainType::CaddyFastCgi && $domain->phpVersion) {
+                    $reloadService->reloadPhpFpm($domain->phpVersion);
                 }
 
                 $domain->update(['status' => DomainStatus::Active]);

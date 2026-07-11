@@ -281,7 +281,7 @@ class DomainSupervisorController extends Controller
     {
         $this->authorize('manageSupervisor', $domain);
 
-        $container = $domain->type === DomainType::ApacheReverseProxy
+        $container = in_array($domain->type, [DomainType::ApacheReverseProxy, DomainType::CaddyFastCgi], true)
             ? 'php-code-server'
             : 'frankenphp';
 
@@ -348,7 +348,7 @@ class DomainSupervisorController extends Controller
             $command .= ' '.escapeshellarg($parts[$i]);
         }
 
-        $container = $domain->type === DomainType::ApacheReverseProxy
+        $container = in_array($domain->type, [DomainType::ApacheReverseProxy, DomainType::CaddyFastCgi], true)
             ? 'php-code-server'
             : 'frankenphp';
 

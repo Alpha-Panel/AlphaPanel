@@ -218,6 +218,7 @@
   "Caddy": "Caddy",
   "Caddy Reverse Proxy": "Caddy Ters Proxy",
   "Caddy Web Server": "Caddy Web Sunucu",
+  "Caddy + FastCGI": "Caddy + FastCGI",
   "Cancel": "toqtat",
   "Cannot add rules to Docker chains.": "Docker zincirlerine qaide qoşılmas.",
   "Cannot delete protected rule.": "qorunan qaide öçürülmes.",
