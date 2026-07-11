@@ -72,19 +72,34 @@ class AcmeService
 
         $settings = $this->clientFactory->getSettings();
 
+        // Wildcard orders produce two authorizations that share the TXT name
+        // `_acme-challenge.<apex>` but carry DIFFERENT values, and BOTH must be
+        // present at validation time. Track the values we create this run so the
+        // stale-cleanup below never deletes a sibling challenge we just added.
+        $createdValues = [];
+
         return $this->dns01->run(
             domain: $domain,
             domains: $domains,
-            createTxtRecord: function (string $recordName, string $recordValue) use ($apex) {
+            createTxtRecord: function (string $recordName, string $recordValue) use ($apex, &$createdValues) {
                 $zoneId = $this->cloudflareDns->getZoneId($apex);
 
-                // Remove any stale TXT records with the same name left by a prior
-                // failed attempt; Cloudflare rejects duplicates with error 81058.
+                // Remove stale TXT records with the same name left by a prior
+                // failed attempt (Cloudflare rejects an identical duplicate with
+                // error 81058), but preserve sibling values created in this run —
+                // a wildcard cert needs both TXT values live simultaneously.
                 $existing = $this->cloudflareDns->listRecords($zoneId, $recordName);
                 foreach ($existing as $record) {
-                    if (strtoupper((string) ($record->type ?? '')) === 'TXT') {
-                        $this->cloudflareDns->deleteRecord($zoneId, (string) ($record->id ?? ''));
+                    if (strtoupper((string) ($record->type ?? '')) !== 'TXT') {
+                        continue;
                     }
+
+                    $content = trim((string) ($record->content ?? ''), " \"");
+                    if (in_array($content, $createdValues, true)) {
+                        continue;
+                    }
+
+                    $this->cloudflareDns->deleteRecord($zoneId, (string) ($record->id ?? ''));
                 }
 
                 $this->cloudflareDns->addRecord($zoneId, [
@@ -93,6 +108,7 @@ class AcmeService
                     'content' => $recordValue,
                     'ttl' => 60,
                 ]);
+                $createdValues[] = $recordValue;
 
                 return ['zone_id' => $zoneId, 'name' => $recordName, 'value' => $recordValue];
             },
