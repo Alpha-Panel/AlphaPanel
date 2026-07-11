@@ -112,19 +112,11 @@
                             <p class="text-sm text-gray-500">
                                 {{ table.recordsFiltered.value }} {{ t('total') }}
                             </p>
-                            <div class="flex gap-2">
-                                <button
-                                    v-for="pageNumber in table.totalPages.value"
-                                    :key="pageNumber"
-                                    @click="table.setPage(pageNumber)"
-                                    :class="[
-                                        'h-8 w-8 rounded-lg text-sm font-medium',
-                                        pageNumber === table.currentPage.value ? 'bg-brand-500 text-white' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-400',
-                                    ]"
-                                >
-                                    {{ pageNumber }}
-                                </button>
-                            </div>
+                            <TablePagination
+                                :current-page="table.currentPage.value"
+                                :total-pages="table.totalPages.value"
+                                @change="table.setPage"
+                            />
                         </div>
                     </div>
                 </div>
@@ -141,6 +133,7 @@ import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
 import SidebarProvider from '@/Components/Layout/SidebarProvider.vue';
 import AdminLayout from '@/Components/Layout/AdminLayout.vue';
 import PageBreadcrumb from '@/Components/Common/PageBreadcrumb.vue';
+import TablePagination from '@/Components/Common/TablePagination.vue';
 import { useDataTable } from '@/Composables/useDataTable';
 import { useI18n } from '@/Composables/useI18n';
 

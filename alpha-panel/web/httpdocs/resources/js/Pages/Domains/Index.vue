@@ -208,21 +208,11 @@
                             {{ Math.min(table.currentPage.value * table.perPage.value, table.recordsFiltered.value) }}
                             {{ t('of') }} {{ table.recordsFiltered.value }}
                         </p>
-                        <div class="flex gap-2">
-                            <button
-                                v-for="page in table.totalPages.value"
-                                :key="page"
-                                @click="table.setPage(page)"
-                                :class="[
-                                    'h-8 w-8 rounded-lg text-sm font-medium',
-                                    page === table.currentPage.value
-                                        ? 'bg-brand-500 text-white'
-                                        : 'text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800',
-                                ]"
-                            >
-                                {{ page }}
-                            </button>
-                        </div>
+                        <TablePagination
+                            :current-page="table.currentPage.value"
+                            :total-pages="table.totalPages.value"
+                            @change="table.setPage"
+                        />
                     </div>
                 </div>
 
@@ -248,6 +238,7 @@ import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
 import SidebarProvider from '@/Components/Layout/SidebarProvider.vue';
 import AdminLayout from '@/Components/Layout/AdminLayout.vue';
 import PageBreadcrumb from '@/Components/Common/PageBreadcrumb.vue';
+import TablePagination from '@/Components/Common/TablePagination.vue';
 import Toast from '@/Components/UI/Toast.vue';
 import { useDataTable } from '@/Composables/useDataTable';
 import DomainCreateModal from '@/Components/Domains/DomainCreateModal.vue';
