@@ -61,7 +61,10 @@ async def run_cmd(
         shell_cmd = cmd
 
     logger.info(
-        "Running: %s (cwd=%s, timeout=%ds)", _redact(shell_cmd), cwd, timeout
+        "Running program: %s (cwd=%s, timeout=%ds)",
+        _program_only(shell_cmd),
+        cwd,
+        timeout,
     )
 
     proc = await asyncio.create_subprocess_shell(
@@ -82,7 +85,7 @@ async def run_cmd(
         return CommandResult(
             returncode=-1,
             stdout="",
-            stderr=f"Command timed out after {timeout}s: {_redact(shell_cmd)}",
+            stderr=f"Command timed out after {timeout}s while running {_program_only(shell_cmd)}",
         )
 
     result = CommandResult(
@@ -95,9 +98,9 @@ async def run_cmd(
         # Log the program name plus a redacted command line; stdout/stderr can
         # legitimately contain secrets echoed by tools, so keep them at debug.
         logger.error(
-            "Command failed (rc=%d): %s",
+            "Command failed (rc=%d) for program: %s",
             result.returncode,
-            _redact(shell_cmd),
+            _program_only(shell_cmd),
         )
         logger.debug(
             "Failed command output for %s — stdout: %s | stderr: %s",
