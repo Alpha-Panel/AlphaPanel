@@ -8,8 +8,15 @@ def test_base_domain_caddyfile_created_when_missing(tmp_path):
     target = tmp_path / "example.com" / "Caddyfile"
     write_base_domain_caddyfile(target, base_domain="example.com")
     content = target.read_text()
-    lines = {line.strip() for line in content.splitlines()}
-    assert "example.com:443" in lines
+    site_line = next(
+        (line.strip() for line in content.splitlines() if line.strip().endswith(":443")),
+        None,
+    )
+    assert site_line is not None
+    host, sep, port = site_line.rpartition(":")
+    assert sep == ":"
+    assert host == "example.com"
+    assert port == "443"
     assert "*.example.com" in content
 
 
