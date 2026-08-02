@@ -431,7 +431,7 @@ $(function () {
       $this.append(
         $('<img>', {
           class: 'img-fluid rounded mb-50',
-          src: assetPath + 'images/slider/' + $this.attr('data-image'),
+          src: '../../../app-assets/images/slider/' + $this.attr('data-image'),
           height: 32
         })
       );
