@@ -748,9 +748,17 @@ function use(items) {
 
     useFckeditor2(url);
   } else if (isAllowedSafeCallback(window, callback)) {
-    window[callback](getSelectedItems());
+    if (callback === 'SetUrl') {
+      window.SetUrl(getSelectedItems());
+    } else {
+      useFileSucceeded = false;
+    }
   } else if (isAllowedSafeCallback(parent, callback)) {
-    parent[callback](getSelectedItems());
+    if (callback === 'SetUrl') {
+      parent.SetUrl(getSelectedItems());
+    } else {
+      useFileSucceeded = false;
+    }
   } else if (window.opener) { // standalone button or other situations
     window.opener.SetUrl(getSelectedItems());
   } else {
