@@ -57,12 +57,14 @@ async def run_cmd(
     """Run a shell command asynchronously and capture output."""
     if isinstance(cmd, list):
         shell_cmd = " ".join(cmd)
+        program_name = cmd[0] if cmd else "<command>"
     else:
         shell_cmd = cmd
+        program_name = "<shell-command>"
 
     logger.info(
         "Running program: %s (cwd=%s, timeout=%ds)",
-        _program_only(shell_cmd),
+        program_name,
         cwd,
         timeout,
     )
@@ -85,7 +87,7 @@ async def run_cmd(
         return CommandResult(
             returncode=-1,
             stdout="",
-            stderr=f"Command timed out after {timeout}s while running {_program_only(shell_cmd)}",
+            stderr=f"Command timed out after {timeout}s while running {program_name}",
         )
 
     result = CommandResult(
@@ -100,11 +102,11 @@ async def run_cmd(
         logger.error(
             "Command failed (rc=%d) for program: %s",
             result.returncode,
-            _program_only(shell_cmd),
+            program_name,
         )
         logger.debug(
             "Failed command output for %s — stdout: %s | stderr: %s",
-            _program_only(shell_cmd),
+            program_name,
             _redact(result.stdout[:500]),
             _redact(result.stderr[:500]),
         )
