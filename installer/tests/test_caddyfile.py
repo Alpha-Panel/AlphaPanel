@@ -37,7 +37,15 @@ def test_jenkins_caddyfile_open_mode_when_no_admin_ips(tmp_path):
         admin_ips="",
     )
     content = target.read_text()
-    assert "jenkins.example.com:443" in content
+    site_line = next(
+        (line.strip() for line in content.splitlines() if line.strip().endswith(":443")),
+        None,
+    )
+    assert site_line is not None
+    host, sep, port = site_line.rpartition(":")
+    assert sep == ":"
+    assert host == "jenkins.example.com"
+    assert port == "443"
     assert "reverse_proxy jenkins:8080" in content
     assert "client_ip" not in content
     assert "respond 403" not in content
