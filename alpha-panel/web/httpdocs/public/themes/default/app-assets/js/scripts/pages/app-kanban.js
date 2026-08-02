@@ -138,10 +138,19 @@ $(function () {
     );
   }
 
+  function escapeHtml(value) {
+    return String(value === undefined || value === null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   // Render avatar
   function renderAvatar(images, pullUp, margin, members, size) {
     var $transition = pullUp ? ' pull-up' : '',
-      member = members !== undefined ? members.split(',') : '';
+      member = members !== undefined ? members.split(',') : [];
 
     return images !== undefined
       ? images
@@ -158,15 +167,15 @@ $(function () {
               "'" +
               "data-bs-toggle='tooltip' data-bs-placement='top'" +
               "title='" +
-              member[index] +
+              escapeHtml(member[index]) +
               "'" +
               '>' +
               "<img src='" +
               assetPath +
               'images/portrait/small/' +
-              img +
+              escapeHtml(img) +
               "' alt='Avatar' height='" +
-              size +
+              escapeHtml(size) +
               "'>" +
               '</li>'
             );
@@ -182,12 +191,12 @@ $(function () {
       "<div> <span class='align-middle me-50'>" +
       feather.icons['paperclip'].toSvg({ class: 'font-medium-1 align-middle me-25' }) +
       "<span class='attachments align-middle'>" +
-      attachments +
+      escapeHtml(attachments) +
       '</span>' +
       "</span> <span class='align-middle'>" +
       feather.icons['message-square'].toSvg({ class: 'font-medium-1 align-middle me-25' }) +
       '<span>' +
-      comments +
+      escapeHtml(comments) +
       '</span>' +
       '</span></div>' +
       "<ul class='avatar-group mb-0'>" +
