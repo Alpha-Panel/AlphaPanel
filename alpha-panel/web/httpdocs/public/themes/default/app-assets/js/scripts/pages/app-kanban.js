@@ -12,9 +12,29 @@ $(function () {
     updateItemSidebar = $('.update-item-sidebar'),
     addNewInput = $('.add-new-board-input');
 
+  function sanitizeAssetPath(pathValue) {
+    var defaultPath = '../../../app-assets/';
+    if (typeof pathValue !== 'string') {
+      return defaultPath;
+    }
+
+    var normalized = pathValue.trim();
+    // allow only safe relative asset paths
+    if (
+      normalized.length === 0 ||
+      /[<>"'`\\]/.test(normalized) ||
+      /^(?:[a-zA-Z][a-zA-Z0-9+.-]*:|\/\/)/.test(normalized) ||
+      normalized.indexOf('..') !== -1
+    ) {
+      return defaultPath;
+    }
+
+    return normalized;
+  }
+
   var assetPath = '../../../app-assets/';
   if ($('body').attr('data-framework') === 'laravel') {
-    assetPath = $('body').attr('data-asset-path');
+    assetPath = sanitizeAssetPath($('body').attr('data-asset-path'));
   }
 
   // Get Data
