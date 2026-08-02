@@ -15,6 +15,13 @@ def _conf_path(project_root: str, filename: str) -> Path:
     if filename not in ALLOWED_CONF_FILES:
         raise ValueError(f"Invalid filename: {filename}")
 
+    # Defense in depth: only allow a plain basename, never a path.
+    candidate = Path(filename)
+    if candidate.name != filename or candidate.is_absolute() or ".." in candidate.parts:
+        raise ValueError(f"Unsafe filename path: {filename}")
+    if "/" in filename or "\\" in filename:
+        raise ValueError(f"Unsafe filename path: {filename}")
+
     base_dir = (Path(project_root) / "mysql" / "conf.d").resolve()
     path = (base_dir / filename).resolve()
 
