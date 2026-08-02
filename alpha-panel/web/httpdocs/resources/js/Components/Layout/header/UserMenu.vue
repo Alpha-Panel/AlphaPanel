@@ -10,11 +10,11 @@
                 />
                 <span v-else>{{ userInitials }}</span>
             </span>
-            <span class="hidden lg:block">
+            <span class="max-lg:hidden lg:block">
               <span class="block mr-1 font-medium text-theme-sm">{{ user?.name }}</span>
               <span class="block text-start text-theme-xs text-gray-500 dark:text-gray-400">{{ isAdmin }}</span>
             </span>
-            <ChevronDownIcon class="hidden lg:block" :class="{ 'rotate-180': dropdownOpen }" />
+            <ChevronDownIcon class="max-lg:hidden lg:block" :class="{ 'rotate-180': dropdownOpen }" />
         </button>
 
         <div

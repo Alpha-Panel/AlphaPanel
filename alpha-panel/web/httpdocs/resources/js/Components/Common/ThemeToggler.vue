@@ -5,7 +5,7 @@
     >
         <!-- Sun icon (shown in dark mode) -->
         <svg
-            class="hidden dark:block"
+            v-if="isDarkMode"
             width="20"
             height="20"
             viewBox="0 0 20 20"
@@ -21,7 +21,7 @@
         </svg>
         <!-- Moon icon (shown in light mode) -->
         <svg
-            class="dark:hidden"
+            v-else
             width="20"
             height="20"
             viewBox="0 0 20 20"
@@ -39,5 +39,5 @@
 <script setup lang="ts">
 import { useTheme } from '@/Components/Layout/ThemeProvider.vue';
 
-const { toggleTheme } = useTheme();
+const { isDarkMode, toggleTheme } = useTheme();
 </script>

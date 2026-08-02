@@ -358,7 +358,7 @@ services:
       - vhost_network
 
   password:
-    image: "vaultwarden/server:1.36.0-alpine"
+    image: "vaultwarden/server:1.37.1-alpine"
     hostname: "${VAULTWARDEN_DOMAIN}"
     container_name: password
     restart: always

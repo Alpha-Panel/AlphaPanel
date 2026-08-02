@@ -82,7 +82,7 @@
 
             <div
                 :class="[
-                    isApplicationMenuOpen ? 'flex' : 'hidden',
+                    isApplicationMenuOpen ? 'flex' : 'max-lg:hidden',
                     isRtl ? 'lg:mr-4' : 'lg:ml-4',
                 ]"
                 class="w-full items-center gap-4 px-5 py-4 shadow-theme-md lg:flex lg:flex-1 lg:justify-between lg:px-0 lg:shadow-none"
@@ -171,9 +171,9 @@
                                     />
                                     <i v-else class="fa-solid fa-globe text-[10px] text-gray-500 dark:text-gray-300"></i>
                                 </span>
-                                <span class="hidden w-7 text-center text-xs font-semibold tracking-wide uppercase lg:inline">{{ localeCode(locale) }}</span>
+                                <span class="max-lg:hidden w-7 text-center text-xs font-semibold tracking-wide uppercase">{{ localeCode(locale) }}</span>
                                 <i
-                                    class="hidden fa-solid fa-chevron-down text-[10px] text-gray-500 transition-transform dark:text-gray-400 lg:inline"
+                                    class="max-lg:hidden fa-solid fa-chevron-down text-[10px] text-gray-500 transition-transform dark:text-gray-400"
                                     :class="isLocaleMenuOpen ? 'rotate-180' : ''"
                                 ></i>
                             </button>
@@ -234,7 +234,7 @@
                         </div>
                         <ThemeToggler />
                         <!-- NotificationMenu hidden on mobile (shown next to three-dots instead) -->
-                        <div class="hidden lg:block">
+                        <div class="max-lg:hidden">
                             <NotificationMenu />
                         </div>
                     </div>
