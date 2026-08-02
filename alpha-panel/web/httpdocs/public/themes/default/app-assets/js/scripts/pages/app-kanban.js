@@ -12,9 +12,29 @@ $(function () {
     updateItemSidebar = $('.update-item-sidebar'),
     addNewInput = $('.add-new-board-input');
 
+  function sanitizeAssetPath(pathValue) {
+    var defaultPath = '../../../app-assets/';
+    if (typeof pathValue !== 'string') {
+      return defaultPath;
+    }
+
+    var normalized = pathValue.trim();
+    // allow only safe image file names (no path separators, no protocols)
+    if (normalized.length === 0) {
+      return defaultPath;
+    }
+
+    // only letters, numbers, underscore, dash, dot; must end with a known image extension
+    if (!/^[A-Za-z0-9_.-]+\.(?:png|jpe?g|gif|webp|svg)$/i.test(normalized)) {
+      return defaultPath;
+    }
+
+    return normalized;
+  }
+
   var assetPath = '../../../app-assets/';
   if ($('body').attr('data-framework') === 'laravel') {
-    assetPath = $('body').attr('data-asset-path');
+    assetPath = sanitizeAssetPath($('body').attr('data-asset-path'));
   }
 
   // Get Data
@@ -124,24 +144,38 @@ $(function () {
   }
   // Render header
   function renderHeader(color, text) {
-    return (
-      "<div class='d-flex justify-content-between flex-wrap align-items-center mb-1'>" +
-      "<div class='item-badges'> " +
-      "<div class='badge rounded-pill badge-light-" +
-      color +
-      "'> " +
-      text +
-      '</div>' +
-      '</div>' +
-      renderDropdown() +
-      '</div>'
-    );
+    var allowedBadgeColors = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'dark'];
+    var safeColor = allowedBadgeColors.indexOf(color) !== -1 ? color : 'secondary';
+
+    var $header = $('<div>', {
+      class: 'd-flex justify-content-between flex-wrap align-items-center mb-1'
+    });
+
+    var $itemBadges = $('<div>', { class: 'item-badges' });
+    var $badge = $('<div>', { class: 'badge rounded-pill' })
+      .addClass('badge-light-' + safeColor)
+      .text(text || '');
+
+    $itemBadges.append($badge);
+    $header.append($itemBadges);
+    $header.append(renderDropdown());
+
+    return $header;
+  }
+
+  function escapeHtml(value) {
+    return String(value === undefined || value === null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   // Render avatar
   function renderAvatar(images, pullUp, margin, members, size) {
     var $transition = pullUp ? ' pull-up' : '',
-      member = members !== undefined ? members.split(',') : '';
+      member = members !== undefined ? members.split(',') : [];
 
     return images !== undefined
       ? images
@@ -158,15 +192,15 @@ $(function () {
               "'" +
               "data-bs-toggle='tooltip' data-bs-placement='top'" +
               "title='" +
-              member[index] +
+              escapeHtml(member[index]) +
               "'" +
               '>' +
               "<img src='" +
               assetPath +
               'images/portrait/small/' +
-              img +
+              escapeHtml(img) +
               "' alt='Avatar' height='" +
-              size +
+              escapeHtml(size) +
               "'>" +
               '</li>'
             );
@@ -182,12 +216,12 @@ $(function () {
       "<div> <span class='align-middle me-50'>" +
       feather.icons['paperclip'].toSvg({ class: 'font-medium-1 align-middle me-25' }) +
       "<span class='attachments align-middle'>" +
-      attachments +
+      escapeHtml(attachments) +
       '</span>' +
       "</span> <span class='align-middle'>" +
       feather.icons['message-square'].toSvg({ class: 'font-medium-1 align-middle me-25' }) +
       '<span>' +
-      comments +
+      escapeHtml(comments) +
       '</span>' +
       '</span></div>' +
       "<ul class='avatar-group mb-0'>" +
@@ -394,13 +428,16 @@ $(function () {
         $this.append(renderHeader($this.attr('data-badge'), $this.attr('data-badge-text')));
       }
 
-      $this.append(
-        $('<img>', {
-          class: 'img-fluid rounded mb-50',
-          src: assetPath + 'images/slider/' + $this.attr('data-image'),
-          height: 32
-        })
-      );
+      var sanitizedImagePath = sanitizeAssetPath($this.attr('data-image'));
+      if (sanitizedImagePath) {
+        $this.append(
+          $('<img>', {
+            class: 'img-fluid rounded mb-50',
+            src: '../../../app-assets/images/slider/' + sanitizedImagePath,
+            height: 32
+          })
+        );
+      }
 
       $this.append($text);
 

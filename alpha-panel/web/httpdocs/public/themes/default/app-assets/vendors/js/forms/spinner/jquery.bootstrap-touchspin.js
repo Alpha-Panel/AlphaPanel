@@ -19,6 +19,19 @@
   'use strict';
   var N = 0;
   D.fn.TouchSpin = function (k) {
+    function U(t) {
+      return String(void 0 === t || null === t ? '' : t).replace(/[&<>"'`]/g, function (t) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[t];
+      });
+    }
+    function W(t) {
+      return String(void 0 === t || null === t ? '' : t)
+        .split(/\s+/)
+        .filter(function (t) {
+          return /^[A-Za-z0-9_-]+$/.test(t);
+        })
+        .join(' ');
+    }
     var C = {
         min: 0,
         max: 100,
@@ -223,45 +236,39 @@
                       o,
                       s = c.prev(),
                       p = c.next(),
-                      a =
-                        '<span class="input-group-addon bootstrap-touchspin-prefix bootstrap-touchspin-injected"><span class="input-group-text">' +
-                        i.prefix +
-                        '</span></span>',
-                      e =
-                        '<span class="input-group-addon bootstrap-touchspin-postfix bootstrap-touchspin-injected"><span class="input-group-text">' +
-                        i.postfix +
-                        '</span></span>';
+                      a = D('<span class="input-group-addon bootstrap-touchspin-prefix bootstrap-touchspin-injected"><span class="input-group-text"></span></span>'),
+                      e = D('<span class="input-group-addon bootstrap-touchspin-postfix bootstrap-touchspin-injected"><span class="input-group-text"></span></span>');
+                    a.find('.input-group-text').text(void 0 === i.prefix || null === i.prefix ? '' : String(i.prefix));
+                    e.find('.input-group-text').text(void 0 === i.postfix || null === i.postfix ? '' : String(i.postfix));
                     s.hasClass('input-group-btn') || s.hasClass('input-group-text')
-                      ? ((n =
-                          '<button class="' +
-                          i.buttondown_class +
-                          ' bootstrap-touchspin-down bootstrap-touchspin-injected" type="button">' +
-                          i.buttondown_txt +
-                          '</button>'),
+                      ? ((n = D('<button type="button"></button>')
+                          .addClass(W(i.buttondown_class))
+                          .addClass('bootstrap-touchspin-down bootstrap-touchspin-injected')
+                          .text(void 0 === i.buttondown_txt || null === i.buttondown_txt ? '' : String(i.buttondown_txt))),
                         s.append(n))
-                      : ((n =
-                          '<span class="input-group-btn bootstrap-touchspin-injected"><button class="' +
-                          i.buttondown_class +
-                          ' bootstrap-touchspin-down" type="button">' +
-                          i.buttondown_txt +
-                          '</button></span>'),
-                        D(n).insertBefore(c));
+                      : ((n = D('<span class="input-group-btn bootstrap-touchspin-injected"></span>')),
+                        n.append(
+                          D('<button type="button"></button>')
+                            .addClass(W(i.buttondown_class))
+                            .addClass('bootstrap-touchspin-down')
+                            .text(void 0 === i.buttondown_txt || null === i.buttondown_txt ? '' : String(i.buttondown_txt))
+                        ),
+                        n.insertBefore(c));
                     p.hasClass('input-group-btn') || p.hasClass('input-group-text')
-                      ? ((o =
-                          '<button class="' +
-                          i.buttonup_class +
-                          ' bootstrap-touchspin-up bootstrap-touchspin-injected" type="button">' +
-                          i.buttonup_txt +
-                          '</button>'),
-                        p.text(o))
-                      : ((o =
-                          '<span class="input-group-btn bootstrap-touchspin-injected"><button class="' +
-                          i.buttonup_class +
-                          ' bootstrap-touchspin-up" type="button">' +
-                          i.buttonup_txt +
-                          '</button></span>'),
-                        D(o).insertAfter(c));
-                    D(a).insertBefore(c), D(e).insertAfter(c), (u = t);
+                      ? ((o = D('<button type="button"></button>')
+                          .addClass(W(i.buttonup_class))
+                          .addClass('bootstrap-touchspin-up bootstrap-touchspin-injected')
+                          .text(void 0 === i.buttonup_txt || null === i.buttonup_txt ? '' : String(i.buttonup_txt))),
+                        p.empty().append(o))
+                      : ((o = D('<span class="input-group-btn bootstrap-touchspin-injected"></span>')),
+                        o.append(
+                          D('<button type="button"></button>')
+                            .addClass(W(i.buttonup_class))
+                            .addClass('bootstrap-touchspin-up')
+                            .text(void 0 === i.buttonup_txt || null === i.buttonup_txt ? '' : String(i.buttonup_txt))
+                        ),
+                        o.insertAfter(c));
+                    a.insertBefore(c), e.insertAfter(c), (u = t);
                   })(n)
                 : (function () {
                     var t,
