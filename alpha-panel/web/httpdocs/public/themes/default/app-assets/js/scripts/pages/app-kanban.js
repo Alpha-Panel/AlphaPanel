@@ -385,41 +385,53 @@ $(function () {
   // Render custom items
   $.each($('.kanban-item'), function () {
     var $this = $(this),
-      $text = "<span class='kanban-text'>" + $this.text() + '</span>';
-    if ($this.attr('data-badge') !== undefined && $this.attr('data-badge-text') !== undefined) {
-      $this.html(renderHeader($this.attr('data-badge'), $this.attr('data-badge-text')) + $text);
-    }
-    if (
-      $this.attr('data-comments') !== undefined ||
-      $this.attr('data-due-date') !== undefined ||
-      $this.attr('data-assigned') !== undefined
-    ) {
+      $text = $('<span>', { class: 'kanban-text' }).text($this.text());
+
+    if ($this.attr('data-image') !== undefined) {
+      $this.empty();
+
+      if ($this.attr('data-badge') !== undefined && $this.attr('data-badge-text') !== undefined) {
+        $this.append(renderHeader($this.attr('data-badge'), $this.attr('data-badge-text')));
+      }
+
+      $this.append(
+        $('<img>', {
+          class: 'img-fluid rounded mb-50',
+          src: assetPath + 'images/slider/' + $this.attr('data-image'),
+          height: 32
+        })
+      );
+
+      $this.append($text);
+
       $this.append(
         renderFooter(
-          $this.attr('data-attachments'),
+          $this.attr('data-due-date'),
           $this.attr('data-comments'),
           $this.attr('data-assigned'),
           $this.attr('data-members')
         )
       );
-    }
-    if ($this.attr('data-image') !== undefined) {
-      $this.html(
-        renderHeader($this.attr('data-badge'), $this.attr('data-badge-text')) +
-          "<img class='img-fluid rounded mb-50' src='" +
-          assetPath +
-          'images/slider/' +
-          $this.attr('data-image') +
-          "' height='32'/>" +
-          $text +
+    } else {
+      if ($this.attr('data-badge') !== undefined && $this.attr('data-badge-text') !== undefined) {
+        $this.empty().append(renderHeader($this.attr('data-badge'), $this.attr('data-badge-text'))).append($text);
+      }
+      if (
+        $this.attr('data-comments') !== undefined ||
+        $this.attr('data-due-date') !== undefined ||
+        $this.attr('data-assigned') !== undefined
+      ) {
+        $this.append(
           renderFooter(
-            $this.attr('data-due-date'),
+            $this.attr('data-attachments'),
             $this.attr('data-comments'),
             $this.attr('data-assigned'),
             $this.attr('data-members')
           )
-      );
+        );
+      }
     }
+
     $this.on('mouseenter', function () {
       $this.find('.item-dropdown, .item-dropdown .dropdown-menu.show').removeClass('show');
     });
