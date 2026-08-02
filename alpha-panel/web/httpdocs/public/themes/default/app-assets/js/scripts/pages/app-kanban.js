@@ -428,13 +428,16 @@ $(function () {
         $this.append(renderHeader($this.attr('data-badge'), $this.attr('data-badge-text')));
       }
 
-      $this.append(
-        $('<img>', {
-          class: 'img-fluid rounded mb-50',
-          src: '../../../app-assets/images/slider/' + $this.attr('data-image'),
-          height: 32
-        })
-      );
+      var sanitizedImagePath = sanitizeAssetPath($this.attr('data-image'));
+      if (sanitizedImagePath) {
+        $this.append(
+          $('<img>', {
+            class: 'img-fluid rounded mb-50',
+            src: '../../../app-assets/images/slider/' + sanitizedImagePath,
+            height: 32
+          })
+        );
+      }
 
       $this.append($text);
 
