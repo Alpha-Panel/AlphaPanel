@@ -19,13 +19,13 @@ $(function () {
     }
 
     var normalized = pathValue.trim();
-    // allow only safe relative asset paths
-    if (
-      normalized.length === 0 ||
-      /[<>"'`\\]/.test(normalized) ||
-      /^(?:[a-zA-Z][a-zA-Z0-9+.-]*:|\/\/)/.test(normalized) ||
-      normalized.indexOf('..') !== -1
-    ) {
+    // allow only safe image file names (no path separators, no protocols)
+    if (normalized.length === 0) {
+      return defaultPath;
+    }
+
+    // only letters, numbers, underscore, dash, dot; must end with a known image extension
+    if (!/^[A-Za-z0-9_.-]+\.(?:png|jpe?g|gif|webp|svg)$/i.test(normalized)) {
       return defaultPath;
     }
 
