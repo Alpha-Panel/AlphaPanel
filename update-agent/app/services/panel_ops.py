@@ -60,12 +60,8 @@ async def run_cmd(
     else:
         shell_cmd = cmd
 
-    program_name = _program_only(shell_cmd)
-    safe_program_name = _redact(program_name)
-
     logger.info(
-        "Running program: %s (cwd=%s, timeout=%ds)",
-        safe_program_name,
+        "Running command (cwd=%s, timeout=%ds)",
         cwd,
         timeout,
     )
@@ -88,7 +84,7 @@ async def run_cmd(
         return CommandResult(
             returncode=-1,
             stdout="",
-            stderr=f"Command timed out after {timeout}s while running {safe_program_name}",
+            stderr=f"Command timed out after {timeout}s",
         )
 
     result = CommandResult(
@@ -101,13 +97,11 @@ async def run_cmd(
         # Log the program name plus a redacted command line; stdout/stderr can
         # legitimately contain secrets echoed by tools, so keep them at debug.
         logger.error(
-            "Command failed (rc=%d) for program: %s",
+            "Command failed (rc=%d)",
             result.returncode,
-            safe_program_name,
         )
         logger.debug(
-            "Failed command output for %s — stdout: %s | stderr: %s",
-            safe_program_name,
+            "Failed command output — stdout: %s | stderr: %s",
             _redact(result.stdout[:500]),
             _redact(result.stderr[:500]),
         )
