@@ -268,40 +268,59 @@
                       n = '';
                     c.hasClass('input-sm') && (n = 'input-group-sm');
                     c.hasClass('input-lg') && (n = 'input-group-lg');
-                    t = i.verticalbuttons
-                      ? '<div class="input-group ' +
-                        n +
-                        ' bootstrap-touchspin bootstrap-touchspin-injected"><span class="input-group-addon bootstrap-touchspin-prefix"><span class="input-group-text">' +
-                        i.prefix +
-                        '</span></span><span class="input-group-addon bootstrap-touchspin-postfix"><span class="input-group-text">' +
-                        i.postfix +
-                        '</span></span><span class="input-group-btn-vertical"><button class="' +
-                        i.buttondown_class +
-                        ' bootstrap-touchspin-up ' +
-                        i.verticalupclass +
-                        '" type="button">' +
-                        i.verticalup +
-                        '</button><button class="' +
-                        i.buttonup_class +
-                        ' bootstrap-touchspin-down ' +
-                        i.verticaldownclass +
-                        '" type="button">' +
-                        i.verticaldown +
-                        '</button></span></div>'
-                      : '<div class="input-group bootstrap-touchspin bootstrap-touchspin-injected"><span class="input-group-btn"><button class="' +
-                        i.buttondown_class +
-                        ' bootstrap-touchspin-down" type="button">' +
-                        i.buttondown_txt +
-                        '</button></span><span class="input-group-addon bootstrap-touchspin-prefix"><span class="input-group-text">' +
-                        i.prefix +
-                        '</span></span><span class="input-group-addon bootstrap-touchspin-postfix"><span class="input-group-text">' +
-                        i.postfix +
-                        '</span></span><span class="input-group-btn"><button class="' +
-                        i.buttonup_class +
-                        ' bootstrap-touchspin-up" type="button">' +
-                        i.buttonup_txt +
-                        '</button></span></div>';
-                    (u = D(t).insertBefore(c)),
+                    if (i.verticalbuttons) {
+                      t = D('<div></div>').addClass('input-group bootstrap-touchspin bootstrap-touchspin-injected');
+                      n && t.addClass(n);
+
+                      D('<span class="input-group-addon bootstrap-touchspin-prefix"><span class="input-group-text"></span></span>')
+                        .find('.input-group-text')
+                        .text(i.prefix)
+                        .end()
+                        .appendTo(t);
+
+                      D('<span class="input-group-addon bootstrap-touchspin-postfix"><span class="input-group-text"></span></span>')
+                        .find('.input-group-text')
+                        .text(i.postfix)
+                        .end()
+                        .appendTo(t);
+
+                      var v = D('<span class="input-group-btn-vertical"></span>').appendTo(t);
+                      D('<button type="button"></button>')
+                        .addClass(i.buttondown_class + ' bootstrap-touchspin-up ' + i.verticalupclass)
+                        .text(i.verticalup)
+                        .appendTo(v);
+                      D('<button type="button"></button>')
+                        .addClass(i.buttonup_class + ' bootstrap-touchspin-down ' + i.verticaldownclass)
+                        .text(i.verticaldown)
+                        .appendTo(v);
+                    } else {
+                      t = D('<div class="input-group bootstrap-touchspin bootstrap-touchspin-injected"></div>');
+
+                      var downWrap = D('<span class="input-group-btn"></span>').appendTo(t);
+                      D('<button type="button"></button>')
+                        .addClass(i.buttondown_class + ' bootstrap-touchspin-down')
+                        .text(i.buttondown_txt)
+                        .appendTo(downWrap);
+
+                      D('<span class="input-group-addon bootstrap-touchspin-prefix"><span class="input-group-text"></span></span>')
+                        .find('.input-group-text')
+                        .text(i.prefix)
+                        .end()
+                        .appendTo(t);
+
+                      D('<span class="input-group-addon bootstrap-touchspin-postfix"><span class="input-group-text"></span></span>')
+                        .find('.input-group-text')
+                        .text(i.postfix)
+                        .end()
+                        .appendTo(t);
+
+                      var upWrap = D('<span class="input-group-btn"></span>').appendTo(t);
+                      D('<button type="button"></button>')
+                        .addClass(i.buttonup_class + ' bootstrap-touchspin-up')
+                        .text(i.buttonup_txt)
+                        .appendTo(upWrap);
+                    }
+                    (u = t.insertBefore(c)),
                       D('.bootstrap-touchspin-prefix', u).after(c),
                       c.hasClass('input-sm')
                         ? u.addClass('input-group-sm')

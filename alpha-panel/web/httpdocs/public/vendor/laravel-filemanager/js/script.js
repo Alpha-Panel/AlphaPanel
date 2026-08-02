@@ -644,7 +644,7 @@ function move(items) {
 }
 
 function getUrlParam(paramName) {
-  var reParam = new RegExp('(?:[\?&]|&)' + paramName + '=([^&]+)', 'i');
+  var reParam = new RegExp('(?:[?&])' + paramName + '=([^&]+)', 'i');
   var match = window.location.search.match(reParam);
   return ( match && match.length > 1 ) ? match[1] : null;
 }
@@ -748,9 +748,17 @@ function use(items) {
 
     useFckeditor2(url);
   } else if (isAllowedSafeCallback(window, callback)) {
-    window[callback](getSelectedItems());
+    if (callback === 'SetUrl') {
+      window.SetUrl(getSelectedItems());
+    } else {
+      useFileSucceeded = false;
+    }
   } else if (isAllowedSafeCallback(parent, callback)) {
-    parent[callback](getSelectedItems());
+    if (callback === 'SetUrl') {
+      parent.SetUrl(getSelectedItems());
+    } else {
+      useFileSucceeded = false;
+    }
   } else if (window.opener) { // standalone button or other situations
     window.opener.SetUrl(getSelectedItems());
   } else {
