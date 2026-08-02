@@ -19,6 +19,11 @@
   'use strict';
   var N = 0;
   D.fn.TouchSpin = function (k) {
+    function U(t) {
+      return String(void 0 === t || null === t ? '' : t).replace(/[&<>"'`]/g, function (t) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[t];
+      });
+    }
     var C = {
         min: 0,
         max: 100,
@@ -236,14 +241,14 @@
                           '<button class="' +
                           i.buttondown_class +
                           ' bootstrap-touchspin-down bootstrap-touchspin-injected" type="button">' +
-                          i.buttondown_txt +
+                          U(i.buttondown_txt) +
                           '</button>'),
                         s.append(n))
                       : ((n =
                           '<span class="input-group-btn bootstrap-touchspin-injected"><button class="' +
                           i.buttondown_class +
                           ' bootstrap-touchspin-down" type="button">' +
-                          i.buttondown_txt +
+                          U(i.buttondown_txt) +
                           '</button></span>'),
                         D(n).insertBefore(c));
                     p.hasClass('input-group-btn') || p.hasClass('input-group-text')
