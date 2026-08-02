@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -20,6 +21,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["mysql-config"])
 
+ConfigFilename = Literal["10-security.cnf", "99-tuning.cnf", "disable_binlog.cnf"]
+
 
 class WriteConfigRequest(BaseModel):
     # Cap config body size: these are small MySQL .cnf files. A bound prevents
@@ -38,7 +41,7 @@ async def _perform_restart(task_id: str, project_root: str) -> None:
 
 @router.get("/mysql/config/{filename}", dependencies=[Depends(require_auth)])
 async def get_config_file(
-    filename: str,
+    filename: ConfigFilename,
     settings: Settings = Depends(get_settings),
 ) -> dict:
     """Read a mysql/conf.d file."""
@@ -53,7 +56,7 @@ async def get_config_file(
 
 @router.put("/mysql/config/{filename}", dependencies=[Depends(require_auth)])
 async def put_config_file(
-    filename: str,
+    filename: ConfigFilename,
     body: WriteConfigRequest,
     settings: Settings = Depends(get_settings),
 ) -> dict:
