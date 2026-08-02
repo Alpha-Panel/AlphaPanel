@@ -124,18 +124,23 @@ $(function () {
   }
   // Render header
   function renderHeader(color, text) {
-    return (
-      "<div class='d-flex justify-content-between flex-wrap align-items-center mb-1'>" +
-      "<div class='item-badges'> " +
-      "<div class='badge rounded-pill badge-light-" +
-      color +
-      "'> " +
-      text +
-      '</div>' +
-      '</div>' +
-      renderDropdown() +
-      '</div>'
-    );
+    var allowedBadgeColors = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'dark'];
+    var safeColor = allowedBadgeColors.indexOf(color) !== -1 ? color : 'secondary';
+
+    var $header = $('<div>', {
+      class: 'd-flex justify-content-between flex-wrap align-items-center mb-1'
+    });
+
+    var $itemBadges = $('<div>', { class: 'item-badges' });
+    var $badge = $('<div>', { class: 'badge rounded-pill' })
+      .addClass('badge-light-' + safeColor)
+      .text(text || '');
+
+    $itemBadges.append($badge);
+    $header.append($itemBadges);
+    $header.append(renderDropdown());
+
+    return $header;
   }
 
   function escapeHtml(value) {
