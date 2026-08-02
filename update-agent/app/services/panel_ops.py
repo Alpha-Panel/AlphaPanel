@@ -56,15 +56,16 @@ async def run_cmd(
 ) -> CommandResult:
     """Run a shell command asynchronously and capture output."""
     if isinstance(cmd, list):
-        shell_cmd = " ".join(cmd)
-        program_name = cmd[0] if cmd else "<command>"
+        shell_cmd = " ".join(shlex.quote(part) for part in cmd)
     else:
         shell_cmd = cmd
-        program_name = "<shell-command>"
+
+    program_name = _program_only(shell_cmd)
+    safe_program_name = _redact(program_name)
 
     logger.info(
         "Running program: %s (cwd=%s, timeout=%ds)",
-        program_name,
+        safe_program_name,
         cwd,
         timeout,
     )
@@ -87,7 +88,7 @@ async def run_cmd(
         return CommandResult(
             returncode=-1,
             stdout="",
-            stderr=f"Command timed out after {timeout}s while running {program_name}",
+            stderr=f"Command timed out after {timeout}s while running {safe_program_name}",
         )
 
     result = CommandResult(
@@ -102,11 +103,11 @@ async def run_cmd(
         logger.error(
             "Command failed (rc=%d) for program: %s",
             result.returncode,
-            program_name,
+            safe_program_name,
         )
         logger.debug(
             "Failed command output for %s — stdout: %s | stderr: %s",
-            program_name,
+            safe_program_name,
             _redact(result.stdout[:500]),
             _redact(result.stderr[:500]),
         )
