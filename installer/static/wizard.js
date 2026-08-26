@@ -148,11 +148,13 @@ function bindStart() {
 // froze the browser mid-install. Only the tail matters, so keep a ring buffer.
 const LOG_TAIL_LINES = 100;
 
-function streamProgress() {
+function streamProgress(onDone) {
   const log = document.getElementById("log");
   const phaseLabel = document.getElementById("current-phase");
   const errorPanel = document.getElementById("progress-error");
   const tail = [];
+  log.textContent = "";
+  errorPanel.hidden = true;
   const es = new EventSource("/api/progress");
   es.onmessage = (e) => {
     const msg = JSON.parse(e.data);
@@ -170,6 +172,7 @@ function streamProgress() {
       es.close();
     } else if (msg.type === "done") {
       es.close();
+      if (onDone) return onDone();
       renderDone(msg.panel_url);
       show(steps.indexOf("done"));
       if (msg.panel_url) {
@@ -205,8 +208,15 @@ function renderDone(panelUrl) {
 function bindReset() {
   document.getElementById("btn-reset").addEventListener("click", async () => {
     if (!confirm("This will run `docker compose down -v` and delete all .env files. Continue?")) return;
+    // `docker compose down -v` takes a while. Reloading straight after the POST
+    // showed the stale "previous installation did not finish" banner, because the
+    // state file was still being deleted in the background. Watch the same SSE
+    // stream the install uses and reload only once the reset has actually ended.
+    document.getElementById("progress-title").textContent = "Resetting...";
+    document.getElementById("current-phase").textContent = "> reset";
+    show(steps.indexOf("progress"));
     await fetch("/api/reset", { method: "POST" });
-    location.reload();
+    streamProgress(() => location.reload());
   });
   document.getElementById("btn-resume").addEventListener("click", () => {
     show(steps.indexOf("progress"));
