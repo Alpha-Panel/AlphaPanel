@@ -144,15 +144,22 @@ function bindStart() {
   });
 }
 
+// A docker build streams tens of thousands of lines; keeping them all in the DOM
+// froze the browser mid-install. Only the tail matters, so keep a ring buffer.
+const LOG_TAIL_LINES = 100;
+
 function streamProgress() {
   const log = document.getElementById("log");
   const phaseLabel = document.getElementById("current-phase");
   const errorPanel = document.getElementById("progress-error");
+  const tail = [];
   const es = new EventSource("/api/progress");
   es.onmessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.type === "line") {
-      log.textContent += msg.text + "\n";
+      tail.push(msg.text);
+      if (tail.length > LOG_TAIL_LINES) tail.splice(0, tail.length - LOG_TAIL_LINES);
+      log.textContent = tail.join("\n") + "\n";
       log.scrollTop = log.scrollHeight;
     } else if (msg.type === "phase") {
       phaseLabel.textContent = `> ${msg.name}`;
