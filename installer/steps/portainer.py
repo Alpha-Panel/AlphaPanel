@@ -29,22 +29,26 @@ def wait_for_portainer(base_url: str, timeout: float = 180.0, interval: float = 
     )
 
 
-def _session(base_url: str) -> requests.Session:
+def _session() -> requests.Session:
     """
-    Portainer 2.20+ wraps its API in gorilla/csrf. Every state-changing request must
-    carry the `_gorilla_csrf` cookie plus the matching X-CSRF-Token header, or it is
-    rejected with a bare 403 before any auth or admin check runs. A single GET primes
-    both: the cookie lands in the session jar, the token comes back as a header.
+    Portainer 2.20+ wraps its API in gorilla/csrf: a state-changing request needs the
+    `_gorilla_csrf` cookie plus a matching X-CSRF-Token header, or it is rejected with
+    "Forbidden - CSRF token not found in request".
+
+    Portainer only issues that token to an *authenticated* request — before login the
+    header comes back empty — so priming with an up-front GET does not work. Capture it
+    off every response instead: by the time a POST goes out, the preceding GET has
+    supplied both halves.
     """
     s = requests.Session()
     s.verify = False
-    try:
-        probe = s.get(f"{base_url}/api/status", timeout=10)
-        token = probe.headers.get("X-CSRF-Token")
+
+    def _capture_csrf(resp, *args, **kwargs):
+        token = resp.headers.get("X-CSRF-Token")
         if token:
             s.headers["X-CSRF-Token"] = token
-    except requests.RequestException:
-        pass
+
+    s.hooks["response"].append(_capture_csrf)
     return s
 
 
@@ -66,6 +70,12 @@ def _fail(phase: str, what: str, resp: requests.Response) -> InstallerError:
 _SETUP_TOKEN_RE = re.compile(r"setup_token=([A-Za-z0-9._\-]{16,})")
 
 
+# Portainer colourises its own log and the colour reset lands between the field name
+# and the value — "\x1b[36msetup_token=\x1b[0m05a2c2db..." — so the escapes have to go
+# before the token can be matched.
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
 def _read_setup_token(container: str = "portainer") -> str | None:
     proc = subprocess.run(
         ["docker", "logs", container],
@@ -73,14 +83,15 @@ def _read_setup_token(container: str = "portainer") -> str | None:
         text=True,
         errors="replace",
     )
+    text = _ANSI_RE.sub("", f"{proc.stdout}\n{proc.stderr}")
     # The token is printed once per start, so a restarted container has several in
     # its log. Only the last one is still valid.
-    matches = _SETUP_TOKEN_RE.findall(f"{proc.stdout}\n{proc.stderr}")
+    matches = _SETUP_TOKEN_RE.findall(text)
     return matches[-1] if matches else None
 
 
 def _post_admin_init(base_url: str, payload: dict) -> requests.Response:
-    s = _session(base_url)
+    s = _session()
     token = _read_setup_token()
     if token:
         s.headers["X-Setup-Token"] = token
@@ -102,16 +113,18 @@ def init_portainer_admin(
         # Portainer disables admin init entirely (a `compose up --build` that really
         # builds images blows past it). Recreating from compose fixes both, and prints
         # a fresh setup token for the log-scraping fallback above.
+        # check=False on purpose: if the recreate itself fails, the retry below still
+        # produces a readable InstallerError instead of a CalledProcessError traceback.
         if project_dir is not None:
             subprocess.run(
                 ["docker", "compose", "up", "-d", "--force-recreate", "portainer"],
                 cwd=str(project_dir),
-                check=True,
+                check=False,
                 capture_output=True,
                 text=True,
             )
         else:
-            subprocess.run(["docker", "restart", "portainer"], check=True, capture_output=True, text=True)
+            subprocess.run(["docker", "restart", "portainer"], check=False, capture_output=True, text=True)
         wait_for_portainer(base_url, timeout=120.0)
         resp = _post_admin_init(base_url, payload)
 
@@ -130,7 +143,7 @@ def init_portainer_admin(
 
 
 def create_access_token(base_url: str, username: str, password: str) -> str:
-    s = _session(base_url)
+    s = _session()
     auth = s.post(
         f"{base_url}/api/auth",
         json={"Username": username, "Password": password},
@@ -143,6 +156,11 @@ def create_access_token(base_url: str, username: str, password: str) -> str:
 
     whoami = s.get(f"{base_url}/api/users/me", timeout=10)
     user_id = whoami.json()["Id"] if whoami.status_code == 200 else 1
+
+    # That GET is also what hands us the CSRF token. If it failed, any authenticated
+    # GET will do — without a token the POST below is a guaranteed 403.
+    if "X-CSRF-Token" not in s.headers:
+        s.get(f"{base_url}/api/endpoints", timeout=10)
 
     tok = s.post(
         f"{base_url}/api/users/{user_id}/tokens",
@@ -174,7 +192,7 @@ def ensure_agent_endpoint(base_url: str, api_key: str) -> int:
     Create the Portainer agent endpoint (portainer_agent:9001) if none exists.
     Returns the endpoint ID of the agent endpoint (Type=2).
     """
-    s = _session(base_url)
+    s = _session()
     s.headers["X-API-Key"] = api_key
 
     # Check existing endpoints; prefer agent type (Type=2)
@@ -188,18 +206,35 @@ def ensure_agent_endpoint(base_url: str, api_key: str) -> int:
             # No agent endpoint found, fall through to creation
 
     # No endpoints — create the agent endpoint
-    create = s.post(
-        f"{base_url}/api/endpoints",
-        data={
-            "Name": "local",
-            "EndpointCreationType": "2",  # Agent
-            "URL": "tcp://portainer_agent:9001",
-            "TLSSkipVerify": "true",
-            "GroupID": "1",
-            "PublicURL": "",
-        },
-        timeout=30,
-    )
+    payload = {
+        "Name": "local",
+        "EndpointCreationType": "2",  # Agent
+        "URL": "tcp://portainer_agent:9001",
+        # The agent always speaks TLS with a self-signed cert issued for "localhost",
+        # so connecting by service name fails verification. Portainer ignores the skip
+        # flags unless TLS itself is switched on, which is why TLSSkipVerify alone
+        # produced "certificate is valid for localhost, not portainer_agent".
+        "TLS": "true",
+        "TLSSkipVerify": "true",
+        "TLSSkipClientVerify": "true",
+        "GroupID": "1",
+        "PublicURL": "",
+    }
+    create = s.post(f"{base_url}/api/endpoints", data=payload, timeout=30)
+
+    if create.status_code >= 400 and "already paired" in create.text.lower():
+        # The agent bonds to the first Portainer that reaches it and refuses every
+        # other one until restarted. Wiping Portainer's database while leaving the
+        # agent container up — a partial reset — lands exactly here.
+        subprocess.run(
+            ["docker", "restart", "portainer-agent"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        time.sleep(5)
+        create = s.post(f"{base_url}/api/endpoints", data=payload, timeout=30)
+
     if create.status_code not in (200, 201):
         raise _fail("portainer_endpoint", "Agent endpoint creation", create)
     return int(create.json()["Id"])
