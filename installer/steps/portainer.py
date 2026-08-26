@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import subprocess
 import time
 
@@ -55,24 +56,57 @@ def _fail(phase: str, what: str, resp: requests.Response) -> InstallerError:
     )
 
 
+# Portainer 2.39 prints a one-off setup token at startup and refuses admin init
+# without it: "Provide the X-Setup-Token header with the token printed in the server
+# logs at startup." Reading it back out of the container log is the intended flow.
+_SETUP_TOKEN_RE = re.compile(r"setup token[\s:\-]+([A-Za-z0-9._\-]{8,})", re.IGNORECASE)
+
+
+def _read_setup_token(container: str = "portainer") -> str | None:
+    proc = subprocess.run(
+        ["docker", "logs", container],
+        capture_output=True,
+        text=True,
+        errors="replace",
+    )
+    # The token is printed once per start, so a restarted container has several in
+    # its log. Only the last one is still valid.
+    matches = _SETUP_TOKEN_RE.findall(f"{proc.stdout}\n{proc.stderr}")
+    return matches[-1] if matches else None
+
+
+def _post_admin_init(base_url: str, payload: dict) -> requests.Response:
+    s = _session(base_url)
+    token = _read_setup_token()
+    if token:
+        s.headers["X-Setup-Token"] = token
+    return s.post(f"{base_url}/api/users/admin/init", json=payload, timeout=10)
+
+
 def init_portainer_admin(base_url: str, username: str, password: str) -> None:
     payload = {"Username": username, "Password": password}
-    s = _session(base_url)
-    resp = s.post(f"{base_url}/api/users/admin/init", json=payload, timeout=10)
+    resp = _post_admin_init(base_url, payload)
 
     if resp.status_code == 403:
         # Portainer also disables admin init once the instance has been up ~5 minutes
         # without an admin. A `compose up --build` that actually builds images blows
-        # past that window, and only a restart reopens it.
+        # past that window, and only a restart reopens it — which also prints a fresh
+        # setup token.
         subprocess.run(["docker", "restart", "portainer"], check=True, capture_output=True, text=True)
         wait_for_portainer(base_url, timeout=120.0)
-        s = _session(base_url)
-        resp = s.post(f"{base_url}/api/users/admin/init", json=payload, timeout=10)
+        resp = _post_admin_init(base_url, payload)
 
     if resp.status_code == 409:
         # Already initialised — acceptable for resume.
         return
     if resp.status_code != 200:
+        if resp.status_code == 403 and _read_setup_token() is None:
+            raise InstallerError(
+                "portainer_admin_init",
+                "Portainer demands a setup token but none was found in `docker logs portainer`. "
+                "Read the token from that log and create the admin manually in the Portainer UI, "
+                "then resume.",
+            )
         raise _fail("portainer_admin_init", "Portainer admin init", resp)
 
 
