@@ -45,7 +45,7 @@ from installer.steps.npm import npm_build
 from installer.steps.reset import reset_installation
 from installer.steps.webpush import setup_webpush_vapid
 from installer.steps.ssh_key import ensure_ssh_key
-from installer.steps.ssl import issue_panel_certificate
+from installer.steps.ssl import issue_panel_certificate, restart_panel_web
 from installer.steps.ssl_bootstrap import generate_self_signed
 from installer.steps.stubs import materialize_stubs
 from installer.steps.system import detect_os, detect_private_ip, detect_public_ip
@@ -270,6 +270,9 @@ def _run_install(
             ),
         ),
         ("caddy_reload", lambda: reload_caddy(q)),
+        # Last: the panel's Caddy only picks up the certificate issued above on start,
+        # and caddy_reload still needs to exec into this container.
+        ("panel_restart", lambda: restart_panel_web(q)),
     ]
 
     try:
