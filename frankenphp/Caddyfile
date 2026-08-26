@@ -82,7 +82,23 @@
 	}
 
 	email {env.ADMIN_EMAIL}
-	frankenphp
+
+	# A slow upload holds its PHP thread for the whole transfer, so a fixed pool of 26 was
+	# exhausted by a handful of retried large uploads and every php_server vhost then hung
+	# while the CPU sat idle (2026-08-08). "auto" grows the pool on demand instead.
+	#
+	# num_threads MUST stay above the sum of every worker's `num` in sites-enabled/,
+	# otherwise startup fails with "num_threads must be greater than the number of
+	# worker threads" and the container restart-loops. Workers currently total 40
+	# (alphamessage 15, birdergi 10, niyazi.net 6, cihanspor 5, xsayfa 4), so this
+	# leaves 24 threads for non-worker php_server vhosts. Raise it when adding workers.
+	frankenphp {
+		num_threads 64
+		max_threads auto
+	}
+
+	# Exposes caddy_http_requests_in_flight so a stalled pool is visible next time.
+	metrics
 	#debug
 }
 

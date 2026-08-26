@@ -287,7 +287,7 @@ services:
       - vhost_network
 
   mysql:
-    image: mysql:${MYSQL_VERSION}
+    image: mysql:${MYSQL_VERSION:-9.7.0}
     container_name: mysql
     hostname: db
     volumes:
@@ -328,7 +328,7 @@ services:
       - vhost_network
 
   redis:
-    image: redis:8.6.4-alpine3.23
+    image: redis:8.10-alpine3.23
     container_name: redis
     hostname: redis.niyazi.org
     restart: always
@@ -351,7 +351,7 @@ services:
       - vhost_network
 
   memcached:
-    image: memcached:1.6.41-alpine
+    image: memcached:1.6.45-alpine
     container_name: memcached
     restart: always
     networks:
@@ -454,7 +454,7 @@ services:
       - vhost_network
 
   postgres:
-    image: postgis/postgis:${POSTGRESQL_VERSION}-alpine
+    image: postgis/postgis:${POSTGRESQL_VERSION:-18-3.6}-alpine
     container_name: postgres
     restart: always
     environment:
@@ -476,7 +476,7 @@ services:
       - vhost_network
 
   pgadmin:
-    image: dpage/pgadmin4:9.16
+    image: dpage/pgadmin4:9.17
     container_name: pgadmin
     restart: always
     depends_on:
@@ -557,7 +557,7 @@ services:
       - vhost_network
 
   portainer:
-    image: portainer/portainer-ce:2.39.3
+    image: portainer/portainer-ce:2.39.5
     restart: always
     container_name: portainer
     environment:
@@ -572,7 +572,7 @@ services:
       - vhost_network
 
   portainer_agent:
-    image: portainer/agent:2.39.3-alpine
+    image: portainer/agent:2.39.5-alpine
     container_name: portainer-agent
     restart: always
     volumes:

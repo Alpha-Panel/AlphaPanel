@@ -65,24 +65,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Supervisor konfigürasyonu ve Composer
 COPY supervisor.d/ /etc/supervisor/conf.d/
-COPY --from=composer:2.9.8 /usr/bin/composer /usr/local/bin/composer
+COPY --from=composer:2.10.2 /usr/bin/composer /usr/local/bin/composer
 
 RUN ln -sf /usr/bin/python3 /usr/bin/python
 
 # Install Go from official binary
-ARG GO_VERSION=1.26.3
+ARG GO_VERSION=1.26.5
 RUN curl -fsSL https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz | tar -C /usr/local -xz \
     && ln -s /usr/local/go/bin/go /usr/local/bin/go \
     && ln -s /usr/local/go/bin/gofmt /usr/local/bin/gofmt
 
 ENV PATH=$PATH:/usr/local/go/bin
 
-RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
+RUN curl -fsSL https://deb.nodesource.com/setup_26.x | bash - \
  && apt-get install -y nodejs \
  && rm -rf /var/lib/apt/lists/*
 
 # Install code-server
-ARG CODE_SERVER_VERSION=4.123.0
+ARG CODE_SERVER_VERSION=4.131.0
 RUN curl -fsSL https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/code-server_${CODE_SERVER_VERSION}_amd64.deb -o code-server.deb \
  && dpkg -i code-server.deb \
  && rm code-server.deb

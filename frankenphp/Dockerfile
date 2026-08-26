@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG FRANKENPHP_VERSION=1.12.3
+ARG FRANKENPHP_VERSION=1.12.7
 FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-builder-php8.5-bookworm AS builder
 ARG FRANKENPHP_VERSION
 
@@ -69,7 +69,7 @@ RUN install-php-extensions \
         ftp \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=composer:2.8 /usr/bin/composer /usr/local/bin/composer
+COPY --from=composer:2.10.2 /usr/bin/composer /usr/local/bin/composer
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
@@ -101,7 +101,7 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 # Node.js 22.x (Vite 7+ requires Node.js 20.19+ or 22.12+)
-RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
+RUN curl -fsSL https://deb.nodesource.com/setup_26.x | bash - \
  && apt-get install -y nodejs \
  && rm -rf /var/lib/apt/lists/*
 

@@ -7,7 +7,9 @@ from typing import Any
 
 _PANEL_DB_NAME = "AlphaPanel"
 _PANEL_DB_USER = "alphapanel"
+_MYSQL_VERSION = "9.7.0"
 _POSTGRESQL_USER = "admin"
+_POSTGRESQL_VERSION = "18-3.6"
 
 
 def _env_line(key: str, value: str, quoted: bool = False) -> str:
@@ -27,7 +29,7 @@ def write_root_env(path: Path, form: dict[str, Any], secrets: dict[str, str]) ->
     add(_env_line("ADMIN_EMAIL", form["admin_email"]))
 
     add("\n# ─── MySQL ───\n")
-    add(_env_line("MYSQL_VERSION", "9.3.0"))
+    add(_env_line("MYSQL_VERSION", _MYSQL_VERSION))
     add(_env_line("MYSQL_ROOT_PASSWORD", secrets["mysql_root_password"], quoted=True))
     add(_env_line("MYSQL_DATABASE", _PANEL_DB_NAME))
 
@@ -45,6 +47,7 @@ def write_root_env(path: Path, form: dict[str, Any], secrets: dict[str, str]) ->
     )
 
     add("\n# ─── PostgreSQL ───\n")
+    add(_env_line("POSTGRESQL_VERSION", _POSTGRESQL_VERSION))
     add(_env_line("POSTGRESQL_USER", _POSTGRESQL_USER))
     add(_env_line("POSTGRESQL_PASSWORD", secrets["postgresql_password"], quoted=True))
 
