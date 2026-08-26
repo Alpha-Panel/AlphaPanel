@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 import time
 
 import requests
@@ -26,13 +27,32 @@ def wait_for_portainer(base_url: str, timeout: float = 180.0, interval: float = 
     )
 
 
-def init_portainer_admin(base_url: str, username: str, password: str) -> None:
-    resp = requests.post(
+def _post_admin_init(base_url: str, username: str, password: str):
+    return requests.post(
         f"{base_url}/api/users/admin/init",
         json={"Username": username, "Password": password},
         timeout=10,
         verify=False,
     )
+
+
+def init_portainer_admin(base_url: str, username: str, password: str) -> None:
+    resp = _post_admin_init(base_url, username, password)
+
+    if resp.status_code == 403:
+        # Portainer disables admin init once the instance has been up ~5 minutes
+        # without an admin ("instance timed out for security purposes"). A long
+        # `compose up --build` or a resumed install blows past that window, so the
+        # container has to be restarted to reopen it.
+        subprocess.run(
+            ["docker", "restart", "portainer"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        wait_for_portainer(base_url, timeout=120.0)
+        resp = _post_admin_init(base_url, username, password)
+
     if resp.status_code == 409:
         # Already initialised — acceptable for resume.
         return
