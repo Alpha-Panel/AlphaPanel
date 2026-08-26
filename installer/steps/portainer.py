@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import subprocess
 import time
+from pathlib import Path
 
 import requests
 
@@ -86,16 +87,31 @@ def _post_admin_init(base_url: str, payload: dict) -> requests.Response:
     return s.post(f"{base_url}/api/users/admin/init", json=payload, timeout=10)
 
 
-def init_portainer_admin(base_url: str, username: str, password: str) -> None:
+def init_portainer_admin(
+    base_url: str,
+    username: str,
+    password: str,
+    project_dir: Path | None = None,
+) -> None:
     payload = {"Username": username, "Password": password}
     resp = _post_admin_init(base_url, payload)
 
     if resp.status_code == 403:
-        # Portainer also disables admin init once the instance has been up ~5 minutes
-        # without an admin. A `compose up --build` that actually builds images blows
-        # past that window, and only a restart reopens it — which also prints a fresh
-        # setup token.
-        subprocess.run(["docker", "restart", "portainer"], check=True, capture_output=True, text=True)
+        # Two things produce a 403 here: a container still running without the
+        # `--no-setup-token` flag from compose, and the ~5 minute window after which
+        # Portainer disables admin init entirely (a `compose up --build` that really
+        # builds images blows past it). Recreating from compose fixes both, and prints
+        # a fresh setup token for the log-scraping fallback above.
+        if project_dir is not None:
+            subprocess.run(
+                ["docker", "compose", "up", "-d", "--force-recreate", "portainer"],
+                cwd=str(project_dir),
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        else:
+            subprocess.run(["docker", "restart", "portainer"], check=True, capture_output=True, text=True)
         wait_for_portainer(base_url, timeout=120.0)
         resp = _post_admin_init(base_url, payload)
 

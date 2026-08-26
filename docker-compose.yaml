@@ -560,6 +560,11 @@ services:
     image: portainer/portainer-ce:2.39.5
     restart: always
     container_name: portainer
+    # Portainer 2.39 refuses /api/users/admin/init without the one-off setup token it
+    # prints to its own log, which made unattended install impossible. The port is
+    # published on the private interface only, so the token buys nothing here and the
+    # installer creates the admin seconds after first boot.
+    command: --no-setup-token
     environment:
       - TRUSTED_ORIGINS=${PORTAINER_DOMAIN}
       - DOCKER_HOST=tcp://docker-socket-proxy:2375

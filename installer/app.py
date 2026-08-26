@@ -231,6 +231,7 @@ def _run_install(
                 f"http://{form['private_ip']}:9000",
                 form["portainer_admin_user"],
                 form["portainer_admin_password"],
+                project_dir=project_dir,
             ),
         ),
         ("portainer_token", lambda: _portainer_token_phase(form, project_dir)),

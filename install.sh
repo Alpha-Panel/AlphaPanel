@@ -200,6 +200,24 @@ else
     warn "Not root — skipped chown. Run: sudo chown -R 1000:1000 n8n deploy_cache /root/backup && sudo chown -R 5050:5050 pgadmin/data"
 fi
 
+# The installer is a plain Python process. The `git pull` above changes files on disk,
+# but a running instance keeps the old modules in memory — and the browser's "Reload
+# and resume" only reloads the page, not the server. It also still holds the port, so a
+# new instance could not bind anyway. Re-running this script must take over.
+installer_pids() { pgrep -f 'installer\.app' 2>/dev/null || true; }
+stale="$(installer_pids)"
+if [ -n "${stale}" ]; then
+    say "Stopping previous installer process to load the current code..."
+    kill ${stale} 2>/dev/null || true
+    for _ in $(seq 1 10); do
+        [ -z "$(installer_pids)" ] && break
+        sleep 1
+    done
+    remaining="$(installer_pids)"
+    [ -n "${remaining}" ] && kill -9 ${remaining} 2>/dev/null || true
+    ok "Previous installer stopped."
+fi
+
 HOST_IP=$(ip route get 1.1.1.1 2>/dev/null \
     | awk '/src/ {for(i=1;i<=NF;i++) if($i=="src") print $(i+1); exit}' \
     || echo "localhost")
@@ -210,6 +228,10 @@ echo "  Installer running at:"
 echo "    http://${HOST_IP:-localhost}:${INSTALLER_PORT}"
 echo ""
 echo "  Open the URL in your browser to continue."
+echo "  A previous run is resumed automatically."
+echo ""
+echo "  After pulling new code, re-run this script — the browser's"
+echo "  \"Reload and resume\" restarts the page, not the installer."
 echo "─────────────────────────────────────────────"
 echo ""
 
