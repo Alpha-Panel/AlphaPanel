@@ -59,7 +59,10 @@ def _fail(phase: str, what: str, resp: requests.Response) -> InstallerError:
 # Portainer 2.39 prints a one-off setup token at startup and refuses admin init
 # without it: "Provide the X-Setup-Token header with the token printed in the server
 # logs at startup." Reading it back out of the container log is the intended flow.
-_SETUP_TOKEN_RE = re.compile(r"setup token[\s:\-]+([A-Za-z0-9._\-]{8,})", re.IGNORECASE)
+# The log line ends with a structured field, and the surrounding prose also contains
+# the words "setup token", so anchor on the field itself:
+#   ... require this setup token in the X-Setup-Token header. | setup_token=2640d34c...
+_SETUP_TOKEN_RE = re.compile(r"setup_token=([A-Za-z0-9._\-]{16,})")
 
 
 def _read_setup_token(container: str = "portainer") -> str | None:
