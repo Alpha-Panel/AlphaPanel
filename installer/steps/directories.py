@@ -4,7 +4,11 @@ import os
 import shutil
 from pathlib import Path
 
-_UID_GID_1000_DIRS = ["deploy_cache", "n8n", "backup"]
+# Bind mounts owned by a container process running as UID 1000.
+# jenkins runs as `user: jenkins` (uid 1000) in docker-compose.yaml, so a
+# root-owned jenkins/data makes the container restart-loop with
+# "missing rw permissions on JENKINS_HOME".
+_UID_GID_1000_DIRS = ["deploy_cache", "n8n", "backup", "jenkins/data"]
 
 _DIRS = [
     "secrets",

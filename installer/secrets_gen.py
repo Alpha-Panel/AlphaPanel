@@ -33,6 +33,7 @@ def gen_all_panel_secrets() -> dict[str, str]:
         "vaultwarden_db_password": gen_hex(16),
         "panel_db_pass": gen_hex(16),
         "ftp_mysql_password": gen_hex(16),
+        "powerdns_db_password": gen_hex(16),
         "crowdsec_firewall_bouncer_key": gen_hex(32),
         "crowdsec_dashboard_api_key": gen_hex(32),
         "update_agent_secret": gen_hex(32),

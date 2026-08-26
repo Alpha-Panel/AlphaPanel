@@ -356,10 +356,14 @@ class LocalDnsService implements DnsProviderContract
      */
     private function buildSoaContent(DnsSetting $settings, DnsZone $zone, int $serial): string
     {
-        $adminEmail = str_replace('@', '.', $settings->soa_admin_email ?? 'hostmaster.example.com');
+        $adminEmail = str_replace(
+            '@',
+            '.',
+            $settings->soa_admin_email ?: (string) config('dns.soa_admin_email')
+        );
 
         return implode(' ', [
-            $settings->ns1 ?? 'ns1.example.com',
+            $settings->ns1 ?: (string) config('dns.ns1'),
             $adminEmail,
             $serial,
             $settings->soa_refresh ?? 3600,
@@ -412,13 +416,16 @@ class LocalDnsService implements DnsProviderContract
     {
         return [
             'domain' => $zone->name,
+            // '??', not '?:': the seeded row already carries config('dns.default_ip'),
+            // so an empty value here means an administrator deliberately cleared it and
+            // must not be silently overridden with the installer's IP.
             'ip' => $settings->default_ip ?? '',
-            'ns1' => $settings->ns1 ?? '',
-            'ns2' => $settings->ns2 ?? '',
+            'ns1' => $settings->ns1 ?: (string) config('dns.ns1'),
+            'ns2' => $settings->ns2 ?: (string) config('dns.ns2'),
             'ns3' => $settings->ns3 ?? '',
             'ns4' => $settings->ns4 ?? '',
             'mail_server' => 'mail.'.$zone->name,
-            'soa_admin' => str_replace('@', '.', $settings->soa_admin_email ?? ''),
+            'soa_admin' => str_replace('@', '.', $settings->soa_admin_email ?: (string) config('dns.soa_admin_email')),
             'serial' => (string) $zone->serial,
             'refresh' => (string) ($settings->soa_refresh ?? 3600),
             'retry' => (string) ($settings->soa_retry ?? 900),

@@ -34,9 +34,21 @@ class DnsSetting extends Model
         ];
     }
 
+    /**
+     * The singleton settings row, seeded from config/dns.php on first use.
+     *
+     * Without the seed a fresh install starts on the migration's example.com
+     * column defaults, and every zone LocalDnsService creates would delegate to
+     * nameservers the operator does not own.
+     */
     public static function instance(): self
     {
-        return self::firstOrCreate([]);
+        return self::firstOrCreate([], [
+            'ns1' => config('dns.ns1'),
+            'ns2' => config('dns.ns2'),
+            'soa_admin_email' => config('dns.soa_admin_email'),
+            'default_ip' => config('dns.default_ip'),
+        ]);
     }
 
     public function defaultTemplate(): BelongsTo
@@ -51,11 +63,22 @@ class DnsSetting extends Model
      */
     public function getNameservers(): array
     {
-        return array_values(array_filter([
+        $nameservers = array_values(array_filter([
             $this->ns1,
             $this->ns2,
             $this->ns3,
             $this->ns4,
         ]));
+
+        // A zone with no NS records is broken DNS, so never return an empty list —
+        // fall back to the configured defaults if every field was cleared.
+        if ($nameservers === []) {
+            $nameservers = array_values(array_filter([
+                config('dns.ns1'),
+                config('dns.ns2'),
+            ]));
+        }
+
+        return $nameservers;
     }
 }

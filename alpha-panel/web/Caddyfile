@@ -49,11 +49,14 @@
 	encode zstd br gzip
 	root * /var/www/AlphaPanel/httpdocs/public
 
-	# Reverb WebSocket (Laravel broadcasting)
+	# Reverb WebSocket (Laravel broadcasting).
+	# Must match REVERB_SERVER_PORT in the panel .env (8080, the Reverb default) —
+	# this was left at 6001 and every broadcast connection was proxied into a closed
+	# port, so the panel silently received no realtime notification at all.
 	@websocket {
 		path /app/*
 	}
-	reverse_proxy @websocket http://localhost:6001 {
+	reverse_proxy @websocket http://localhost:8080 {
 		header_up Host {http.request.host}
 		header_up X-Real-IP {http.request.remote.host}
 		header_up X-Forwarded-For {http.request.remote.host}

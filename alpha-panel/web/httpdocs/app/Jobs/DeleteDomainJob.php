@@ -7,6 +7,7 @@ use App\Enums\NotificationType;
 use App\Events\DomainDeleted;
 use App\Models\AuditLog;
 use App\Models\Domain;
+use App\Models\PhpVersion;
 use App\Models\User;
 use App\Notifications\DomainNotification;
 use App\Services\CloudflareDnsService;
@@ -35,7 +36,11 @@ class DeleteDomainJob implements ShouldQueue
 
     private int $ownerUserId;
 
-    private bool $removedAnyFtpUser = false;
+    /** @var list<array{username: string, uid: int|null}> */
+    private array $removedFtpUsers = [];
+
+    /** @var array<int, PhpVersion> */
+    private array $phpVersionsNeedingFpmReload = [];
 
     public function __construct(
         public Domain $domain,
@@ -83,11 +88,21 @@ class DeleteDomainJob implements ShouldQueue
                 $reloadService->reloadApache();
             }
 
+            // The pool files are gone from disk, but a running PHP-FPM master keeps
+            // serving the deleted domain's pool until it is reloaded. The compose
+            // recreate this job used to perform did that as a side effect.
+            foreach ($this->phpVersionsNeedingFpmReload as $phpVersion) {
+                $reloadService->reloadPhpFpm($phpVersion);
+            }
+
             $domain->delete();
 
-            if ($this->removedAnyFtpUser) {
+            if ($this->removedFtpUsers !== []) {
                 $ftpUserService->syncUsersEnv();
-                $ftpUserService->recreatePhpContainers();
+
+                foreach ($this->removedFtpUsers as $removed) {
+                    $ftpUserService->removeSystemUser($removed['username'], $removed['uid']);
+                }
             }
 
             AuditLog::create([
@@ -200,28 +215,171 @@ class DeleteDomainJob implements ShouldQueue
         $this->unlockUserIniFiles($domain);
 
         $configService->removeConfigs($domain);
+
+        if ($domain->phpVersion && in_array($domain->type, [DomainType::ApacheReverseProxy, DomainType::CaddyFastCgi], true)) {
+            $this->phpVersionsNeedingFpmReload[$domain->phpVersion->id] = $domain->phpVersion;
+        }
+
+        // Certificates are keyed by fqdn, never shared with the parent even when the
+        // web root is (SslActivateJob only reuses the apex cert when it actually
+        // covers the subdomain), so this runs unconditionally.
+        $this->removeCertificateFiles($domain->fqdn);
+
         if ($domain->sharesWebRootWithParent()) {
             Log::info("Skipped filesystem cleanup for {$domain->fqdn} because it shares web root with parent domain.");
         } else {
-            $this->removeCertificateFiles($domain->fqdn);
+            $this->removeWebRoot($domain);
         }
 
         if ($domain->ftpUser) {
+            $this->removedFtpUsers[] = [
+                'username' => (string) $domain->ftpUser->username,
+                'uid' => $domain->ftpUser->uid !== null ? (int) $domain->ftpUser->uid : null,
+            ];
             $domain->ftpUser->delete();
-            $this->removedAnyFtpUser = true;
         }
     }
 
     /**
-     * Remove Let's Encrypt certificate files for the domain.
+     * Remove the domain's own files under the vhost root.
+     *
+     * DomainConfigService only removes generated config, so until now every
+     * deletion left an orphaned /var/www/vhosts/<domain> behind.
+     * `unlockUserIniFiles()` above exists precisely to make this directory
+     * removable, and the `sharesWebRootWithParent()` guard on the caller exists so
+     * a subdomain never takes its parent's files with it.
+     */
+    private function removeWebRoot(Domain $domain): void
+    {
+        $basePath = $this->deletableWebRootPath($domain);
+
+        if ($basePath === null) {
+            return;
+        }
+
+        $blocker = $this->findDomainServingFrom($domain, $basePath);
+        if ($blocker !== null) {
+            Log::warning(
+                "Refusing to remove web root {$basePath} for {$domain->fqdn}: ".
+                "domain {$blocker->fqdn} is still served from inside it."
+            );
+
+            return;
+        }
+
+        if (! File::isDirectory($basePath)) {
+            return;
+        }
+
+        if (File::deleteDirectory($basePath)) {
+            Log::info("Removed web root directory: {$basePath}");
+        } else {
+            Log::warning("Failed to remove web root directory: {$basePath}");
+        }
+    }
+
+    /**
+     * The directory that may be deleted for this domain, or null when a guard refuses.
+     *
+     * Pure — no database and no filesystem access — so every refusal path is cheap to
+     * test exhaustively. The cross-domain check lives in findDomainServingFrom().
+     */
+    private function deletableWebRootPath(Domain $domain): ?string
+    {
+        if ($domain->isCatchall()) {
+            Log::info("Skipped web root removal for {$domain->fqdn}: catch-all uses the shared wildcard directory.");
+
+            return null;
+        }
+
+        $reserved = array_map('strtolower', config('panel.system_reserved_domains', []));
+        if (in_array(strtolower($domain->fqdn), $reserved, true)) {
+            Log::warning("Refusing to remove web root for system-reserved domain: {$domain->fqdn}");
+
+            return null;
+        }
+
+        $basePath = $domain->getBasePath();
+        $vhostRoot = '/var/www/vhosts';
+
+        // Never let a malformed path turn this into a recursive delete of the whole
+        // vhost root or of anything outside it.
+        if (str_contains($basePath, '..')
+            || rtrim($basePath, '/') === $vhostRoot
+            || ! str_starts_with($basePath, $vhostRoot.'/')
+        ) {
+            Log::warning("Refusing to remove unexpected web root path for {$domain->fqdn}: {$basePath}");
+
+            return null;
+        }
+
+        return $basePath;
+    }
+
+    /**
+     * Find a surviving domain whose files live inside the directory about to be deleted.
+     *
+     * `sharesWebRootWithParent()` only ever compares a domain with its own parent, so
+     * it cannot see two other real cases:
+     *
+     * - an addon domain bound through `linked_domain_id`, whose web root resolves to
+     *   this domain's tree (the FK is nullOnDelete, so nothing blocks the delete);
+     * - the slug collision between a wildcard subdomain `*.example.com` and a literal
+     *   `wildcard.example.com`, which `getSubdomainSlug()` maps to the same directory.
+     *
+     * In both cases the other domain is still enabled and still has its vhost
+     * deployed, so deleting the directory would take a live site down permanently.
+     * Subdomains of the domain being deleted are already removed from the database by
+     * `deleteSubdomains()` before this runs, so they never appear here.
+     */
+    private function findDomainServingFrom(Domain $domain, string $basePath): ?Domain
+    {
+        $target = rtrim($basePath, '/');
+
+        return Domain::query()
+            ->whereKeyNot($domain->getKey())
+            ->with(['parentDomain', 'linkedDomain.parentDomain'])
+            ->get()
+            ->first(function (Domain $other) use ($target): bool {
+                foreach ([$other->getBasePath(), $other->getWebRootPath()] as $path) {
+                    $path = rtrim($path, '/');
+
+                    if ($path === $target || str_starts_with($path, $target.'/')) {
+                        return true;
+                    }
+                }
+
+                return false;
+            });
+    }
+
+    /**
+     * Remove every certificate artefact belonging to the domain.
      *
      * Cleans up:
-     * - /etc/letsencrypt/live/{fqdn}
-     * - /etc/letsencrypt/archive/{fqdn}
-     * - /etc/letsencrypt/renewal/{fqdn}.conf
+     * - /etc/letsencrypt/live|archive/{fqdn} and renewal/{fqdn}.conf (legacy certbot)
+     * - /etc/letsencrypt/custom/{fqdn}      (where SslCertificateService writes the
+     *   private keys the panel actually serves — this was never cleaned, so every
+     *   deleted domain left its privkey.pem on disk forever)
+     * - /etc/letsencrypt/selfsigned/{fqdn}  (bootstrap cert from ProvisionDomainJob)
+     * - /etc/letsencrypt/csr/{fqdn}
      */
     private function removeCertificateFiles(string $fqdn): void
     {
+        foreach (['letsencrypt_custom_base', 'letsencrypt_selfsigned_base', 'letsencrypt_csr_base'] as $configKey) {
+            $base = (string) config("panel.{$configKey}");
+
+            if ($base === '') {
+                continue;
+            }
+
+            $path = rtrim($base, '/')."/{$fqdn}";
+            if (File::isDirectory($path)) {
+                File::deleteDirectory($path);
+                Log::info("Removed certificate directory: {$path}");
+            }
+        }
+
         $letsEncryptRoot = dirname(config('panel.letsencrypt_base'));
 
         $livePath = "{$letsEncryptRoot}/live/{$fqdn}";

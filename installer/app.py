@@ -108,8 +108,16 @@ def create_app(project_dir: Path, state_file: Path) -> Flask:
         form = request.get_json(force=True)
         state = load_state(state_file) or InstallerState()
         state.form = form
+        # Backfill keys added since this state file was written. Re-running the
+        # installer after an update must not KeyError on a newly introduced
+        # secret (e.g. powerdns_db_password), and existing credentials must keep
+        # their current values or every service would need re-auth.
+        fresh_secrets = gen_all_panel_secrets()
         if not state.generated_secrets:
-            state.generated_secrets = gen_all_panel_secrets()
+            state.generated_secrets = fresh_secrets
+        else:
+            for key, value in fresh_secrets.items():
+                state.generated_secrets.setdefault(key, value)
         state.current_phase = "starting"
         state.last_error = None
         save_state(state_file, state)

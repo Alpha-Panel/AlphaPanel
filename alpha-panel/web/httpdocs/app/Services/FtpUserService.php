@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
+use App\Enums\DomainType;
 use App\Models\Domain;
 use App\Models\FtpUser;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Process;
 
 class FtpUserService
 {
@@ -90,9 +90,66 @@ class FtpUserService
      */
     public function removeUser(FtpUser $ftpUser): void
     {
+        $username = $ftpUser->username;
+        $uid = $ftpUser->uid !== null ? (int) $ftpUser->uid : null;
+
         $ftpUser->delete();
         $this->syncUsersEnv();
-        $this->recreatePhpContainers();
+        $this->removeSystemUser($username, $uid);
+    }
+
+    /**
+     * Fix file ownership (chown) for a domain's base directory.
+     *
+     * Runs inside the PHP container that serves the domain. The .user.ini is
+     * immutable, so the flag is cleared before the bulk chown and restored
+     * (root-owned, 444, +i) afterwards so the site owner cannot tamper with it.
+     *
+     * @return string Audit summary of the command that ran.
+     *
+     * @throws \RuntimeException When the domain has no FTP user, or the chown fails.
+     */
+    public function fixPermissions(Domain $domain): string
+    {
+        $domain->loadMissing('ftpUser');
+
+        if (! $domain->ftpUser) {
+            throw new \RuntimeException('No FTP user exists for this domain.');
+        }
+
+        $username = $domain->ftpUser->username;
+        $basePath = escapeshellarg($domain->getBasePath());
+        $userIniPath = escapeshellarg("{$domain->getWebRootPath()}/.user.ini");
+
+        $container = $domain->type === DomainType::ApacheReverseProxy
+            ? 'php-code-server'
+            : 'frankenphp';
+
+        // Unlock .user.ini before bulk chown (immutable flag prevents ownership change)
+        $this->portainer->execInContainer(
+            $container,
+            ['sh', '-c', "chattr -i {$userIniPath} 2>/dev/null || true"],
+        );
+
+        $result = $this->portainer->execInContainer(
+            $container,
+            ['sh', '-c', 'chown '.escapeshellarg($username).":www-data -R {$basePath}"],
+            300,
+        );
+
+        if (! $result->isSuccessful()) {
+            $error = trim($result->errorOutput) !== '' ? trim($result->errorOutput) : trim($result->output);
+
+            throw new \RuntimeException($error !== '' ? $error : 'Unknown error.');
+        }
+
+        // Relock .user.ini — root-owned and immutable so site owner cannot tamper
+        $this->portainer->execInContainer(
+            $container,
+            ['sh', '-c', "chown root:root {$userIniPath} && chmod 444 {$userIniPath} && chattr +i {$userIniPath} 2>/dev/null || true"],
+        );
+
+        return "chown {$username}:www-data -R on {$domain->getBasePath()}";
     }
 
     /**
@@ -243,12 +300,7 @@ class FtpUserService
      */
     public function restartPhpContainers(): void
     {
-        $containers = [
-            config('panel.php_code_server_container', 'php-code-server'),
-            'frankenphp',
-        ];
-
-        foreach ($containers as $container) {
+        foreach ($this->phpContainerNames() as $container) {
             try {
                 $this->portainer->restartContainer($container);
             } catch (\Exception $e) {
@@ -258,69 +310,80 @@ class FtpUserService
     }
 
     /**
-     * Recreate PHP containers using docker compose (for user removal).
+     * Drop the Linux account of a removed FTP user inside the PHP containers.
+     *
+     * The container entrypoints only ever *create* accounts from users.env, so a
+     * deleted user lingers in /etc/passwd until the container is rebuilt. That is
+     * why this used to run `docker compose rm -f -s -v` plus
+     * `up -d --force-recreate`, which also tore down `frankenphp` — the public web
+     * server for every hosted site — for the ~5 minutes its two 180s timeouts
+     * took. Dropping the account in place reaches the same end state with no
+     * downtime for the other domains.
+     *
+     * The UID is removed as well as the name. Usernames created before
+     * normalisation existed can be uppercase, start with a digit, or exceed 32
+     * characters, and getNextUid() recycles a freed UID immediately — a leftover
+     * account therefore collides with the next FTP user and makes
+     * php-code-server's entrypoint (`useradd -u` under `set -e`) abort on restart.
      */
-    public function recreatePhpContainers(): void
+    public function removeSystemUser(string $username, ?int $uid = null): void
     {
-        $composeProjectRoot = (string) config('panel.compose_project_root', '');
-        $services = $this->getPhpComposeServices();
+        $username = trim($username);
 
-        if ($services === []) {
-            Log::warning('Skipping compose recreate for PHP containers: no service names configured.');
-
-            return;
-        }
-
-        if ($composeProjectRoot === '' || ! File::isDirectory($composeProjectRoot)) {
-            Log::warning("Compose project root not found ({$composeProjectRoot}). Falling back to container restart.");
-            $this->restartPhpContainers();
+        if ($username === '' && $uid === null) {
+            Log::warning('Refusing to drop system user: neither a username nor a uid was given.');
 
             return;
         }
 
-        try {
-            $removeResult = Process::path($composeProjectRoot)
-                ->timeout(180)
-                ->run(['docker', 'compose', 'rm', '-f', '-s', '-v', ...$services]);
+        $label = $username !== '' ? $username : "uid {$uid}";
+        $commands = [];
 
-            if ($removeResult->failed()) {
-                Log::warning(
-                    'docker compose rm failed for PHP container recreate: '.
-                    trim($removeResult->errorOutput() ?: $removeResult->output())
-                );
+        if ($username !== '') {
+            $name = escapeshellarg($username);
+            $commands[] = 'id '.$name.' >/dev/null 2>&1 && { deluser '.$name.' >/dev/null 2>&1 || userdel -f '.$name.' >/dev/null 2>&1; }';
+            $commands[] = 'delgroup '.$name.' >/dev/null 2>&1 || groupdel '.$name.' >/dev/null 2>&1 || true';
+        }
+
+        if ($uid !== null) {
+            $id = escapeshellarg((string) $uid);
+            // Single-quoted PHP strings: $stale and $(...) reach the shell verbatim.
+            $commands[] = 'stale=$(getent passwd '.$id.' | cut -d: -f1); [ -n "$stale" ] && { deluser "$stale" >/dev/null 2>&1 || userdel -f "$stale" >/dev/null 2>&1; }';
+            $commands[] = 'staleg=$(getent group '.$id.' | cut -d: -f1); [ -n "$staleg" ] && { delgroup "$staleg" >/dev/null 2>&1 || groupdel "$staleg" >/dev/null 2>&1; }';
+            $commands[] = 'getent passwd '.$id.' >/dev/null 2>&1 && echo REMAINS || echo GONE';
+        } elseif ($username !== '') {
+            $commands[] = 'id '.escapeshellarg($username).' >/dev/null 2>&1 && echo REMAINS || echo GONE';
+        }
+
+        $script = implode('; ', $commands).'; exit 0';
+
+        foreach ($this->phpContainerNames() as $container) {
+            try {
+                $result = $this->portainer->execInContainer($container, ['sh', '-c', $script]);
+            } catch (\Throwable $e) {
+                Log::warning("Failed to drop system user {$label} from {$container}: {$e->getMessage()}");
+
+                continue;
             }
 
-            $upResult = Process::path($composeProjectRoot)
-                ->timeout(180)
-                ->run(['docker', 'compose', 'up', '-d', '--force-recreate', ...$services]);
+            if (str_contains($result->output, 'REMAINS')) {
+                Log::warning("System user {$label} still present in {$container} after removal attempt.");
 
-            if ($upResult->failed()) {
-                Log::error(
-                    'docker compose up failed for PHP container recreate: '.
-                    trim($upResult->errorOutput() ?: $upResult->output())
-                );
-                $this->restartPhpContainers();
-
-                return;
+                continue;
             }
 
-            Log::info('Recreated PHP containers via docker compose: '.implode(', ', $services));
-        } catch (\Throwable $e) {
-            Log::error("Failed to recreate PHP containers via compose: {$e->getMessage()}");
-            $this->restartPhpContainers();
+            Log::info("Dropped system user {$label} from {$container}.");
         }
     }
 
     /**
      * @return array<int, string>
      */
-    private function getPhpComposeServices(): array
+    private function phpContainerNames(): array
     {
-        $services = [
+        return array_values(array_unique(array_filter([
             trim((string) config('panel.php_code_server_container', 'php-code-server')),
             'frankenphp',
-        ];
-
-        return array_values(array_unique(array_filter($services)));
+        ])));
     }
 }

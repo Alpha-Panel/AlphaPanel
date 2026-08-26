@@ -135,9 +135,25 @@ CLOUDFLARE_API_TOKEN=your_cloudflare_api_token
 # MySQL
 MYSQL_ROOT_PASSWORD=your_secure_password
 
+# PowerDNS — the gmysql backend falls back to the MySQL root credentials when
+# these are unset. Set them and create the least-privilege account (below).
+POWERDNS_DB_NAME=powerdns
+POWERDNS_DB_USER=powerdns
+POWERDNS_DB_PASSWORD=your_secure_password
+
 # Network
 PRIVATE_NETWORK_IP=10.0.0.1
 PUBLIC_NETWORK_IP=1.2.3.4
+```
+
+For the manual path, create the PowerDNS account by hand — the schema is owned by
+the panel migration, so the account needs no DDL:
+
+```sql
+CREATE DATABASE IF NOT EXISTS `powerdns` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'powerdns'@'%' IDENTIFIED BY 'your_secure_password';
+GRANT SELECT, INSERT, UPDATE, DELETE ON `powerdns`.* TO 'powerdns'@'%';
+FLUSH PRIVILEGES;
 ```
 
 ### 3. Configure FTP users
@@ -163,9 +179,12 @@ docker compose up -d --build
 ### 5. Fix permissions
 
 ```bash
-chmod -R u+rwX,g+rwX deploy_cache n8n backup
-chown -R 1000:1000 deploy_cache n8n backup
+chmod -R u+rwX,g+rwX deploy_cache n8n backup jenkins/data
+chown -R 1000:1000 deploy_cache n8n backup jenkins/data
 ```
+
+`jenkins/data` matters: the Jenkins container runs as UID 1000 and restart-loops
+with `missing rw permissions on JENKINS_HOME` if the directory stays root-owned.
 
 ### 6. Create admin user
 

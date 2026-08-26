@@ -24,6 +24,19 @@
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
         <env name="DB_CONNECTION" value="mysql"/>
+        <!--
+            Pinned to a dedicated schema. Without it the suite inherits DB_DATABASE
+            from .env, so running `php artisan test` on a server writes test data
+            into the live panel database — and the nine RefreshDatabase test files
+            would run migrate:fresh against it.
+
+            The installer creates the schema. To create and populate it by hand, see
+            the "Behaviour changes" section of UPGRADE.md; the short version is a
+            CREATE DATABASE followed by an artisan migrate run with DB_DATABASE set in
+            the shell, which wins over .env because Laravel's dotenv repository is
+            immutable. Re-run it after any release that adds migrations.
+        -->
+        <env name="DB_DATABASE" value="alphapanel_testing"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

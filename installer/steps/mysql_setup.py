@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import subprocess
 
 from installer.errors import InstallerError
@@ -10,6 +11,16 @@ _BITWARDEN_DB = "bitwarden"
 _BITWARDEN_USER = "bitwarden"
 _FTP_USER = "ftp_reader"
 _POWERDNS_DB = "powerdns"
+_POWERDNS_USER = "powerdns"
+# Must match DB_DATABASE in alpha-panel/web/httpdocs/phpunit.xml exactly — MySQL
+# schema names are case-sensitive on Linux. Pre-created so the suite never has to
+# be pointed at the live panel schema.
+_PANEL_TEST_DB = "alphapanel_testing"
+
+
+def _redact(sql: str) -> str:
+    """Strip credentials before an SQL snippet reaches a log or the state file."""
+    return re.sub(r"IDENTIFIED BY '[^']*'", "IDENTIFIED BY '***'", sql)
 
 
 def _mysql(root_password: str, sql: str) -> None:
@@ -25,7 +36,7 @@ def _mysql(root_password: str, sql: str) -> None:
         raise InstallerError(
             "mysql_setup",
             "MySQL command failed",
-            detail={"sql": sql[:200], "stderr": result.stderr[:500]},
+            detail={"sql": _redact(sql)[:200], "stderr": _redact(result.stderr)[:500]},
         )
 
 
@@ -34,6 +45,7 @@ def setup_mysql_users(secrets: dict[str, str]) -> None:
     panel_pw = secrets["panel_db_pass"]
     bitwarden_pw = secrets["vaultwarden_db_password"]
     ftp_pw = secrets["ftp_mysql_password"]
+    powerdns_pw = secrets["powerdns_db_password"]
 
     statements = [
         # Panel DB + user — full superuser during install so migrations can
@@ -51,8 +63,19 @@ def setup_mysql_users(secrets: dict[str, str]) -> None:
         f"CREATE USER IF NOT EXISTS '{_FTP_USER}'@'%' IDENTIFIED BY '{ftp_pw}';",
         f"GRANT SELECT ON `{_PANEL_DB}`.* TO '{_FTP_USER}'@'%';",
 
-        # PowerDNS DB pre-created so migrations don't race against creation
+        # Test schema, so `php artisan test` can never touch the live panel data.
+        # The panel user already holds ALL PRIVILEGES ON *.*, so no extra grant.
+        f"CREATE DATABASE IF NOT EXISTS `{_PANEL_TEST_DB}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+
+        # PowerDNS DB pre-created so migrations don't race against creation.
+        # The gmysql backend only reads/writes rows — the schema is owned by the
+        # panel migration — so this account gets DML only: no DDL, no other schema.
+        # Without it pdns.conf falls back to gmysql-user=root and the MySQL root
+        # password ends up on the pdns command line.
         f"CREATE DATABASE IF NOT EXISTS `{_POWERDNS_DB}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+        f"CREATE USER IF NOT EXISTS '{_POWERDNS_USER}'@'%' IDENTIFIED BY '{powerdns_pw}';",
+        f"ALTER USER '{_POWERDNS_USER}'@'%' IDENTIFIED BY '{powerdns_pw}';",
+        f"GRANT SELECT, INSERT, UPDATE, DELETE ON `{_POWERDNS_DB}`.* TO '{_POWERDNS_USER}'@'%';",
 
         "FLUSH PRIVILEGES;",
     ]

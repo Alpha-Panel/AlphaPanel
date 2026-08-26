@@ -12,6 +12,7 @@ def form_and_secrets():
         "base_domain": "example.com",
         "panel_domain": "server.example.com",
         "pma_domain": "pma.example.com",
+        "pgadmin_domain": "pgadmin.example.com",
         "code_server_domain": "file.example.com",
         "vaultwarden_domain": "password.example.com",
         "n8n_domain": "n8n.example.com",
@@ -37,6 +38,11 @@ def form_and_secrets():
         "vaultwarden_db_password": "vwdbpass",
         "panel_db_pass": "paneldbpass",
         "ftp_mysql_password": "ftpdb",
+        "powerdns_db_password": "pdnsdbpass",
+        "pgadmin_password": "pgadminpass",
+        "redis_password": "redispass",
+        "mail_admin_password": "mailadmin",
+        "mail_secret_key": "mailsecret",
         "crowdsec_firewall_bouncer_key": "cs-fw",
         "crowdsec_dashboard_api_key": "cs-dash",
         "update_agent_secret": "update-secret",
@@ -66,8 +72,26 @@ def test_write_root_env_includes_expected_keys(tmp_path: Path, form_and_secrets)
         "PRIVATE_NETWORK_IP=10.0.0.5",
         "PUBLIC_NETWORK_IP=203.0.113.5",
         "REVERB_APP_ID=abcd",
+        "POWERDNS_DB_NAME=powerdns",
+        "POWERDNS_DB_USER=powerdns",
+        'POWERDNS_DB_PASSWORD="pdnsdbpass"',
     ]:
         assert expected in content, f"missing in root .env: {expected}"
+
+
+def test_write_root_env_has_no_duplicate_keys(tmp_path: Path, form_and_secrets):
+    """PGADMIN_DOMAIN used to be written twice, with the same value each time."""
+    form, secrets = form_and_secrets
+    path = tmp_path / ".env"
+    write_root_env(path, form=form, secrets=secrets)
+
+    keys = [
+        line.split("=", 1)[0]
+        for line in path.read_text().splitlines()
+        if "=" in line and not line.startswith("#")
+    ]
+    duplicates = {k for k in keys if keys.count(k) > 1}
+    assert duplicates == set(), f"duplicated keys in root .env: {sorted(duplicates)}"
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="chmod 600 has no effect on Windows NTFS")
@@ -140,10 +164,15 @@ def test_write_laravel_env_substitutes_keys(tmp_path: Path, form_and_secrets):
     assert "REVERB_APP_ID=abcd" in content
     assert "REVERB_APP_KEY=reverbkey" in content
     assert "REVERB_APP_SECRET=reverbsecret" in content
-    assert "REVERB_HOST=server.example.com" in content
-    assert "REVERB_PORT=443" in content
-    assert "REVERB_SCHEME=https" in content
+    # REVERB_* is the server-side publish target — Reverb listens on loopback
+    # inside the same container. VITE_REVERB_* is the browser-side target.
+    assert "REVERB_HOST=127.0.0.1" in content
+    assert "REVERB_PORT=8080" in content
+    assert "REVERB_SCHEME=http" in content
+    assert "REVERB_SERVER_PORT=8080" in content
+    assert "VITE_REVERB_HOST=server.example.com" in content
     assert "VITE_REVERB_PORT=8443" in content
+    assert "VITE_REVERB_SCHEME=https" in content
     assert "SESSION_DOMAIN=server.example.com" in content
     assert 'MAIL_FROM_ADDRESS="admin@example.com"' in content
 
@@ -173,12 +202,72 @@ def test_write_laravel_env_appends_production_block(tmp_path: Path, form_and_sec
     assert "COMPOSE_PROJECT_ROOT_HOST=/opt/alphapanel-docker" in content
     assert "PORTAINER_URL=http://portainer:9000" in content
     assert "PMA_URL=https://pma.example.com:8443/index.php?server=2" in content
-    assert "PHPMYADMIN_URL=https://pma.example.com" in content
+    assert "PHPMYADMIN_URL=https://pma.example.com:8443" in content
+    assert "DNS_NS1=ns1.example.com" in content
+    assert "DNS_NS2=ns2.example.com" in content
+    assert "DNS_SOA_ADMIN=admin@example.com" in content
+    assert "DNS_DEFAULT_IP=203.0.113.5" in content
     assert "PMA_ADMIN_USER=root" in content
     assert "PMA_ADMIN_PASS=mysqlroot" in content
     assert "JENKINS_URL=https://jenkins.example.com" in content
     assert "UPDATE_AGENT_SECRET=update-secret" in content
     assert "UPDATE_AGENT_URL=http://update-agent:8100" in content
+
+
+def test_write_laravel_env_leaves_no_duplicate_keys(tmp_path: Path, form_and_secrets):
+    """
+    The appended production block re-states keys .env.example already defines.
+    Laravel's dotenv repository lets the LAST assignment win, so a duplicated file
+    still behaves correctly — but it is unreadable, and COMPOSE_PROJECT_ROOT_HOST
+    used to appear twice with two different values.
+    """
+    form, secrets = form_and_secrets
+    example = tmp_path / ".env.example"
+    example.write_text(
+        "APP_NAME=Laravel\n"
+        "PHPMYADMIN_URL=https://pma.example.com\n"
+        "JENKINS_URL=https://jenkins.example.com\n"
+        "COMPOSE_PROJECT_ROOT_HOST=/root/docker/AlphaPanel-Docker\n"
+        "UPDATE_AGENT_SECRET=\n"
+        "DNS_NS1=ns1.example.com\n"
+    )
+    target = tmp_path / ".env"
+    write_laravel_env(
+        target=target,
+        example=example,
+        form=form,
+        secrets=secrets,
+        install_dir="/opt/alphapanel-docker",
+    )
+    lines = target.read_text().splitlines()
+
+    keys = [line.split("=", 1)[0] for line in lines if "=" in line and not line.startswith("#")]
+    duplicates = {k for k in keys if keys.count(k) > 1}
+    assert duplicates == set(), f"duplicated keys in panel .env: {sorted(duplicates)}"
+
+    # Each collided key keeps the installer's value, not the example placeholder.
+    content = "\n".join(lines)
+    assert "PHPMYADMIN_URL=https://pma.example.com:8443" in content
+    assert "COMPOSE_PROJECT_ROOT_HOST=/opt/alphapanel-docker" in content
+    assert "UPDATE_AGENT_SECRET=update-secret" in content
+    assert "DNS_NS1=ns1.example.com" in content
+
+
+def test_write_laravel_env_pins_the_powerdns_schema_name(tmp_path: Path, form_and_secrets):
+    """The panel reads POWERDNS_DB_DATABASE; compose passes POWERDNS_DB_NAME to pdns."""
+    form, secrets = form_and_secrets
+    example = tmp_path / ".env.example"
+    example.write_text("APP_NAME=Laravel\n")
+    target = tmp_path / ".env"
+    write_laravel_env(
+        target=target,
+        example=example,
+        form=form,
+        secrets=secrets,
+        install_dir="/opt/alphapanel-docker",
+    )
+
+    assert "POWERDNS_DB_DATABASE=powerdns" in target.read_text()
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="chmod 600 has no effect on Windows NTFS")

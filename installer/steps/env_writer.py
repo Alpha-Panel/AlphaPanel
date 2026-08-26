@@ -8,6 +8,8 @@ from typing import Any
 _PANEL_DB_NAME = "AlphaPanel"
 _PANEL_DB_USER = "alphapanel"
 _MYSQL_VERSION = "9.7.0"
+_POWERDNS_DB_NAME = "powerdns"
+_POWERDNS_DB_USER = "powerdns"
 _POSTGRESQL_USER = "admin"
 _POSTGRESQL_VERSION = "18-3.6"
 
@@ -36,6 +38,11 @@ def write_root_env(path: Path, form: dict[str, Any], secrets: dict[str, str]) ->
     add("\n# ─── FTP ───\n")
     add(_env_line("FTP_MYSQL_PASSWORD", secrets["ftp_mysql_password"], quoted=True))
 
+    add("\n# ─── PowerDNS ───\n")
+    add(_env_line("POWERDNS_DB_NAME", _POWERDNS_DB_NAME))
+    add(_env_line("POWERDNS_DB_USER", _POWERDNS_DB_USER))
+    add(_env_line("POWERDNS_DB_PASSWORD", secrets["powerdns_db_password"], quoted=True))
+
     add("\n# ─── Meilisearch ───\n")
     add(_env_line("MEILISEARCH_MASTER_KEY", secrets["meilisearch_master_key"], quoted=True))
     add(
@@ -52,7 +59,8 @@ def write_root_env(path: Path, form: dict[str, Any], secrets: dict[str, str]) ->
     add(_env_line("POSTGRESQL_PASSWORD", secrets["postgresql_password"], quoted=True))
 
     add("\n# ─── pgAdmin ───\n")
-    add(_env_line("PGADMIN_DOMAIN", form["pgadmin_domain"]))
+    # PGADMIN_DOMAIN is emitted by the "Domains" block below — repeating it here
+    # wrote the same key into the generated .env twice.
     add(_env_line("PGADMIN_EMAIL", form["admin_email"]))
     add(_env_line("PGADMIN_PASSWORD", secrets["pgadmin_password"], quoted=True))
 
@@ -162,10 +170,24 @@ _STATIC_LARAVEL_REPLACEMENTS = {
     "CACHE_PREFIX": ("alpha_panel_", False),
     "QUEUE_CONNECTION": ("redis", False),
     "REDIS_HOST": ("redis", False),
-    "REVERB_PORT": ("443", False),
-    "REVERB_SCHEME": ("https", False),
-    # Browser accesses the panel at :8443; REVERB_PORT=443 is container-internal only
+    # REVERB_HOST/PORT/SCHEME are the *server-side* publish target. Reverb runs
+    # inside alpha_panel_web (supervisor → `artisan reverb:start`, bound to
+    # REVERB_SERVER_HOST:REVERB_SERVER_PORT), so PHP must publish to the loopback
+    # listener. Pointing these at the public panel host made Laravel POST
+    # /apps/{id}/events back into itself, get its own 404 HTML page back, and
+    # silently drop every broadcast.
+    "REVERB_HOST": ("127.0.0.1", False),
+    "REVERB_PORT": ("8080", False),
+    "REVERB_SCHEME": ("http", False),
+    # Pinned because alpha-panel/web/Caddyfile proxies /app/* to this exact port.
+    # Whenever the two drifted apart, broadcasts went into a closed port and the
+    # panel simply never received a realtime notification.
+    "REVERB_SERVER_PORT": ("8080", False),
+    # VITE_REVERB_* is the *browser-side* target and must stay the public panel
+    # origin — set explicitly rather than interpolated from REVERB_*, which is
+    # internal-only. VITE_REVERB_HOST is filled in by write_laravel_env().
     "VITE_REVERB_PORT": ("8443", False),
+    "VITE_REVERB_SCHEME": ("https", False),
     "LOG_LEVEL": ("error", False),
     "DB_HOST": ("mysql", False),
     "DB_PORT": ("3306", False),
@@ -183,10 +205,45 @@ def _replace_env_line(text: str, key: str, value: str, quoted: bool = False) -> 
     pattern = rf"^#?\s*{re.escape(key)}=.*$"
     replacement = f'{key}="{value}"' if quoted else f"{key}={value}"
     if re.search(pattern, text, flags=re.MULTILINE):
-        return re.sub(pattern, replacement, text, flags=re.MULTILINE)
+        # lambda, not a replacement string: a generated secret containing a backslash
+        # would otherwise be read as a group reference and mangled.
+        return re.sub(pattern, lambda _: replacement, text, flags=re.MULTILINE)
     if not text.endswith("\n"):
         text += "\n"
     return text + replacement + "\n"
+
+
+def _merge_env_block(text: str, block: str) -> str:
+    """
+    Fold a block of KEY=value lines into `text`.
+
+    Laravel's dotenv repository lets the LAST assignment of a key win — measured
+    against vlucas/phpdotenv 5.6 through Laravel's Env repository, not assumed — so
+    appending the block wholesale produced a working but confusing file in which
+    ~23 keys were defined twice, including COMPOSE_PROJECT_ROOT_HOST with two
+    different values. Keys already present are rewritten in place and only genuinely
+    new ones are appended, which keeps every effective value identical and leaves no
+    duplicates for a maintainer to trip over.
+    """
+    new_lines: list[str] = []
+    for line in block.splitlines():
+        match = re.match(r"\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)$", line)
+        if not match:
+            new_lines.append(line)
+            continue
+        key, value = match.group(1), match.group(2)
+        if re.search(rf"^#?\s*{re.escape(key)}=.*$", text, flags=re.MULTILINE):
+            text = _replace_env_line(text, key, value)
+        else:
+            new_lines.append(line)
+
+    # Drop section headers whose keys all got merged away, so the tail stays readable.
+    tail = "\n".join(new_lines)
+    if not re.search(r"^\s*[A-Za-z_][A-Za-z0-9_]*=", tail, flags=re.MULTILINE):
+        return text
+    if not text.endswith("\n"):
+        text += "\n"
+    return text + tail + "\n"
 
 
 def write_laravel_env(
@@ -209,12 +266,21 @@ def write_laravel_env(
     text = _replace_env_line(text, "REVERB_APP_ID", secrets["reverb_app_id"])
     text = _replace_env_line(text, "REVERB_APP_KEY", secrets["reverb_app_key"])
     text = _replace_env_line(text, "REVERB_APP_SECRET", secrets["reverb_app_secret"])
-    text = _replace_env_line(text, "REVERB_HOST", form["panel_domain"])
+    text = _replace_env_line(text, "VITE_REVERB_HOST", form["panel_domain"])
     text = _replace_env_line(text, "SESSION_DOMAIN", form["panel_domain"])
     text = _replace_env_line(text, "MAIL_FROM_ADDRESS", form["admin_email"], quoted=True)
+    # Feeds config('panel.admin_email') and the certbot account address; left at the
+    # example placeholder it would register ACME accounts as admin@example.com.
+    text = _replace_env_line(text, "PANEL_ADMIN_EMAIL", form["admin_email"])
 
     pma_domain = form["pma_domain"]
     jenkins_domain = form["jenkins_domain"]
+    base_domain = form["base_domain"]
+    admin_email = form["admin_email"]
+    # No private_ip fallback: DNS_DEFAULT_IP ends up in published A records, and an
+    # RFC1918 address there is worse than leaving the default empty.
+    public_ip = form.get("public_ip") or ""
+    _powerdns_db = _POWERDNS_DB_NAME
     meili_key = secrets["alpha_panel_meilisearch_master_key"]
     panel_db_pass = secrets["panel_db_pass"]
     mysql_root_password = secrets["mysql_root_password"]
@@ -245,8 +311,25 @@ PORTAINER_URL=http://portainer:9000
 PORTAINER_API_KEY=
 PORTAINER_ENDPOINT_ID=1
 
+# ─── Authoritative DNS (PowerDNS) ───
+# Seeds the dns_settings singleton on first use; Settings → DNS in the panel
+# owns them afterwards. Without these, new zones are published with the
+# migration's ns1.example.com / ns2.example.com column defaults, delegating to
+# nameservers the operator does not own.
+DNS_NS1=ns1.{base_domain}
+DNS_NS2=ns2.{base_domain}
+DNS_SOA_ADMIN={admin_email}
+DNS_DEFAULT_IP={public_ip}
+# config/database.php reads POWERDNS_DB_DATABASE for the panel's `powerdns`
+# connection, while docker-compose.yaml passes POWERDNS_DB_NAME to pdns. Two names
+# for one schema: pin both or the panel writes zones pdns never reads.
+POWERDNS_DB_DATABASE={_powerdns_db}
+
 PMA_URL=https://{pma_domain}:8443/index.php?server=2
-PHPMYADMIN_URL=https://{pma_domain}
+# phpMyAdmin is published only through the alpha_panel_web Caddy on host port
+# 8443. Without the port the SSO redirect lands on the public frankenphp, which
+# has no pma vhost and answers 200 with an empty body — a blank page.
+PHPMYADMIN_URL=https://{pma_domain}:8443
 PMA_ADMIN_USER=root
 PMA_ADMIN_PASS={mysql_root_password}
 POSTGRESQL_HOST=postgres
@@ -279,9 +362,7 @@ PANEL_GITHUB_REPO=Alpha-Panel/AlphaPanel
 MYSQL_UPDATE_CHECK=true
 UPDATE_AUTO_CHECK=true
 """
-    if not text.endswith("\n"):
-        text += "\n"
-    text += appended
+    text = _merge_env_block(text, appended)
 
     target.write_text(text, encoding="utf-8")
     os.chmod(target, 0o600)

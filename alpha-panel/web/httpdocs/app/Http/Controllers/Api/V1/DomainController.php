@@ -17,6 +17,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class DomainController extends ApiController
@@ -73,7 +74,7 @@ class DomainController extends ApiController
         $domain = Domain::create($validated);
 
         if ($ftpUsername && $ftpPassword) {
-            app(FtpUserService::class)->createForDomain($domain, $ftpUsername, $ftpPassword);
+            app(FtpUserService::class)->addUser($domain, $ftpUsername, $ftpPassword);
         }
 
         AuditLog::create([
@@ -174,20 +175,24 @@ class DomainController extends ApiController
     {
         $this->ensureCanManageDomain($request, $domain);
 
+        // Same rules as the web DomainController::updateFtp — the username becomes a
+        // Linux account inside the PHP containers, so it must stay within what
+        // useradd accepts and what FtpUserService can later remove.
         $validated = $request->validate([
-            'username' => 'required|string|max:100',
-            'password' => 'nullable|string|min:8',
+            'username' => ['required', 'string', 'max:32', 'alpha_dash'],
+            'password' => ['nullable', 'string', 'min:8', 'max:128'],
         ]);
 
         $ftpUser = $domain->ftpUser;
 
         if ($ftpUser) {
-            $ftpUserService->updateUsername($ftpUser, $validated['username']);
-            if (! empty($validated['password'])) {
-                $ftpUserService->updatePassword($ftpUser, $validated['password']);
-            }
+            $ftpUserService->updateUser(
+                $ftpUser,
+                password: $validated['password'] ?? null,
+                username: $validated['username'],
+            );
         } else {
-            $ftpUserService->createForDomain($domain, $validated['username'], $validated['password'] ?? '');
+            $ftpUserService->addUser($domain, $validated['username'], $validated['password'] ?? '');
         }
 
         return response()->json(['data' => $domain->fresh('ftpUser')->ftpUser]);
@@ -197,7 +202,29 @@ class DomainController extends ApiController
     {
         $this->ensureCanManageDomain($request, $domain);
 
-        $ftpUserService->fixPermissions($domain);
+        try {
+            $summary = $ftpUserService->fixPermissions($domain);
+        } catch (\Throwable $exception) {
+            Log::error("Fix permissions failed for {$domain->fqdn}: {$exception->getMessage()}");
+
+            AuditLog::create([
+                'user_id' => $request->user()?->id,
+                'action' => 'ftp_permissions_fix_failed',
+                'domain_id' => $domain->id,
+                'summary' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => __('Failed to fix file permissions: :error', ['error' => $exception->getMessage()]),
+            ], 422);
+        }
+
+        AuditLog::create([
+            'user_id' => $request->user()?->id,
+            'action' => 'ftp_permissions_fixed',
+            'domain_id' => $domain->id,
+            'summary' => $summary,
+        ]);
 
         return response()->json(['message' => __('FTP permissions fixed.')]);
     }

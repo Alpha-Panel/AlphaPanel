@@ -313,14 +313,35 @@ services:
     container_name: powerdns
     hostname: powerdns
     restart: always
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
     ports:
       - "${PUBLIC_NETWORK_IP}:53:53/tcp"
       - "${PUBLIC_NETWORK_IP}:53:53/udp"
     volumes:
       - ./powerdns/pdns.conf:/etc/powerdns/pdns.conf
-    command: ["--gmysql-password=${MYSQL_ROOT_PASSWORD}"]
+    # Dedicated least-privilege MySQL account (DML only on the powerdns schema),
+    # created by installer/steps/mysql_setup.py. It replaces MySQL root, which had
+    # full access to every schema. The credential is still on the pdns command
+    # line — the gmysql backend has no file-based password option — so it is
+    # visible in `ps`/`docker inspect`; the point of the change is that what leaks
+    # is now scoped to SELECT/INSERT/UPDATE/DELETE on `powerdns`.
+    #
+    # Both values fall back to root on purpose. An existing install that pulls
+    # this change before running scripts/upgrade/2026-08-26-powerdns-user.sh has
+    # no POWERDNS_DB_* in its .env; without the fallback Compose would substitute
+    # an empty password, gmysql would fail to connect, `restart: always` would turn
+    # that into a silent crash loop and every hosted zone would stop resolving.
+    command:
+      - "--gmysql-dbname=${POWERDNS_DB_NAME:-powerdns}"
+      - "--gmysql-user=${POWERDNS_DB_USER:-root}"
+      - "--gmysql-password=${POWERDNS_DB_PASSWORD:-${MYSQL_ROOT_PASSWORD}}"
+    healthcheck:
+      # Without this a backend failure only shows as a restart loop in the logs;
+      # `docker compose ps` would report the service as running.
+      test: ["CMD", "pdns_control", "rping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
     depends_on:
       mysql:
         condition: service_healthy

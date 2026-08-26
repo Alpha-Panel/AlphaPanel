@@ -16,7 +16,10 @@ class SettingsController extends ApiController
 {
     public function dns(): JsonResponse
     {
-        return response()->json(['data' => DnsSetting::first() ?? []]);
+        // instance(), not first(): the singleton row is seeded from config/dns.php on
+        // first use, so first() reports "no DNS settings" on a fresh install while the
+        // panel UI already shows the seeded nameservers.
+        return response()->json(['data' => DnsSetting::instance()]);
     }
 
     public function updateDns(Request $request): JsonResponse

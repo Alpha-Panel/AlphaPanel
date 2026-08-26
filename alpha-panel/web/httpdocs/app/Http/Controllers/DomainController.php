@@ -26,7 +26,6 @@ use App\Services\LaravelPackageDetector;
 use App\Services\Mail\Exceptions\MailProviderException;
 use App\Services\Mail\MailDnsService;
 use App\Services\Mail\MailProviderResolver;
-use App\Services\PortainerService;
 use App\Services\ServerNetworkInfoService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
@@ -329,7 +328,7 @@ class DomainController extends Controller
     /**
      * Fix file permissions (chown) for a domain's base directory.
      */
-    public function fixPermissions(Request $request, Domain $domain, PortainerService $portainer): JsonResponse
+    public function fixPermissions(Request $request, Domain $domain, FtpUserService $ftpUserService): JsonResponse
     {
         $this->authorize('manageFtp', $domain);
 
@@ -342,48 +341,14 @@ class DomainController extends Controller
             ], 422);
         }
 
-        $username = $domain->ftpUser->username;
-        $basePath = escapeshellarg($domain->getBasePath());
-
-        $container = $domain->type === DomainType::ApacheReverseProxy
-            ? 'php-code-server'
-            : 'frankenphp';
-
-        $userIniPath = escapeshellarg("{$domain->getWebRootPath()}/.user.ini");
-
         try {
-            // Unlock .user.ini before bulk chown (immutable flag prevents ownership change)
-            $portainer->execInContainer(
-                $container,
-                ['sh', '-c', "chattr -i {$userIniPath} 2>/dev/null || true"],
-            );
-
-            $result = $portainer->execInContainer(
-                $container,
-                ['sh', '-c', "chown {$username}:www-data -R {$basePath}"],
-                300,
-            );
-
-            if (! $result->isSuccessful()) {
-                $error = trim($result->errorOutput) !== '' ? trim($result->errorOutput) : trim($result->output);
-                if ($error === '') {
-                    $error = 'Unknown error.';
-                }
-
-                throw new \RuntimeException($error);
-            }
-
-            // Relock .user.ini — root-owned and immutable so site owner cannot tamper
-            $portainer->execInContainer(
-                $container,
-                ['sh', '-c', "chown root:root {$userIniPath} && chmod 444 {$userIniPath} && chattr +i {$userIniPath} 2>/dev/null || true"],
-            );
+            $summary = $ftpUserService->fixPermissions($domain);
 
             AuditLog::create([
                 'user_id' => $request->user()?->id,
                 'action' => 'ftp_permissions_fixed',
                 'domain_id' => $domain->id,
-                'summary' => "chown {$username}:www-data -R on {$domain->getBasePath()}",
+                'summary' => $summary,
             ]);
 
             return response()->json([

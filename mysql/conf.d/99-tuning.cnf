@@ -12,8 +12,13 @@ join_buffer_size = 1M
 
 # Bağlantı yönetimi
 max_connections = 120
-wait_timeout = 30
-interactive_timeout = 30
+# 30 sn idi: PowerDNS'in gmysql backend'i uzun ömürlü bağlantı tutar ve kendi
+# kendine yeniden bağlanmaz — 30 saniye sessizlikten sonra MySQL bağlantıyı
+# kapatınca sonraki sorgu "Backend reported permanent error ... aborting" ile
+# düşüyordu, yani düşük trafikli bir DNS sunucusunda sorguların bir kısmı
+# sessizce kayboluyordu.
+wait_timeout = 600
+interactive_timeout = 600
 
 # Dayanıklılık / performans dengesi
 innodb_flush_log_at_trx_commit = 2
