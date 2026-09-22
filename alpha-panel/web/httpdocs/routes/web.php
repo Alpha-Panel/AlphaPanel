@@ -76,18 +76,15 @@ use Laravel\Fortify\Http\Controllers\TwoFactorAuthenticationController;
 
 Route::get('/manifest.json', [ManifestController::class, 'index'])->name('manifest');
 
-// Webmail compat — bookmark/stale-link handler. SnappyMail SSO URLs
-// (e.g. /mail/index.php?sso&hash=...) get redirected to the actual webmail
-// hostname with the query string preserved.
+// Webmail compat — SnappyMail SSO redirects to /index.php?sso&hash=..., which
+// the /mail/webmail Caddy proxy rewrites to /mail/index.php. Send it back into
+// the same-origin /mail/webmail proxy: the SSO hash is bound to the session
+// cookie on this host, so hopping to MAIL_HOSTNAME leaves a blank page. The raw
+// query string is kept because getQueryString() rewrites "sso" to "sso=".
 Route::any('/mail/index.php', function (Request $request) {
-    $hostname = (string) config('panel.mail.hostname');
-    if ($hostname === '') {
-        abort(404);
-    }
-    $qs = $request->getQueryString();
-    $target = 'https://'.$hostname.'/'.($qs !== null && $qs !== '' ? '?'.$qs : '');
+    $qs = (string) $request->server('QUERY_STRING');
 
-    return redirect()->away($target, 302);
+    return redirect('/mail/webmail/index.php'.($qs !== '' ? '?'.$qs : ''), 302);
 })->name('mail.webmail.compat');
 
 // OAuth authorization code flow (no auth middleware — guest-facing)

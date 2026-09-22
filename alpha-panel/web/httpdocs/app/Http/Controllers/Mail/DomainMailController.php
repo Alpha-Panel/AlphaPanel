@@ -62,7 +62,7 @@ class DomainMailController extends Controller
             'mailboxes' => $mailboxes,
             'aliases' => $aliases,
             'provider_error' => $providerError,
-            'webmail_url' => $hostname ? 'https://'.$hostname.'/' : null,
+            'webmail_url' => config('panel.mail.webmail_panel_url') ?: ($hostname ? 'https://'.$hostname.'/' : null),
         ]);
     }
 }

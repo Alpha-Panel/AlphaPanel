@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Str;
 
 class MailBootstrapCommand extends Command
 {
@@ -24,7 +23,7 @@ class MailBootstrapCommand extends Command
 
         $base = rtrim((string) config('panel.mail.mailu_admin_url'), '/');
         $admin = 'admin@'.config('panel.base_domain');
-        $password = (string) env('MAIL_ADMIN_PASSWORD');
+        $password = (string) config('services.mailu.admin_password');
         if ($password === '') {
             $this->error('MAIL_ADMIN_PASSWORD missing.');
 
