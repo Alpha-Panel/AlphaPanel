@@ -1884,7 +1884,7 @@ yarn.lock
               fi
             '
             docker exec -u root frankenphp supervisorctl restart all
-            curl -X POST http://frankenphp:2019/frankenphp/workers/restart
+            docker exec frankenphp frankenphp reload --config /etc/frankenphp/Caddyfile
 
         '''
       }

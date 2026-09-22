@@ -32,7 +32,9 @@ class UpdateDomainRequest extends FormRequest
                 'string',
                 'max:255',
                 Rule::unique('domains', 'fqdn')->ignore($this->route('domain')),
-                new NotReservedDomain,
+                // Only block renames INTO a reserved name; an already-registered
+                // domain must stay editable (mail hosting, SSL, etc.).
+                $this->fqdnUnchanged() ? null : new NotReservedDomain,
                 // Catch-all domains use the literal "*" and have no RFC hostname
                 // to validate; every other mode must be a real hostname so it
                 // cannot inject directives when written into the Caddyfile.
@@ -140,6 +142,14 @@ class UpdateDomainRequest extends FormRequest
         }
 
         return Domain::find($route);
+    }
+
+    private function fqdnUnchanged(): bool
+    {
+        $current = $this->existingDomain()?->fqdn;
+
+        return $current !== null
+            && strtolower(trim((string) $this->input('fqdn'))) === strtolower($current);
     }
 
     /**

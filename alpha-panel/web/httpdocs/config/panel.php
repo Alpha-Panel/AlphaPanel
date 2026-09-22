@@ -31,6 +31,7 @@ return [
     'docker_timeout' => env('PANEL_DOCKER_TIMEOUT', 15),
     'frankenphp_container' => env('PANEL_FRANKENPHP_CONTAINER', 'frankenphp'),
     'frankenphp_restart_timeout' => (int) env('PANEL_FRANKENPHP_RESTART_TIMEOUT', 5),
+    'caddy_reload_timeout' => (int) env('PANEL_CADDY_RELOAD_TIMEOUT', 300),
     'php_code_server_container' => env('PANEL_PHP_CODE_SERVER_CONTAINER', 'php-code-server'),
     'caddy_admin_url' => env('PANEL_CADDY_ADMIN_URL', 'http://frankenphp:2019'),
 
@@ -227,10 +228,12 @@ return [
     | System Reserved Domains
     |--------------------------------------------------------------------------
     | These domains are used by system services and cannot be registered
-    | as customer domains or subdomains in the panel.
+    | as customer domains or subdomains in the panel. BASE_DOMAIN (the apex)
+    | is never reserved — a misconfigured MAIL_DOMAIN=<apex> must not lock
+    | the customer's main site.
     */
     'system_reserved_domains' => array_values(array_filter(array_map(
-        fn ($v) => is_string($v) ? trim($v) : null,
+        fn ($v) => is_string($v) && strcasecmp(trim($v), trim((string) env('BASE_DOMAIN'))) !== 0 ? trim($v) : null,
         [
             env('PANEL_DOMAIN'),
             env('PMA_DOMAIN'),

@@ -176,10 +176,13 @@ class SupervisorController extends ApiController
         $this->authorize('manageSupervisor', $domain);
 
         try {
+            // `frankenphp reload` re-reads the Caddyfile and gracefully rolls workers.
+            // The admin API's /frankenphp/workers/restart endpoint hard-kills workers,
+            // dropping in-flight requests, so it is deliberately not used here.
             $result = $portainer->execInContainer(
-                'frankenphp',
-                ['sh', '-c', 'curl -sf -X POST http://localhost:2019/frankenphp/workers/restart'],
-                10,
+                (string) config('panel.frankenphp_container', 'frankenphp'),
+                ['frankenphp', 'reload', '--config', (string) config('panel.caddy_reload_config', '/etc/frankenphp/Caddyfile')],
+                (int) config('panel.caddy_reload_timeout', 300),
             );
 
             if (! $result->isSuccessful()) {
