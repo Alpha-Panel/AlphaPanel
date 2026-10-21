@@ -65,7 +65,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Supervisor konfigürasyonu ve Composer
 COPY supervisor.d/ /etc/supervisor/conf.d/
-COPY --from=composer:2.10.2 /usr/bin/composer /usr/local/bin/composer
+COPY --from=composer:2.10.3 /usr/bin/composer /usr/local/bin/composer
 
 RUN ln -sf /usr/bin/python3 /usr/bin/python
 

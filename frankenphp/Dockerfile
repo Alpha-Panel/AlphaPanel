@@ -1,11 +1,13 @@
 # syntax=docker/dockerfile:1
 
-ARG FRANKENPHP_VERSION=1.12.7
+ARG FRANKENPHP_VERSION=1.13.1
+ARG CADDY_VERSION=2.11.7
 FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-builder-php8.5-bookworm AS builder
 ARG FRANKENPHP_VERSION
+ARG CADDY_VERSION
 
 # xcaddy
-COPY --from=caddy:builder /usr/bin/xcaddy /usr/bin/xcaddy
+COPY --from=caddy:2.11.7-builder /usr/bin/xcaddy /usr/bin/xcaddy
 
 # git + ca-certs lazım (repo çekeceğiz)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -17,24 +19,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # FrankenPHP kaynaklarını sabitlenmiş sürümden çek (supply chain güvenliği)
 RUN git clone --depth=1 --branch v${FRANKENPHP_VERSION} https://github.com/php/frankenphp.git /src/frankenphp
 
-# Build: Caddy + FrankenPHP
+# Build: Caddy + FrankenPHP. Plugins are pinned so a new upstream release
+# (e.g. mercure/caddy requiring a newer Go than the builder ships) can't
+# silently break or change the build.
 RUN CGO_ENABLED=1 \
     XCADDY_SETCAP=1 \
     XCADDY_GO_BUILD_FLAGS="-ldflags='-w -s' -tags=nobadger,nomysql,nopgx" \
     CGO_CFLAGS=$(php-config --includes) \
     CGO_LDFLAGS="$(php-config --ldflags) $(php-config --libs)" \
-    xcaddy build \
+    xcaddy build v${CADDY_VERSION} \
         --output /usr/local/bin/frankenphp \
         --with github.com/dunglas/frankenphp=/src/frankenphp \
         --with github.com/dunglas/frankenphp/caddy=/src/frankenphp/caddy \
-        --with github.com/dunglas/caddy-cbrotli \
-        --with github.com/dunglas/mercure/caddy \
-        --with github.com/dunglas/vulcain/caddy \
-        --with github.com/caddy-dns/cloudflare \
-        --with github.com/WeidiDeng/caddy-cloudflare-ip \
-        --with github.com/Javex/caddy-fail2ban@main \
-        --with github.com/lanrat/caddy-dynamic-remoteip \
-        --with github.com/corazawaf/coraza-caddy/v2
+        --with github.com/dunglas/caddy-cbrotli@v1.0.1 \
+        --with github.com/dunglas/mercure/caddy@v1.1.4 \
+        --with github.com/dunglas/vulcain/caddy@v1.4.5 \
+        --with github.com/caddy-dns/cloudflare@v0.2.4 \
+        --with github.com/WeidiDeng/caddy-cloudflare-ip@v0.0.0-20231130002422-f53b62aa13cb \
+        --with github.com/Javex/caddy-fail2ban@v0.0.0-20250425042450-c4139952edef \
+        --with github.com/lanrat/caddy-dynamic-remoteip@v0.0.0-20231007025615-f72ed4fc7b9c \
+        --with github.com/corazawaf/coraza-caddy/v2@v2.6.2
 
 FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-php8.5-bookworm
 
@@ -69,7 +73,7 @@ RUN install-php-extensions \
         ftp \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=composer:2.10.2 /usr/bin/composer /usr/local/bin/composer
+COPY --from=composer:2.10.3 /usr/bin/composer /usr/local/bin/composer
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
