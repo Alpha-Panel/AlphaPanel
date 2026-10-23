@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG FRANKENPHP_VERSION=1.13.1
+ARG FRANKENPHP_VERSION=1.13.3
 ARG CADDY_VERSION=2.11.7
 FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-builder-php8.5-bookworm AS builder
 ARG FRANKENPHP_VERSION

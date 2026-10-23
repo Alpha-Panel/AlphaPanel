@@ -164,7 +164,7 @@ services:
       - "443:443"
 
   crowdsec:
-    image: crowdsecurity/crowdsec:v1.7.6
+    image: crowdsecurity/crowdsec:v1.8.1
     container_name: crowdsec
     restart: unless-stopped
     depends_on:
@@ -393,7 +393,8 @@ services:
       - vhost_network
 
   phpmyadmin:
-    image: phpmyadmin:5.2.3
+    # Digest pinned so `compose up` pulls the 2026-10-22 rebuild (PHP2Shell-patched PHP) over a cached 5.2.3.
+    image: phpmyadmin:5.2.3@sha256:62a50b1419fe55b9b4c3cd6f5aed03a18f8f5b4a236f24735d76400bea75a5ff
     container_name: phpmyadmin
     hostname: ${PMA_DOMAIN}
     restart: always

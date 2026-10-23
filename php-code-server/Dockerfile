@@ -32,6 +32,9 @@ RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
  && apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
+# Bump to force a fresh PHP package install on cached builds (security releases).
+ARG PHP_PACKAGES_REFRESH=2026-10-21
+
 # 2) PHP 7.0–7.4 + core extensions
 RUN apt-get update && apt-get install -y --no-install-recommends \
       php7.0-fpm php7.0-cli php7.0-common php7.0-json php7.0-zip php7.0-mysql php7.0-pgsql php7.0-mbstring php7.0-tokenizer php7.0-xml php7.0-gd php7.0-curl php7.0-intl php7.0-bcmath php7.0-gmp php7.0-memcached php7.0-redis php7.0-imagick \
@@ -82,7 +85,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_26.x | bash - \
  && rm -rf /var/lib/apt/lists/*
 
 # Install code-server
-ARG CODE_SERVER_VERSION=4.131.0
+ARG CODE_SERVER_VERSION=4.141.1
 RUN curl -fsSL https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/code-server_${CODE_SERVER_VERSION}_amd64.deb -o code-server.deb \
  && dpkg -i code-server.deb \
  && rm code-server.deb
