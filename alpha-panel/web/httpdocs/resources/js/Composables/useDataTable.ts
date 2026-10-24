@@ -25,7 +25,7 @@ interface DataTableState {
     orderColumn: Ref<number>;
     orderDir: Ref<'asc' | 'desc'>;
     totalPages: Ref<number>;
-    fetch: () => Promise<void>;
+    fetch: (silent?: boolean) => Promise<void>;
     setPage: (page: number) => void;
     setSearch: (value: string) => void;
     setOrder: (column: number, dir: 'asc' | 'desc') => void;
@@ -58,8 +58,11 @@ export function useDataTable(options: DataTableOptions): DataTableState {
         return options.extraParams.value;
     };
 
-    const fetch = async () => {
-        loading.value = true;
+    // silent: background refresh that keeps the current rows on screen (no "Loading..." flash).
+    const fetch = async (silent = false) => {
+        if (!silent) {
+            loading.value = true;
+        }
         drawCounter++;
         const draw = drawCounter;
 
@@ -85,7 +88,9 @@ export function useDataTable(options: DataTableOptions): DataTableState {
         } catch (error) {
             console.error('DataTable fetch error:', error);
         } finally {
-            loading.value = false;
+            if (!silent) {
+                loading.value = false;
+            }
         }
     };
 

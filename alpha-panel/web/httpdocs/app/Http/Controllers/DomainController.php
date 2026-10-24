@@ -164,6 +164,10 @@ class DomainController extends Controller
             'phpVersions' => $phpVersions,
             'cloudflare_zone' => $cloudflareZone,
             'server_network_ips' => $serverNetworkIps,
+            'deleting_domain_ids' => $domain->subdomains->pluck('id')
+                ->push($domain->id)
+                ->filter(fn (int $id): bool => DeleteDomainJob::isPending($id))
+                ->values(),
         ]);
     }
 
@@ -277,9 +281,12 @@ class DomainController extends Controller
             return response()->json(['message' => __('Domain :fqdn deletion in progress.', ['fqdn' => $fqdn])]);
         }
 
-        return redirect()
-            ->route('domains.index')
-            ->with('success', __('Domain :fqdn deletion in progress.', ['fqdn' => $fqdn]));
+        // Subdomains are only listed (and deleted) on the parent's page, so keep the user there.
+        $redirect = $domain->parent_domain_id !== null
+            ? redirect()->route('domains.show', $domain->parent_domain_id)
+            : redirect()->route('domains.index');
+
+        return $redirect->with('success', __('Domain :fqdn deletion in progress.', ['fqdn' => $fqdn]));
     }
 
     /**
@@ -640,6 +647,7 @@ class DomainController extends Controller
             'show_url' => route('domains.show', $domain),
             'edit_url' => route('domains.edit', $domain),
             'destroy_url' => route('domains.destroy', $domain),
+            'deleting' => DeleteDomainJob::isPending($domain->id),
         ]);
 
         return response()->json([

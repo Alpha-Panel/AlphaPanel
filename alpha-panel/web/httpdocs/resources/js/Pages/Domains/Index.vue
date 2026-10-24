@@ -92,6 +92,7 @@
                                     v-for="domain in table.data.value"
                                     :key="(domain.id as number)"
                                     class="border-t border-gray-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/2"
+                                    :class="{ 'opacity-60': domain.deleting }"
                                 >
                                     <td class="px-5 py-4 md:px-6">
                                         <Link
@@ -183,7 +184,15 @@
                                             >
                                                 <i class="bx bx-edit text-sm"></i>
                                             </Link>
+                                            <span
+                                                v-if="domain.deleting"
+                                                class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-error-500/60 text-white cursor-wait"
+                                                v-tooltip="t('Deleting...')"
+                                            >
+                                                <i class="bx bx-loader-alt animate-spin text-sm"></i>
+                                            </span>
                                             <button
+                                                v-else
                                                 @click="deleteDomain(domain)"
                                                 class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-error-500 text-white hover:bg-error-600"
                                                 v-tooltip="t('Delete')"
@@ -231,7 +240,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
@@ -375,5 +384,29 @@ const deleteDomain = (domain: Record<string, unknown>) => {
         router.delete(domain.destroy_url as string);
     }
 };
+
+// Deletion runs in a queued job that takes minutes; refresh quietly until the row is gone.
+let deletionPoll: ReturnType<typeof setInterval> | null = null;
+
+const stopDeletionPoll = (): void => {
+    if (deletionPoll !== null) {
+        clearInterval(deletionPoll);
+        deletionPoll = null;
+    }
+};
+
+watch(
+    () => table.data.value.some((domain) => domain.deleting === true),
+    (hasPendingDeletion) => {
+        if (!hasPendingDeletion) {
+            stopDeletionPoll();
+        } else if (deletionPoll === null) {
+            // Fresh rows arrive with under_attack = null; the status endpoint is cached server-side.
+            deletionPoll = setInterval(() => void table.fetch(true).then(fetchUnderAttackStatuses), 5000);
+        }
+    },
+);
+
+onBeforeUnmount(stopDeletionPoll);
 
 </script>

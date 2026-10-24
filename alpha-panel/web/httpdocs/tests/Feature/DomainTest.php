@@ -445,6 +445,49 @@ class DomainTest extends TestCase
         Queue::assertPushed(DeleteDomainJob::class, fn (DeleteDomainJob $job): bool => $job->deleteDnsRecords === true);
     }
 
+    public function test_deleting_subdomain_redirects_back_to_parent_page(): void
+    {
+        Queue::fake();
+        $owner = User::factory()->create();
+        $parent = Domain::factory()->create(['fqdn' => 'example.com', 'owner_user_id' => $owner->id]);
+        $subdomain = Domain::factory()->subdomain($parent)->create();
+
+        $response = $this->actingAs($owner)->delete(route('domains.destroy', $subdomain));
+
+        $response->assertRedirect(route('domains.show', $parent));
+        Queue::assertPushed(DeleteDomainJob::class);
+    }
+
+    public function test_queued_deletion_is_reported_as_deleting_until_the_job_runs(): void
+    {
+        Queue::fake();
+        $owner = User::factory()->create();
+        $domain = Domain::factory()->create(['owner_user_id' => $owner->id]);
+        $other = Domain::factory()->create(['owner_user_id' => $owner->id]);
+
+        $this->actingAs($owner)->delete(route('domains.destroy', $domain));
+
+        $rows = collect($this->actingAs($owner)
+            ->getJson(route('domains.json', ['draw' => 1, 'start' => 0, 'length' => 100]))
+            ->json('data'))
+            ->keyBy('id');
+
+        $this->assertTrue($rows[$domain->id]['deleting']);
+        $this->assertFalse($rows[$other->id]['deleting']);
+        $this->assertTrue(DeleteDomainJob::isPending($domain->id));
+    }
+
+    public function test_deleting_flag_is_cleared_once_the_job_finishes(): void
+    {
+        $owner = User::factory()->create();
+        $domain = Domain::factory()->create(['owner_user_id' => $owner->id]);
+
+        $this->actingAs($owner)->delete(route('domains.destroy', $domain));
+
+        $this->assertDatabaseMissing('domains', ['id' => $domain->id]);
+        $this->assertFalse(DeleteDomainJob::isPending($domain->id));
+    }
+
     public function test_owner_can_view_own_domain(): void
     {
         $owner = User::factory()->create();

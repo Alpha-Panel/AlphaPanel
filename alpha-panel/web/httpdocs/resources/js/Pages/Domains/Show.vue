@@ -76,7 +76,15 @@
                                 >
                                     <i class="fa-solid fa-gears text-sm"></i>
                                 </Link>
+                                <span
+                                    v-if="isDeleting(domain.id)"
+                                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-error-500/40 text-error-600 cursor-wait dark:text-error-300"
+                                    v-tooltip="t('Deleting...')"
+                                >
+                                    <i class="bx bx-loader-alt animate-spin text-sm"></i>
+                                </span>
                                 <button
+                                    v-else
                                     type="button"
                                     @click="deleteDomain(domain.id, false, domain.fqdn)"
                                     class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-error-500/40 text-error-600 hover:bg-error-500/10 dark:text-error-300"
@@ -381,6 +389,7 @@
                             v-for="subdomain in subdomains"
                             :key="subdomain.id"
                             class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3"
+                            :class="{ 'opacity-60': isDeleting(subdomain.id) }"
                         >
                             <div class="mb-4 flex items-center">
                                 <h5 class="font-semibold text-gray-800 dark:text-white/90">{{ subdomain.fqdn }}</h5>
@@ -409,7 +418,15 @@
                                     >
                                         <i class="bx bx-envelope text-xs"></i>
                                     </Link>
+                                    <span
+                                        v-if="isDeleting(subdomain.id)"
+                                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-error-500/40 text-error-600 cursor-wait dark:text-error-300"
+                                        v-tooltip="t('Deleting...')"
+                                    >
+                                        <i class="bx bx-loader-alt animate-spin text-xs"></i>
+                                    </span>
                                     <button
+                                        v-else
                                         type="button"
                                         @click="deleteDomain(subdomain.id, true, subdomain.fqdn)"
                                         class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-error-500/40 text-error-600 hover:bg-error-500/10 dark:text-error-300"
@@ -739,7 +756,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
@@ -819,6 +836,7 @@ const props = defineProps<{
         public: string[];
         private: string[];
     };
+    deleting_domain_ids?: number[];
 }>();
 
 const { addToast } = useToast();
@@ -876,6 +894,7 @@ const isCloudflareManagedForDns = computed(() => {
 const canManagePhpSettings = computed(() => domain.value.type === 'apache_reverse_proxy' || domain.value.type === 'caddy_fastcgi');
 const hasStoredFtpPassword = computed(() => Boolean(domain.value.ftp_user?.encrypted_password));
 const subdomains = computed(() => domain.value.subdomains ?? []);
+const isDeleting = (domainId: number): boolean => (props.deleting_domain_ids ?? []).includes(domainId);
 
 const mailHosting = computed(() => (domain.value.mail_hosting ?? 'disabled') as string);
 const mailFeaturesPage = usePage<{ features?: { mailu?: boolean; zimbra?: boolean } }>();
@@ -1968,7 +1987,34 @@ onMounted(() => {
         });
 });
 
+// Subdomain deletion is a minutes-long queued job; reload until the card disappears.
+// Only subdomains are polled: once this page's own domain is gone the reload would 404.
+let subdomainDeletionPoll: ReturnType<typeof setInterval> | null = null;
+
+const stopSubdomainDeletionPoll = (): void => {
+    if (subdomainDeletionPoll !== null) {
+        clearInterval(subdomainDeletionPoll);
+        subdomainDeletionPoll = null;
+    }
+};
+
+watch(
+    () => subdomains.value.some((subdomain: Record<string, any>) => isDeleting(subdomain.id)),
+    (hasPendingDeletion) => {
+        if (!hasPendingDeletion) {
+            stopSubdomainDeletionPoll();
+        } else if (subdomainDeletionPoll === null) {
+            subdomainDeletionPoll = setInterval(() => {
+                router.reload({ only: ['domain', 'deleting_domain_ids'] });
+            }, 5000);
+        }
+    },
+    { immediate: true },
+);
+
 onBeforeUnmount(() => {
+    stopSubdomainDeletionPoll();
+
     if (typeof window.Echo === 'undefined') {
         return;
     }

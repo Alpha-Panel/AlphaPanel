@@ -21,6 +21,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 
@@ -52,6 +53,26 @@ class DeleteDomainJob implements ShouldQueue
     ) {
         $this->fqdn = $domain->fqdn;
         $this->ownerUserId = $domain->owner_user_id;
+
+        // TTL outlives the job timeout; if a worker dies mid-run the flag still expires on its own.
+        Cache::put(self::pendingCacheKey($domain->id), true, $this->timeout + 300);
+    }
+
+    /**
+     * Whether a deletion of the domain is queued or running.
+     *
+     * The job reloads Caddy (WAF/CRS compile) and PHP-FPM, so it routinely takes
+     * minutes. Without this the panel kept listing the domain as if the delete
+     * had been ignored.
+     */
+    public static function isPending(int $domainId): bool
+    {
+        return Cache::has(self::pendingCacheKey($domainId));
+    }
+
+    private static function pendingCacheKey(int $domainId): string
+    {
+        return "domains:{$domainId}:deleting";
     }
 
     public function handle(
@@ -149,6 +170,8 @@ class DeleteDomainJob implements ShouldQueue
             }
 
             throw $e;
+        } finally {
+            Cache::forget(self::pendingCacheKey($domain->id));
         }
     }
 
