@@ -31,6 +31,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -287,6 +288,42 @@ class DomainController extends Controller
             : redirect()->route('domains.index');
 
         return $redirect->with('success', __('Domain :fqdn deletion in progress.', ['fqdn' => $fqdn]));
+    }
+
+    /**
+     * Deletion progress for the given domain ids, polled by the progress toast.
+     *
+     * A missing domain is reported as deleted without touching the cache, so an id
+     * that was never visible to this user leaks nothing but "not here".
+     */
+    public function deletionStatus(Request $request): JsonResponse
+    {
+        $ids = collect(Arr::wrap($request->input('ids')))
+            ->map(fn (mixed $id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->take(50);
+
+        $domains = Domain::query()->whereKey($ids)->get()->keyBy('id');
+        $statuses = [];
+
+        foreach ($ids as $id) {
+            $domain = $domains->get($id);
+
+            if ($domain === null) {
+                $statuses[$id] = ['state' => 'deleted', 'percent' => 100, 'message' => null];
+
+                continue;
+            }
+
+            if ($request->user()->cannot('view', $domain)) {
+                continue;
+            }
+
+            $statuses[$id] = DeleteDomainJob::progress($id) ?? ['state' => 'idle', 'percent' => 0, 'message' => null];
+        }
+
+        return response()->json(['data' => $statuses]);
     }
 
     /**

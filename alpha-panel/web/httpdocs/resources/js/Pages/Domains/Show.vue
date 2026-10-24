@@ -770,6 +770,7 @@ import { useI18n } from '@/Composables/useI18n';
 import { useDomainMode } from '@/Composables/useDomainMode';
 import { useCan } from '@/Composables/useCan';
 import { useTerminal } from '@/Composables/useTerminal';
+import { useProvisionProgress } from '@/Composables/useProvisionProgress';
 import { formatDateTime } from '@/utils/dateTime';
 import { loadSweetAlert } from '@/utils/sweetalert';
 
@@ -843,6 +844,7 @@ const { addToast } = useToast();
 const { t } = useI18n();
 const { can } = useCan();
 const { domainModeLabel } = useDomainMode();
+const { jobs: progressJobs, trackDeletion } = useProvisionProgress();
 const terminal = useTerminal();
 
 const domain = computed(() => props.domain);
@@ -1554,18 +1556,19 @@ const deleteDomain = async (domainId: number, isChild: boolean, fqdn: string) =>
         return;
     }
 
-    router.delete(route('domains.destroy', domainId), {
-        data: {
-            delete_dns_record: deleteDnsRecord,
-        },
-        preserveScroll: true,
-        onSuccess: () => {
-            addToast('success', t('Domain deletion in progress.'));
-        },
-        onError: () => {
-            addToast('error', t('Delete failed.'));
-        },
-    });
+    // JSON delete instead of an Inertia visit: stay on this page and let the progress
+    // toast follow the minutes-long job instead of redirecting away from it.
+    try {
+        await axios.delete(route('domains.destroy', domainId), {
+            data: {
+                delete_dns_record: deleteDnsRecord,
+            },
+        });
+        trackDeletion(domainId, fqdn);
+        router.reload({ only: ['domain', 'deleting_domain_ids'] });
+    } catch (error: any) {
+        addToast('error', String(error?.response?.data?.message ?? t('Delete failed.')));
+    }
 };
 
 const generateFtpPassword = () => {
@@ -1987,34 +1990,43 @@ onMounted(() => {
         });
 });
 
-// Subdomain deletion is a minutes-long queued job; reload until the card disappears.
-// Only subdomains are polled: once this page's own domain is gone the reload would 404.
-let subdomainDeletionPoll: ReturnType<typeof setInterval> | null = null;
-
-const stopSubdomainDeletionPoll = (): void => {
-    if (subdomainDeletionPoll !== null) {
-        clearInterval(subdomainDeletionPoll);
-        subdomainDeletionPoll = null;
-    }
-};
-
+// Deletions already running when the page loads (reload, another tab) get a progress toast too.
 watch(
-    () => subdomains.value.some((subdomain: Record<string, any>) => isDeleting(subdomain.id)),
-    (hasPendingDeletion) => {
-        if (!hasPendingDeletion) {
-            stopSubdomainDeletionPoll();
-        } else if (subdomainDeletionPoll === null) {
-            subdomainDeletionPoll = setInterval(() => {
-                router.reload({ only: ['domain', 'deleting_domain_ids'] });
-            }, 5000);
-        }
+    () => props.deleting_domain_ids ?? [],
+    (deletingIds) => {
+        const candidates = [domain.value, ...subdomains.value] as Array<Record<string, any>>;
+
+        candidates
+            .filter((candidate) => deletingIds.includes(candidate.id))
+            .forEach((candidate) => trackDeletion(candidate.id, candidate.fqdn));
     },
     { immediate: true },
 );
 
-onBeforeUnmount(() => {
-    stopSubdomainDeletionPoll();
+// When a deletion ends: leave the page if it was this domain, otherwise refresh the cards.
+watch(
+    () => progressJobs.value
+        .filter((job) => job.kind === 'delete' && job.status !== 'running')
+        .map((job) => `${job.domainId}:${job.status}`)
+        .join(','),
+    (finished) => {
+        if (finished === '') {
+            return;
+        }
 
+        const pageDomainDeleted = progressJobs.value.some(
+            (job) => job.kind === 'delete' && job.domainId === domain.value.id && job.status === 'success',
+        );
+
+        if (pageDomainDeleted) {
+            router.visit(route('domains.index'));
+        } else {
+            router.reload({ only: ['domain', 'deleting_domain_ids'] });
+        }
+    },
+);
+
+onBeforeUnmount(() => {
     if (typeof window.Echo === 'undefined') {
         return;
     }

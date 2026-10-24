@@ -240,8 +240,8 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { onMounted, ref, watch } from 'vue';
+import { Head, Link } from '@inertiajs/vue3';
 import axios from 'axios';
 import ThemeProvider from '@/Components/Layout/ThemeProvider.vue';
 import SidebarProvider from '@/Components/Layout/SidebarProvider.vue';
@@ -254,6 +254,7 @@ import DomainCreateModal from '@/Components/Domains/DomainCreateModal.vue';
 import { useI18n } from '@/Composables/useI18n';
 import { useToast } from '@/Composables/useToast';
 import { useDomainMode } from '@/Composables/useDomainMode';
+import { useProvisionProgress } from '@/Composables/useProvisionProgress';
 
 defineProps<{
     phpVersions: Array<Record<string, any>>;
@@ -272,6 +273,7 @@ const showCreateDomainModal = ref(false);
 const { t } = useI18n();
 const { addToast } = useToast();
 const { domainModeLabel } = useDomainMode();
+const { jobs: progressJobs, trackDeletion } = useProvisionProgress();
 
 onMounted(() => {
     const query = new URLSearchParams(window.location.search);
@@ -379,34 +381,46 @@ const toggleSort = (column: number) => {
     }
 };
 
-const deleteDomain = (domain: Record<string, unknown>) => {
-    if (confirm(t('Are you sure you want to delete :fqdn?', { fqdn: String(domain.fqdn ?? '') }))) {
-        router.delete(domain.destroy_url as string);
+// Fresh rows arrive with under_attack = null; the status endpoint is cached server-side.
+const refreshRows = (): Promise<void> => table.fetch(true).then(fetchUnderAttackStatuses);
+
+// JSON delete instead of an Inertia visit: the job takes minutes, so stay on the list and
+// let the progress toast report it rather than redirecting to an unchanged page.
+const deleteDomain = async (domain: Record<string, unknown>) => {
+    const fqdn = String(domain.fqdn ?? '');
+
+    if (!confirm(t('Are you sure you want to delete :fqdn?', { fqdn }))) {
+        return;
+    }
+
+    try {
+        await axios.delete(domain.destroy_url as string);
+        trackDeletion(Number(domain.id), fqdn);
+        await refreshRows();
+    } catch (error: any) {
+        addToast('error', String(error?.response?.data?.message ?? t('Delete failed.')));
     }
 };
 
-// Deletion runs in a queued job that takes minutes; refresh quietly until the row is gone.
-let deletionPoll: ReturnType<typeof setInterval> | null = null;
-
-const stopDeletionPoll = (): void => {
-    if (deletionPoll !== null) {
-        clearInterval(deletionPoll);
-        deletionPoll = null;
-    }
-};
-
+// Rows already being deleted (page reload, another tab) get a progress toast too.
 watch(
-    () => table.data.value.some((domain) => domain.deleting === true),
-    (hasPendingDeletion) => {
-        if (!hasPendingDeletion) {
-            stopDeletionPoll();
-        } else if (deletionPoll === null) {
-            // Fresh rows arrive with under_attack = null; the status endpoint is cached server-side.
-            deletionPoll = setInterval(() => void table.fetch(true).then(fetchUnderAttackStatuses), 5000);
-        }
+    () => table.data.value,
+    (rows) => {
+        rows.filter((domain) => domain.deleting === true)
+            .forEach((domain) => trackDeletion(Number(domain.id), String(domain.fqdn ?? '')));
     },
 );
 
-onBeforeUnmount(stopDeletionPoll);
+watch(
+    () => progressJobs.value
+        .filter((job) => job.kind === 'delete' && job.status !== 'running')
+        .map((job) => `${job.domainId}:${job.status}`)
+        .join(','),
+    (finished) => {
+        if (finished !== '') {
+            void refreshRows();
+        }
+    },
+);
 
 </script>

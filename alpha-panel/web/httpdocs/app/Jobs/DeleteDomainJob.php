@@ -54,25 +54,46 @@ class DeleteDomainJob implements ShouldQueue
         $this->fqdn = $domain->fqdn;
         $this->ownerUserId = $domain->owner_user_id;
 
-        // TTL outlives the job timeout; if a worker dies mid-run the flag still expires on its own.
-        Cache::put(self::pendingCacheKey($domain->id), true, $this->timeout + 300);
+        self::reportProgress($domain->id, 0, __('Waiting in queue...'));
     }
 
     /**
-     * Whether a deletion of the domain is queued or running.
+     * Progress of the domain's deletion, or null when none is queued, running or just failed.
      *
      * The job reloads Caddy (WAF/CRS compile) and PHP-FPM, so it routinely takes
-     * minutes. Without this the panel kept listing the domain as if the delete
-     * had been ignored.
+     * minutes. The panel polls this to show a progress bar instead of a domain
+     * that looks like the delete was ignored. Kept in the cache rather than
+     * broadcast so it also works when Reverb is unreachable.
+     *
+     * @return array{state: 'running'|'failed', percent: int, message: string}|null
      */
-    public static function isPending(int $domainId): bool
+    public static function progress(int $domainId): ?array
     {
-        return Cache::has(self::pendingCacheKey($domainId));
+        return Cache::get(self::progressCacheKey($domainId));
     }
 
-    private static function pendingCacheKey(int $domainId): string
+    public static function isPending(int $domainId): bool
     {
-        return "domains:{$domainId}:deleting";
+        return (self::progress($domainId)['state'] ?? null) === 'running';
+    }
+
+    /**
+     * @param  'running'|'failed'  $state
+     */
+    private static function reportProgress(int $domainId, int $percent, string $message, string $state = 'running'): void
+    {
+        // An hour covers a queue backlog plus the 900s run, and still expires if a worker
+        // dies mid-run. A failure only has to live long enough for the poller to read it.
+        Cache::put(
+            self::progressCacheKey($domainId),
+            ['state' => $state, 'percent' => $percent, 'message' => $message],
+            $state === 'running' ? 3600 : 120,
+        );
+    }
+
+    private static function progressCacheKey(int $domainId): string
+    {
+        return "domains:{$domainId}:deletion";
     }
 
     public function handle(
@@ -90,19 +111,23 @@ class DeleteDomainJob implements ShouldQueue
         // finished before failing), don't double-process and don't duplicate audit logs.
         if (! Domain::query()->whereKey($domain->id)->exists()) {
             Log::info("Domain {$fqdn} already deleted; skipping job.");
+            Cache::forget(self::progressCacheKey($domain->id));
 
             return;
         }
 
         try {
             Log::info("Starting deletion of domain {$fqdn}");
+            self::reportProgress($domain->id, 10, __('Deleting...'));
 
             $domain->loadMissing(['ftpUser', 'phpVersion']);
+            self::reportProgress($domain->id, 30, __('Removing files and configuration...'));
             $requiresApacheReload = $this->deleteSubdomains($domain, $configService, $cloudflareDnsService);
             $requiresApacheReload = $requiresApacheReload || $domain->type === DomainType::ApacheReverseProxy;
 
             $this->removeDomainResources($domain, $configService, $cloudflareDnsService, $localDnsService);
 
+            self::reportProgress($domain->id, 60, __('Reloading web server...'));
             $reloadService->reloadCaddy();
 
             if ($requiresApacheReload) {
@@ -149,9 +174,16 @@ class DeleteDomainJob implements ShouldQueue
 
             DomainDeleted::dispatch($this->ownerUserId, $fqdn);
 
+            Cache::forget(self::progressCacheKey($domain->id));
+
             Log::info("Domain {$fqdn} deleted successfully.");
         } catch (\Throwable $e) {
             Log::error("Failed to delete domain {$fqdn}: {$e->getMessage()}");
+
+            self::reportProgress($domain->id, 100, __('Failed to delete domain :fqdn: :error', [
+                'fqdn' => $fqdn,
+                'error' => $e->getMessage(),
+            ]), 'failed');
 
             $owner = User::find($this->ownerUserId);
             if ($owner) {
@@ -170,8 +202,6 @@ class DeleteDomainJob implements ShouldQueue
             }
 
             throw $e;
-        } finally {
-            Cache::forget(self::pendingCacheKey($domain->id));
         }
     }
 

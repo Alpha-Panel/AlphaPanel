@@ -180,6 +180,7 @@ Route::middleware('auth')->group(function (): void {
     Route::get('domains-json', [DomainController::class, 'json'])->name('domains.json');
     Route::get('domains-under-attack-statuses', [DomainController::class, 'underAttackStatuses'])->name('domains.under-attack-statuses');
     Route::get('domains-search', [DomainController::class, 'search'])->name('domains.search');
+    Route::get('domains-deletion-status', [DomainController::class, 'deletionStatus'])->name('domains.deletion-status');
 
     // Domain FTP Management
     Route::put('domains/{domain}/ftp', [DomainController::class, 'updateFtp'])

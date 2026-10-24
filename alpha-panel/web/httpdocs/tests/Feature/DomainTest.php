@@ -477,6 +477,50 @@ class DomainTest extends TestCase
         $this->assertTrue(DeleteDomainJob::isPending($domain->id));
     }
 
+    public function test_ajax_delete_returns_json_instead_of_a_redirect(): void
+    {
+        Queue::fake();
+        $owner = User::factory()->create();
+        $domain = Domain::factory()->create(['owner_user_id' => $owner->id]);
+
+        $this->actingAs($owner)
+            ->deleteJson(route('domains.destroy', $domain))
+            ->assertOk()
+            ->assertJsonStructure(['message']);
+
+        Queue::assertPushed(DeleteDomainJob::class);
+    }
+
+    public function test_deletion_status_reports_queued_idle_and_deleted_domains(): void
+    {
+        Queue::fake();
+        $owner = User::factory()->create();
+        $domain = Domain::factory()->create(['owner_user_id' => $owner->id]);
+        $other = Domain::factory()->create(['owner_user_id' => $owner->id]);
+
+        $this->actingAs($owner)->deleteJson(route('domains.destroy', $domain));
+
+        $this->actingAs($owner)
+            ->getJson(route('domains.deletion-status', ['ids' => [$domain->id, $other->id, 999999]]))
+            ->assertOk()
+            ->assertJsonPath("data.{$domain->id}.state", 'running')
+            ->assertJsonPath("data.{$domain->id}.percent", 0)
+            ->assertJsonPath("data.{$other->id}.state", 'idle')
+            ->assertJsonPath('data.999999.state', 'deleted');
+    }
+
+    public function test_deletion_status_hides_domains_the_user_cannot_view(): void
+    {
+        $owner = User::factory()->create();
+        $stranger = User::factory()->create();
+        $domain = Domain::factory()->create(['owner_user_id' => $owner->id]);
+
+        $this->actingAs($stranger)
+            ->getJson(route('domains.deletion-status', ['ids' => [$domain->id]]))
+            ->assertOk()
+            ->assertJsonMissingPath("data.{$domain->id}");
+    }
+
     public function test_deleting_flag_is_cleared_once_the_job_finishes(): void
     {
         $owner = User::factory()->create();
