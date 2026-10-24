@@ -441,21 +441,31 @@ class DomainTest extends TestCase
             'delete_dns_record' => true,
         ]);
 
-        $response->assertRedirect(route('domains.index'));
+        $response->assertOk();
         Queue::assertPushed(DeleteDomainJob::class, fn (DeleteDomainJob $job): bool => $job->deleteDnsRecords === true);
     }
 
-    public function test_deleting_subdomain_redirects_back_to_parent_page(): void
+    public function test_domain_delete_never_redirects_for_any_client(): void
     {
         Queue::fake();
         $owner = User::factory()->create();
         $parent = Domain::factory()->create(['fqdn' => 'example.com', 'owner_user_id' => $owner->id]);
         $subdomain = Domain::factory()->subdomain($parent)->create();
 
-        $response = $this->actingAs($owner)->delete(route('domains.destroy', $subdomain));
+        // Plain form post, Inertia visit (a stale JS bundle), and XHR must all get JSON 200.
+        $this->actingAs($owner)->delete(route('domains.destroy', $subdomain))
+            ->assertOk()
+            ->assertJsonPath('domain_id', $subdomain->id);
 
-        $response->assertRedirect(route('domains.show', $parent));
-        Queue::assertPushed(DeleteDomainJob::class);
+        $this->actingAs($owner)->delete(route('domains.destroy', $parent), [], ['X-Inertia' => 'true'])
+            ->assertOk()
+            ->assertJsonPath('domain_id', $parent->id);
+
+        $this->actingAs($owner)->deleteJson(route('domains.destroy', $parent))
+            ->assertOk()
+            ->assertJsonPath('domain_id', $parent->id);
+
+        Queue::assertPushed(DeleteDomainJob::class, 3);
     }
 
     public function test_queued_deletion_is_reported_as_deleting_until_the_job_runs(): void
@@ -584,7 +594,7 @@ class DomainTest extends TestCase
 
         $response = $this->actingAs($admin)->delete(route('domains.destroy', $domain));
 
-        $response->assertRedirect(route('domains.index'));
+        $response->assertOk();
         $this->assertDatabaseMissing('domains', ['id' => $domain->id]);
     }
 
@@ -599,7 +609,7 @@ class DomainTest extends TestCase
 
         $response = $this->actingAs($owner)->delete(route('domains.destroy', $parent));
 
-        $response->assertRedirect(route('domains.index'));
+        $response->assertOk();
         $this->assertDatabaseMissing('domains', ['id' => $parent->id]);
         $this->assertDatabaseMissing('domains', ['id' => $subdomain->id]);
     }

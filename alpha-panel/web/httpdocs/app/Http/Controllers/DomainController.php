@@ -262,32 +262,29 @@ class DomainController extends Controller
             ->with('success', "Domain {$domain->fqdn} updated successfully.");
     }
 
-    public function destroy(Request $request, Domain $domain): RedirectResponse|JsonResponse
+    /**
+     * Queue the deletion and answer with JSON — never a redirect, for any client.
+     *
+     * The job takes minutes, so a redirect only ever landed the user on a page where
+     * the domain was still listed. The UI tracks progress via deletionStatus().
+     */
+    public function destroy(Request $request, Domain $domain): JsonResponse
     {
         $this->authorize('delete', $domain);
-
-        $fqdn = $domain->fqdn;
-        $deleteDnsRecord = $request->boolean('delete_dns_record');
 
         DeleteDomainJob::dispatch(
             $domain,
             $request->user()->id,
             app()->getLocale(),
-            $deleteDnsRecord,
+            $request->boolean('delete_dns_record'),
             $request->ip(),
             is_numeric($request->server('REMOTE_PORT')) ? (int) $request->server('REMOTE_PORT') : null,
         );
 
-        if (! $request->header('X-Inertia') && ($request->ajax() || $request->wantsJson())) {
-            return response()->json(['message' => __('Domain :fqdn deletion in progress.', ['fqdn' => $fqdn])]);
-        }
-
-        // Subdomains are only listed (and deleted) on the parent's page, so keep the user there.
-        $redirect = $domain->parent_domain_id !== null
-            ? redirect()->route('domains.show', $domain->parent_domain_id)
-            : redirect()->route('domains.index');
-
-        return $redirect->with('success', __('Domain :fqdn deletion in progress.', ['fqdn' => $fqdn]));
+        return response()->json([
+            'message' => __('Domain :fqdn deletion in progress.', ['fqdn' => $domain->fqdn]),
+            'domain_id' => $domain->id,
+        ]);
     }
 
     /**
