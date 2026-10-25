@@ -244,11 +244,15 @@ return [
     | Warning: Enabling storage.open will allow everyone to access previous
     | request, do not enable open storage in publicly available environments!
     | Specify a callback if you want to limit based on IP or authentication.
-    | Leaving it to null will allow localhost only.
+    |
+    | Defaults to false, not null: null makes Debugbar check the client IP, and
+    | when the Octane worker boots there is no request IP yet. Symfony throws
+    | `"" is not a valid IP address`, every worker fails to boot and FrankenPHP
+    | never starts listening, which takes the whole panel down.
     */
     'storage' => [
         'enabled' => env('DEBUGBAR_STORAGE_ENABLED', true),
-        'open' => env('DEBUGBAR_OPEN_STORAGE'), // bool/callback.
+        'open' => env('DEBUGBAR_OPEN_STORAGE', false), // bool/callback.
         'driver' => env('DEBUGBAR_STORAGE_DRIVER', 'file'), // redis, file, sqlite, pdo, custom
         'path' => env('DEBUGBAR_STORAGE_PATH', storage_path('debugbar')), // For file driver
         'connection' => env('DEBUGBAR_STORAGE_CONNECTION'), // Leave null for default connection (Redis/PDO)

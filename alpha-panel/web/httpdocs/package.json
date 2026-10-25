@@ -3,18 +3,18 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build",
+        "build": "vite build && vite build --ssr",
         "dev": "vite"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
         "@types/node": "^25.3.0",
-        "axios": "^1.19.0",
+        "axios": "^1.20.0",
         "concurrently": "^9.0.1",
         "laravel-vite-plugin": "^3.0.1",
         "tailwindcss": "^4.0.0",
         "typescript": "^5.9.3",
-        "vite": "^8.0.16",
+        "vite": "^8.1.6",
         "vue-tsc": "^3.2.5"
     },
     "dependencies": {
@@ -27,10 +27,10 @@
         "laravel-echo": "^2.3.0",
         "monaco-editor": "^0.53.0",
         "pusher-js": "^8.4.0",
-        "vue": "^3.5.29",
+        "vue": "^3.5.42",
         "ziggy-js": "^2.6.1"
     },
     "overrides": {
-        "shell-quote": "^1.10.0"
+        "shell-quote": "^1.11.0"
     }
 }

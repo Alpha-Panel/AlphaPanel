@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Inertia\Middleware;
+use Tighten\Ziggy\Ziggy;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -135,6 +136,21 @@ class HandleInertiaRequests extends Middleware
                 false,
                 false,
             ),
+        ];
+    }
+
+    /**
+     * Ziggy's route list for the SSR renderer, which has no @routes global.
+     *
+     * A once-prop: it rides along with the first page load (the only one SSR
+     * renders) and is not resent on every Inertia visit.
+     *
+     * @return array<string, mixed>
+     */
+    public function shareOnce(Request $request): array
+    {
+        return [
+            'ziggy' => fn (): array => [...(new Ziggy)->toArray(), 'location' => $request->url()],
         ];
     }
 

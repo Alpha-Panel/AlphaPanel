@@ -13,25 +13,12 @@ ALLOWED_CONF_FILES = {"10-security.cnf", "99-tuning.cnf", "disable_binlog.cnf"}
 
 
 def _conf_path(project_root: str, filename: str) -> Path:
-    if filename not in ALLOWED_CONF_FILES:
+    # Use the allowlisted constant, never the caller's string, to build the path.
+    safe_name = next((name for name in ALLOWED_CONF_FILES if name == filename), None)
+    if safe_name is None:
         raise ValueError(f"Invalid filename: {filename}")
 
-    # Defense in depth: only allow a plain basename, never a path.
-    candidate = Path(filename)
-    if candidate.name != filename or candidate.is_absolute() or ".." in candidate.parts:
-        raise ValueError(f"Unsafe filename path: {filename}")
-    if "/" in filename or "\\" in filename:
-        raise ValueError(f"Unsafe filename path: {filename}")
-
-    base_dir = (Path(project_root) / "mysql" / "conf.d").resolve()
-    path = (base_dir / filename).resolve()
-
-    try:
-        path.relative_to(base_dir)
-    except ValueError as exc:
-        raise ValueError(f"Unsafe filename path: {filename}") from exc
-
-    return path
+    return (Path(project_root) / "mysql" / "conf.d" / safe_name).resolve()
 
 
 def validate_filename(filename: str) -> bool:
