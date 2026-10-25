@@ -131,7 +131,7 @@ class FileManagerController extends Controller
         ]);
 
         $fileManager = $this->resolveFileManager($domain);
-        $directory = $request->input('directory', '');
+        $directory = (string) $request->input('directory');
         $uploaded = [];
 
         foreach ($request->file('files') as $file) {
@@ -218,7 +218,7 @@ class FileManagerController extends Controller
         ]);
 
         $fileManager = $this->resolveFileManager($domain);
-        $directory = $fileManager->normalizePath($request->input('directory', ''));
+        $directory = $fileManager->normalizePath((string) $request->input('directory'));
         $name = $request->input('name');
 
         if (! str_ends_with($name, '.zip')) {
@@ -246,7 +246,7 @@ class FileManagerController extends Controller
 
         $fileManager = $this->resolveFileManager($domain);
         $zipPath = $request->input('path');
-        $directory = $request->input('directory', '');
+        $directory = (string) $request->input('directory');
 
         $fileManager->decompress($zipPath, $directory);
 

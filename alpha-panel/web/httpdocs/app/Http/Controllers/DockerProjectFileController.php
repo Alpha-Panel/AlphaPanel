@@ -92,7 +92,7 @@ class DockerProjectFileController extends Controller
         ]);
 
         $fm = $this->resolveFileManager($dockerProject);
-        $directory = $request->input('directory', '');
+        $directory = (string) $request->input('directory');
         $uploaded = [];
 
         foreach ($request->file('files') as $file) {
