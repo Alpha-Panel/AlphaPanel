@@ -199,7 +199,12 @@ class DomainController extends Controller
         $validated = $request->validated();
 
         if ($domain->parent_domain_id !== null) {
-            $validated['owner_user_id'] = (int) ($domain->parentDomain()->value('owner_user_id') ?? $domain->owner_user_id);
+            $inheritedOwnerId = $domain->parentDomain()->value('owner_user_id') ?? $domain->owner_user_id;
+            if ($inheritedOwnerId === null) {
+                unset($validated['owner_user_id']);
+            } else {
+                $validated['owner_user_id'] = (int) $inheritedOwnerId;
+            }
         } elseif (! $request->user()->isAdmin() || empty($validated['owner_user_id'])) {
             unset($validated['owner_user_id']);
         }

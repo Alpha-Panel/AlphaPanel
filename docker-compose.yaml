@@ -197,7 +197,6 @@ services:
     container_name: php-code-server
     hostname: php-code-server
     restart: always
-    user: root
     security_opt:
       - no-new-privileges:true
     environment:
@@ -206,7 +205,6 @@ services:
       - PROXY_DOMAIN=${CODE_SERVER_DOMAIN}:7443
       - DEFAULT_WORKSPACE=/var/www/vhosts
       - TZ=${APP_TIMEZONE:-Europe/Istanbul}
-      - ALLOW_ROOT=true
     volumes:
       - ./php-code-server/run/:/run/php/
       - ./vhosts:/var/www/vhosts

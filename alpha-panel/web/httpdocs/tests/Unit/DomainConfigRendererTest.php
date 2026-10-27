@@ -526,7 +526,7 @@ class DomainConfigRendererTest extends TestCase
         $this->assertStringContainsString('user = testpooluser', $capturedContent);
         $this->assertStringContainsString('group = www-data', $capturedContent);
         $this->assertStringNotContainsString('group = testpooluser', $capturedContent);
-        $this->assertStringContainsString('process.umask = 0022', $capturedContent);
+        $this->assertStringNotContainsString('process.umask', $capturedContent);
     }
 
     public function test_php_fpm_pool_omits_umask_for_php_80(): void
