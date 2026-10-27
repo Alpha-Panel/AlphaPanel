@@ -197,8 +197,6 @@ services:
     container_name: php-code-server
     hostname: php-code-server
     restart: always
-    security_opt:
-      - no-new-privileges:true
     environment:
       - PASSWORD=${CODE_SERVER_PASSWORD}
       - SUDO_PASSWORD=${CODE_SERVER_SUDO_PASSWORD}
