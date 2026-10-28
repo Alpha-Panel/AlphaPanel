@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\PhpVersion;
+use App\Services\Portainer\PortainerContainerClient;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Log;
 
@@ -31,7 +32,7 @@ class ReloadService
             $client = new Client(['connect_timeout' => 5, 'timeout' => $reloadTimeout]);
 
             $listResp = $client->get("{$proxyUrl}/containers/json", [
-                'query' => ['filters' => json_encode(['name' => [$container]])],
+                'query' => ['filters' => json_encode(['name' => [PortainerContainerClient::exactNameFilter($container)]])],
             ]);
             $containers = json_decode($listResp->getBody()->getContents(), true);
             $containerId = $containers[0]['Id'] ?? null;
@@ -105,7 +106,7 @@ class ReloadService
             $listResp = $client->get("{$proxyUrl}/containers/json", [
                 'query' => [
                     'all' => 'true',
-                    'filters' => json_encode(['name' => [$container]]),
+                    'filters' => json_encode(['name' => [PortainerContainerClient::exactNameFilter($container)]]),
                 ],
             ]);
             $containers = json_decode($listResp->getBody()->getContents(), true);

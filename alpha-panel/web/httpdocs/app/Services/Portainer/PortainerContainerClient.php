@@ -45,7 +45,7 @@ class PortainerContainerClient
     public function findContainerByName(string $name): array
     {
         $containers = $this->listContainers(
-            filters: ['name' => [$name]],
+            filters: ['name' => [self::exactNameFilter($name)]],
             all: false,
         );
 
@@ -54,6 +54,16 @@ class PortainerContainerClient
         }
 
         return $containers[0];
+    }
+
+    /**
+     * Docker's `name` filter is an unanchored regex, so "frankenphp" also matches
+     * "fix-frankenphp" and a lookup can land on a different compose project's
+     * container. Anchor it to the exact container name.
+     */
+    public static function exactNameFilter(string $name): string
+    {
+        return '^/?'.preg_quote($name, '/').'$';
     }
 
     /**
@@ -68,7 +78,7 @@ class PortainerContainerClient
         // Use docker-socket-proxy directly for faster, more reliable resolution
         $response = Http::connectTimeout(5)->timeout(10)
             ->get($this->http->directDockerApiUrl('/containers/json'), [
-                'filters' => json_encode(['name' => [$containerIdOrName]]),
+                'filters' => json_encode(['name' => [self::exactNameFilter($containerIdOrName)]]),
             ]);
 
         if ($response->successful()) {
