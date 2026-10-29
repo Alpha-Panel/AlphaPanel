@@ -10,6 +10,19 @@ layer(base);
 @source '../js/**/*.vue';
 @source '../js/**/*.ts';
 
+/* In-app tab strip height; 0 when no secondary tab is open so layout is unchanged. */
+:root {
+  --app-tabs-h: 0px;
+}
+
+html.has-app-tabs {
+  --app-tabs-h: 2.25rem;
+}
+
+html.has-app-tabs body {
+  padding-top: var(--app-tabs-h);
+}
+
 @font-face {
   font-family: 'Gokturk';
   src: url('../fonts/gokturk.ttf') format('truetype');

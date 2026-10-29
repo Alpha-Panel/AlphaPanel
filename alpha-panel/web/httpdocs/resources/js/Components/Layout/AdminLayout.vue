@@ -1,10 +1,13 @@
 <template>
-    <div class="min-h-screen bg-gray-50 dark:bg-gray-950 xl:flex" :class="{ 'pt-12': impersonationActive }">
+    <div
+        class="min-h-[calc(100dvh-var(--app-tabs-h))] bg-gray-50 dark:bg-gray-950 xl:flex"
+        :class="{ 'pt-12': impersonationActive }"
+    >
         <ImpersonationBar />
         <AppSidebar />
         <Backdrop />
         <div
-            class="min-h-screen flex-1 bg-gray-50 transition-all duration-300 ease-in-out dark:bg-gray-950"
+            class="min-h-[calc(100dvh-var(--app-tabs-h))] flex-1 bg-gray-50 transition-all duration-300 ease-in-out dark:bg-gray-950"
             :class="[
                 isExpanded || isHovered
                     ? (isRtl ? 'lg:mr-72.5' : 'lg:ml-72.5')

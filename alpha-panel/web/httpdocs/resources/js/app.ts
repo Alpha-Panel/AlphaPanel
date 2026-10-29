@@ -8,6 +8,8 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from 'ziggy-js';
 import tooltip from '@/Directives/tooltip';
 import { initializeColorBlindMode } from '@/Composables/useColorBlindMode';
+import { installAppTabs } from '@/Composables/useAppTabs';
+import AppTabsHost from '@/Components/Layout/AppTabsHost.vue';
 
 initializeColorBlindMode();
 
@@ -33,7 +35,7 @@ createInertiaApp({
             import.meta.glob<DefineComponent>('./Pages/**/*.vue'),
         ),
     setup({ el, App, props, plugin }) {
-        const app = createApp({ render: () => h(App, props) });
+        const app = createApp({ render: () => [h(App, props), h(AppTabsHost)] });
 
         app.use(plugin);
         app.use(ZiggyVue);
@@ -41,6 +43,7 @@ createInertiaApp({
         app.directive('tooltip', tooltip);
 
         app.mount(el);
+        installAppTabs();
 
         syncLocaleFromStorage(props.initialPage.props);
     },
