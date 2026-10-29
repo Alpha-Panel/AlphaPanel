@@ -3,8 +3,8 @@
         :class="[
             'fixed flex flex-col px-5 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 transition-all duration-300 ease-in-out z-99999 border-gray-200',
             impersonationActive
-                ? 'top-[calc(3rem+var(--app-tabs-h))] mt-16 lg:mt-0 h-[calc(100dvh-7rem-var(--app-tabs-h))] lg:h-[calc(100dvh-3rem-var(--app-tabs-h))]'
-                : 'top-(--app-tabs-h) mt-16 lg:mt-0 h-[calc(100dvh-4rem-var(--app-tabs-h))] lg:h-[calc(100dvh-var(--app-tabs-h))]',
+                ? 'top-12 mt-16 lg:mt-0 h-[calc(100dvh-7rem)] lg:h-[calc(100dvh-3rem)]'
+                : 'top-0 mt-16 lg:mt-0 h-[calc(100dvh-4rem)] lg:h-dvh',
             {
                 'lg:w-72.5': isExpanded || isMobileOpen || isHovered,
                 'lg:w-22.5': !isExpanded && !isHovered,

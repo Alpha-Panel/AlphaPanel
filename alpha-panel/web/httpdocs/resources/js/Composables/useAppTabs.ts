@@ -12,12 +12,18 @@ export const MAIN_TAB_ID = 'main';
 const STORAGE_KEY = 'alphapanel.tabs';
 const MSG_OPEN = 'alphapanel:open-tab';
 const MSG_STATE = 'alphapanel:tab-state';
+const MSG_VISIT = 'alphapanel:visit';
 
 const isEmbedded = typeof window !== 'undefined' && window.self !== window.top;
 
 const tabs = ref<AppTab[]>([]);
 const activeId = ref<string>(MAIN_TAB_ID);
 const frames = new Map<string, HTMLIFrameElement>();
+
+/** Viewport box of the layout's content area; secondary tab iframes are pinned over it. */
+const frameRect = ref<{ top: number; left: number; width: number } | null>(null);
+let detachAnchor: (() => void) | null = null;
+let anchorEl: HTMLElement | null = null;
 
 let installed = false;
 
@@ -110,6 +116,66 @@ function registerFrame(id: string, el: HTMLIFrameElement | null): void {
     else frames.delete(id);
 }
 
+/**
+ * Track the content-area anchor rendered by AdminLayout. The layout remounts on every page,
+ * so the iframe layer (which must never remount) follows this element instead of living in it.
+ */
+function setFrameAnchor(el: HTMLElement): void {
+    detachAnchor?.();
+    anchorEl = el;
+
+    const update = () => {
+        const rect = el.getBoundingClientRect();
+        frameRect.value = { top: rect.top, left: rect.left, width: rect.width };
+    };
+    // Width changes (sidebar collapse transition, resize) trigger the observer every frame.
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    observer.observe(document.documentElement);
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, { passive: true });
+    document.addEventListener('transitionend', update, true);
+    update();
+
+    detachAnchor = () => {
+        observer.disconnect();
+        window.removeEventListener('resize', update);
+        window.removeEventListener('scroll', update);
+        document.removeEventListener('transitionend', update, true);
+    };
+}
+
+/** Release only if `el` is still the current anchor (the next page's layout may already own it). */
+function releaseFrameAnchor(el: HTMLElement | null): void {
+    if (!el || el !== anchorEl) return;
+    detachAnchor?.();
+    detachAnchor = null;
+    anchorEl = null;
+    frameRect.value = null;
+}
+
+/**
+ * While a secondary tab is active the main page is hidden, so a page visit started from the
+ * fixed chrome (sidebar, header search) belongs to that tab, like a browser address bar.
+ */
+function routeChromeVisitsToActiveTab(event: Event): void {
+    if (activeId.value === MAIN_TAB_ID) return;
+
+    const visit = (event as CustomEvent).detail?.visit;
+    if (!visit || visit.method !== 'get' || visit.prefetch) return;
+    if (visit.only?.length || visit.except?.length) return;
+
+    const url = new URL(String(visit.url), window.location.origin);
+    if (url.origin !== window.location.origin) return;
+    if (url.href.split('#')[0] === window.location.href.split('#')[0]) return; // reload of the hidden main page
+
+    const target = frames.get(activeId.value)?.contentWindow;
+    if (!target) return;
+
+    event.preventDefault();
+    target.postMessage({ type: MSG_VISIT, url: url.href }, window.location.origin);
+}
+
 function reportStateToParent(): void {
     window.parent.postMessage(
         { type: MSG_STATE, url: window.location.href, title: document.title },
@@ -182,9 +248,16 @@ export function installAppTabs(): void {
         // Inertia sets document.title after the page component mounts; defer one tick.
         router.on('navigate', () => setTimeout(reportStateToParent, 0));
         setTimeout(reportStateToParent, 0);
+        window.addEventListener('message', (event) => {
+            if (event.origin !== window.location.origin || event.source !== window.parent) return;
+            if (event.data?.type === MSG_VISIT && typeof event.data.url === 'string' && sameOriginUrl(event.data.url)) {
+                router.visit(event.data.url);
+            }
+        });
         return;
     }
 
+    document.addEventListener('inertia:before', routeChromeVisitsToActiveTab);
     window.addEventListener('message', handleMessage);
     restore();
     watch(
@@ -215,5 +288,8 @@ export function useAppTabs() {
         duplicateTab,
         registerFrame,
         normalizeTitle,
+        frameRect,
+        setFrameAnchor,
+        releaseFrameAnchor,
     };
 }

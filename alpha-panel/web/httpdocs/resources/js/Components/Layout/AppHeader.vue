@@ -1,6 +1,6 @@
 <template>
     <header
-        class="sticky top-(--app-tabs-h) flex w-full bg-white border-gray-200 z-99999 dark:border-gray-800 dark:bg-gray-900 lg:border-b"
+        class="sticky top-0 flex w-full bg-white border-gray-200 z-99999 dark:border-gray-800 dark:bg-gray-900 lg:border-b"
     >
         <div class="flex flex-col justify-between grow lg:flex-row lg:items-center lg:px-6">
             <div
