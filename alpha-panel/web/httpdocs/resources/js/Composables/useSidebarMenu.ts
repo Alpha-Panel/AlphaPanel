@@ -42,7 +42,7 @@ export function useSidebarMenu() {
     const { t } = useI18n();
     const { can, canAny, isAdmin } = useCan();
     const links = computed(() => page.props.app?.links ?? {});
-    const { openTab } = useAppTabs();
+    const { openTab, activeTabUrl } = useAppTabs();
 
     const sections = computed<NavSection[]>(() => {
         const main: NavItem[] = [
@@ -158,7 +158,10 @@ export function useSidebarMenu() {
     const isActive = (href?: string): boolean => {
         if (!href) return false;
         const target = new URL(href, window.location.origin).pathname;
-        const current = page.url.split('?')[0].split('#')[0];
+        // A secondary tab shows its own page: highlight that, not the hidden main page.
+        const current = activeTabUrl.value
+            ? new URL(activeTabUrl.value, window.location.origin).pathname
+            : page.url.split('?')[0].split('#')[0];
         if (target === '/') return current === '/';
         return current === target || current.startsWith(`${target}/`);
     };

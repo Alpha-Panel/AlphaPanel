@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 
 export interface AppTab {
@@ -263,8 +263,10 @@ export function installAppTabs(): void {
     document.addEventListener('auxclick', handleLinkOpen, { capture: true });
 
     if (isEmbedded) {
-        // Inertia sets document.title after the page component mounts; defer one tick.
+        // URL changes on navigate; Inertia's <Head> sets document.title later (not on a fixed tick),
+        // so report on every title change too — otherwise the tab keeps the previous page's title.
         router.on('navigate', () => setTimeout(reportStateToParent, 0));
+        new MutationObserver(reportStateToParent).observe(document.head, { subtree: true, childList: true, characterData: true });
         setTimeout(reportStateToParent, 0);
         window.addEventListener('message', (event) => {
             if (event.origin !== window.location.origin || event.source !== window.parent) return;
@@ -291,6 +293,11 @@ export function installAppTabs(): void {
     );
 }
 
+/** URL shown in the active secondary tab (kept current by the frame's state reports); null on the main tab. */
+const activeTabUrl = computed(() =>
+    activeId.value === MAIN_TAB_ID ? null : (tabs.value.find((t) => t.id === activeId.value)?.url ?? null),
+);
+
 export function useAppTabs() {
     return {
         isEmbedded,
@@ -307,6 +314,7 @@ export function useAppTabs() {
         registerFrame,
         normalizeTitle,
         frameRect,
+        activeTabUrl,
         setFrameAnchor,
         releaseFrameAnchor,
     };
