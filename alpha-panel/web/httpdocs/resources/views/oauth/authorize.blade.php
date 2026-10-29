@@ -23,8 +23,7 @@
 
 <div class="w-full max-w-md">
     <div class="text-center mb-8">
-        <img src="/img/AlphaPanel-dark.svg" alt="AlphaPanel" class="h-12 mx-auto mb-4 dark:hidden">
-        <img src="/img/AlphaPanel-light.svg" alt="AlphaPanel" class="h-12 mx-auto mb-4 hidden dark:block">
+        <img src="/img/AlphaPanel-logo.svg" alt="AlphaPanel" class="h-12 mx-auto mb-4">
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Authorize Access</h1>
         <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
             An external application is requesting access to your AlphaPanel account.

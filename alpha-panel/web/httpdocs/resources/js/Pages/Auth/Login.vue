@@ -234,7 +234,7 @@ const stage = ref<'identifier' | 'password'>('identifier');
 const { t } = useI18n();
 const page = usePage<SharedProps>();
 const appName = computed(() => page.props.app?.name ?? 'AlphaPanel');
-const logoUrl = computed(() => page.props.app?.logo_url ?? '/img/AlphaPanel-dark.svg');
+const logoUrl = computed(() => page.props.app?.logo_url ?? '/img/AlphaPanel-logo.svg');
 const locale = computed(() => page.props.locale ?? 'en');
 const availableLocales = computed(() => page.props.available_locales ?? ['tr', 'tr-gokturk', 'gokturk-latin', 'az', 'en', 'de', 'es', 'fr', 'ru']);
 const showPassword = ref(false);

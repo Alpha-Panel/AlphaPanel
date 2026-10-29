@@ -271,7 +271,7 @@ const { toggleSidebar, toggleMobileSidebar, isMobileOpen } = useSidebar();
 const { t } = useI18n();
 const page = usePage<SharedProps>();
 const appName = computed(() => page.props.app?.name ?? 'AlphaPanel');
-const logoUrl = computed(() => page.props.app?.logo_url ?? '/img/AlphaPanel-dark.svg');
+const logoUrl = computed(() => page.props.app?.logo_url ?? '/img/AlphaPanel-logo.svg');
 const locale = computed(() => page.props.locale ?? 'en');
 const textDirection = computed(() => page.props.text_direction ?? 'ltr');
 const rtlLocales = computed(() => page.props.rtl_locales ?? ['tr-gokturk']);

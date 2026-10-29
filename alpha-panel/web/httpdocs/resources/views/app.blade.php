@@ -6,7 +6,11 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title inertia>{{ config('app.name', 'AlphaPanel') }}</title>
     <link rel="manifest" href="/manifest.json">
-    <link rel="icon" type="image/svg+xml" href="/img/AlphaPanel-dark.svg">
+    <link rel="icon" type="image/svg+xml" href="/img/AlphaPanel-logo.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/img/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-icon-180x180.png">
+    <meta name="theme-color" content="#061D47">
     <link rel="stylesheet" href="{{asset('fontawesome/css/all.css')}}">
     <link rel="stylesheet" href="{{asset('lineicons/free-regular-font/lineicons-free.css')}}">
     <link rel="stylesheet" href="{{asset('font-mfizz/font-mfizz.css')}}">

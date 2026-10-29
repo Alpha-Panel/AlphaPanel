@@ -1,6 +1,6 @@
 <template>
     <nav
-        class="flex h-10 border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-950"
+        class="flex h-10 w-full min-w-0 border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-950"
         :aria-label="t('Tabs')"
     >
         <div
@@ -156,10 +156,19 @@ function onKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') closeMenu();
 }
 
+// Scroll only the strip itself; scrollIntoView() would also scroll the page horizontally.
 function scrollActiveIntoView(): void {
-    stripRef.value
-        ?.querySelector(`[data-tab-id="${activeId.value}"]`)
-        ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    const strip = stripRef.value;
+    const tab = strip?.querySelector<HTMLElement>(`[data-tab-id="${activeId.value}"]`);
+    if (!strip || !tab) return;
+
+    const stripBox = strip.getBoundingClientRect();
+    const tabBox = tab.getBoundingClientRect();
+    if (tabBox.left < stripBox.left) {
+        strip.scrollLeft -= stripBox.left - tabBox.left;
+    } else if (tabBox.right > stripBox.right) {
+        strip.scrollLeft += tabBox.right - stripBox.right;
+    }
 }
 
 watch(activeId, async () => {

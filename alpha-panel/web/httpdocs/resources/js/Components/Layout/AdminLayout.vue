@@ -7,7 +7,7 @@
             <Backdrop />
         </template>
         <div
-            class="min-h-screen flex-1 bg-gray-50 transition-all duration-300 ease-in-out dark:bg-gray-950"
+            class="min-h-screen min-w-0 flex-1 bg-gray-50 transition-all duration-300 ease-in-out dark:bg-gray-950"
             :class="[
                 isEmbedded
                     ? ''

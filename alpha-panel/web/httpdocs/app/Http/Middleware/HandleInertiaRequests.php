@@ -94,7 +94,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'app' => [
                 'name' => config('app.name'),
-                'logo_url' => asset('img/AlphaPanel-dark.svg'),
+                'logo_url' => asset('img/AlphaPanel-logo.svg'),
                 'version' => $this->panelVersion(),
                 'links' => [
                     'file_manager' => config('services.file_manager_url'),

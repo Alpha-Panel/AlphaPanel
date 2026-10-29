@@ -361,7 +361,7 @@ const { t } = useI18n();
 const { can, canAny, isAdmin } = useCan();
 const isRtl = computed(() => page.props.text_direction === 'rtl');
 const appName = computed(() => page.props.app?.name ?? 'AlphaPanel');
-const logoUrl = computed(() => page.props.app?.logo_url ?? '/img/AlphaPanel-dark.svg');
+const logoUrl = computed(() => page.props.app?.logo_url ?? '/img/AlphaPanel-logo.svg');
 const externalLinks = computed(() => page.props.app?.links ?? {});
 const mailFeatureEnabled = computed(() => {
     const features = (page.props as Record<string, unknown> & { features?: { mail?: boolean } }).features;
