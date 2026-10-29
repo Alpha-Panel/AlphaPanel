@@ -1,102 +1,58 @@
 <template>
-    <div class="relative" ref="dropdownRef">
-        <button
-            class="relative flex items-center justify-center text-gray-500 transition-colors bg-white border border-gray-200 rounded-full hover:text-dark-900 h-11 w-11 hover:bg-gray-100 hover:text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
-            @click="toggleDropdown"
-        >
-            <span
-                :class="{ hidden: !showIndicator, flex: showIndicator }"
-                class="absolute right-0 top-0.5 z-1 h-2 w-2 rounded-full bg-orange-400"
-            >
-                <span
-                    class="absolute inline-flex w-full h-full bg-orange-400 rounded-full opacity-75 -z-1 animate-ping"
-                ></span>
+    <div ref="dropdownRef" class="relative">
+        <button type="button" :title="t('Notifications')" class="ap-header-btn" @click="toggleDropdown">
+            <i class="bx bx-bell text-base"></i>
+            <span v-if="showIndicator" class="absolute end-1 top-1 size-1.5 rounded-full bg-warn">
+                <span class="absolute inset-0 animate-ping rounded-full bg-warn opacity-75"></span>
             </span>
-            <svg
-                class="fill-current"
-                width="20"
-                height="20"
-                viewBox="0 0 20 20"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-            >
-                <path
-                    fill-rule="evenodd"
-                    clip-rule="evenodd"
-                    d="M10.75 2.29248C10.75 1.87827 10.4143 1.54248 10 1.54248C9.58583 1.54248 9.25004 1.87827 9.25004 2.29248V2.83613C6.08266 3.20733 3.62504 5.9004 3.62504 9.16748V14.4591H3.33337C2.91916 14.4591 2.58337 14.7949 2.58337 15.2091C2.58337 15.6234 2.91916 15.9591 3.33337 15.9591H4.37504H15.625H16.6667C17.0809 15.9591 17.4167 15.6234 17.4167 15.2091C17.4167 14.7949 17.0809 14.4591 16.6667 14.4591H16.375V9.16748C16.375 5.9004 13.9174 3.20733 10.75 2.83613V2.29248ZM14.875 14.4591V9.16748C14.875 6.47509 12.6924 4.29248 10 4.29248C7.30765 4.29248 5.12504 6.47509 5.12504 9.16748V14.4591H14.875ZM8.00004 17.7085C8.00004 18.1228 8.33583 18.4585 8.75004 18.4585H11.25C11.6643 18.4585 12 18.1228 12 17.7085C12 17.2943 11.6643 16.9585 11.25 16.9585H8.75004C8.33583 16.9585 8.00004 17.2943 8.00004 17.7085Z"
-                    fill=""
-                />
-            </svg>
         </button>
 
         <div
             v-if="dropdownOpen"
-            class="fixed inset-x-3 top-16 z-1300000 flex h-120 max-h-[calc(100dvh-5rem)] flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-gray-dark sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+17px)] sm:w-90.25"
+            class="ap-pop flex h-120 max-h-[calc(100dvh-5rem)] flex-col p-0 max-sm:fixed max-sm:inset-x-3 max-sm:top-14 sm:end-0 sm:top-[calc(100%+6px)] sm:w-90"
         >
-            <div
-                class="flex items-center justify-between pb-3 mb-3 border-b border-gray-100 dark:border-gray-800"
-            >
-                <h5 class="text-lg font-semibold text-gray-800 dark:text-white/90">
-                    {{ t('Notifications') }}
-                </h5>
-                <div class="flex items-center gap-2">
-                    <button
-                        v-if="unreadCount > 0"
-                        type="button"
-                        class="text-xs font-medium text-brand-500 hover:text-brand-600"
-                        @click="markAllAsRead"
-                    >
+            <div class="ap-card-head">
+                <i class="bx bx-bell text-[15px] text-fg-3"></i>
+                <span>{{ t('Notifications') }}</span>
+                <div class="ms-auto flex items-center gap-1.5 font-normal">
+                    <button v-if="unreadCount > 0" type="button" class="text-xs font-medium text-accent hover:underline" @click="markAllAsRead">
                         {{ t('Mark all read') }}
                     </button>
-                    <button @click="closeDropdown" class="text-gray-500 dark:text-gray-400">
-                        <svg
-                            class="fill-current"
-                            width="24"
-                            height="24"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                        >
-                            <path
-                                fill-rule="evenodd"
-                                clip-rule="evenodd"
-                                d="M6.21967 7.28131C5.92678 6.98841 5.92678 6.51354 6.21967 6.22065C6.51256 5.92775 6.98744 5.92775 7.28033 6.22065L11.999 10.9393L16.7176 6.22078C17.0105 5.92789 17.4854 5.92788 17.7782 6.22078C18.0711 6.51367 18.0711 6.98855 17.7782 7.28144L13.0597 12L17.7782 16.7186C18.0711 17.0115 18.0711 17.4863 17.7782 17.7792C17.4854 18.0721 17.0105 18.0721 16.7176 17.7792L11.999 13.0607L7.28033 17.7794C6.98744 18.0722 6.51256 18.0722 6.21967 17.7794C5.92678 17.4865 5.92678 17.0116 6.21967 16.7187L10.9384 12L6.21967 7.28131Z"
-                                fill=""
-                            />
-                        </svg>
+                    <button type="button" class="inline-flex size-6 items-center justify-center rounded-md text-fg-3 hover:bg-surface-2 hover:text-fg" :aria-label="t('Close')" @click="closeDropdown">
+                        <i class="bx bx-x text-base"></i>
                     </button>
                 </div>
             </div>
 
-            <div v-if="loading" class="flex flex-1 items-center justify-center text-gray-400 text-theme-sm">
+            <div v-if="loading" class="flex flex-1 items-center justify-center text-sm text-fg-3">
                 {{ t('Loading...') }}
             </div>
 
-            <div v-else-if="notifications.length === 0" class="flex flex-1 items-center justify-center text-gray-400 text-theme-sm">
-                {{ t('No notifications') }}
+            <div v-else-if="notifications.length === 0" class="flex flex-1 flex-col items-center justify-center gap-1 text-sm text-fg-3">
+                <i class="bx bx-bell-off text-2xl"></i>{{ t('No notifications') }}
             </div>
 
-            <div v-else class="flex-1 overflow-y-auto pr-1 space-y-2">
+            <div v-else class="flex-1 space-y-1 overflow-y-auto p-1.5">
                 <button
                     v-for="notification in notifications"
                     :key="notification.id"
                     type="button"
-                    class="w-full rounded-lg border px-3 py-2 text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
-                    :class="notification.read_at ? 'border-gray-200 dark:border-gray-800' : 'border-brand-300 dark:border-brand-700'"
+                    class="w-full rounded-md border px-2.5 py-2 text-start transition-colors hover:bg-surface-2"
+                    :class="notification.read_at ? 'border-transparent' : 'border-accent/40 bg-accent-soft'"
                     @click="openNotification(notification)"
                 >
                     <div class="flex items-start gap-2">
-                        <span class="mt-0.5 text-base" :class="notification.data.icon || 'bx bx-bell'"></span>
+                        <span class="mt-0.5 text-base text-fg-3" :class="notification.data.icon || 'bx bx-bell'"></span>
                         <div class="min-w-0 flex-1">
                             <div class="flex items-center justify-between gap-2">
-                                <p class="truncate text-sm font-semibold text-gray-800 dark:text-white/90">
+                                <p class="truncate text-sm font-semibold text-fg">
                                     {{ notification.data.title || t('Notification') }}
                                 </p>
-                                <span class="shrink-0 text-[11px] text-gray-500 dark:text-gray-400">
+                                <span class="shrink-0 font-mono text-2xs text-fg-3">
                                     {{ notification.created_at_human || '-' }}
                                 </span>
                             </div>
-                            <p class="mt-0.5 line-clamp-2 text-xs text-gray-600 dark:text-gray-400">
+                            <p class="mt-0.5 line-clamp-2 text-xs text-fg-2">
                                 {{ notification.data.body || '' }}
                             </p>
                         </div>
@@ -104,23 +60,19 @@
                 </button>
             </div>
 
-            <div class="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+            <div class="flex items-center gap-2 border-t border-line-2 p-2">
                 <button
                     v-if="isPushSupported"
                     type="button"
-                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-                    :class="{ 'text-brand-500': isPushSubscribed }"
+                    class="ap-icon-btn size-7"
+                    :class="{ '!text-accent': isPushSubscribed }"
                     :disabled="pushLoading"
                     :title="isPushSubscribed ? t('Disable push notifications') : t('Enable push notifications')"
                     @click="togglePush"
                 >
-                    <i :class="isPushSubscribed ? 'fa-solid fa-bell' : 'fa-solid fa-bell-slash'" class="text-sm"></i>
+                    <i :class="isPushSubscribed ? 'bx bxs-bell-ring' : 'bx bx-bell-off'"></i>
                 </button>
-                <Link
-                    :href="route('user.notifications.page')"
-                    class="block flex-1 rounded-lg border border-gray-200 px-3 py-2 text-center text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-                    @click="closeDropdown"
-                >
+                <Link :href="route('user.notifications.page')" class="ap-btn flex-1 justify-center hover:no-underline" @click="closeDropdown">
                     {{ t('View all') }}
                 </Link>
             </div>

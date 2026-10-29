@@ -44,6 +44,7 @@ use App\Http\Controllers\Api\V1\TerminalController;
 use App\Http\Controllers\Api\V1\TerminalLogController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\WafRuleController;
+use App\Http\Controllers\VhostFileManagerController;
 use Illuminate\Support\Facades\Route;
 
 // ── Auth (no token required) ─────────────────────────────────────────────
@@ -69,6 +70,22 @@ Route::middleware(['auth:sanctum', 'api.token.ip', 'idempotency'])->group(functi
     // ── Dashboard ───────────────────────────────────────────────────────────
     Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('abilities:*');
     Route::post('/dashboard/docker-action', [DashboardController::class, 'dockerAction'])->middleware('ability:docker:write');
+
+    // File Manager over every hosted site (admin only; same contract as the per-domain /files API)
+    Route::middleware('admin')->prefix('file-manager')->group(function (): void {
+        Route::get('/list', [VhostFileManagerController::class, 'list'])->middleware('ability:files:read');
+        Route::get('/read', [VhostFileManagerController::class, 'read'])->middleware('ability:files:read');
+        Route::post('/write', [VhostFileManagerController::class, 'write'])->middleware('ability:files:write');
+        Route::post('/create-file', [VhostFileManagerController::class, 'createFile'])->middleware('ability:files:write');
+        Route::post('/create-directory', [VhostFileManagerController::class, 'createDirectory'])->middleware('ability:files:write');
+        Route::post('/upload', [VhostFileManagerController::class, 'upload'])->middleware('ability:files:write');
+        Route::post('/delete', [VhostFileManagerController::class, 'delete'])->middleware('ability:files:write');
+        Route::post('/rename', [VhostFileManagerController::class, 'rename'])->middleware('ability:files:write');
+        Route::post('/chmod', [VhostFileManagerController::class, 'chmod'])->middleware('ability:files:write');
+        Route::post('/compress', [VhostFileManagerController::class, 'compress'])->middleware('ability:files:write');
+        Route::post('/decompress', [VhostFileManagerController::class, 'decompress'])->middleware('ability:files:write');
+        Route::get('/download', [VhostFileManagerController::class, 'download'])->middleware('ability:files:read');
+    });
 
     // ── Domains ─────────────────────────────────────────────────────────────
     Route::prefix('domains')->group(function (): void {

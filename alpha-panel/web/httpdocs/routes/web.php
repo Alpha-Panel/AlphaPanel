@@ -63,6 +63,7 @@ use App\Http\Controllers\TerminalLogController;
 use App\Http\Controllers\TwoFactorAuthController;
 use App\Http\Controllers\UserAccountsController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\VhostFileManagerController;
 use App\Http\Controllers\WafGlobalRuleController;
 use App\Http\Controllers\WebAuthn\WebAuthnLoginController;
 use App\Http\Controllers\WebAuthn\WebAuthnRegisterController;
@@ -330,6 +331,23 @@ Route::middleware('auth')->group(function (): void {
         Route::post('/compress', [FileManagerController::class, 'compress'])->name('compress');
         Route::post('/decompress', [FileManagerController::class, 'decompress'])->name('decompress');
         Route::get('/download', [FileManagerController::class, 'download'])->name('download');
+    });
+
+    // File Manager (all hosted sites, admin only — replaces code-server)
+    Route::middleware('admin')->prefix('file-manager')->name('file-manager.')->group(function (): void {
+        Route::get('/', [VhostFileManagerController::class, 'index'])->name('index');
+        Route::get('/list', [VhostFileManagerController::class, 'list'])->name('list');
+        Route::get('/read', [VhostFileManagerController::class, 'read'])->name('read');
+        Route::post('/write', [VhostFileManagerController::class, 'write'])->name('write');
+        Route::post('/create-file', [VhostFileManagerController::class, 'createFile'])->name('create-file');
+        Route::post('/create-directory', [VhostFileManagerController::class, 'createDirectory'])->name('create-directory');
+        Route::post('/upload', [VhostFileManagerController::class, 'upload'])->name('upload');
+        Route::post('/delete', [VhostFileManagerController::class, 'delete'])->name('delete');
+        Route::post('/rename', [VhostFileManagerController::class, 'rename'])->name('rename');
+        Route::post('/chmod', [VhostFileManagerController::class, 'chmod'])->name('chmod');
+        Route::post('/compress', [VhostFileManagerController::class, 'compress'])->name('compress');
+        Route::post('/decompress', [VhostFileManagerController::class, 'decompress'])->name('decompress');
+        Route::get('/download', [VhostFileManagerController::class, 'download'])->name('download');
     });
 
     // Fortify 2FA enable/disable (manually registered, ignoreRoutes active)

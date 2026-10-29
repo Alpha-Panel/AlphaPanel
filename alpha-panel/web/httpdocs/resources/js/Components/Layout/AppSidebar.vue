@@ -1,738 +1,164 @@
 <template>
     <aside
         :class="[
-            'fixed flex flex-col px-5 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 transition-all duration-300 ease-in-out z-99999 border-gray-200',
-            impersonationActive
-                ? 'top-12 mt-16 lg:mt-0 h-[calc(100dvh-7rem)] lg:h-[calc(100dvh-3rem)]'
-                : 'top-0 mt-16 lg:mt-0 h-[calc(100dvh-4rem)] lg:h-dvh',
-            {
-                'lg:w-72.5': isExpanded || isMobileOpen || isHovered,
-                'lg:w-22.5': !isExpanded && !isHovered,
-                'translate-x-0 w-72.5': isMobileOpen,
-                '-translate-x-full': !isMobileOpen && !isRtl,
-                'translate-x-full': !isMobileOpen && isRtl,
-                'lg:translate-x-0': true,
-                'left-0 border-r': !isRtl,
-                'right-0 border-l': isRtl,
-            },
+            'z-99999 flex shrink-0 flex-col overflow-hidden border-e border-line bg-surface transition-[width,transform] duration-200 ease-out',
+            'fixed start-0 bottom-0 w-58 lg:relative lg:inset-auto lg:translate-x-0',
+            impersonationActive ? 'top-12 lg:top-auto' : 'top-0',
+            wide ? 'lg:w-58' : 'lg:w-14',
+            isMobileOpen ? 'translate-x-0' : isRtl ? 'translate-x-full' : '-translate-x-full',
         ]"
-        @mouseenter="!isExpanded && (isHovered = true)"
-        @mouseleave="isHovered = false"
+        @mouseenter="!isExpanded && setIsHovered(true)"
+        @mouseleave="setIsHovered(false)"
     >
-        <div
-            :class="[
-                'py-6 flex items-center',
-                !isExpanded && !isHovered ? 'lg:justify-center' : 'justify-start',
-            ]"
-        >
-            <Link :href="route('home')" class="flex items-center gap-3">
-                <img :src="logoUrl" :alt="appName" class="h-10 w-10 shrink-0 object-contain" />
-                <span
-                    v-if="isExpanded || isHovered || isMobileOpen"
-                    class="text-xl font-bold text-brand-500 dark:text-brand-400"
-                >
-                    {{ appName }}
-                </span>
-            </Link>
-        </div>
-        <ServerStats v-if="isAdmin" />
+        <!-- brand -->
+        <Link :href="route('home')" class="flex h-11.5 shrink-0 items-center gap-2.5 border-b border-line-2 px-3.5 hover:no-underline">
+            <img :src="logoUrl" :alt="appName" class="size-6.5 shrink-0" />
+            <span v-show="wide" class="truncate text-sm font-bold tracking-tight text-fg">{{ appName }}</span>
+        </Link>
 
-        <div class="flex min-h-0 flex-1 flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
-            <nav class="mb-6">
-                <div class="flex flex-col gap-4">
-                    <div v-for="(menuGroup, groupIndex) in menuGroups" :key="groupIndex">
-                        <h2
-                            :class="[
-                                'mb-4 text-xs uppercase flex leading-5 text-gray-400',
-                                !isExpanded && !isHovered
-                                    ? 'lg:justify-center'
-                                    : 'justify-start',
-                            ]"
-                        >
-                            <template v-if="isExpanded || isHovered || isMobileOpen">
-                                {{ menuGroup.title }}
-                            </template>
-                            <HorizontalDots v-else />
-                        </h2>
-                        <ul class="flex flex-col gap-4">
-                            <li v-for="(item, index) in menuGroup.items" :key="item.name">
-                                <button
-                                    v-if="item.subItems"
-                                    @click="toggleSubmenuHandler(groupIndex, index)"
-                                    :class="[
-                                        'menu-item group w-full',
-                                        {
-                                            'menu-item-active': isSubmenuOpen(groupIndex, index),
-                                            'menu-item-inactive': !isSubmenuOpen(groupIndex, index),
-                                        },
-                                        !isExpanded && !isHovered
-                                            ? 'lg:justify-center'
-                                            : 'lg:justify-start',
-                                    ]"
-                                >
-                                    <span
-                                        :class="[
-                                            'w-6 flex items-center justify-center',
-                                            isSubmenuOpen(groupIndex, index)
-                                                ? 'menu-item-icon-active'
-                                                : 'menu-item-icon-inactive',
-                                        ]"
-                                    >
-                                        <component v-if="item.icon" :is="item.icon" />
-                                        <i v-else-if="item.iconClass" :class="[item.iconClass, 'text-base']"></i>
-                                    </span>
-                                    <span
-                                        v-if="isExpanded || isHovered || isMobileOpen"
-                                        class="menu-item-text"
-                                    >
-                                        {{ item.name }}
-                                    </span>
-                                    <ChevronDownIcon
-                                        v-if="isExpanded || isHovered || isMobileOpen"
-                                        :class="[
-                                            isRtl ? 'mr-auto w-5 h-5 transition-transform duration-200' : 'ml-auto w-5 h-5 transition-transform duration-200',
-                                            {
-                                                'rotate-180 text-brand-500': isSubmenuOpen(
-                                                    groupIndex,
-                                                    index,
-                                                ),
-                                            },
-                                        ]"
-                                    />
-                                </button>
-                                <button
-                                    v-else-if="item.action"
-                                    @click="item.action()"
-                                    :class="[
-                                        'menu-item group menu-item-inactive',
-                                        !isExpanded && !isHovered
-                                            ? 'lg:justify-center'
-                                            : 'lg:justify-start',
-                                    ]"
-                                >
-                                    <span class="menu-item-icon-inactive w-6 flex items-center justify-center">
-                                        <component v-if="item.icon" :is="item.icon" />
-                                        <i v-else-if="item.iconClass" :class="[item.iconClass, 'text-base']"></i>
-                                    </span>
-                                    <span
-                                        v-if="isExpanded || isHovered || isMobileOpen"
-                                        class="menu-item-text"
-                                    >
-                                        {{ item.name }}
-                                    </span>
-                                </button>
-                                <a
-                                    v-else-if="item.href && item.external"
-                                    :href="item.href"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="menu-item group menu-item-inactive"
-                                >
-                                    <span class="menu-item-icon-inactive w-6 flex items-center justify-center">
-                                        <component v-if="item.icon" :is="item.icon" />
-                                        <i v-else-if="item.iconClass" :class="[item.iconClass, 'text-base']"></i>
-                                    </span>
-                                    <span
-                                        v-if="isExpanded || isHovered || isMobileOpen"
-                                        class="menu-item-text"
-                                    >
-                                        {{ item.name }}
-                                    </span>
-                                </a>
-                                <Link
-                                    v-else-if="item.href"
-                                    :href="item.href"
-                                    :class="[
-                                        'menu-item group',
-                                        {
-                                            'menu-item-active': isActive(item.href),
-                                            'menu-item-inactive': !isActive(item.href),
-                                        },
-                                    ]"
-                                >
-                                    <span
-                                        :class="[
-                                            'w-6 flex items-center justify-center',
-                                            isActive(item.href)
-                                                ? 'menu-item-icon-active'
-                                                : 'menu-item-icon-inactive',
-                                        ]"
-                                    >
-                                        <component v-if="item.icon" :is="item.icon" />
-                                        <i v-else-if="item.iconClass" :class="[item.iconClass, 'text-base']"></i>
-                                    </span>
-                                    <span
-                                        v-if="isExpanded || isHovered || isMobileOpen"
-                                        class="menu-item-text"
-                                    >
-                                        {{ item.name }}
-                                    </span>
+        <ServerStats v-if="isAdmin" :wide="wide" />
+
+        <!-- nav -->
+        <nav class="no-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-2 py-1.5">
+            <div v-for="section in sections" :key="section.title">
+                <div v-show="wide" class="ap-eyebrow px-2 pt-2.5 pb-1 tracking-[.1em]">{{ section.title }}</div>
+                <div v-show="!wide" class="mx-auto my-2 h-px w-6 bg-line"></div>
+
+                <template v-for="item in section.items" :key="item.key">
+                    <!-- group -->
+                    <button
+                        v-if="item.children"
+                        type="button"
+                        :title="item.name"
+                        :class="itemClass(itemActive(item) && !wide)"
+                        @click="toggle(item.key)"
+                    >
+                        <i :class="[iconOf(item.icon), iconClass]"></i>
+                        <span v-show="wide" class="flex min-w-0 flex-1 items-center justify-between">
+                            <span class="truncate">{{ item.name }}</span>
+                            <i class="bx bx-chevron-down text-sm text-fg-3 transition-transform" :class="{ 'rotate-180': isOpen(item) }"></i>
+                        </span>
+                    </button>
+                    <!-- action -->
+                    <button v-else-if="item.action" type="button" :title="item.name" :class="itemClass(false)" @click="item.action()">
+                        <i :class="[iconOf(item.icon), iconClass]"></i>
+                        <span v-show="wide" class="truncate">{{ item.name }}</span>
+                    </button>
+                    <!-- external -->
+                    <a v-else-if="item.external" :href="item.href" target="_blank" rel="noopener noreferrer" :title="item.name" :class="itemClass(false)">
+                        <i :class="[iconOf(item.icon), iconClass]"></i>
+                        <span v-show="wide" class="flex min-w-0 flex-1 items-center justify-between">
+                            <span class="truncate">{{ item.name }}</span>
+                            <i class="bx bx-link-external text-xs text-fg-3"></i>
+                        </span>
+                    </a>
+                    <!-- link -->
+                    <Link v-else :href="item.href!" :title="item.name" :class="itemClass(isActive(item.href))">
+                        <i :class="[iconOf(item.icon), iconClass]"></i>
+                        <span v-show="wide" class="truncate">{{ item.name }}</span>
+                    </Link>
+
+                    <!-- children -->
+                    <div v-if="item.children && wide && isOpen(item)" class="mt-0.5 mb-1 flex flex-col gap-px">
+                        <template v-for="child in item.children" :key="child.name">
+                            <template v-if="isNavGroup(child)">
+                                <div class="ap-eyebrow px-2.5 pt-1.5 pb-0.5 ps-9">{{ child.name }}</div>
+                                <Link v-for="leaf in child.children" :key="leaf.href" :href="leaf.href" :title="leaf.name" :class="subClass(isActive(leaf.href))">
+                                    <i :class="[iconOf(leaf.icon), 'w-5 shrink-0 text-center text-sm']"></i>
+                                    <span class="truncate">{{ leaf.name }}</span>
                                 </Link>
-                                <transition
-                                    @enter="startTransition"
-                                    @after-enter="endTransition"
-                                    @before-leave="startTransition"
-                                    @after-leave="endTransition"
-                                >
-                                    <div
-                                        v-show="
-                                            isSubmenuOpen(groupIndex, index) &&
-                                            (isExpanded || isHovered || isMobileOpen)
-                                        "
-                                    >
-                                        <ul
-                                            :class="isRtl ? 'mr-9' : 'ml-9'"
-                                            class="mt-2 space-y-1"
-                                        >
-                                            <li
-                                                v-for="subItem in item.subItems"
-                                                :key="subItem.name"
-                                            >
-                                                <!-- Leaf link -->
-                                                <Link
-                                                    v-if="!isSubGroup(subItem)"
-                                                    :href="subItem.href"
-                                                    :class="[
-                                                        'menu-dropdown-item',
-                                                        {
-                                                            'menu-dropdown-item-active': isActive(
-                                                                subItem.href,
-                                                            ),
-                                                            'menu-dropdown-item-inactive':
-                                                                !isActive(subItem.href),
-                                                        },
-                                                    ]"
-                                                >
-                                                    <i v-if="subItem.iconClass" :class="[subItem.iconClass, 'w-5 text-center text-xs opacity-70']"></i>
-                                                    {{ subItem.name }}
-                                                </Link>
-
-                                                <!-- Nested dropdown -->
-                                                <template v-else>
-                                                    <button
-                                                        type="button"
-                                                        @click="toggleNestedHandler(groupIndex, index, subItem.name)"
-                                                        :class="[
-                                                            'menu-dropdown-item flex w-full items-center justify-between',
-                                                            {
-                                                                'menu-dropdown-item-active': isNestedOpen(groupIndex, index, subItem.name),
-                                                                'menu-dropdown-item-inactive': !isNestedOpen(groupIndex, index, subItem.name),
-                                                            },
-                                                        ]"
-                                                    >
-                                                        <span class="flex items-center gap-3">
-                                                            <i v-if="subItem.iconClass" :class="[subItem.iconClass, 'w-5 text-center text-xs opacity-70']"></i>
-                                                            {{ subItem.name }}
-                                                        </span>
-                                                        <ChevronDownIcon
-                                                            :class="[
-                                                                'h-4 w-4 transition-transform duration-200',
-                                                                isRtl ? 'mr-2' : 'ml-2',
-                                                                { 'rotate-180 text-brand-500': isNestedOpen(groupIndex, index, subItem.name) },
-                                                            ]"
-                                                        />
-                                                    </button>
-                                                    <transition
-                                                        @enter="startTransition"
-                                                        @after-enter="endTransition"
-                                                        @before-leave="startTransition"
-                                                        @after-leave="endTransition"
-                                                    >
-                                                        <div v-show="isNestedOpen(groupIndex, index, subItem.name)">
-                                                            <ul
-                                                                :class="isRtl ? 'mr-4' : 'ml-4'"
-                                                                class="mt-1 space-y-1"
-                                                            >
-                                                                <li
-                                                                    v-for="leaf in subItem.subItems"
-                                                                    :key="leaf.name"
-                                                                >
-                                                                    <Link
-                                                                        :href="leaf.href"
-                                                                        :class="[
-                                                                            'menu-dropdown-item',
-                                                                            {
-                                                                                'menu-dropdown-item-active': isActive(leaf.href),
-                                                                                'menu-dropdown-item-inactive': !isActive(leaf.href),
-                                                                            },
-                                                                        ]"
-                                                                    >
-                                                                        <i v-if="leaf.iconClass" :class="[leaf.iconClass, 'w-5 text-center text-xs opacity-70']"></i>
-                                                                        {{ leaf.name }}
-                                                                    </Link>
-                                                                </li>
-                                                            </ul>
-                                                        </div>
-                                                    </transition>
-                                                </template>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </transition>
-                            </li>
-                        </ul>
+                            </template>
+                            <a v-else-if="child.external" :href="child.href" target="_blank" rel="noopener noreferrer" :class="subClass(false)">
+                                <i :class="[iconOf(child.icon), 'w-5 shrink-0 text-center text-sm']"></i>
+                                <span class="truncate">{{ child.name }}</span>
+                            </a>
+                            <Link v-else :href="child.href" :title="child.name" :class="subClass(isActive(child.href))">
+                                <i :class="[iconOf(child.icon), 'w-5 shrink-0 text-center text-sm']"></i>
+                                <span class="truncate">{{ child.name }}</span>
+                            </Link>
+                        </template>
                     </div>
-                </div>
-            </nav>
-
-            <div v-if="canAny('panel.audit-logs.view', 'panel.terminal-logs.view')" class="mt-auto border-t border-gray-200 pb-6 pt-4 dark:border-gray-800">
-                <Link
-                    v-if="can('panel.audit-logs.view')"
-                    :href="route('audit-logs.index')"
-                    :class="[
-                        'menu-item group',
-                        {
-                            'menu-item-active': isActive(route('audit-logs.index')),
-                            'menu-item-inactive': !isActive(route('audit-logs.index')),
-                        },
-                        !isExpanded && !isHovered ? 'lg:justify-center' : 'lg:justify-start',
-                    ]"
-                >
-                    <span
-                        :class="[
-                            'w-6 flex items-center justify-center',
-                            isActive(route('audit-logs.index'))
-                                ? 'menu-item-icon-active'
-                                : 'menu-item-icon-inactive',
-                        ]"
-                    >
-                        <i class="fa-solid fa-file-waveform text-base"></i>
-                    </span>
-                    <span
-                        v-if="isExpanded || isHovered || isMobileOpen"
-                        class="menu-item-text"
-                    >
-                        {{ t('Audit Log') }}
-                    </span>
-                </Link>
-                <Link
-                    v-if="can('panel.terminal-logs.view')"
-                    :href="route('terminal-logs.index')"
-                    :class="[
-                        'menu-item group mt-1',
-                        {
-                            'menu-item-active': isActive(route('terminal-logs.index')),
-                            'menu-item-inactive': !isActive(route('terminal-logs.index')),
-                        },
-                        !isExpanded && !isHovered ? 'lg:justify-center' : 'lg:justify-start',
-                    ]"
-                >
-                    <span
-                        :class="[
-                            'w-6 flex items-center justify-center',
-                            isActive(route('terminal-logs.index'))
-                                ? 'menu-item-icon-active'
-                                : 'menu-item-icon-inactive',
-                        ]"
-                    >
-                        <i class="fa-solid fa-terminal text-base"></i>
-                    </span>
-                    <span
-                        v-if="isExpanded || isHovered || isMobileOpen"
-                        class="menu-item-text"
-                    >
-                        {{ t('Terminal Logs') }}
-                    </span>
-                </Link>
+                </template>
             </div>
+        </nav>
+
+        <!-- user -->
+        <div ref="userRef" class="relative shrink-0 border-t border-line-2">
+            <button type="button" class="flex w-full items-center gap-2.5 px-3 py-2.5 text-start hover:bg-surface-2" @click="userOpen = !userOpen">
+                <img v-if="user?.avatar_url" :src="user.avatar_url" :alt="user.name" class="size-7 shrink-0 rounded-full object-cover" />
+                <span v-else class="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent text-[11px] font-semibold text-white">{{ initials }}</span>
+                <span v-show="wide" class="min-w-0 flex-1">
+                    <span class="block truncate text-xs leading-tight font-semibold">{{ user?.name }}</span>
+                    <span class="block truncate text-[11px] text-fg-3">{{ roleLabel }}</span>
+                </span>
+                <i v-show="wide" class="bx bx-chevron-up text-[15px] text-fg-3"></i>
+            </button>
+            <UserMenuPanel v-if="userOpen" class="start-2 bottom-[calc(100%+6px)] w-55" @close="userOpen = false" />
         </div>
     </aside>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { useSidebar } from '@/Composables/useSidebar';
 import { useCan } from '@/Composables/useCan';
-import {
-    GridIcon,
-    UserCircleIcon,
-    ChevronDownIcon,
-    HorizontalDots,
-    TableIcon,
-} from '@/Components/Icons';
 import { useI18n } from '@/Composables/useI18n';
-import ServerStats from '@/Components/Layout/ServerStats.vue';
+import { isNavGroup, useSidebarMenu, type NavItem } from '@/Composables/useSidebarMenu';
+import ServerStats from './ServerStats.vue';
+import UserMenuPanel from './header/UserMenuPanel.vue';
 import type { SharedProps } from '@/types/inertia';
 
 const page = usePage<SharedProps>();
-const { isExpanded, isMobileOpen, isHovered, openSubmenu } = useSidebar();
+const { isExpanded, isMobileOpen, isHovered, openSubmenu, setIsHovered } = useSidebar();
+const { isAdmin } = useCan();
 const { t } = useI18n();
-const { can, canAny, isAdmin } = useCan();
+const { sections, isActive, itemActive } = useSidebarMenu();
+
+const wide = computed(() => isExpanded.value || isHovered.value || isMobileOpen.value);
 const isRtl = computed(() => page.props.text_direction === 'rtl');
 const appName = computed(() => page.props.app?.name ?? 'AlphaPanel');
 const logoUrl = computed(() => page.props.app?.logo_url ?? '/img/AlphaPanel-logo.svg');
-const externalLinks = computed(() => page.props.app?.links ?? {});
-const mailFeatureEnabled = computed(() => {
-    const features = (page.props as Record<string, unknown> & { features?: { mail?: boolean } }).features;
-    return !!features?.mail;
-});
+const user = computed(() => page.props.auth?.user);
+const roleLabel = computed(() => page.props.auth?.roles?.[0] ?? t(isAdmin.value ? 'Admin' : 'User'));
 const impersonationActive = computed(
-    () => !!(page.props as Record<string, unknown> & { impersonation?: { active?: boolean } }).impersonation?.active
+    () => !!(page.props as Record<string, unknown> & { impersonation?: { active?: boolean } }).impersonation?.active,
+);
+const initials = computed(() =>
+    (user.value?.name ?? '?').split(/\s+/).map((p) => p[0]).slice(0, 2).join('').toUpperCase(),
 );
 
-interface SidebarSubLeaf {
-    name: string;
-    href: string;
-    iconClass?: string;
-}
+const iconClass = 'w-5 shrink-0 text-center text-[17px]';
+// Boxicons by default ('bx-globe'); a full class list ('fa-brands fa-jenkins', 'lni lni-mysql') is used as-is.
+const iconOf = (icon?: string): string => (!icon ? '' : icon.includes(' ') ? icon : `bx ${icon}`);
 
-interface SidebarSubGroup {
-    name: string;
-    iconClass?: string;
-    subItems: SidebarSubLeaf[];
-}
-
-type SidebarSubItem = SidebarSubLeaf | SidebarSubGroup;
-
-interface SidebarMenuItem {
-    icon?: unknown;
-    iconClass?: string;
-    name: string;
-    href?: string;
-    external?: boolean;
-    action?: () => void;
-    subItems?: SidebarSubItem[];
-}
-
-const isSubGroup = (item: SidebarSubItem): item is SidebarSubGroup => {
-    return (item as SidebarSubGroup).subItems !== undefined;
-};
-
-const menuGroups = computed(() => {
-    const groups = [
-        {
-            title: t('Main'),
-            items: [
-                {
-                    icon: GridIcon,
-                    name: t('Dashboard'),
-                    href: route('home'),
-                },
-                {
-                    icon: TableIcon,
-                    name: t('Domains'),
-                    href: route('domains.index'),
-                },
-            ] as SidebarMenuItem[],
-        },
-        {
-            title: t('Management'),
-            items: (() => {
-                const items: SidebarMenuItem[] = [];
-
-                if (can('panel.users.manage')) {
-                    const userMgmtSubItems = [
-                        { name: t('Users'), href: route('users.list'), iconClass: 'fa-solid fa-users' },
-                        { name: t('Roles'), href: route('roles.index'), iconClass: 'fa-solid fa-user-shield' },
-                    ];
-                    if (isAdmin.value) {
-                        userMgmtSubItems.push({ name: t('Push Notifications'), href: route('admin.push-notifications.index'), iconClass: 'fa-solid fa-bell' });
-                    }
-                    items.push({
-                        icon: UserCircleIcon,
-                        name: t('User Management'),
-                        subItems: userMgmtSubItems,
-                    });
-                }
-
-                if (canAny('panel.backups.view', 'panel.backups.manage')) {
-                    items.push({
-                        iconClass: 'fa-solid fa-cloud-arrow-up',
-                        name: t('Backups'),
-                        href: route('backups.index'),
-                    });
-                }
-
-                if (canAny('panel.docker-services.view', 'panel.docker-services.manage')) {
-                    items.push({
-                        iconClass: 'fa-brands fa-docker',
-                        name: t('External Services'),
-                        subItems: [
-                            { name: t('Docker Services'), href: route('docker-services.index'), iconClass: 'bx bx-server' },
-                            { name: t('Docker Projects'), href: route('docker-projects.index'), iconClass: 'bx bx-code-block' },
-                        ],
-                    });
-                }
-
-                if (can('panel.terminal.access')) {
-                    items.push({
-                        iconClass: 'fa-solid fa-terminal',
-                        name: t('Terminal'),
-                        action: () => document.dispatchEvent(new CustomEvent('open-host-terminal')),
-                    });
-                }
-
-                const dbMgmtSubItems: SidebarSubItem[] = [];
-                if (can('panel.phpmyadmin.access')) {
-                    dbMgmtSubItems.push({
-                        name: t('phpMyAdmin'),
-                        href: route('pma.admin.sso'),
-                        iconClass: 'lni lni-mysql',
-                        external: true,
-                    });
-                }
-                if (can('panel.pgadmin.access') && externalLinks.value.pgadmin) {
-                    dbMgmtSubItems.push({
-                        name: t('pgAdmin'),
-                        href: route('pgadmin.sso'),
-                        iconClass: 'lni lni-postgresql',
-                        external: true,
-                    });
-                }
-                if (dbMgmtSubItems.length > 0) {
-                    items.push({
-                        iconClass: 'bx bx-data',
-                        name: t('Database Management'),
-                        subItems: dbMgmtSubItems,
-                    });
-                }
-
-                if (externalLinks.value.file_manager && isAdmin.value) {
-                    items.push({
-                        iconClass: 'fa-solid fa-folder-open',
-                        name: t('File Manager'),
-                        href: externalLinks.value.file_manager,
-                        external: true,
-                    });
-                }
-
-                if (externalLinks.value.jenkins && isAdmin.value) {
-                    items.push({
-                        iconClass: 'fa-brands fa-jenkins',
-                        name: t('Jenkins'),
-                        href: externalLinks.value.jenkins,
-                        external: true,
-                    });
-                }
-
-                if (externalLinks.value.n8n && isAdmin.value) {
-                    items.push({
-                        iconClass: 'lni lni-n8n',
-                        name: t('N8N'),
-                        href: externalLinks.value.n8n,
-                        external: true,
-                    });
-                }
-
-                // Settings (Ayarlar) — nested dropdown: DNS, Security (inner dropdowns), ACME, PHP Versions, System Updates
-                const settingsSubItems: SidebarSubItem[] = [];
-
-                if (canAny('panel.dns-settings.view', 'panel.dns-settings.manage')) {
-                    const dnsLeaves: SidebarSubLeaf[] = [];
-                    if (can('panel.dns-settings.manage')) {
-                        dnsLeaves.push({ name: t('DNS Settings'), href: route('settings.dns.index'), iconClass: 'fa-solid fa-gear' });
-                    }
-                    if (can('panel.dns-templates.manage')) {
-                        dnsLeaves.push({ name: t('DNS Templates'), href: route('settings.dns-templates.index'), iconClass: 'fa-solid fa-file-lines' });
-                    }
-                    if (dnsLeaves.length > 0) {
-                        settingsSubItems.push({
-                            name: t('DNS'),
-                            iconClass: 'fa-solid fa-server',
-                            subItems: dnsLeaves,
-                        });
-                    }
-                }
-
-                if (canAny('panel.firewall.view', 'panel.waf-rules.view', 'panel.waf-rules.manage', 'panel.crowdsec.view', 'panel.ftp-bans.view', 'panel.security-settings.manage')) {
-                    const securityLeaves: SidebarSubLeaf[] = [];
-                    if (can('panel.firewall.view')) {
-                        securityLeaves.push({ name: t('Firewall'), href: route('security.firewall.index'), iconClass: 'fa-solid fa-fire' });
-                    }
-                    if (canAny('panel.waf-rules.view', 'panel.waf-rules.manage')) {
-                        securityLeaves.push({ name: t('WAF Rules'), href: route('security.waf-global.index'), iconClass: 'fa-solid fa-shield' });
-                    }
-                    if (can('panel.crowdsec.view')) {
-                        securityLeaves.push({ name: t('CrowdSec'), href: route('security.crowdsec.index'), iconClass: 'fa-solid fa-robot' });
-                    }
-                    if (can('panel.ftp-bans.view')) {
-                        securityLeaves.push({ name: t('FTP Bans'), href: route('security.ftp-bans.index'), iconClass: 'fa-solid fa-ban' });
-                    }
-                    if (can('panel.security-settings.manage')) {
-                        securityLeaves.push({ name: t('Login IP Filter'), href: route('settings.security.login-ip-filter.index'), iconClass: 'fa-solid fa-filter' });
-                        securityLeaves.push({ name: t('Anti-Bot Protection'), href: route('settings.security.anti-bot.index'), iconClass: 'fa-solid fa-shield-virus' });
-                    }
-                    if (securityLeaves.length > 0) {
-                        settingsSubItems.push({
-                            name: t('Security'),
-                            iconClass: 'fa-solid fa-shield-halved',
-                            subItems: securityLeaves,
-                        });
-                    }
-                }
-
-                if (can('panel.acme-settings.manage')) {
-                    settingsSubItems.push({
-                        name: t('ACME Settings'),
-                        href: route('settings.acme.index'),
-                        iconClass: 'fa-solid fa-lock',
-                    });
-                    settingsSubItems.push({
-                        name: t('Panel SSL Certificate'),
-                        href: route('settings.panel-ssl.index'),
-                        iconClass: 'fa-solid fa-certificate',
-                    });
-                }
-
-                if (can('panel.mysql-config.manage')) {
-                    settingsSubItems.push({
-                        name: t('MySQL Config'),
-                        href: route('settings.mysql-config.index'),
-                        iconClass: 'lni lni-mysql',
-                    });
-                }
-
-                if (can('panel.php-versions.view')) {
-                    settingsSubItems.push({
-                        name: t('PHP Versions'),
-                        href: route('php-versions.index'),
-                        iconClass: 'fa-brands fa-php',
-                    });
-                }
-
-                if (can('panel.alert-settings.manage')) {
-                    settingsSubItems.push({
-                        name: t('System Alerts'),
-                        href: route('settings.alerts.index'),
-                        iconClass: 'fa-solid fa-bell',
-                    });
-                }
-
-                if (can('panel.system.updates')) {
-                    settingsSubItems.push({
-                        name: t('System Updates'),
-                        href: route('system.updates.index'),
-                        iconClass: 'fa-solid fa-arrow-up-from-bracket',
-                    });
-                }
-
-                if (isAdmin.value) {
-                    settingsSubItems.push({
-                        name: t('Mail Settings'),
-                        href: route('mail.settings.edit'),
-                        iconClass: 'bx bx-envelope',
-                    });
-                    settingsSubItems.push({
-                        name: t('API Tokens'),
-                        href: route('settings.api-tokens.index'),
-                        iconClass: 'bx bx-key',
-                    });
-                    settingsSubItems.push({
-                        name: t('Webhooks'),
-                        href: route('settings.webhooks.index'),
-                        iconClass: 'bx bx-broadcast',
-                    });
-                }
-
-                if (settingsSubItems.length > 0) {
-                    items.push({
-                        iconClass: 'fa-solid fa-gear',
-                        name: t('Settings'),
-                        subItems: settingsSubItems,
-                    });
-                }
-
-                return items;
-            })(),
-        },
+function itemClass(active: boolean): string[] {
+    return [
+        'flex h-8 w-full items-center gap-2.5 rounded-md px-2 text-sm font-medium whitespace-nowrap transition-colors hover:no-underline',
+        active ? 'bg-accent-soft text-accent' : 'text-fg-2 hover:bg-surface-2 hover:text-fg',
     ];
+}
+function subClass(active: boolean): string[] {
+    return [
+        'flex h-7 items-center gap-2.5 rounded-md ps-2.5 pe-2 text-sm whitespace-nowrap transition-colors hover:no-underline',
+        active ? 'bg-accent-soft font-medium text-accent' : 'text-fg-2 hover:bg-surface-2 hover:text-fg',
+    ];
+}
 
-    return groups.filter((group) => group.items.length > 0);
-});
+// One explicit open/closed override per group; otherwise a group is open when it contains the active route.
+const overrides = ref<Record<string, boolean>>({});
+const isOpen = (item: NavItem): boolean => overrides.value[item.key] ?? (openSubmenu.value === item.key || itemActive(item));
+function toggle(key: string): void {
+    const item = sections.value.flatMap((s) => s.items).find((i) => i.key === key);
+    if (!item) return;
+    overrides.value = { ...overrides.value, [key]: !isOpen(item) };
+}
 
-const currentUrl = computed(() => page.url);
-
-const isActive = (href: string) => {
-    const url = new URL(href, window.location.origin);
-    const currentPath = currentUrl.value.split('?')[0].split('#')[0];
-    const targetPath = url.pathname;
-
-    if (targetPath === '/') {
-        return currentPath === '/';
-    }
-
-    return currentPath === targetPath || currentPath.startsWith(`${targetPath}/`);
+const userOpen = ref(false);
+const userRef = ref<HTMLElement | null>(null);
+const onDocClick = (e: MouseEvent) => {
+    if (userRef.value && !userRef.value.contains(e.target as Node)) userOpen.value = false;
 };
-
-const toggleSubmenuHandler = (groupIndex: number, itemIndex: number) => {
-    const key = `${groupIndex}-${itemIndex}`;
-    openSubmenu.value = openSubmenu.value === key ? null : key;
-};
-
-const openNested = ref<Set<string>>(new Set());
-
-const nestedKey = (groupIndex: number, itemIndex: number, name: string) =>
-    `${groupIndex}-${itemIndex}-${name}`;
-
-const isNestedOpen = (groupIndex: number, itemIndex: number, name: string) => {
-    const key = nestedKey(groupIndex, itemIndex, name);
-    if (openNested.value.has(key)) {
-        return true;
-    }
-    // Auto-open if any leaf inside this nested group matches the active route
-    const item = menuGroups.value[groupIndex]?.items[itemIndex];
-    if (item && 'subItems' in item && item.subItems) {
-        const nested = item.subItems.find(
-            (si): si is SidebarSubGroup => isSubGroup(si) && si.name === name,
-        );
-        if (nested && nested.subItems.some((leaf) => isActive(leaf.href))) {
-            return true;
-        }
-    }
-    return false;
-};
-
-const toggleNestedHandler = (groupIndex: number, itemIndex: number, name: string) => {
-    const key = nestedKey(groupIndex, itemIndex, name);
-    const next = new Set(openNested.value);
-    if (next.has(key)) {
-        next.delete(key);
-    } else {
-        next.add(key);
-    }
-    openNested.value = next;
-};
-
-const subItemMatchesActive = (subItem: SidebarSubItem): boolean => {
-    if (isSubGroup(subItem)) {
-        return subItem.subItems.some((leaf) => isActive(leaf.href));
-    }
-    return isActive(subItem.href);
-};
-
-const isAnySubmenuRouteActive = computed(() => {
-    return menuGroups.value.some((group) =>
-        group.items.some(
-            (item) =>
-                'subItems' in item &&
-                item.subItems &&
-                item.subItems.some((subItem) => subItemMatchesActive(subItem)),
-        ),
-    );
-});
-
-const isSubmenuOpen = (groupIndex: number, itemIndex: number) => {
-    const key = `${groupIndex}-${itemIndex}`;
-    const item = menuGroups.value[groupIndex].items[itemIndex];
-    return (
-        openSubmenu.value === key ||
-        (isAnySubmenuRouteActive.value &&
-            'subItems' in item &&
-            item.subItems?.some((subItem) => subItemMatchesActive(subItem)))
-    );
-};
-
-const startTransition = (el: Element) => {
-    const htmlEl = el as HTMLElement;
-    htmlEl.style.height = 'auto';
-    const height = htmlEl.scrollHeight;
-    htmlEl.style.height = '0px';
-    htmlEl.offsetHeight; // force reflow
-    htmlEl.style.height = height + 'px';
-};
-
-const endTransition = (el: Element) => {
-    (el as HTMLElement).style.height = '';
-};
+onMounted(() => document.addEventListener('click', onDocClick));
+onBeforeUnmount(() => document.removeEventListener('click', onDocClick));
 </script>

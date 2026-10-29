@@ -56,7 +56,6 @@ services:
       BASE_DOMAIN: ${BASE_DOMAIN}
       PANEL_DOMAIN: ${PANEL_DOMAIN}
       PMA_DOMAIN: ${PMA_DOMAIN}
-      CODE_SERVER_DOMAIN: ${CODE_SERVER_DOMAIN}
       VAULTWARDEN_DOMAIN: ${VAULTWARDEN_DOMAIN}
       N8N_DOMAIN: ${N8N_DOMAIN}
       PGADMIN_DOMAIN: ${PGADMIN_DOMAIN}
@@ -198,10 +197,6 @@ services:
     hostname: php-code-server
     restart: always
     environment:
-      - PASSWORD=${CODE_SERVER_PASSWORD}
-      - SUDO_PASSWORD=${CODE_SERVER_SUDO_PASSWORD}
-      - PROXY_DOMAIN=${CODE_SERVER_DOMAIN}:7443
-      - DEFAULT_WORKSPACE=/var/www/vhosts
       - TZ=${APP_TIMEZONE:-Europe/Istanbul}
     volumes:
       - ./php-code-server/run/:/run/php/

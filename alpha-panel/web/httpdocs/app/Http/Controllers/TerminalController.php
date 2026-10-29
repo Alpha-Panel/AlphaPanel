@@ -64,7 +64,11 @@ class TerminalController extends Controller
     }
 
     /**
-     * Create a terminal session for a domain's FTP user inside the frankenphp container.
+     * Create a terminal session for a domain's FTP user inside the php-code-server container.
+     *
+     * Not frankenphp (a web-server restart would kill open shells) and never alpha_panel_web
+     * (tenants must not get a shell next to the panel's secrets). Tenant code already runs
+     * in php-code-server through its FPM pools, so a shell there grants nothing new.
      */
     public function startDomain(Request $request, PortainerService $portainer): JsonResponse
     {
@@ -82,7 +86,7 @@ class TerminalController extends Controller
             return response()->json(['message' => __('No FTP user found for this domain.')], 422);
         }
 
-        $containerName = 'frankenphp';
+        $containerName = (string) config('panel.php_code_server_container', 'php-code-server');
         $container = $portainer->findContainerByName($containerName);
         $containerId = $container['Id'];
         $sessionId = Str::uuid()->toString();

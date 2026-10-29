@@ -84,11 +84,6 @@ RUN curl -fsSL https://deb.nodesource.com/setup_26.x | bash - \
  && apt-get install -y nodejs \
  && rm -rf /var/lib/apt/lists/*
 
-# Install code-server
-ARG CODE_SERVER_VERSION=4.141.1
-RUN curl -fsSL https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/code-server_${CODE_SERVER_VERSION}_amd64.deb -o code-server.deb \
- && dpkg -i code-server.deb \
- && rm code-server.deb
 
 RUN sed -i '/^\[supervisord\]/a user=root' /etc/supervisor/supervisord.conf
 
@@ -110,6 +105,6 @@ COPY user-entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 WORKDIR /var/www/vhosts
-EXPOSE 9000 80 443 8080
+EXPOSE 9000 80 443
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["supervisord", "-n"]

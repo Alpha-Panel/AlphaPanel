@@ -1,12 +1,12 @@
 <template>
-    <Head :title="`${t('File Manager')} - ${domain.fqdn}`" />
+    <Head :title="domain ? `${t('File Manager')} - ${domain.fqdn}` : t('File Manager')" />
     <ThemeProvider>
         <SidebarProvider>
             <AdminLayout>
                 <PageBreadcrumb
                     :pageTitle="t('File Manager')"
                     :items="breadcrumbs"
-                    :backHref="route('domains.show', domain.id)"
+                    :backHref="domain ? route('domains.show', domain.id) : null"
                 />
                 <Toast />
 
@@ -357,20 +357,27 @@ import { useFileManager, type FileItem } from '@/Composables/useFileManager';
 import { useI18n } from '@/Composables/useI18n';
 
 const props = defineProps<{
-    domain: Record<string, any>;
+    /** null = admin file manager over every hosted site (/var/www/vhosts). */
+    domain: Record<string, any> | null;
     maxUploadBytes: number;
 }>();
 const { t } = useI18n();
 
-const breadcrumbs = computed(() => [
-    { label: t('Domains'), href: route('domains.index') },
-    { label: props.domain.fqdn, href: route('domains.show', props.domain.id) },
-    { label: t('File Manager') },
-]);
+const breadcrumbs = computed(() =>
+    props.domain
+        ? [
+              { label: t('Domains'), href: route('domains.index') },
+              { label: props.domain.fqdn, href: route('domains.show', props.domain.id) },
+              { label: t('File Manager') },
+          ]
+        : [{ label: t('File Manager') }],
+);
 
 const { addToast } = useToast();
 const fm = useFileManager(
-    { baseUrl: route('domains.files.index', props.domain.id), storageKey: `fm_state_${props.domain.id}` },
+    props.domain
+        ? { baseUrl: route('domains.files.index', props.domain.id), storageKey: `fm_state_${props.domain.id}` }
+        : { baseUrl: route('file-manager.index'), storageKey: 'fm_state_vhosts' },
     props.maxUploadBytes,
 );
 

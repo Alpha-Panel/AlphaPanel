@@ -1,45 +1,41 @@
 <template>
-    <div class="min-h-screen bg-gray-50 dark:bg-gray-950 xl:flex" :class="{ 'pt-12': impersonationActive && !isEmbedded }">
-        <!-- Inside an in-app tab iframe only the page content renders; the parent window owns the chrome. -->
-        <template v-if="!isEmbedded">
+    <div
+        class="flex h-dvh flex-col bg-bg text-fg"
+        :class="{ 'pt-12': impersonationActive && !isEmbedded }"
+    >
+        <template v-if="isEmbedded">
+            <main scroll-region class="min-h-0 flex-1 overflow-auto px-4 pt-3.5 pb-6">
+                <div :class="contentClass"><slot /></div>
+            </main>
+            <TerminalManager />
+        </template>
+
+        <div v-else class="flex min-h-0 flex-1">
             <ImpersonationBar />
             <AppSidebar />
             <Backdrop />
-        </template>
-        <div
-            class="min-h-screen min-w-0 flex-1 bg-gray-50 transition-all duration-300 ease-in-out dark:bg-gray-950"
-            :class="[
-                isEmbedded
-                    ? ''
-                    : isExpanded || isHovered
-                        ? (isRtl ? 'lg:mr-72.5' : 'lg:ml-72.5')
-                        : (isRtl ? 'lg:mr-22.5' : 'lg:ml-22.5'),
-            ]"
-        >
-            <div v-if="!isEmbedded" class="sticky top-0 z-99999">
+
+            <div class="relative flex min-w-0 flex-1 flex-col">
                 <AppHeader />
                 <AppTabsBar />
-            </div>
-            <!-- Zero-height marker: secondary tab iframes are pinned from here to the viewport bottom. -->
-            <div v-if="!isEmbedded" ref="frameAnchor"></div>
-            <div v-show="isEmbedded || activeId === MAIN_TAB_ID" class="p-4 mx-auto w-full max-w-450 md:p-6">
-                <slot></slot>
+                <!-- Content box: secondary tab iframes are pinned exactly over it (between tabs and terminal dock). -->
+                <div ref="frameAnchor" class="flex min-h-0 flex-1 flex-col">
+                    <main
+                        scroll-region
+                        v-show="activeId === MAIN_TAB_ID"
+                        class="animate-ap-in min-h-0 flex-1 overflow-auto px-4 pt-3.5 pb-6"
+                    >
+                        <div :class="contentClass"><slot /></div>
+                    </main>
+                </div>
+                <TerminalManager />
+                <AppStatusBar />
             </div>
         </div>
-        <TerminalManager />
+
         <ProvisionProgressToast />
         <DockerDeployProgressToast />
         <ColorBlindFilters />
-        <div
-            v-if="panelVersion && !isEmbedded"
-            class="pointer-events-none fixed bottom-3 right-3 z-40 select-none rtl:left-3 rtl:right-auto"
-        >
-            <span
-                class="rounded border border-gray-200 bg-white/70 px-2 py-0.5 text-xs font-mono text-gray-500 backdrop-blur dark:border-gray-800 dark:bg-gray-900/70 dark:text-gray-400"
-            >
-                v{{ panelVersion }}
-            </span>
-        </div>
     </div>
 </template>
 
@@ -49,24 +45,29 @@ import { usePage } from '@inertiajs/vue3';
 import AppSidebar from './AppSidebar.vue';
 import AppHeader from './AppHeader.vue';
 import AppTabsBar from './AppTabsBar.vue';
+import AppStatusBar from './AppStatusBar.vue';
 import Backdrop from './Backdrop.vue';
 import ImpersonationBar from './ImpersonationBar.vue';
+import ColorBlindFilters from './ColorBlindFilters.vue';
 import TerminalManager from '@/Components/Terminal/TerminalManager.vue';
 import ProvisionProgressToast from '@/Components/UI/ProvisionProgressToast.vue';
 import DockerDeployProgressToast from '@/Components/UI/DockerDeployProgressToast.vue';
-import ColorBlindFilters from './ColorBlindFilters.vue';
-import { useSidebar } from '@/Composables/useSidebar';
 import { MAIN_TAB_ID, useAppTabs } from '@/Composables/useAppTabs';
 import type { SharedProps } from '@/types/inertia';
 
-const { isExpanded, isHovered } = useSidebar();
+const props = withDefaults(defineProps<{ wide?: boolean }>(), { wide: false });
+
 const { isEmbedded, activeId, setFrameAnchor, releaseFrameAnchor } = useAppTabs();
 const page = usePage<SharedProps>();
-const isRtl = computed(() => page.props.text_direction === 'rtl');
 const impersonationActive = computed(
-    () => !!(page.props as Record<string, unknown> & { impersonation?: { active?: boolean } }).impersonation?.active
+    () => !!(page.props as Record<string, unknown> & { impersonation?: { active?: boolean } }).impersonation?.active,
 );
-const panelVersion = computed(() => page.props.app?.version ?? null);
+
+// Content column: 12px vertical rhythm between page blocks, capped width unless `wide`.
+const contentClass = computed(() => [
+    'mx-auto flex w-full flex-col gap-3',
+    props.wide ? 'max-w-none' : 'max-w-[1600px]',
+]);
 
 const frameAnchor = ref<HTMLElement | null>(null);
 let anchored: HTMLElement | null = null;
@@ -77,6 +78,5 @@ onMounted(() => {
         setFrameAnchor(anchored);
     }
 });
-
 onBeforeUnmount(() => releaseFrameAnchor(anchored));
 </script>

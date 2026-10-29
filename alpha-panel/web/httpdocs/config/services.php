@@ -37,7 +37,6 @@ return [
 
     'jenkins_url' => env('JENKINS_URL'),
     'n8n_url' => env('N8N_URL'),
-    'file_manager_url' => env('FILE_MANAGER_URL'),
     'pma_url' => env('PHPMYADMIN_URL'),
     'pgadmin_url' => env('PGADMIN_URL'),
 

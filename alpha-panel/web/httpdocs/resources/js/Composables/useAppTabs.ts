@@ -21,7 +21,7 @@ const activeId = ref<string>(MAIN_TAB_ID);
 const frames = new Map<string, HTMLIFrameElement>();
 
 /** Viewport box of the layout's content area; secondary tab iframes are pinned over it. */
-const frameRect = ref<{ top: number; left: number; width: number } | null>(null);
+const frameRect = ref<{ top: number; left: number; width: number; height: number } | null>(null);
 let detachAnchor: (() => void) | null = null;
 let anchorEl: HTMLElement | null = null;
 
@@ -44,16 +44,26 @@ function sameOriginUrl(url: string): string | null {
     }
 }
 
-function openTab(url: string, activate = true): void {
+/**
+ * `title` is for tabs whose frame ends up on another origin (phpMyAdmin, pgAdmin via SSO) and so
+ * can never report its own title; such a tab is reused instead of opened twice.
+ */
+function openTab(url: string, activate = true, title?: string): void {
     const href = sameOriginUrl(url);
     if (!href) return;
 
     if (isEmbedded) {
-        window.parent.postMessage({ type: MSG_OPEN, url: href }, window.location.origin);
+        window.parent.postMessage({ type: MSG_OPEN, url: href, title }, window.location.origin);
         return;
     }
 
-    const tab: AppTab = { id: newId(), url: href, title: new URL(href).pathname };
+    const existing = title ? tabs.value.find((t) => t.url === href && t.title === title) : undefined;
+    if (existing) {
+        activateTab(existing.id);
+        return;
+    }
+
+    const tab: AppTab = { id: newId(), url: href, title: title ?? new URL(href).pathname };
     tabs.value.push(tab);
     if (activate) activeId.value = tab.id;
 }
@@ -126,7 +136,7 @@ function setFrameAnchor(el: HTMLElement): void {
 
     const update = () => {
         const rect = el.getBoundingClientRect();
-        frameRect.value = { top: rect.top, left: rect.left, width: rect.width };
+        frameRect.value = { top: rect.top, left: rect.left, width: rect.width, height: rect.height };
     };
     // Width changes (sidebar collapse transition, resize) trigger the observer every frame.
     const observer = new ResizeObserver(update);
@@ -183,14 +193,22 @@ function reportStateToParent(): void {
     );
 }
 
+/**
+ * Ctrl/Cmd/middle click opens a link in an in-app tab. A link marked `data-app-tab="Title"`
+ * always does (plain click too) — used for SSO links (phpMyAdmin, pgAdmin) whose frame
+ * lands on another origin and so needs its title supplied up front.
+ */
 function handleLinkOpen(event: MouseEvent): void {
+    const anchor = (event.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+    if (!anchor) return;
+
+    const tabTitle = anchor.getAttribute('data-app-tab');
     const wantsNewTab =
-        (event.type === 'click' && event.button === 0 && (event.ctrlKey || event.metaKey)) ||
+        (event.type === 'click' && event.button === 0 && (event.ctrlKey || event.metaKey || tabTitle !== null)) ||
         (event.type === 'auxclick' && event.button === 1);
     if (!wantsNewTab) return;
 
-    const anchor = (event.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
-    if (!anchor || anchor.hasAttribute('download') || anchor.hasAttribute('data-no-tab')) return;
+    if (anchor.hasAttribute('download') || anchor.hasAttribute('data-no-tab')) return;
     if (anchor.target === '_blank') return;
 
     const raw = anchor.getAttribute('href') ?? '';
@@ -201,14 +219,14 @@ function handleLinkOpen(event: MouseEvent): void {
 
     event.preventDefault();
     event.stopPropagation();
-    openTab(href);
+    openTab(href, true, tabTitle || undefined);
 }
 
 function handleMessage(event: MessageEvent): void {
     if (event.origin !== window.location.origin || !event.data || typeof event.data !== 'object') return;
 
     if (event.data.type === MSG_OPEN && typeof event.data.url === 'string') {
-        openTab(event.data.url);
+        openTab(event.data.url, true, typeof event.data.title === 'string' ? event.data.title.slice(0, 120) : undefined);
         return;
     }
 

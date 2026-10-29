@@ -3,8 +3,12 @@
     <div
         v-if="!isEmbedded && tabs.length > 0"
         v-show="activeId !== MAIN_TAB_ID && frameRect"
-        class="fixed bottom-0 z-30 bg-gray-50 dark:bg-gray-950"
-        :style="frameRect ? { top: `${frameRect.top}px`, left: `${frameRect.left}px`, width: `${frameRect.width}px` } : undefined"
+        class="fixed z-30 bg-bg"
+        :style="
+            frameRect
+                ? { top: `${frameRect.top}px`, left: `${frameRect.left}px`, width: `${frameRect.width}px`, height: `${frameRect.height}px` }
+                : undefined
+        "
     >
         <iframe
             v-for="tab in tabs"

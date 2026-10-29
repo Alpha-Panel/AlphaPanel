@@ -38,6 +38,15 @@ export interface PersistentTerminal {
 
 const MAX_TABS_PER_WINDOW = 10;
 
+export const MSG_TERMINAL = 'alphapanel:terminal';
+const isEmbedded = typeof window !== 'undefined' && window.self !== window.top;
+
+/** In-app tab iframes never own terminals: the top window opens them, so they never stack per frame. */
+function forwardToParent(call: string, args: unknown[]): Promise<null> {
+    window.parent.postMessage({ type: MSG_TERMINAL, call, args }, window.location.origin);
+    return Promise.resolve(null);
+}
+
 const windows = reactive(new Map<string, TerminalWindowState>());
 const minimizedWindows = ref<string[]>([]);
 const pendingOpenRequests = reactive(new Set<string>());
@@ -267,6 +276,7 @@ export function useTerminal() {
     // -------------------------------------------------------------------------
 
     async function openTerminal(containerId: string, containerName: string): Promise<string | null> {
+        if (isEmbedded) return forwardToParent('openTerminal', [containerId, containerName]);
         const targetKey = `container:${containerId}`;
 
         const existing = windows.get(targetKey);
@@ -300,6 +310,7 @@ export function useTerminal() {
     }
 
     async function openDomainTerminal(domainId: number, domainFqdn: string): Promise<string | null> {
+        if (isEmbedded) return forwardToParent('openDomainTerminal', [domainId, domainFqdn]);
         const targetKey = `domain:${domainId}`;
 
         const existing = windows.get(targetKey);
@@ -332,6 +343,7 @@ export function useTerminal() {
     }
 
     async function openHostTerminal(): Promise<string | null> {
+        if (isEmbedded) return forwardToParent('openHostTerminal', []);
         const targetKey = 'ssh';
 
         const existing = windows.get(targetKey);

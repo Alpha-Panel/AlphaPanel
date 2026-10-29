@@ -1,9 +1,9 @@
 <template>
     <div>
-        <dt class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+        <dt class="ap-eyebrow">
             {{ label }}
         </dt>
-        <dd class="mt-1 text-sm text-gray-800 dark:text-white/90">
+        <dd class="mt-1 text-sm text-fg">
             {{ value }}
         </dd>
     </div>

@@ -1,49 +1,37 @@
 <template>
-    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-            <Link
-                v-if="backHref"
-                :href="backHref"
-                class="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/3"
-            >
-                <i class="bx bx-arrow-back text-base"></i>
+    <div class="mb-3 flex flex-wrap items-center justify-between gap-2.5">
+        <div class="flex min-w-0 items-center gap-2.5">
+            <Link v-if="backHref" :href="backHref" class="ap-btn hover:no-underline">
+                <i class="bx bx-arrow-back text-sm rtl:rotate-180"></i>
                 {{ backLabel }}
             </Link>
-            <button
-                v-else-if="showBack"
-                type="button"
-                @click="goBack"
-                class="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/3"
-            >
-                <i class="bx bx-arrow-back text-base"></i>
+            <button v-else-if="showBack" type="button" class="ap-btn" @click="goBack">
+                <i class="bx bx-arrow-back text-sm rtl:rotate-180"></i>
                 {{ backLabel }}
             </button>
 
-            <h2 class="text-xl font-semibold text-gray-800 dark:text-white/90">
+            <h1 class="m-0 truncate text-lg font-semibold tracking-tight text-fg">
                 {{ pageTitle }}
-            </h2>
+            </h1>
         </div>
         <nav>
-            <ol class="flex flex-wrap items-center gap-1.5">
+            <ol class="flex flex-wrap items-center gap-1.5 text-xs">
                 <li>
-                    <Link
-                        :href="route('home')"
-                        class="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400"
-                    >
-                        {{ t('Dashboard') }}
+                    <Link :href="route('home')" class="inline-flex items-center gap-1 text-fg-3 hover:text-fg hover:no-underline">
+                        <i class="bx bx-home-alt text-[13px]"></i>{{ t('Dashboard') }}
                     </Link>
                 </li>
                 <template v-for="(item, index) in normalizedItems" :key="`${item.label}-${index}`">
-                    <li class="text-sm text-gray-400">/</li>
+                    <li class="text-fg-3"><i class="bx bx-chevron-right text-[13px] rtl:rotate-180"></i></li>
                     <li>
                         <Link
                             v-if="item.href && index !== normalizedItems.length - 1"
                             :href="item.href"
-                            class="text-sm text-gray-500 hover:text-brand-500 dark:text-gray-400"
+                            class="text-fg-3 hover:text-accent hover:no-underline"
                         >
                             {{ item.label }}
                         </Link>
-                        <span v-else class="text-sm text-gray-800 dark:text-white/90">
+                        <span v-else class="font-medium text-fg-2">
                             {{ item.label }}
                         </span>
                     </li>

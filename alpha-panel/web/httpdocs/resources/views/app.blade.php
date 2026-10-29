@@ -14,11 +14,20 @@
     <link rel="stylesheet" href="{{asset('fontawesome/css/all.css')}}">
     <link rel="stylesheet" href="{{asset('lineicons/free-regular-font/lineicons-free.css')}}">
     <link rel="stylesheet" href="{{asset('font-mfizz/font-mfizz.css')}}">
+    <script nonce="{{ Vite::cspNonce() }}">
+        (function () {
+            try {
+                var root = document.documentElement;
+                root.classList.toggle('dark', localStorage.getItem('theme') !== 'light');
+                root.classList.toggle('density-comfortable', localStorage.getItem('density') === 'comfortable');
+            } catch (e) {}
+        })();
+    </script>
     @routes(nonce: Vite::cspNonce())
     @vite(['resources/css/app.css', 'resources/js/app.ts'])
     @inertiaHead
 </head>
-<body class="font-sans antialiased overflow-x-hidden bg-white dark:bg-gray-900">
+<body class="font-sans antialiased overflow-x-hidden bg-bg text-fg">
     @inertia
 </body>
 </html>

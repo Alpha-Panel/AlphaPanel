@@ -1,15 +1,20 @@
 <template>
     <div
         ref="windowElement"
-        v-show="!win.isMinimized"
-        :style="windowStyle"
-        :class="['terminal-window fixed flex flex-col overflow-hidden rounded-lg border border-gray-700 bg-[#1e1e1e] shadow-2xl', { 'is-active': win.isActive, 'maximized': win.isMaximized }]"
+        v-show="docked ? visible : !win.isMinimized"
+        :style="docked ? undefined : windowStyle"
+        :class="
+            docked
+                ? 'absolute inset-0 flex flex-col overflow-hidden bg-[#1e1e1e]'
+                : ['terminal-window fixed flex flex-col overflow-hidden rounded-lg border border-gray-700 bg-[#1e1e1e] shadow-2xl', { 'is-active': win.isActive, 'maximized': win.isMaximized }]
+        "
         @mousedown="activateWindow"
         @keydown="onKeydown"
         tabindex="-1"
     >
-        <!-- Title Bar -->
+        <!-- Title Bar (the dock draws its own header) -->
         <div
+            v-if="!docked"
             class="flex cursor-move items-center justify-between bg-gray-800 px-3 py-1.5"
             @mousedown="startDrag"
             @dblclick="$emit('maximize')"
@@ -137,7 +142,7 @@ import { useTerminal } from '@/Composables/useTerminal';
 import { useI18n } from '@/Composables/useI18n';
 import TerminalTab from './TerminalTab.vue';
 
-const props = defineProps<{ win: TerminalWindowState }>();
+const props = defineProps<{ win: TerminalWindowState; docked?: boolean; visible?: boolean }>();
 const { t } = useI18n();
 const terminal = useTerminal();
 
@@ -244,8 +249,8 @@ watch(() => [props.win.isMaximized, props.win.position, props.win.size], () => {
     updateWindowStyle();
 }, { deep: true });
 
-watch(() => props.win.isMinimized, (minimized) => {
-    if (!minimized) {
+watch(() => (props.docked ? !props.visible : props.win.isMinimized), (hidden) => {
+    if (!hidden) {
         nextTick(() => {
             updateWindowStyle();
             setTimeout(() => {
@@ -263,7 +268,7 @@ let sizeObserver: ResizeObserver | null = null;
 onMounted(() => {
     if (!windowElement.value) return;
     sizeObserver = new ResizeObserver(() => {
-        if (props.win.isMaximized || props.win.isMinimized) return;
+        if (props.docked || props.win.isMaximized || props.win.isMinimized) return;
         const el = windowElement.value;
         if (!el) return;
         const w = el.offsetWidth + 'px';

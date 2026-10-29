@@ -13,7 +13,6 @@ def form_and_secrets():
         "panel_domain": "server.example.com",
         "pma_domain": "pma.example.com",
         "pgadmin_domain": "pgadmin.example.com",
-        "code_server_domain": "file.example.com",
         "vaultwarden_domain": "password.example.com",
         "n8n_domain": "n8n.example.com",
         "portainer_domain": "portainer.example.com",
@@ -50,7 +49,6 @@ def form_and_secrets():
         "reverb_app_key": "reverbkey",
         "reverb_app_secret": "reverbsecret",
         "app_key": "base64:AAAA",
-        "code_server_password": "cspass",
     }
     return form, secrets
 

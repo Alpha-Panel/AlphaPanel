@@ -1,3 +1,11 @@
+# phpMyAdmin / pgAdmin open inside the panel's in-app tabs (iframe): allow only the panel to frame them.
+(frameable-by-panel) {
+	header {
+		-X-Frame-Options
+		+Content-Security-Policy "frame-ancestors 'self' https://{$PANEL_DOMAIN} https://{$PANEL_DOMAIN}:8443"
+	}
+}
+
 (common-headers) {
 	tls /etc/letsencrypt/live/{$BASE_DOMAIN}/fullchain.pem /etc/letsencrypt/live/{$BASE_DOMAIN}/privkey.pem # certbot-managed
 	encode zstd br gzip
@@ -216,33 +224,11 @@
 	import common-headers
 }
 
-{$CODE_SERVER_DOMAIN}:443 {
-	import common-headers
-	reverse_proxy http://php-code-server:8080 {
-		# preserve host
-		header_up Host {http.request.host}
-		# forward original client IPs
-		header_up X-Real-IP {http.request.remote.host}
-		header_up X-Forwarded-For {http.request.remote.host}
-		header_up X-Forwarded-Proto {http.request.scheme}
-		# *** the two magic lines for WebSockets ***
-		header_up Upgrade {http.request.header.Upgrade}
-		header_up Connection {http.request.header.Connection}
-		# *** forward the cookie so ServiceWorker fetches don't 401 ***
-		header_up Cookie {http.request.header.Cookie}
-		# if you have any Authorization headers (e.g. basic auth), forward them too
-		header_up Authorization {http.request.header.Authorization}
-
-		# force HTTP/1.1 upstream so websockets can Upgrade
-		transport http {
-			versions 1.1
-		}
-	}
-}
-
 {$PMA_DOMAIN}:443 {
 	import common-headers
+	import frameable-by-panel
 	reverse_proxy http://phpmyadmin:80 {
+		header_down -X-Frame-Options
 		# preserve host
 		header_up Host {http.request.host}
 		# forward original client IPs
@@ -319,8 +305,10 @@
 
 {$PGADMIN_DOMAIN}:443 {
 	import common-headers
+	import frameable-by-panel
 
 	reverse_proxy http://pgadmin:80 {
+		header_down -X-Frame-Options
 		header_up Host {http.request.host}
 		header_up X-Real-IP {http.request.remote.host}
 		header_up X-Forwarded-For {http.request.remote.host}

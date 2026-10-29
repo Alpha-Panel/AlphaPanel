@@ -1,14 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap')
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap')
 layer(base);
 
 @import 'boxicons/css/boxicons.min.css';
 
 @import 'tailwindcss';
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where(.dark, .dark *));
 
 @source '../js/**/*.vue';
 @source '../js/**/*.ts';
+/* Controllers/enums return badge HTML with Tailwind classes. */
+@source '../../app/Http/Controllers';
+@source '../../app/Enums';
 
 @font-face {
   font-family: 'Gokturk';
@@ -16,68 +19,194 @@ layer(base);
   font-display: swap;
 }
 
+/* ------------------------------------------------------------------
+   AlphaPanel v3 theme
+   Semantic tokens live as runtime CSS variables on <html> (light by
+   default, .dark overrides). `@theme inline` makes every utility
+   (bg-surface, text-fg-2, border-line …) read the variable directly,
+   so a theme switch needs no rebuild.
+   ------------------------------------------------------------------ */
+:root {
+  --ap-bg: #f3f5f9;
+  --ap-surface: #ffffff;
+  --ap-surface-2: #f7f9fc;
+  --ap-line: #e2e6ee;
+  --ap-line-2: #edf0f5;
+  --ap-fg: #101828;
+  --ap-fg-2: #475467;
+  --ap-fg-3: #8a94a6;
+  --ap-accent: #3d52f0;
+  --ap-accent-soft: rgb(61 82 240 / 0.1);
+  --ap-ok: #0e9f5d;
+  --ap-warn: #c2600a;
+  --ap-err: #d92d20;
+  --ap-info: #0369a1;
+  --ap-violet: #6941c6;
+  --ap-term-bg: #f7f9fc;
+  --ap-term-fg: #1f2937;
+  --ap-row-pad-y: 6px;
+  --ap-row-pad-x: 10px;
+  color-scheme: light;
+}
+
+.dark {
+  --ap-bg: #000000;
+  --ap-surface: #0c0c0e;
+  --ap-surface-2: #131316;
+  --ap-line: #232328;
+  --ap-line-2: #19191d;
+  --ap-fg: #e8e8ea;
+  --ap-fg-2: #9c9ca6;
+  --ap-fg-3: #626270;
+  --ap-accent: #7c8cff;
+  --ap-accent-soft: rgb(107 124 255 / 0.14);
+  --ap-ok: #34d399;
+  --ap-warn: #f5b544;
+  --ap-err: #f87171;
+  --ap-info: #38bdf8;
+  --ap-violet: #a78bfa;
+  --ap-term-bg: #000000;
+  --ap-term-fg: #d5dbe7;
+  color-scheme: dark;
+
+  /* Re-map the legacy gray scale so existing pages that still use
+     dark:bg-gray-900 / dark:border-gray-800 pick up the true-black look
+     without touching their templates. */
+  --color-gray-400: #8a8a96;
+  --color-gray-500: #6c6c78;
+  --color-gray-600: #4a4a54;
+  --color-gray-700: #2c2c32;
+  --color-gray-800: #232328;
+  --color-gray-900: #0c0c0e;
+  --color-gray-950: #000000;
+  --color-gray-dark: #131316;
+}
+
+html.density-comfortable {
+  --ap-row-pad-y: 10px;
+  --ap-row-pad-x: 12px;
+}
+
+/* Density also drives legacy tables (px-5 py-4 cells). Unlayered, so it beats the py-* utilities;
+   inline padding stays per page so column alignment is untouched. */
+table > thead > tr > th,
+table > tbody > tr > td {
+  padding-top: var(--ap-row-pad-y);
+  padding-bottom: var(--ap-row-pad-y);
+}
+
+@theme inline {
+  --color-bg: var(--ap-bg);
+  --color-surface: var(--ap-surface);
+  --color-surface-2: var(--ap-surface-2);
+  --color-line: var(--ap-line);
+  --color-line-2: var(--ap-line-2);
+  --color-fg: var(--ap-fg);
+  --color-fg-2: var(--ap-fg-2);
+  --color-fg-3: var(--ap-fg-3);
+  --color-accent: var(--ap-accent);
+  --color-accent-soft: var(--ap-accent-soft);
+  --color-ok: var(--ap-ok);
+  --color-warn: var(--ap-warn);
+  --color-err: var(--ap-err);
+  --color-info: var(--ap-info);
+  --color-violet: var(--ap-violet);
+  --color-term-bg: var(--ap-term-bg);
+  --color-term-fg: var(--ap-term-fg);
+}
+
 @theme {
   --font-*: initial;
-  --font-outfit: Outfit, sans-serif;
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  /* legacy alias: pages using font-outfit get Plex too */
+  --font-outfit: 'IBM Plex Sans', system-ui, sans-serif;
 
   --breakpoint-*: initial;
   --breakpoint-2xsm: 375px;
   --breakpoint-xsm: 425px;
-  --breakpoint-3xl: 2000px;
   --breakpoint-sm: 640px;
   --breakpoint-md: 768px;
   --breakpoint-lg: 1024px;
   --breakpoint-xl: 1280px;
   --breakpoint-2xl: 1536px;
+  --breakpoint-3xl: 2000px;
 
-  --text-title-2xl: 72px;
-  --text-title-2xl--line-height: 90px;
-  --text-title-xl: 60px;
-  --text-title-xl--line-height: 72px;
-  --text-title-lg: 48px;
-  --text-title-lg--line-height: 60px;
-  --text-title-md: 36px;
-  --text-title-md--line-height: 44px;
-  --text-title-sm: 30px;
-  --text-title-sm--line-height: 38px;
-  --text-theme-xl: 20px;
-  --text-theme-xl--line-height: 30px;
-  --text-theme-sm: 14px;
-  --text-theme-sm--line-height: 20px;
-  --text-theme-xs: 12px;
-  --text-theme-xs--line-height: 18px;
+  --text-2xs: 10.5px;
+  --text-2xs--line-height: 14px;
+  --text-xs: 11.5px;
+  --text-xs--line-height: 16px;
+  --text-sm: 12.5px;
+  --text-sm--line-height: 18px;
+  --text-base: 13px;
+  --text-base--line-height: 18px;
+  --text-lg: 16px;
+  --text-lg--line-height: 22px;
+  --text-xl: 20px;
+  --text-xl--line-height: 24px;
+  --text-theme-sm: 13px;
+  --text-theme-sm--line-height: 18px;
+  --text-theme-xs: 11.5px;
+  --text-theme-xs--line-height: 16px;
+  --text-theme-xl: 18px;
+  --text-theme-xl--line-height: 26px;
+  --text-title-sm: 24px;
+  --text-title-sm--line-height: 30px;
+  --text-title-md: 30px;
+  --text-title-md--line-height: 38px;
+  --text-title-lg: 40px;
+  --text-title-lg--line-height: 48px;
+  --text-title-xl: 52px;
+  --text-title-xl--line-height: 60px;
+  --text-title-2xl: 64px;
+  --text-title-2xl--line-height: 76px;
 
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-2xl: 12px;
+
+  --shadow-pop: 0 12px 32px -8px rgb(0 0 0 / 0.35);
+  --shadow-modal: 0 24px 60px -20px rgb(0 0 0 / 0.6);
+  --shadow-focus: 0 0 0 3px var(--ap-accent-soft);
+  --shadow-focus-ring: 0 0 0 3px var(--ap-accent-soft);
+  --shadow-theme-xs: 0 1px 2px 0 rgb(16 24 40 / 0.05);
+  --shadow-theme-sm: 0 1px 3px 0 rgb(16 24 40 / 0.1), 0 1px 2px 0 rgb(16 24 40 / 0.06);
+  --shadow-theme-md: 0 4px 8px -2px rgb(16 24 40 / 0.1), 0 2px 4px -2px rgb(16 24 40 / 0.06);
+  --shadow-theme-lg: 0 12px 16px -4px rgb(16 24 40 / 0.08), 0 4px 6px -2px rgb(16 24 40 / 0.03);
+  --shadow-theme-xl: 0 20px 24px -4px rgb(16 24 40 / 0.08), 0 8px 8px -4px rgb(16 24 40 / 0.03);
+
+  --animate-ap-in: ap-in 0.12s ease-out;
+  --animate-ap-pulse: ap-pulse 1.6s ease-in-out infinite;
+  --animate-ap-blink: ap-pulse 1s steps(1) infinite;
+
+  @keyframes ap-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes ap-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  /* legacy palettes kept so untouched pages keep compiling */
   --color-current: currentColor;
   --color-transparent: transparent;
   --color-white: #ffffff;
   --color-black: #101828;
-
   --color-brand-25: #f2f7ff;
   --color-brand-50: #ecf3ff;
   --color-brand-100: #dde9ff;
   --color-brand-200: #c2d6ff;
   --color-brand-300: #9cb9ff;
-  --color-brand-400: #7592ff;
-  --color-brand-500: #465fff;
+  --color-brand-400: #7c8cff;
+  --color-brand-500: #3d52f0;
   --color-brand-600: #3641f5;
   --color-brand-700: #2a31d8;
   --color-brand-800: #252dae;
   --color-brand-900: #262e89;
   --color-brand-950: #161950;
-
-  --color-blue-light-25: #f5fbff;
-  --color-blue-light-50: #f0f9ff;
-  --color-blue-light-100: #e0f2fe;
-  --color-blue-light-200: #b9e6fe;
-  --color-blue-light-300: #7cd4fd;
-  --color-blue-light-400: #36bffa;
-  --color-blue-light-500: #0ba5ec;
-  --color-blue-light-600: #0086c9;
-  --color-blue-light-700: #026aa2;
-  --color-blue-light-800: #065986;
-  --color-blue-light-900: #0b4a6f;
-  --color-blue-light-950: #062c41;
-
   --color-gray-25: #fcfcfd;
   --color-gray-50: #f9fafb;
   --color-gray-100: #f2f4f7;
@@ -91,7 +220,18 @@ layer(base);
   --color-gray-900: #101828;
   --color-gray-950: #0c111d;
   --color-gray-dark: #1a2231;
-
+  --color-blue-light-25: #f5fbff;
+  --color-blue-light-50: #f0f9ff;
+  --color-blue-light-100: #e0f2fe;
+  --color-blue-light-200: #b9e6fe;
+  --color-blue-light-300: #7cd4fd;
+  --color-blue-light-400: #36bffa;
+  --color-blue-light-500: #0ba5ec;
+  --color-blue-light-600: #0086c9;
+  --color-blue-light-700: #026aa2;
+  --color-blue-light-800: #065986;
+  --color-blue-light-900: #0b4a6f;
+  --color-blue-light-950: #062c41;
   --color-orange-25: #fffaf5;
   --color-orange-50: #fff6ed;
   --color-orange-100: #ffead5;
@@ -104,7 +244,6 @@ layer(base);
   --color-orange-800: #9c2a10;
   --color-orange-900: #7e2410;
   --color-orange-950: #511c10;
-
   --color-success-25: #f6fef9;
   --color-success-50: #ecfdf3;
   --color-success-100: #d1fadf;
@@ -117,7 +256,6 @@ layer(base);
   --color-success-800: #05603a;
   --color-success-900: #054f31;
   --color-success-950: #053321;
-
   --color-error-25: #fffbfa;
   --color-error-50: #fef3f2;
   --color-error-100: #fee4e2;
@@ -130,7 +268,6 @@ layer(base);
   --color-error-800: #912018;
   --color-error-900: #7a271a;
   --color-error-950: #55160c;
-
   --color-warning-25: #fffcf5;
   --color-warning-50: #fffaeb;
   --color-warning-100: #fef0c7;
@@ -143,18 +280,8 @@ layer(base);
   --color-warning-800: #93370d;
   --color-warning-900: #7a2e0e;
   --color-warning-950: #4e1d09;
-
   --color-theme-pink-500: #ee46bc;
   --color-theme-purple-500: #7a5af8;
-
-  --shadow-theme-md: 0px 4px 8px -2px rgba(16, 24, 40, 0.1), 0px 2px 4px -2px rgba(16, 24, 40, 0.06);
-  --shadow-theme-lg: 0px 12px 16px -4px rgba(16, 24, 40, 0.08),
-    0px 4px 6px -2px rgba(16, 24, 40, 0.03);
-  --shadow-theme-sm: 0px 1px 3px 0px rgba(16, 24, 40, 0.1), 0px 1px 2px 0px rgba(16, 24, 40, 0.06);
-  --shadow-theme-xs: 0px 1px 2px 0px rgba(16, 24, 40, 0.05);
-  --shadow-theme-xl: 0px 20px 24px -4px rgba(16, 24, 40, 0.08),
-    0px 8px 8px -4px rgba(16, 24, 40, 0.03);
-  --shadow-focus-ring: 0px 0px 0px 4px rgba(70, 95, 255, 0.12);
 
   --z-index-1: 1;
   --z-index-9: 9;
@@ -166,19 +293,21 @@ layer(base);
 }
 
 @layer base {
-  *,
-  ::after,
-  ::before,
-  ::backdrop,
-  ::file-selector-button {
-    border-color: var(--color-gray-200, currentColor);
+  *, ::after, ::before, ::backdrop, ::file-selector-button {
+    border-color: var(--ap-line, currentColor);
   }
-  button:not(:disabled),
-  [role='button']:not(:disabled) {
-    cursor: pointer;
-  }
+  html, body { height: 100%; }
   body {
-    @apply relative z-1 bg-gray-50 font-normal font-outfit text-gray-900 dark:bg-gray-950 dark:text-gray-100;
+    @apply bg-bg font-sans text-base text-fg antialiased;
+  }
+  button:not(:disabled), [role='button']:not(:disabled) { cursor: pointer; }
+  /* Only unstyled inline links; classed links/buttons keep their own colour. */
+  a:not([class]) { color: var(--ap-accent); text-decoration: none; }
+  a:not([class]):hover { text-decoration: underline; }
+  input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: none;
+    border-color: var(--ap-accent);
+    box-shadow: var(--shadow-focus);
   }
 
   html[lang='tr-gokturk'] body,
@@ -186,281 +315,171 @@ layer(base);
   html[lang='tr-gokturk'] textarea,
   html[lang='tr-gokturk'] select,
   html[lang='tr-gokturk'] button {
-    font-family: 'Gokturk', Outfit, sans-serif;
+    font-family: 'Gokturk', 'IBM Plex Sans', sans-serif;
   }
 
-  :root {
-    --app-scrollbar-size: 8px;
-    --app-scrollbar-track: #eef2f6;
-    --app-scrollbar-thumb: #c2cad6;
-    --app-scrollbar-thumb-hover: #97a4b7;
-  }
-
-  .dark {
-    --app-scrollbar-track: #0f1728;
-    --app-scrollbar-thumb: #475467;
-    --app-scrollbar-thumb-hover: #667085;
-  }
-
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: var(--app-scrollbar-thumb) var(--app-scrollbar-track);
-  }
-
-  *::-webkit-scrollbar {
-    width: var(--app-scrollbar-size);
-    height: var(--app-scrollbar-size);
-  }
-
-  *::-webkit-scrollbar-track {
-    background-color: var(--app-scrollbar-track);
-    border-radius: 9999px;
-  }
-
+  * { scrollbar-width: thin; scrollbar-color: var(--ap-line) transparent; }
+  *::-webkit-scrollbar { width: 8px; height: 8px; }
   *::-webkit-scrollbar-thumb {
-    background-color: var(--app-scrollbar-thumb);
-    border: 2px solid var(--app-scrollbar-track);
-    border-radius: 9999px;
+    background: var(--ap-line);
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
   }
-
-  *::-webkit-scrollbar-thumb:hover {
-    background-color: var(--app-scrollbar-thumb-hover);
-  }
-
-  *::-webkit-scrollbar-corner {
-    background-color: var(--app-scrollbar-track);
-  }
+  *::-webkit-scrollbar-track, *::-webkit-scrollbar-corner { background: transparent; }
 }
 
+/* ---------- component utilities (usable as plain classes) ---------- */
+@utility ap-card {
+  @apply min-w-0 rounded-lg border border-line bg-surface;
+}
+@utility ap-card-head {
+  @apply flex items-center gap-2 border-b border-line-2 px-3.5 py-2 text-xs font-semibold;
+}
+@utility ap-btn {
+  @apply inline-flex h-7 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-xs text-fg-2 transition-colors hover:text-fg disabled:opacity-50;
+}
+@utility ap-btn-sm {
+  @apply inline-flex h-6.5 items-center gap-1.5 rounded-md border border-line bg-surface px-2 text-xs text-fg-2 hover:text-fg;
+}
+@utility ap-btn-primary {
+  @apply inline-flex h-7 items-center gap-1.5 rounded-md bg-accent px-3 text-xs font-semibold text-white hover:brightness-110 disabled:opacity-50;
+}
+@utility ap-btn-danger {
+  @apply inline-flex h-7 items-center gap-1.5 rounded-md bg-err px-3 text-xs font-semibold text-white hover:brightness-110;
+}
+@utility ap-icon-btn {
+  @apply inline-flex size-6.5 items-center justify-center rounded-md border border-line bg-surface text-sm text-fg-2 hover:text-fg;
+}
+@utility ap-header-btn {
+  @apply relative inline-flex size-8 items-center justify-center rounded-[7px] border border-line bg-surface text-fg-2 transition-colors hover:text-fg;
+}
+@utility ap-input {
+  @apply h-8 w-full rounded-md border border-line bg-bg px-2.5 text-sm text-fg placeholder:text-fg-3;
+}
+@utility ap-input-sm {
+  @apply h-6.5 rounded-md border border-line bg-bg px-2 text-xs text-fg placeholder:text-fg-3;
+}
+@utility ap-label {
+  @apply mb-1.5 block text-xs font-medium text-fg-2;
+}
+@utility ap-th {
+  @apply border-b border-line bg-surface-2 px-2.5 py-1.75 text-start text-2xs font-semibold tracking-[.05em] text-fg-3 uppercase;
+}
+@utility ap-td {
+  @apply border-b border-line-2 align-middle text-sm text-fg;
+  padding: var(--ap-row-pad-y) var(--ap-row-pad-x);
+}
+@utility ap-chip {
+  @apply inline-flex rounded-sm border border-line bg-surface-2 px-1.5 font-mono text-[11px] text-fg-2;
+}
+@utility ap-pop {
+  @apply animate-ap-in absolute z-60 rounded-[9px] border border-line bg-surface p-1 shadow-pop;
+}
+@utility ap-pop-item {
+  @apply flex h-7.5 w-full items-center gap-2.5 rounded-md px-2 text-start text-sm text-fg-2 hover:bg-surface-2 hover:text-fg;
+}
+@utility ap-eyebrow {
+  @apply text-[10px] tracking-[.08em] text-fg-3 uppercase;
+}
+
+/* legacy menu utilities, restyled (used by any page not yet migrated) */
 @utility menu-item {
-  @apply relative flex items-center w-full gap-3 px-3 py-2 font-medium rounded-lg text-theme-sm;
+  @apply relative flex h-8 w-full items-center gap-2.5 rounded-md px-2 text-sm font-medium;
 }
-
-@utility menu-item-active {
-  @apply bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400;
-}
-
-@utility menu-item-inactive {
-  @apply text-gray-700 hover:bg-gray-100 group-hover:text-gray-700 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-gray-300;
-}
-
-@utility menu-item-icon {
-  @apply text-gray-500 group-hover:text-gray-700 dark:text-gray-400;
-}
-
-@utility menu-item-icon-active {
-  @apply text-brand-500 dark:text-brand-400;
-}
-
-@utility menu-item-icon-inactive {
-  @apply text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300;
-}
-
-@utility menu-item-arrow {
-  @apply relative;
-}
-
-@utility menu-item-arrow-active {
-  @apply rotate-180 text-brand-500 dark:text-brand-400;
-}
-
-@utility menu-item-arrow-inactive {
-  @apply text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300;
-}
-
+@utility menu-item-active { @apply bg-accent-soft text-accent; }
+@utility menu-item-inactive { @apply text-fg-2 hover:bg-surface-2 hover:text-fg; }
+@utility menu-item-icon-active { @apply text-accent; }
+@utility menu-item-icon-inactive { @apply text-fg-3 group-hover:text-fg; }
 @utility menu-dropdown-item {
-  @apply relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-theme-sm font-medium;
+  @apply relative flex h-7 items-center gap-2.5 rounded-md px-2 text-sm font-medium;
 }
+@utility menu-dropdown-item-active { @apply bg-accent-soft text-accent; }
+@utility menu-dropdown-item-inactive { @apply text-fg-2 hover:bg-surface-2 hover:text-fg; }
+@utility menu-item-icon { @apply text-fg-3 group-hover:text-fg; }
+@utility menu-item-arrow { @apply relative; }
+@utility menu-item-arrow-active { @apply rotate-180 text-accent; }
+@utility menu-item-arrow-inactive { @apply text-fg-3 group-hover:text-fg; }
 
-@utility menu-dropdown-item-active {
-  @apply bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400;
-}
-
-@utility menu-dropdown-item-inactive {
-  @apply text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5;
-}
+.tableCheckbox:checked ~ span span { @apply opacity-100; }
+.tableCheckbox:checked ~ span { @apply border-accent bg-accent; }
+.form-check-input:checked ~ span { @apply border-[6px] border-accent; }
 
 @utility no-scrollbar {
-  &::-webkit-scrollbar {
-    display: none;
-  }
+  &::-webkit-scrollbar { display: none; }
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-
 @utility custom-scrollbar {
-  &::-webkit-scrollbar {
-    @apply size-1.5;
-  }
-
-  &::-webkit-scrollbar-track {
-    @apply rounded-full;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    @apply bg-gray-200 rounded-full dark:bg-gray-700;
-  }
+  &::-webkit-scrollbar { @apply size-1.5; }
+  &::-webkit-scrollbar-thumb { @apply rounded-full bg-line; }
 }
 
-.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #344054;
+/* Server-rendered badges (enum badgeHtml(), controllers) use Bootstrap names; map them to theme tones.
+   Unlayered + two classes so they win over the bg-info/bg-warning token utilities. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 9999px;
+  padding: 1px 7px;
+  font-size: var(--text-2xs);
+  line-height: var(--text-2xs--line-height);
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid var(--ap-line);
+  background: var(--ap-surface-2);
+  color: var(--ap-fg-2);
 }
+.badge.bg-success { border-color: transparent; background: color-mix(in srgb, var(--ap-ok) 14%, transparent); color: var(--ap-ok); }
+.badge.bg-danger { border-color: transparent; background: color-mix(in srgb, var(--ap-err) 14%, transparent); color: var(--ap-err); }
+.badge.bg-warning { border-color: transparent; background: color-mix(in srgb, var(--ap-warn) 16%, transparent); color: var(--ap-warn); }
+.badge.bg-info { border-color: transparent; background: color-mix(in srgb, var(--ap-info) 14%, transparent); color: var(--ap-info); }
+.badge.bg-primary { border-color: transparent; background: var(--ap-accent-soft); color: var(--ap-accent); }
+.badge.bg-secondary { border-color: var(--ap-line); background: var(--ap-surface-2); color: var(--ap-fg-2); }
 
-@layer utilities {
-  input[type='date']::-webkit-inner-spin-button,
-  input[type='time']::-webkit-inner-spin-button,
-  input[type='date']::-webkit-calendar-picker-indicator,
-  input[type='time']::-webkit-calendar-picker-indicator {
-    display: none;
-    -webkit-appearance: none;
-  }
-}
-
-.sidebar:hover {
-  width: 290px;
-}
-.sidebar:hover .logo {
-  display: block;
-}
-.sidebar:hover .logo-icon {
-  display: none;
-}
-.sidebar:hover .sidebar-header {
-  justify-content: space-between;
-}
-.sidebar:hover .menu-group-title {
-  display: block;
-}
-.sidebar:hover .menu-group-icon {
-  display: none;
-}
-.sidebar:hover .menu-item-text {
-  display: inline;
-}
-.sidebar:hover .menu-item-arrow {
-  display: block;
-}
-.sidebar:hover .menu-dropdown {
-  display: flex;
-}
-
-.tableCheckbox:checked ~ span span {
-  @apply opacity-100;
-}
-.tableCheckbox:checked ~ span {
-  @apply border-brand-500 bg-brand-500;
-}
-
-.form-check-input:checked ~ span {
-  @apply border-[6px] border-brand-500 dark:border-brand-500;
-}
-.menu-item-icon-inactive i.lni{
-  width: 24px;
-  height: 24px;
-  line-height: 24px;
-  text-align: center;
-  font-size: 24px;
-}
-
-/* SweetAlert2 — dark theme overrides */
-.dark .swal2-popup {
-  background: #1d2939;
-  color: #f2f4f7;
-  border: 1px solid #344054;
-  border-radius: 1rem;
-}
-
-.dark .swal2-title {
-  color: #f2f4f7;
-}
-
-.dark .swal2-html-container {
-  color: #98a2b3;
-}
-
-.dark .swal2-icon.swal2-warning {
-  border-color: #fdb022;
-  color: #fdb022;
-}
-
-.dark .swal2-icon.swal2-warning .swal2-icon-content {
-  color: #fdb022;
-}
-
-.dark .swal2-icon.swal2-error {
-  border-color: #f04438;
-}
-
-.dark .swal2-icon.swal2-error [class^='swal2-x-mark-line'] {
-  background-color: #f04438;
-}
-
-.dark .swal2-icon.swal2-success {
-  border-color: #12b76a;
-  color: #12b76a;
-}
-
-.dark .swal2-icon.swal2-success .swal2-success-line-tip,
-.dark .swal2-icon.swal2-success .swal2-success-line-long {
-  background-color: #12b76a;
-}
-
-.dark .swal2-icon.swal2-success .swal2-success-ring {
-  border-color: rgba(18, 183, 106, 0.3);
-}
-
-.dark .swal2-icon.swal2-info {
-  border-color: #0ba5ec;
-  color: #0ba5ec;
-}
-
-.swal2-container {
-  z-index: 99999 !important;
-}
-
+/* SweetAlert2 */
+.swal2-container { z-index: 99999 !important; }
 .swal2-popup {
-  border-radius: 1rem;
+  background: var(--ap-surface) !important;
+  color: var(--ap-fg) !important;
+  border: 1px solid var(--ap-line);
+  border-radius: 10px !important;
+  font-family: inherit;
 }
-
-.swal2-popup .swal2-actions .swal2-confirm {
-  border-radius: 0.5rem;
-  font-weight: 500;
-  font-size: 0.875rem;
-  padding: 0.5rem 1.25rem;
-}
-
+.swal2-title { color: var(--ap-fg) !important; font-size: 15px !important; }
+.swal2-html-container { color: var(--ap-fg-2) !important; font-size: 12.5px !important; }
+.swal2-popup .swal2-actions .swal2-confirm,
 .swal2-popup .swal2-actions .swal2-cancel {
-  border-radius: 0.5rem;
-  font-weight: 500;
-  font-size: 0.875rem;
-  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 0.4rem 0.9rem;
+}
+.swal2-popup .swal2-actions .swal2-confirm { background: var(--ap-accent) !important; }
+.swal2-icon.swal2-warning { border-color: var(--ap-warn) !important; color: var(--ap-warn) !important; }
+.swal2-icon.swal2-error { border-color: var(--ap-err) !important; }
+.swal2-icon.swal2-error [class^='swal2-x-mark-line'] { background-color: var(--ap-err) !important; }
+.swal2-icon.swal2-success { border-color: var(--ap-ok) !important; color: var(--ap-ok) !important; }
+.swal2-icon.swal2-success .swal2-success-line-tip,
+.swal2-icon.swal2-success .swal2-success-line-long { background-color: var(--ap-ok) !important; }
+.swal2-icon.swal2-success .swal2-success-ring { border-color: color-mix(in srgb, var(--ap-ok) 30%, transparent) !important; }
+.swal2-icon.swal2-info { border-color: var(--ap-info) !important; color: var(--ap-info) !important; }
+.dark .swal2-icon.swal2-success [class^='swal2-success-circular-line'],
+.dark .swal2-icon.swal2-success .swal2-success-fix { background-color: var(--ap-surface) !important; }
+.swal2-popup .swal2-actions .swal2-cancel {
+  background: var(--ap-surface-2) !important;
+  color: var(--ap-fg-2) !important;
+  border: 1px solid var(--ap-line);
 }
 
-.dark .swal2-popup .swal2-actions .swal2-cancel {
-  background-color: #344054;
-  color: #d0d5dd;
-}
+/* Color-blind filters — <filter> defs in ColorBlindFilters.vue */
+html.cb-protanopia, html.cb-deuteranopia, html.cb-tritanopia { will-change: filter; }
+html.cb-protanopia { filter: url('#cb-protanopia'); }
+html.cb-deuteranopia { filter: url('#cb-deuteranopia'); }
+html.cb-tritanopia { filter: url('#cb-tritanopia'); }
 
-.dark .swal2-popup .swal2-actions .swal2-cancel:hover {
-  background-color: #475467;
-}
-
-/* Color-blind daltonization filters. Filter <filter> defs live in
-   resources/js/Components/Layout/ColorBlindFilters.vue. The class is
-   applied to <html> (document.documentElement) by useColorBlindMode.ts
-   — only <html> keeps `position: fixed` descendants anchored to the
-   viewport when a filter creates a new containing block. */
-html.cb-protanopia,
-html.cb-deuteranopia,
-html.cb-tritanopia {
-  will-change: filter;
-}
-html.cb-protanopia {
-  filter: url('#cb-protanopia');
-}
-html.cb-deuteranopia {
-  filter: url('#cb-deuteranopia');
-}
-html.cb-tritanopia {
-  filter: url('#cb-tritanopia');
-}
+input[type='date']::-webkit-inner-spin-button,
+input[type='time']::-webkit-inner-spin-button,
+input[type='date']::-webkit-calendar-picker-indicator,
+input[type='time']::-webkit-calendar-picker-indicator { display: none; -webkit-appearance: none; }

@@ -59,8 +59,7 @@
                                     <a
                                         v-if="hasDatabaseUser(db)"
                                         :href="route('pma.database.sso', { domain: domain.id, database: db.id })"
-                                        target="_blank"
-                                        rel="noopener"
+                                        :data-app-tab="`phpMyAdmin · ${db.db_name}`"
                                         class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-blue-light-500/40 text-blue-light-600 hover:bg-blue-light-500/10 dark:text-blue-light-300"
                                         :title="t('Open in phpMyAdmin')"
                                     >
@@ -554,8 +553,7 @@
                             <div class="space-y-2">
                                 <a
                                     :href="route('pma.admin.sso')"
-                                    target="_blank"
-                                    rel="noopener"
+                                    data-app-tab="phpMyAdmin"
                                     class="flex items-center gap-2.5 rounded-lg border border-blue-light-500/40 px-3 py-2.5 text-sm font-medium text-blue-light-600 hover:bg-blue-light-500/10 dark:text-blue-light-300"
                                 >
                                     <i class="lni lni-mysql text-base"></i>
@@ -564,8 +562,7 @@
                                 <a
                                     v-if="pgAdminUrl"
                                     :href="route('pgadmin.sso')"
-                                    target="_blank"
-                                    rel="noopener"
+                                    data-app-tab="pgAdmin"
                                     class="flex items-center gap-2.5 rounded-lg border border-success-500/40 px-3 py-2.5 text-sm font-medium text-success-600 hover:bg-success-500/10 dark:text-success-300"
                                 >
                                     <i class="lni lni-postgresql text-base"></i>

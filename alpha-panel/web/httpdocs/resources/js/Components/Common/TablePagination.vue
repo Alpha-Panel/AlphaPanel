@@ -13,13 +13,13 @@
         </button>
 
         <template v-for="(item, index) in pageItems" :key="`page-${index}-${item}`">
-            <span v-if="item === 'ellipsis'" class="flex h-8 w-8 items-center justify-center text-sm text-gray-400 dark:text-gray-600">…</span>
+            <span v-if="item === 'ellipsis'" class="flex size-7 items-center justify-center text-sm text-fg-3">…</span>
             <button
                 v-else
                 type="button"
                 :class="[
-                    'h-8 min-w-8 rounded-lg px-1 text-sm font-medium',
-                    item === currentPage ? 'bg-brand-500 text-white' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800',
+                    'h-7 min-w-7 rounded-md px-1 font-mono text-xs font-medium',
+                    item === currentPage ? 'bg-accent text-white' : 'text-fg-2 hover:bg-surface-2 hover:text-fg',
                 ]"
                 @click="goTo(item)"
             >
@@ -107,6 +107,6 @@ const pageItems = computed<(number | 'ellipsis')[]>(() => {
 @reference "../../../css/app.css";
 
 .page-btn {
-    @apply inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-gray-400 dark:hover:bg-gray-800;
+    @apply inline-flex size-7 items-center justify-center rounded-md text-fg-2 hover:bg-surface-2 hover:text-fg disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent;
 }
 </style>

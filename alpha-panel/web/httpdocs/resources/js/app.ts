@@ -48,6 +48,6 @@ createInertiaApp({
         syncLocaleFromStorage(props.initialPage.props);
     },
     progress: {
-        color: '#465fff',
+        color: '#7c8cff',
     },
 });

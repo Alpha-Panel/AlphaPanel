@@ -40,7 +40,6 @@ def test_gen_all_panel_secrets_returns_full_dict():
         "reverb_app_key",
         "reverb_app_secret",
         "app_key",
-        "code_server_password",
         "powerdns_db_password",
     }
     # Subset, not equality: a new credential is added to gen_all_panel_secrets()

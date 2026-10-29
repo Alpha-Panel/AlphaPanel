@@ -7,6 +7,10 @@ declare(strict_types=1);
 $cfg['blowfish_secret'] = (string) getenv('PMA_BLOWFISH_SECRET');
 
 $cfg['DefaultLang'] = 'en';
+
+// The panel opens phpMyAdmin inside an in-app tab (iframe). Who may frame it is restricted
+// in Caddy (frame-ancestors = panel domain only), so PMA's own anti-framing is turned off.
+$cfg['AllowThirdPartyFraming'] = true;
 $cfg['ServerDefault'] = 1;
 
 

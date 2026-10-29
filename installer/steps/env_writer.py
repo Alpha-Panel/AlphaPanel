@@ -74,7 +74,6 @@ def write_root_env(path: Path, form: dict[str, Any], secrets: dict[str, str]) ->
         "panel_domain",
         "pma_domain",
         "pgadmin_domain",
-        "code_server_domain",
         "vaultwarden_domain",
         "n8n_domain",
         "portainer_domain",
@@ -88,11 +87,6 @@ def write_root_env(path: Path, form: dict[str, Any], secrets: dict[str, str]) ->
     add(_env_line("VAULTWARDEN_DB_NAME", "bitwarden"))
     add(_env_line("VAULTWARDEN_DB_USER", "bitwarden"))
     add(_env_line("VAULTWARDEN_DB_PASSWORD", secrets["vaultwarden_db_password"], quoted=True))
-
-    add("\n# ─── Code Server ───\n")
-    add(_env_line("CODE_SERVER_PASSWORD", secrets["code_server_password"], quoted=True))
-    add(_env_line("CODE_SERVER_SUDO_PASSWORD", secrets["code_server_password"], quoted=True))
-    add(_env_line("CODE_SERVER_PWA_APP_NAME", "AlphaPanel Code Server"))
 
     add("\n# ─── N8N ───\n")
     add(_env_line("N8N_EMAIL_MODE", "smtp"))

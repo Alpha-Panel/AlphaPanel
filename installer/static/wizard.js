@@ -105,7 +105,6 @@ function bindDomainsAutofill() {
     const mapping = {
       panel_domain: `server.${base.value}`,
       pma_domain: `pma.${base.value}`,
-      code_server_domain: `file.${base.value}`,
       vaultwarden_domain: `password.${base.value}`,
       n8n_domain: `n8n.${base.value}`,
       portainer_domain: `portainer.${base.value}`,
@@ -188,7 +187,6 @@ function renderDone(panelUrl) {
   const subs = {
     Panel: panelUrl,
     phpMyAdmin: `https://${form.pma_domain}:8443`,
-    "File manager": `https://${form.code_server_domain}:8443`,
     Portainer: `https://${form.portainer_domain}:8443`,
     N8N: `https://${form.n8n_domain}:8443`,
     Passwords: `https://${form.vaultwarden_domain}:8443`,

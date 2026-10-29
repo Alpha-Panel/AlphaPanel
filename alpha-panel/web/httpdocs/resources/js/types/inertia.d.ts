@@ -26,9 +26,9 @@ export interface SharedProps {
         logo_url?: string;
         version?: string | null;
         links?: {
-            file_manager?: string | null;
             jenkins?: string | null;
             n8n?: string | null;
+            pgadmin?: string | null;
         };
     };
     locale?: string;

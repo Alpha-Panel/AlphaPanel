@@ -1,11 +1,11 @@
 <template>
     <div>
-        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
+        <label class="ap-label">
             {{ label }}
-            <span v-if="required" class="text-error-500">*</span>
+            <span v-if="required" class="text-err">*</span>
         </label>
         <slot></slot>
-        <p v-if="error" class="mt-1 text-sm text-error-500">{{ error }}</p>
+        <p v-if="error" class="mt-1 text-xs text-err">{{ error }}</p>
     </div>
 </template>
 

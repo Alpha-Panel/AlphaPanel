@@ -33,12 +33,12 @@ class AddCspHeaders
 
         $csp = implode('; ', [
             "default-src 'self'",
-            "script-src 'strict-dynamic' 'nonce-{$nonce}'" . $captchaDomains['script'],
+            "script-src 'strict-dynamic' 'nonce-{$nonce}'".$captchaDomains['script'],
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' data: https://fonts.gstatic.com",
             "img-src 'self' data: blob: https://www.gravatar.com",
-            "connect-src 'self' wss:" . $captchaDomains['connect'],
-            "frame-src 'self'" . $captchaDomains['frame'],
+            "connect-src 'self' wss:".$captchaDomains['connect'],
+            "frame-src 'self'".$captchaDomains['frame'].$this->dbToolFrameOrigins(),
             "worker-src 'self' blob:",
             "object-src 'none'",
             "base-uri 'self'",
@@ -53,6 +53,26 @@ class AddCspHeaders
         $response->headers->set($headerName, $csp);
 
         return $response;
+    }
+
+    /**
+     * phpMyAdmin / pgAdmin open inside in-app tabs: allow framing their configured origins.
+     */
+    private function dbToolFrameOrigins(): string
+    {
+        $origins = '';
+
+        foreach ([config('services.phpmyadmin.base_url'), config('services.pgadmin.url')] as $url) {
+            $parts = is_string($url) ? parse_url($url) : false;
+
+            if (! is_array($parts) || ! isset($parts['scheme'], $parts['host'])) {
+                continue;
+            }
+
+            $origins .= ' '.$parts['scheme'].'://'.$parts['host'].(isset($parts['port']) ? ':'.$parts['port'] : '');
+        }
+
+        return $origins;
     }
 
     /**
