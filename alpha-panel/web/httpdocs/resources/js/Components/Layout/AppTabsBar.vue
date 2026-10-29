@@ -51,7 +51,7 @@
 
             <button
                 type="button"
-                class="mb-1.5 ms-1 flex h-7 w-7 shrink-0 items-center justify-center self-center rounded-lg text-gray-500 hover:bg-white hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-200"
+                class="ms-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-t-lg text-gray-500 hover:bg-white hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-200"
                 :title="t('New tab')"
                 :aria-label="t('New tab')"
                 @click="openTab(newTabUrl)"
