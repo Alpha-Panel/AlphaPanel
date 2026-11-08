@@ -134,6 +134,26 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Passkeys (laravel/passkeys)
+    |--------------------------------------------------------------------------
+    |
+    | Fortify copies these into the passkeys config. The panel uses its own
+    | passkey routes (the Fortify passkeys feature stays off). The legacy
+    | WEBAUTHN_ID / WEBAUTHN_ORIGINS values are still honoured so passkeys
+    | registered before the move keep the same relying party and origins.
+    |
+    */
+
+    'passkeys' => [
+        'relying_party_id' => env('PASSKEYS_RP_ID', env('WEBAUTHN_ID') ?: parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+        'allowed_origins' => array_values(array_unique(array_filter([
+            rtrim((string) env('APP_URL', 'http://localhost'), '/'),
+            ...array_map('trim', explode(',', (string) env('WEBAUTHN_ORIGINS', ''))),
+        ]))),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Features
     |--------------------------------------------------------------------------
     |

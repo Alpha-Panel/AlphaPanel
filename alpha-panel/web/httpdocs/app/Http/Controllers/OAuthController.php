@@ -47,7 +47,7 @@ class OAuthController extends Controller
             return response()->json(['found' => false]);
         }
 
-        $hasWebauthn = $user->webAuthnCredentials()->whereEnabled()->exists();
+        $hasWebauthn = $user->hasPasskeysEnabled();
 
         return response()->json([
             'found' => true,
@@ -95,7 +95,7 @@ class OAuthController extends Controller
                 ->withErrors(['login' => 'Kimlik bilgileri hatalı.']);
         }
 
-        if ($user->webAuthnCredentials()->whereEnabled()->exists()) {
+        if ($user->hasPasskeysEnabled()) {
             return back()
                 ->withInput(['login' => $validated['login'], 'redirect_uri' => $validated['redirect_uri'], 'state' => $validated['state']])
                 ->withErrors(['login' => 'Bu hesapta passkey aktif — parola ile giriş engellenmiştir.']);

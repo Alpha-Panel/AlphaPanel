@@ -1,5 +1,5 @@
 <template>
-    <header class="flex h-11.5 shrink-0 items-center gap-2.5 border-b border-line bg-surface px-3">
+    <header class="flex h-[calc(--spacing(11.5)+env(safe-area-inset-top))] shrink-0 items-center pt-[env(safe-area-inset-top)] gap-2.5 border-b border-line bg-surface px-3">
         <button
             type="button"
             title="Menu"

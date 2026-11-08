@@ -2,7 +2,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title inertia>{{ config('app.name', 'AlphaPanel') }}</title>
     <link rel="manifest" href="/manifest.json">
@@ -11,6 +11,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/img/favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-icon-180x180.png">
     <meta name="theme-color" content="#061D47">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="stylesheet" href="{{asset('fontawesome/css/all.css')}}">
     <link rel="stylesheet" href="{{asset('lineicons/free-regular-font/lineicons-free.css')}}">
     <link rel="stylesheet" href="{{asset('font-mfizz/font-mfizz.css')}}">
@@ -18,7 +19,11 @@
         (function () {
             try {
                 var root = document.documentElement;
-                root.classList.toggle('dark', localStorage.getItem('theme') !== 'light');
+                var dark = localStorage.getItem('theme') !== 'light';
+                root.classList.toggle('dark', dark);
+                // Home-screen web app: dark runs the header under the status bar (white text);
+                // light keeps the opaque system bar, since the translucent style has no dark text.
+                if (!dark) document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content = 'default';
                 root.classList.toggle('density-comfortable', localStorage.getItem('density') === 'comfortable');
             } catch (e) {}
         })();

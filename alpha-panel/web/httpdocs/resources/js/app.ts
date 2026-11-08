@@ -13,6 +13,20 @@ import AppTabsHost from '@/Components/Layout/AppTabsHost.vue';
 
 initializeColorBlindMode();
 
+/**
+ * iOS (PWA) pans the window to reveal a focused input above the keyboard and often leaves it
+ * there, so the header ends up under the status bar. The panel shell scrolls inside <main> and
+ * never the window: once focus leaves the text field (keyboard closed), snap the window back.
+ * Pages without the shell (auth) keep normal window scrolling.
+ */
+document.addEventListener('focusout', () => {
+    setTimeout(() => {
+        const active = document.activeElement as HTMLElement | null;
+        const typing = !!active && (active.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName));
+        if (!typing && window.scrollY !== 0 && document.querySelector('[scroll-region]')) window.scrollTo(0, 0);
+    }, 100);
+});
+
 function syncLocaleFromStorage(pageProps: Record<string, unknown>): void {
     const stored = localStorage.getItem('locale');
     if (!stored) return;

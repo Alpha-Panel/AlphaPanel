@@ -3,7 +3,7 @@
         :class="[
             'z-99999 flex shrink-0 flex-col overflow-hidden border-e border-line bg-surface transition-[width,transform] duration-200 ease-out',
             'fixed start-0 bottom-0 w-58 lg:relative lg:inset-auto lg:translate-x-0',
-            impersonationActive ? 'top-12 lg:top-auto' : 'top-0',
+            impersonationActive ? 'top-12 lg:top-auto' : 'top-0 pt-[env(safe-area-inset-top)] lg:pt-0',
             wide ? 'lg:w-58' : 'lg:w-14',
             isMobileOpen ? 'translate-x-0' : isRtl ? 'translate-x-full' : '-translate-x-full',
         ]"

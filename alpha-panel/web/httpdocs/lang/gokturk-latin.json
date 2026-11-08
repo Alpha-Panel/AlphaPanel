@@ -2075,5 +2075,11 @@
   "All selected items must belong to the same domain.": "talulmış qamuğ neŋler tek domainke tegişlig bolmalı.",
   "This action is only available inside a domain directory.": "bu iş tek domain evi içinde qılınur.",
   "audit_actions.file_saved": "bitig saqlandı",
-  "audit_actions.file_deleted": "bitig yoq qılındı"
+  "audit_actions.file_deleted": "bitig yoq qılındı",
+  "Unable to verify passkey. Please try again.": "passkey doğrulanmadı. Qayta sına.",
+  "Unable to register passkey. Please try again.": "passkey yazılmadı. Qayta sına.",
+  "Unable to register this passkey.": "bu passkey yazılmadı.",
+  "Passkey not recognized. It may have been removed from your account.": "passkey tanılmadı. hesabıŋdan çıqarılmış bolğay.",
+  "Invalid credential format.": "Yañlış kimlik biçimi.",
+  "Passkey session expired. Please try again.": "passkey ödi tükedi. Qayta sına."
 }

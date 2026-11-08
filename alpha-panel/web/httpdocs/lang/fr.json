@@ -2083,5 +2083,11 @@
   "All selected items must belong to the same domain.": "Tous les éléments sélectionnés doivent appartenir au même domaine.",
   "This action is only available inside a domain directory.": "Cette action n’est disponible que dans le répertoire d’un domaine.",
   "audit_actions.file_saved": "Fichier enregistré",
-  "audit_actions.file_deleted": "Fichier supprimé"
+  "audit_actions.file_deleted": "Fichier supprimé",
+  "Unable to verify passkey. Please try again.": "Impossible de vérifier la passkey. Veuillez réessayer.",
+  "Unable to register passkey. Please try again.": "Impossible d'enregistrer la passkey. Veuillez réessayer.",
+  "Unable to register this passkey.": "Impossible d'enregistrer cette passkey.",
+  "Passkey not recognized. It may have been removed from your account.": "Passkey non reconnue. Elle a peut-être été supprimée de votre compte.",
+  "Invalid credential format.": "Format d'identifiant invalide.",
+  "Passkey session expired. Please try again.": "La session passkey a expiré. Veuillez réessayer."
 }

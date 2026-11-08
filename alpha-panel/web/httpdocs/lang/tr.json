@@ -2171,5 +2171,11 @@
   "All selected items must belong to the same domain.": "Seçilen tüm öğeler aynı domaine ait olmalıdır.",
   "This action is only available inside a domain directory.": "Bu işlem yalnızca bir domain dizini içinde kullanılabilir.",
   "audit_actions.file_saved": "Dosya Kaydedildi",
-  "audit_actions.file_deleted": "Dosya Silindi"
+  "audit_actions.file_deleted": "Dosya Silindi",
+  "Unable to verify passkey. Please try again.": "Passkey doğrulanamadı. Lütfen tekrar deneyin.",
+  "Unable to register passkey. Please try again.": "Passkey kaydedilemedi. Lütfen tekrar deneyin.",
+  "Unable to register this passkey.": "Bu passkey kaydedilemedi.",
+  "Passkey not recognized. It may have been removed from your account.": "Passkey tanınmadı. Hesabınızdan kaldırılmış olabilir.",
+  "Invalid credential format.": "Geçersiz kimlik bilgisi biçimi.",
+  "Passkey session expired. Please try again.": "Passkey oturumunun süresi doldu. Lütfen tekrar deneyin."
 }

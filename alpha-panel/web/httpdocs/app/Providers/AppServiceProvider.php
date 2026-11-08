@@ -15,6 +15,7 @@ use App\Observers\DomainCronJobObserver;
 use App\Observers\DomainObserver;
 use App\Observers\SslObserver;
 use App\Services\ImpersonationService;
+use App\Support\Passkeys\GenerateVerificationOptions;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\SecurityScheme;
@@ -23,6 +24,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Passkeys\Actions\GenerateVerificationOptions as BaseGenerateVerificationOptions;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -32,6 +34,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(ImpersonationService::class);
+        $this->app->bind(BaseGenerateVerificationOptions::class, GenerateVerificationOptions::class);
     }
 
     /**

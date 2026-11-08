@@ -2094,5 +2094,11 @@
   "All selected items must belong to the same domain.": "Все выбранные элементы должны принадлежать одному домену.",
   "This action is only available inside a domain directory.": "Это действие доступно только внутри каталога домена.",
   "audit_actions.file_saved": "Файл сохранён",
-  "audit_actions.file_deleted": "Файл удалён"
+  "audit_actions.file_deleted": "Файл удалён",
+  "Unable to verify passkey. Please try again.": "Не удалось проверить passkey. Попробуйте ещё раз.",
+  "Unable to register passkey. Please try again.": "Не удалось зарегистрировать passkey. Попробуйте ещё раз.",
+  "Unable to register this passkey.": "Не удалось зарегистрировать этот passkey.",
+  "Passkey not recognized. It may have been removed from your account.": "Passkey не распознан. Возможно, он был удалён из вашей учётной записи.",
+  "Invalid credential format.": "Неверный формат учётных данных.",
+  "Passkey session expired. Please try again.": "Сеанс passkey истёк. Попробуйте ещё раз."
 }

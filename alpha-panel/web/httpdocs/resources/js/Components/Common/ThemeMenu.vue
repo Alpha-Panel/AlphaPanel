@@ -15,13 +15,16 @@
                 <i v-if="density === o" class="bx bx-check ms-auto text-[15px]"></i>
             </button>
 
-            <div class="ap-eyebrow mt-1 flex items-center gap-1.5 border-t border-line-2 px-2 pt-2 pb-1">
-                <i class="bx bx-terminal text-[13px]"></i>{{ t('Terminal') }}
-            </div>
-            <button v-for="o in terminalModes" :key="o.value" type="button" :class="optClass(terminalMode === o.value, true)" @click="setTerminalMode(o.value)">
-                <i :class="['bx', o.icon, 'text-[13px]']"></i>{{ t(o.label) }}
-                <i v-if="terminalMode === o.value" class="bx bx-check ms-auto text-[15px]"></i>
-            </button>
+            <!-- Mobile always uses the bottom panel, so there is nothing to choose. -->
+            <template v-if="!terminalIsMobile">
+                <div class="ap-eyebrow mt-1 flex items-center gap-1.5 border-t border-line-2 px-2 pt-2 pb-1">
+                    <i class="bx bx-terminal text-[13px]"></i>{{ t('Terminal') }}
+                </div>
+                <button v-for="o in terminalModes" :key="o.value" type="button" :class="optClass(terminalMode === o.value, true)" @click="setTerminalMode(o.value)">
+                    <i :class="['bx', o.icon, 'text-[13px]']"></i>{{ t(o.label) }}
+                    <i v-if="terminalMode === o.value" class="bx bx-check ms-auto text-[15px]"></i>
+                </button>
+            </template>
 
             <div class="ap-eyebrow mt-1 flex items-center gap-1.5 border-t border-line-2 px-2 pt-2 pb-1">
                 <i class="bx bx-low-vision text-[13px]"></i>{{ t('Color Blind Mode') }}
@@ -44,7 +47,7 @@ import { useTerminalMode, type TerminalMode } from '@/Composables/useTerminalMod
 const { t } = useI18n();
 const { theme, isDarkMode, setTheme, density, setDensity } = useTheme();
 const { mode: cbMode, setMode: setCbMode } = useColorBlindMode();
-const { mode: terminalMode, setMode: setTerminalMode } = useTerminalMode();
+const { mode: terminalMode, isMobile: terminalIsMobile, setMode: setTerminalMode } = useTerminalMode();
 
 const terminalModes: { value: TerminalMode; icon: string; label: string }[] = [
     { value: 'floating', icon: 'bx-window-alt', label: 'Floating windows' },

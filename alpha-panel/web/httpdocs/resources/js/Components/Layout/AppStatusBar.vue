@@ -1,5 +1,5 @@
 <template>
-    <footer class="flex h-6 shrink-0 items-center gap-3.5 overflow-hidden border-t border-line bg-surface px-3 font-mono text-2xs whitespace-nowrap text-fg-3">
+    <footer class="flex h-[calc(--spacing(6)+env(safe-area-inset-bottom))] shrink-0 items-center pb-[env(safe-area-inset-bottom)] gap-3.5 overflow-hidden border-t border-line bg-surface px-3 font-mono text-2xs whitespace-nowrap text-fg-3">
         <span class="inline-flex shrink-0 items-center gap-1.5">
             <span class="size-2 rounded-full" :class="healthDot"></span>{{ host }}
         </span>

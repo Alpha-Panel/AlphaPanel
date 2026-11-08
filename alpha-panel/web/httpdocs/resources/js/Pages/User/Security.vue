@@ -334,6 +334,7 @@ const registerWebAuthn = async () => {
             response: {
                 attestationObject: bufferToBase64url(attestation.attestationObject),
                 clientDataJSON: bufferToBase64url(attestation.clientDataJSON),
+                transports: attestation.getTransports?.() ?? [],
             },
             name,
         });

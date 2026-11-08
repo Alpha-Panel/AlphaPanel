@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Middleware\CheckLoginIp;
 use App\Models\SecuritySetting;
 use App\Models\User;
-use App\Models\WebAuthn;
 use App\Services\LoginSecurityService;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\JsonResponse;
@@ -16,6 +15,7 @@ use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Spatie\Honeypot\EncryptedTime;
 use Spatie\Honeypot\ProtectAgainstSpam;
 
 class LoginController extends Controller implements HasMiddleware
@@ -64,7 +64,7 @@ class LoginController extends Controller implements HasMiddleware
             $honeypotConfig = [
                 'name_field' => config('honeypot.name_field_name', 'my_name'),
                 'valid_from_field' => config('honeypot.valid_from_field_name', 'my_time'),
-                'encrypted_valid_from' => (string) \Spatie\Honeypot\EncryptedTime::create(now()),
+                'encrypted_valid_from' => (string) EncryptedTime::create(now()),
             ];
         }
 
@@ -94,9 +94,7 @@ class LoginController extends Controller implements HasMiddleware
             ]);
         }
 
-        $hasWebauthn = WebAuthn::query()
-            ->where('authenticatable_id', $user->id)
-            ->exists();
+        $hasWebauthn = $user->hasPasskeysEnabled();
 
         return response()->json([
             'has_webauthn' => $hasWebauthn,

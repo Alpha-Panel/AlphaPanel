@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\WebAuthn;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,9 +16,9 @@ class UserController extends Controller
 {
     public function index(): Response
     {
-        $webauthn = WebAuthn::where('authenticatable_id', auth()->id())->get();
-
-        return Inertia::render('User/Security', compact('webauthn'));
+        return Inertia::render('User/Security', [
+            'webauthn' => WebAuthnController::summaries(auth()->user()),
+        ]);
     }
 
     public function updateEmail(Request $request): RedirectResponse|JsonResponse

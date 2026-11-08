@@ -2094,5 +2094,11 @@
   "All selected items must belong to the same domain.": "Seçilmiş bütün elementlər eyni domenə aid olmalıdır.",
   "This action is only available inside a domain directory.": "Bu əməliyyat yalnız domen qovluğunun daxilində mümkündür.",
   "audit_actions.file_saved": "Fayl Saxlanıldı",
-  "audit_actions.file_deleted": "Fayl Silindi"
+  "audit_actions.file_deleted": "Fayl Silindi",
+  "Unable to verify passkey. Please try again.": "Passkey doğrulanmadı. Yenidən cəhd edin.",
+  "Unable to register passkey. Please try again.": "Passkey qeyd edilmədi. Yenidən cəhd edin.",
+  "Unable to register this passkey.": "Bu passkey qeyd edilə bilmədi.",
+  "Passkey not recognized. It may have been removed from your account.": "Passkey tanınmadı. Hesabınızdan silinmiş ola bilər.",
+  "Invalid credential format.": "Yanlış etimadnamə formatı.",
+  "Passkey session expired. Please try again.": "Passkey sessiyasının vaxtı bitdi. Yenidən cəhd edin."
 }

@@ -4,35 +4,34 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use App\Models\User;
-use App\Models\WebAuthn;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Laravel\Passkeys\Actions\DeletePasskey;
 
 class WebAuthnController extends Controller
 {
-    public function list(): JsonResponse
+    public function list(Request $request): JsonResponse
     {
-        $credentials = WebAuthn::where('authenticatable_id', auth()->id())->get();
-
-        return response()->json($credentials);
+        return response()->json(self::summaries($request->user()));
     }
 
-    public function delete(Request $request): JsonResponse
+    public function delete(Request $request, DeletePasskey $deletePasskey): JsonResponse
     {
         $validated = $request->validate([
-            'id' => 'required|string',
+            'id' => 'required|integer',
         ]);
 
-        $credential = WebAuthn::where('authenticatable_id', auth()->id())
-            ->where('id', $validated['id'])
-            ->first();
+        /** @var User $user */
+        $user = $request->user();
+        $passkey = $user->passkeys()->whereKey($validated['id'])->first();
 
-        if ($credential) {
-            $deletedName = (string) ($credential->name ?? '');
-            $credential->delete();
+        if ($passkey) {
+            $deletedName = (string) $passkey->name;
+            $deletePasskey($user, $passkey);
 
             AuditLog::create([
-                'user_id' => auth()->id(),
+                'user_id' => $user->id,
                 'action' => 'webauthn_deleted',
                 'summary' => $deletedName !== ''
                     ? sprintf('Deleted security key "%s"', $deletedName)
@@ -40,14 +39,9 @@ class WebAuthnController extends Controller
             ]);
         }
 
-        $remainingCount = WebAuthn::where('authenticatable_id', auth()->id())->count();
-
-        if ($remainingCount === 0) {
-            $user = User::find(auth()->id());
-            if (! $user->two_factor_confirmed && $user->two_factor_secret === null) {
-                $user->otp = false;
-                $user->save();
-            }
+        if (! $user->hasPasskeysEnabled() && ! $user->two_factor_confirmed && $user->two_factor_secret === null) {
+            $user->otp = false;
+            $user->save();
         }
 
         return response()->json(['status' => 'success']);
@@ -56,22 +50,20 @@ class WebAuthnController extends Controller
     public function rename(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'id' => 'required|string',
+            'id' => 'required|integer',
             'name' => 'required|string|max:120',
         ]);
 
-        $credential = WebAuthn::where('authenticatable_id', auth()->id())
-            ->where('id', $validated['id'])
-            ->first();
+        $passkey = $request->user()->passkeys()->whereKey($validated['id'])->first();
 
-        if ($credential) {
-            $oldName = (string) ($credential->name ?? '');
+        if ($passkey) {
+            $oldName = (string) $passkey->name;
             $newName = trim($validated['name']);
-            $credential->name = $newName;
-            $credential->save();
+            $passkey->name = $newName;
+            $passkey->save();
 
             AuditLog::create([
-                'user_id' => auth()->id(),
+                'user_id' => $request->user()->id,
                 'action' => 'webauthn_renamed',
                 'summary' => $oldName !== ''
                     ? sprintf('Renamed security key "%s" → "%s"', $oldName, $newName)
@@ -80,5 +72,13 @@ class WebAuthnController extends Controller
         }
 
         return response()->json(['status' => true]);
+    }
+
+    /**
+     * The user's passkeys without the stored credential (public key, counter, user handle).
+     */
+    public static function summaries(User $user): Collection
+    {
+        return $user->passkeys()->oldest()->get()->makeHidden(['credential', 'credential_id', 'user_id']);
     }
 }

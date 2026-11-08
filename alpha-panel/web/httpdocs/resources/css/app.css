@@ -296,7 +296,13 @@ table > tbody > tr > td {
   *, ::after, ::before, ::backdrop, ::file-selector-button {
     border-color: var(--ap-line, currentColor);
   }
-  html, body { height: 100%; }
+  /*
+   * The shell scrolls inside <main>, never the window; stop iOS rubber-banding the whole page.
+   * Keyboard shifts of the window are undone in app.ts. Do NOT make body position:fixed: WebKit
+   * puts it on its own layer and the color-blind filter on <html> stops reaching the page.
+   */
+  html, body { height: 100%; overscroll-behavior: none; }
+  #app { height: 100%; }
   body {
     @apply bg-bg font-sans text-base text-fg antialiased;
   }
@@ -473,11 +479,21 @@ table > tbody > tr > td {
   border: 1px solid var(--ap-line);
 }
 
-/* Color-blind filters — <filter> defs in ColorBlindFilters.vue */
+/*
+ * Color-blind filters — <filter> defs in ColorBlindFilters.vue.
+ * WebKit (iOS) paints url() filters in software and skips descendants on their own composited
+ * layer: the overflow scroller's content, fixed overlays, animated popovers. Those get the filter
+ * themselves. The matrices are projections (M·M = M), so a second pass on browsers that already
+ * filtered them through <html> changes nothing. Scroll content holding a fixed overlay is left to
+ * the overlay rule: a filter there would become the overlay's containing block.
+ */
 html.cb-protanopia, html.cb-deuteranopia, html.cb-tritanopia { will-change: filter; }
-html.cb-protanopia { filter: url('#cb-protanopia'); }
-html.cb-deuteranopia { filter: url('#cb-deuteranopia'); }
-html.cb-tritanopia { filter: url('#cb-tritanopia'); }
+html.cb-protanopia,
+html.cb-protanopia :is([scroll-region] > :not(:has(.fixed)), .fixed, .ap-pop) { filter: url('#cb-protanopia'); }
+html.cb-deuteranopia,
+html.cb-deuteranopia :is([scroll-region] > :not(:has(.fixed)), .fixed, .ap-pop) { filter: url('#cb-deuteranopia'); }
+html.cb-tritanopia,
+html.cb-tritanopia :is([scroll-region] > :not(:has(.fixed)), .fixed, .ap-pop) { filter: url('#cb-tritanopia'); }
 
 input[type='date']::-webkit-inner-spin-button,
 input[type='time']::-webkit-inner-spin-button,

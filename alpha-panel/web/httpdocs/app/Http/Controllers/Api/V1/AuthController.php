@@ -35,7 +35,7 @@ class AuthController extends ApiController
             ]);
         }
 
-        if ($user->webAuthnCredentials()->whereEnabled()->exists()) {
+        if ($user->hasPasskeysEnabled()) {
             throw ValidationException::withMessages([
                 'email' => [__('Bu hesapta passkey aktif — parola ile giriş engellenmiştir.')],
             ]);

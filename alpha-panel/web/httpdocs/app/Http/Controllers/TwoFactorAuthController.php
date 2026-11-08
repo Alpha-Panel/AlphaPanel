@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\SecuritySetting;
-use App\Models\WebAuthn;
 use App\Services\LoginSecurityService;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
@@ -43,9 +42,7 @@ class TwoFactorAuthController extends Controller
         }
 
         return Inertia::render('Auth/OtpChallenge', [
-            'webauthn' => WebAuthn::query()
-                ->where('authenticatable_id', $user->id)
-                ->exists(),
+            'webauthn' => $user->hasPasskeysEnabled(),
             'totp' => (bool) $user->two_factor_confirmed,
             'name' => $user->name,
             'email' => $user->email,

@@ -1,6 +1,6 @@
 <template>
     <div
-        class="flex h-dvh flex-col bg-bg text-fg"
+        class="flex h-full flex-col bg-bg text-fg"
         :class="{ 'pt-12': impersonationActive && !isEmbedded }"
     >
         <template v-if="isEmbedded">

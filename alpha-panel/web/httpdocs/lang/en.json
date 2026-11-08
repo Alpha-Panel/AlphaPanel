@@ -2155,5 +2155,11 @@
   "All selected items must belong to the same domain.": "All selected items must belong to the same domain.",
   "This action is only available inside a domain directory.": "This action is only available inside a domain directory.",
   "audit_actions.file_saved": "File Saved",
-  "audit_actions.file_deleted": "File Deleted"
+  "audit_actions.file_deleted": "File Deleted",
+  "Unable to verify passkey. Please try again.": "Unable to verify passkey. Please try again.",
+  "Unable to register passkey. Please try again.": "Unable to register passkey. Please try again.",
+  "Unable to register this passkey.": "Unable to register this passkey.",
+  "Passkey not recognized. It may have been removed from your account.": "Passkey not recognized. It may have been removed from your account.",
+  "Invalid credential format.": "Invalid credential format.",
+  "Passkey session expired. Please try again.": "Passkey session expired. Please try again."
 }

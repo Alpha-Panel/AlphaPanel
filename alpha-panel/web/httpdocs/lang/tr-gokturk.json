@@ -2061,5 +2061,11 @@
   "All selected items must belong to the same domain.": "𐱃𐰀𐰞𐰆𐰞𐰢𐰃𐱁 𐰴𐰀𐰢𐰆𐰍 𐰣𐰀𐰭𐰞𐰀𐰼 𐱅𐰀𐰚 𐰑𐰆𐰢𐰀𐰃𐰣𐰚𐰀 𐱅𐰀𐰏𐰃𐱁𐰠𐰃𐰏 𐰉𐰆𐰞𐰢𐰀𐰞𐰃",
   "This action is only available inside a domain directory.": "𐰋𐰆 𐰃𐱁 𐱅𐰀𐰚 𐰑𐰆𐰢𐰀𐰃𐰣 𐰋𐰃 𐰃𐰲𐰃𐰤𐰓𐰀 𐰴𐰃𐰞𐰃𐰣𐰆𐰺",
   "audit_actions.file_saved": "𐰋𐰃𐱅𐰃𐰏 𐰽𐰀𐰴𐰞𐰀𐰣𐰑𐰃",
-  "audit_actions.file_deleted": "𐰋𐰃𐱅𐰃𐰏 𐰖𐰆𐰴 𐰴𐰃𐰞𐰃𐰣𐰑𐰃"
+  "audit_actions.file_deleted": "𐰋𐰃𐱅𐰃𐰏 𐰖𐰆𐰴 𐰴𐰃𐰞𐰃𐰣𐰑𐰃",
+  "Unable to verify passkey. Please try again.": "𐰯𐰀𐰾𐰾𐰚𐰁𐰖 𐰑𐰆𐰍𐰺𐰆𐰞𐰀𐰤𐰢𐰀𐰑𐰃. 𐰸𐰀𐰖𐱃𐰀 𐰾𐰃𐰤𐰀.",
+  "Unable to register passkey. Please try again.": "𐰯𐰀𐰾𐰾𐰚𐰁𐰖 𐰖𐰀𐰔𐰃𐰞𐰢𐰀𐰑𐰃. 𐰸𐰀𐰖𐱃𐰀 𐰾𐰃𐰤𐰀.",
+  "Unable to register this passkey.": "𐰉𐰆 𐰯𐰀𐰾𐰾𐰚𐰁𐰖 𐰖𐰀𐰔𐰃𐰞𐰢𐰀𐰑𐰃.",
+  "Passkey not recognized. It may have been removed from your account.": "𐰯𐰀𐰾𐰾𐰚𐰁𐰖 𐱃𐰀𐰤𐰃𐰞𐰢𐰀𐰑𐰃. 𐰴𐰁𐰾𐰀𐰉𐰃𐰭𐰑𐰀𐰤 𐰲𐰃𐰸𐰀𐰺𐰃𐰞𐰢𐰃𐱁 𐰉𐰆𐰞𐰍𐰀𐰖.",
+  "Invalid credential format.": "𐰖𐰀𐰭𐰞𐰃𐱁 𐰚𐰃𐰢𐰞𐰃𐰚 𐰉𐰃𐰲𐰃𐰢𐰃.",
+  "Passkey session expired. Please try again.": "𐰯𐰀𐰾𐰾𐰚𐰁𐰖 𐰇𐰑𐰃 𐱃𐰇𐰚𐰁𐰑𐰃. 𐰸𐰀𐰖𐱃𐰀 𐰾𐰃𐰤𐰀."
 }
