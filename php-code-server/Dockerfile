@@ -33,7 +33,7 @@ RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
  && rm -rf /var/lib/apt/lists/*
 
 # Bump to force a fresh PHP package install on cached builds (security releases).
-ARG PHP_PACKAGES_REFRESH=2026-10-21
+ARG PHP_PACKAGES_REFRESH=2026-11-20
 
 # 2) PHP 7.0–7.4 + core extensions
 RUN apt-get update && apt-get install -y --no-install-recommends \

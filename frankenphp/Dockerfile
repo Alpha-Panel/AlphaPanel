@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1
 
-ARG FRANKENPHP_VERSION=1.13.3
-ARG CADDY_VERSION=2.11.7
+ARG FRANKENPHP_VERSION=1.13.6
+ARG CADDY_VERSION=2.11.9
 FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-builder-php8.5-bookworm AS builder
 ARG FRANKENPHP_VERSION
 ARG CADDY_VERSION
 
 # xcaddy
-COPY --from=caddy:2.11.7-builder /usr/bin/xcaddy /usr/bin/xcaddy
+COPY --from=caddy:2.11.9-builder /usr/bin/xcaddy /usr/bin/xcaddy
 
 # git + ca-certs lazım (repo çekeceğiz)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -50,6 +50,13 @@ COPY --from=builder /usr/local/bin/frankenphp /usr/local/bin/frankenphp
 # failed). The current 2.x installer builds memcached from source for PHP 8.5.
 COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /usr/local/bin/
 
+# pecl_http (`http` + `raphf`) is deliberately not installed in this image. With it
+# loaded, FrankenPHP >= 1.12.5 deadlocks or corrupts the heap every time it restarts
+# its PHP threads: a worker restart, a config reload, even opcache's own scheduled
+# restart (https://github.com/php/frankenphp/issues/2568, unfixed upstream). That
+# is the most likely cause of the "container stops answering after a worker
+# restart" failure seen here. A site that needs ext-http runs on PHP-FPM
+# (php-code-server), where it is still installed.
 RUN install-php-extensions \
         pdo_mysql \
         pdo_pgsql \
@@ -62,8 +69,6 @@ RUN install-php-extensions \
         memcached \
         redis \
         imagick \
-        raphf \
-        http \
         bcmath \
         mongodb \
         mysqli \

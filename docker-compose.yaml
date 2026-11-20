@@ -301,7 +301,7 @@ services:
       - vhost_network
 
   powerdns:
-    image: powerdns/pdns-auth-49:4.9.13
+    image: powerdns/pdns-auth-49:4.9.18
     container_name: powerdns
     hostname: powerdns
     restart: always
@@ -371,7 +371,7 @@ services:
       - vhost_network
 
   password:
-    image: "vaultwarden/server:1.37.2-alpine"
+    image: "vaultwarden/server:1.37.5-alpine"
     hostname: "${VAULTWARDEN_DOMAIN}"
     container_name: password
     restart: always
@@ -405,7 +405,7 @@ services:
       PMA_URL: ${PMA_URL}
       PMA_SIGNON_BOOTSTRAP_URL: https://${PANEL_DOMAIN}:8443/pma/admin/sso
       PMA_SSO_ENFORCE_IP: ${PMA_SSO_ENFORCE_IP:-0}
-      PMA_SSO_SINGE_USE: ${PMA_SSO_SINGLE_USE:-0}
+      PMA_SSO_SINGLE_USE: ${PMA_SSO_SINGLE_USE:-0}
       PANEL_APP_KEY: ${PANEL_APP_KEY}
     volumes:
       - ./phpmyadmin/config.inc.php:/etc/phpmyadmin/config.inc.php:ro
@@ -459,6 +459,9 @@ services:
     environment:
       - TZ=Europe/Istanbul
       - DOCKER_HOST=tcp://docker-socket-proxy:2375
+      # Java4Shell (CVE-2026-114938) workaround recommended by Jenkins. Remove once
+      # `docker exec jenkins java -version` reports 21.0.13.1 / 25.0.5.1 or newer.
+      - JAVA_OPTS=-XX:-UseBASE64Intrinsics
     volumes:
       - ./jenkins/data:/var/jenkins_home
       - ./vhosts:/var/www/vhosts
@@ -490,7 +493,7 @@ services:
       - vhost_network
 
   pgadmin:
-    image: dpage/pgadmin4:9.17
+    image: dpage/pgadmin4:9.19
     container_name: pgadmin
     restart: always
     depends_on:

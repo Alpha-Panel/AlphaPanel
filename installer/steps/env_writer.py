@@ -291,7 +291,6 @@ MEILISEARCH_KEY={meili_key}
 # ─── Panel config ───
 PANEL_CADDY_MAIN_CONFIG=/etc/frankenphp-container/Caddyfile
 PANEL_CADDY_SITES_BASE=/etc/frankenphp-container/sites-enabled
-PANEL_CADDY_ADMIN_URL=http://frankenphp:2019
 PANEL_FRANKENPHP_CONTAINER=frankenphp
 PANEL_PHP_CODE_SERVER_CONTAINER=php-code-server
 PANEL_DOCKER_TIMEOUT=15

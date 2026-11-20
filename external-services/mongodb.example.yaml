@@ -1,6 +1,6 @@
 services:
   mongodb:
-    image: mongodb/mongodb-community-server:8.0.8-ubuntu2204
+    image: mongodb/mongodb-community-server:8.0.38-ubuntu2204
     container_name: mongodb
     hostname: mongodb
     restart: always

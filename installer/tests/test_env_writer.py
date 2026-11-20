@@ -194,7 +194,7 @@ def test_write_laravel_env_appends_production_block(tmp_path: Path, form_and_sec
     assert "MEILISEARCH_KEY=apmeilikey" in content
     assert "PANEL_CADDY_MAIN_CONFIG=/etc/frankenphp-container/Caddyfile" in content
     assert "PANEL_CADDY_SITES_BASE=/etc/frankenphp-container/sites-enabled" in content
-    assert "PANEL_CADDY_ADMIN_URL=http://frankenphp:2019" in content
+    assert "PANEL_CADDY_ADMIN_URL" not in content
     assert "PANEL_FRANKENPHP_CONTAINER=frankenphp" in content
     assert "PANEL_PHP_CODE_SERVER_CONTAINER=php-code-server" in content
     assert "COMPOSE_PROJECT_ROOT_HOST=/opt/alphapanel-docker" in content

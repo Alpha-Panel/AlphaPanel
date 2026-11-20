@@ -33,7 +33,6 @@ return [
     'frankenphp_restart_timeout' => (int) env('PANEL_FRANKENPHP_RESTART_TIMEOUT', 5),
     'caddy_reload_timeout' => (int) env('PANEL_CADDY_RELOAD_TIMEOUT', 300),
     'php_code_server_container' => env('PANEL_PHP_CODE_SERVER_CONTAINER', 'php-code-server'),
-    'caddy_admin_url' => env('PANEL_CADDY_ADMIN_URL', 'http://frankenphp:2019'),
 
     /*
     |--------------------------------------------------------------------------

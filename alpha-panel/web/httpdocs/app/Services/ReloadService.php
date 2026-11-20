@@ -29,7 +29,7 @@ class ReloadService
         $reloadTimeout = (int) config('panel.caddy_reload_timeout', 300);
 
         try {
-            $client = new Client(['connect_timeout' => 5, 'timeout' => $reloadTimeout]);
+            $client = $this->dockerClient($reloadTimeout);
 
             $listResp = $client->get("{$proxyUrl}/containers/json", [
                 'query' => ['filters' => json_encode(['name' => [PortainerContainerClient::exactNameFilter($container)]])],
@@ -101,7 +101,7 @@ class ReloadService
         $stopTimeout = (int) config('panel.frankenphp_restart_timeout', 30);
 
         try {
-            $client = new Client(['connect_timeout' => 5, 'timeout' => 60]);
+            $client = $this->dockerClient(60);
 
             $listResp = $client->get("{$proxyUrl}/containers/json", [
                 'query' => [
@@ -154,6 +154,15 @@ class ReloadService
             ['service', $phpVersion->fpm_service_name, 'reload'],
             timeout: 90,
         );
+    }
+
+    /**
+     * HTTP client for the Docker API, resolved through the container so tests can
+     * replace it instead of reaching the real docker-socket-proxy.
+     */
+    private function dockerClient(int $timeout): Client
+    {
+        return app()->makeWith(Client::class, ['config' => ['connect_timeout' => 5, 'timeout' => $timeout]]);
     }
 
     /**

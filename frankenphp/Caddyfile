@@ -73,7 +73,12 @@
 }
 
 {
-	admin 0.0.0.0:2019
+	# Loopback only. The admin API has no authentication, so on 0.0.0.0 every
+	# container on vhost_network (tenant PHP included) could replace this server's
+	# whole config. Reach it with an exec inside the container (`frankenphp reload`),
+	# never over the network. Worker restarts do not use it at all: see
+	# FrankenphpWorkerService in the panel.
+	admin localhost:2019
 
 	servers {
 		client_ip_headers CF-Connecting-IP X-Forwarded-For X-Real-IP

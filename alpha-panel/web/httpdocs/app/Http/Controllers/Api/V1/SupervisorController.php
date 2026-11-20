@@ -8,6 +8,7 @@ use App\Http\Requests\RunArtisanCommandRequest;
 use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Models\DomainSupervisor;
+use App\Services\FrankenphpWorkerService;
 use App\Services\LaravelPackageDetector;
 use App\Services\PortainerService;
 use App\Services\SupervisorConfigService;
@@ -171,29 +172,15 @@ class SupervisorController extends ApiController
         }
     }
 
-    public function restartWorkers(Request $request, Domain $domain, PortainerService $portainer): JsonResponse
+    public function restartWorkers(Request $request, Domain $domain, FrankenphpWorkerService $workers): JsonResponse
     {
         $this->authorize('manageSupervisor', $domain);
 
         try {
-            // `frankenphp reload` re-reads the Caddyfile and gracefully rolls workers.
-            // The admin API's /frankenphp/workers/restart endpoint hard-kills workers,
-            // dropping in-flight requests, so it is deliberately not used here.
-            $result = $portainer->execInContainer(
-                (string) config('panel.frankenphp_container', 'frankenphp'),
-                ['frankenphp', 'reload', '--config', (string) config('panel.caddy_reload_config', '/etc/frankenphp/Caddyfile')],
-                (int) config('panel.caddy_reload_timeout', 300),
-            );
-
-            if (! $result->isSuccessful()) {
-                $error = trim($result->errorOutput) !== '' ? trim($result->errorOutput) : trim($result->output);
-
-                throw new \RuntimeException($error !== '' ? $error : 'Worker restart command failed.');
-            }
-
             return response()->json([
                 'status' => 'success',
                 'message' => __('FrankenPHP workers restart signal sent.'),
+                'mode' => $workers->restart($domain),
             ]);
         } catch (\Throwable $e) {
             Log::error("FrankenPHP workers restart signal failed for {$domain->fqdn}: {$e->getMessage()}");

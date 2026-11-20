@@ -11,7 +11,7 @@
 	encode zstd br gzip
 	log {
 		output file /var/log/caddy/server.log
-		format console
+		format json
 	}
 	header {
 		X-Frame-Options "SAMEORIGIN"
