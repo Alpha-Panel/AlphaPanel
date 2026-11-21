@@ -2085,5 +2085,6 @@
   "New domain defaults": "Yaňı domain öňgillileri",
   "Applied when the panel creates a domain in Zimbra. Public service host name is set to mail.{domain} (https) and *.{domain} is added as a virtual host.": "Panel Zimbrada domain yaratsar tutulur. mail.{domain} (https) qamağ qonaq atı bolur, *.{domain} qonaq bolup qošulur.",
   "Inbound SMTP host name": "Kirür SMTP qonağı atı",
-  "Time zone": "Öd bölüki"
+  "Time zone": "Öd bölüki",
+  "The Zimbra admin account has two-factor authentication enabled. The panel cannot answer a 2FA prompt; use a dedicated admin account without 2FA.": "Zimbra beg hesabında eki qat doğrulama açıqtur. Panel 2FA soruğıŋa yanut bere bilmes; 2FA-sız adruq beg hesabı tut."
 }

@@ -2071,5 +2071,6 @@
   "New domain defaults": "𐰖𐰀𐰭𐰃 𐰑𐰆𐰢𐰀𐰃𐰤 𐰇𐰭𐰃𐰠𐰃𐰠𐰀𐰼𐰃",
   "Applied when the panel creates a domain in Zimbra. Public service host name is set to mail.{domain} (https) and *.{domain} is added as a virtual host.": "𐰯𐰀𐰣𐰀𐰞 Zimbra𐰑𐰀 𐰑𐰆𐰢𐰀𐰃𐰤 𐰖𐰀𐰺𐱃𐰽𐰺 𐱃𐰆𐱃𐰆𐰞𐰆𐰺. mail.{domain} (https) 𐰴𐰀𐰢𐰍 𐰸𐰆𐰣𐰴 𐰀𐱃𐰃 𐰉𐰆𐰞𐰆𐰺, *.{domain} 𐰸𐰆𐰣𐰴 𐰉𐰆𐰞𐰯 𐰸𐰆𐱁𐰆𐰞𐰆𐰺.",
   "Inbound SMTP host name": "𐰚𐰃𐰼𐰇𐰼 SMTP 𐰸𐰆𐰣𐰍𐰃 𐰀𐱃𐰃",
-  "Time zone": "𐰇𐰓 𐰋𐰇𐰠𐰇𐰚𐰃"
+  "Time zone": "𐰇𐰓 𐰋𐰇𐰠𐰇𐰚𐰃",
+  "The Zimbra admin account has two-factor authentication enabled. The panel cannot answer a 2FA prompt; use a dedicated admin account without 2FA.": "Zimbra 𐰉𐰁𐰍 𐰴𐰁𐰽𐰀𐰉𐰃𐰣𐰑𐰀 𐰁𐰚𐰃 𐰸𐰀𐱃 𐰑𐰆𐰍𐰺𐰆𐰞𐰀𐰢𐰀 𐰀𐰲𐰃𐰸𐱃𐰆𐰺. 𐰯𐰀𐰣𐰀𐰞 2𐰯𐰀 𐰽𐰆𐰺𐰍𐰃𐰭𐰀 𐰖𐰀𐰣𐰆𐱃 𐰋𐰁𐰼𐰁 𐰉𐰃𐰞𐰢𐰁𐰾; 2𐰯𐰀𐰽𐰃𐰔 𐰀𐰑𐰺𐰸 𐰉𐰁𐰍 𐰴𐰁𐰽𐰀𐰉𐰃 𐱃𐰆𐱃."
 }

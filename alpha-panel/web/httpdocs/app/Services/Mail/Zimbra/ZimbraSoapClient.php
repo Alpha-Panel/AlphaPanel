@@ -42,6 +42,10 @@ class ZimbraSoapClient
             'password' => $setting->admin_password ?? '',
         ], includeContext: false);
 
+        if ($this->requiresTwoFactor($resp)) {
+            throw new ZimbraAuthException(__('The Zimbra admin account has two-factor authentication enabled. The panel cannot answer a 2FA prompt; use a dedicated admin account without 2FA.'));
+        }
+
         $token = $this->extractToken($resp);
         if ($token === null) {
             throw new ZimbraAuthException('Zimbra AuthRequest returned no auth token.');
@@ -173,7 +177,7 @@ class ZimbraSoapClient
     }
 
     /** @param array<string, mixed> $body */
-    private function soap(string $request, array $body, bool $includeContext = true): SimpleXMLElement
+    private function soap(string $request, array $body, bool $includeContext = true, bool $isRetry = false): SimpleXMLElement
     {
         $setting = $this->setting();
         $envelope = $this->buildEnvelope($request, $body, $includeContext);
@@ -192,7 +196,16 @@ class ZimbraSoapClient
         }
 
         if ($response->failed()) {
-            $this->translateFault($response->body());
+            try {
+                $this->translateFault($response->body());
+            } catch (ZimbraAuthException $e) {
+                // A cached token can be revoked server-side (password/2FA change, logout); re-auth once.
+                if (! $includeContext || $isRetry) {
+                    throw $e;
+                }
+
+                return $this->soap($request, $body, true, true);
+            }
         }
 
         $xml = $this->parseXml($response->body());
@@ -301,7 +314,7 @@ class ZimbraSoapClient
                     'raw' => mb_substr($body, 0, 2000),
                 ]);
 
-                if ($code === 'account.AUTH_FAILED' || $code === 'service.AUTH_REQUIRED') {
+                if (in_array($code, ['account.AUTH_FAILED', 'service.AUTH_REQUIRED', 'service.AUTH_EXPIRED'], true)) {
                     Cache::forget(self::TOKEN_CACHE_KEY);
                     throw new ZimbraAuthException($reason);
                 }
@@ -335,6 +348,16 @@ class ZimbraSoapClient
         }
 
         return null;
+    }
+
+    /**
+     * 2FA accounts get a half-authenticated token that admin requests later reject as expired.
+     */
+    private function requiresTwoFactor(SimpleXMLElement $body): bool
+    {
+        $nodes = $body->xpath('.//*[local-name()="twoFactorAuthRequired"]');
+
+        return $nodes !== false && $nodes !== null && isset($nodes[0]) && strtolower(trim((string) $nodes[0])) === 'true';
     }
 
     /** @return array<string, mixed>|null */

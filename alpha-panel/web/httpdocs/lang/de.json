@@ -2088,5 +2088,6 @@
   "New domain defaults": "Standardwerte für neue Domains",
   "Applied when the panel creates a domain in Zimbra. Public service host name is set to mail.{domain} (https) and *.{domain} is added as a virtual host.": "Wird angewendet, wenn das Panel eine Domain in Zimbra anlegt. Der öffentliche Dienst-Hostname wird auf mail.{domain} (https) gesetzt und *.{domain} als virtueller Host hinzugefügt.",
   "Inbound SMTP host name": "Eingehender SMTP-Hostname",
-  "Time zone": "Zeitzone"
+  "Time zone": "Zeitzone",
+  "The Zimbra admin account has two-factor authentication enabled. The panel cannot answer a 2FA prompt; use a dedicated admin account without 2FA.": "Für das Zimbra-Administratorkonto ist die Zwei-Faktor-Authentifizierung aktiviert. Das Panel kann keine 2FA-Abfrage beantworten; verwenden Sie ein separates Administratorkonto ohne 2FA."
 }

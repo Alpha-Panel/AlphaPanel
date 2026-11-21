@@ -4,10 +4,13 @@ namespace App\Services\Mail;
 
 use App\Enums\MailHosting;
 use App\Models\ZimbraServerSetting;
+use App\Services\Mail\Zimbra\ZimbraSoapClient;
 use Illuminate\Support\Facades\Log;
 
 class MailSettingsService
 {
+    public function __construct(private readonly ZimbraSoapClient $zimbra) {}
+
     public function mailuEnabled(): bool
     {
         return (bool) config('panel.features.mailu');
@@ -140,6 +143,7 @@ class MailSettingsService
         $row->save();
 
         ZimbraServerSetting::flushCurrent();
+        $this->zimbra->refreshToken();
 
         return $row->refresh();
     }
