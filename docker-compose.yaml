@@ -378,10 +378,11 @@ services:
     volumes:
       - "./vaultwarden/data:/data/"
     environment:
-      # ssl_mode=required: TLS on, cert not verified. MySQL serves its auto-generated
-      # self-signed cert; the alpine image's MariaDB Connector/C (3.4+) verifies by default
-      # and refuses it ("self-signed certificate in certificate chain").
-      - "DATABASE_URL=mysql://${VAULTWARDEN_DB_USER}:${VAULTWARDEN_DB_PASSWORD}@${VAULTWARDEN_DB_HOST}/${VAULTWARDEN_DB_NAME}?ssl_mode=required"
+      - "DATABASE_URL=mysql://${VAULTWARDEN_DB_USER}:${VAULTWARDEN_DB_PASSWORD}@${VAULTWARDEN_DB_HOST}/${VAULTWARDEN_DB_NAME}"
+      # Alpine images >=1.37.4 ship MariaDB Connector/C 3.4, which verifies the server cert
+      # by default and rejects MySQL's auto-generated self-signed one. ?ssl_mode= in the URL
+      # is ignored by this connector; this env var is the documented workaround (1.37.4 notes).
+      - "MARIADB_TLS_DISABLE_PEER_VERIFICATION=1"
       - "RUST_BACKTRACE=1"
     networks:
       - vhost_network
