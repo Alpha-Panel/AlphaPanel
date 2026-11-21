@@ -2067,5 +2067,9 @@
   "Unable to register this passkey.": "𐰉𐰆 𐰯𐰀𐰾𐰾𐰚𐰁𐰖 𐰖𐰀𐰔𐰃𐰞𐰢𐰀𐰑𐰃.",
   "Passkey not recognized. It may have been removed from your account.": "𐰯𐰀𐰾𐰾𐰚𐰁𐰖 𐱃𐰀𐰤𐰃𐰞𐰢𐰀𐰑𐰃. 𐰴𐰁𐰾𐰀𐰉𐰃𐰭𐰑𐰀𐰤 𐰲𐰃𐰸𐰀𐰺𐰃𐰞𐰢𐰃𐱁 𐰉𐰆𐰞𐰍𐰀𐰖.",
   "Invalid credential format.": "𐰖𐰀𐰭𐰞𐰃𐱁 𐰚𐰃𐰢𐰞𐰃𐰚 𐰉𐰃𐰲𐰃𐰢𐰃.",
-  "Passkey session expired. Please try again.": "𐰯𐰀𐰾𐰾𐰚𐰁𐰖 𐰇𐰑𐰃 𐱃𐰇𐰚𐰁𐰑𐰃. 𐰸𐰀𐰖𐱃𐰀 𐰾𐰃𐰤𐰀."
+  "Passkey session expired. Please try again.": "𐰯𐰀𐰾𐰾𐰚𐰁𐰖 𐰇𐰑𐰃 𐱃𐰇𐰚𐰁𐰑𐰃. 𐰸𐰀𐰖𐱃𐰀 𐰾𐰃𐰤𐰀.",
+  "New domain defaults": "𐰖𐰀𐰭𐰃 𐰑𐰆𐰢𐰀𐰃𐰤 𐰇𐰭𐰃𐰠𐰃𐰠𐰀𐰼𐰃",
+  "Applied when the panel creates a domain in Zimbra. Public service host name is set to mail.{domain} (https) and *.{domain} is added as a virtual host.": "𐰯𐰀𐰣𐰀𐰞 Zimbra𐰑𐰀 𐰑𐰆𐰢𐰀𐰃𐰤 𐰖𐰀𐰺𐱃𐰽𐰺 𐱃𐰆𐱃𐰆𐰞𐰆𐰺. mail.{domain} (https) 𐰴𐰀𐰢𐰍 𐰸𐰆𐰣𐰴 𐰀𐱃𐰃 𐰉𐰆𐰞𐰆𐰺, *.{domain} 𐰸𐰆𐰣𐰴 𐰉𐰆𐰞𐰯 𐰸𐰆𐱁𐰆𐰞𐰆𐰺.",
+  "Inbound SMTP host name": "𐰚𐰃𐰼𐰇𐰼 SMTP 𐰸𐰆𐰣𐰍𐰃 𐰀𐱃𐰃",
+  "Time zone": "𐰇𐰓 𐰋𐰇𐰠𐰇𐰚𐰃"
 }

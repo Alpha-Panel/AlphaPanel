@@ -93,6 +93,8 @@ class MailSettingsService
                 'default_mx_host' => $envCfg['default_mx_host'] ?? null,
                 'default_mx_priority' => $envCfg['default_mx_priority'] ?? 10,
                 'default_spf_include' => $envCfg['default_spf_include'] ?? null,
+                'inbound_smtp_host' => $envCfg['inbound_smtp_host'] ?? null,
+                'default_timezone' => $envCfg['default_timezone'] ?? null,
                 'verify_tls' => (bool) ($envCfg['verify_tls'] ?? true),
                 'timeout_seconds' => $envCfg['timeout_seconds'] ?? 15,
                 'last_health_check_at' => null,
@@ -108,6 +110,8 @@ class MailSettingsService
             'default_mx_host' => $row->default_mx_host,
             'default_mx_priority' => $row->default_mx_priority,
             'default_spf_include' => $row->default_spf_include,
+            'inbound_smtp_host' => $row->inbound_smtp_host,
+            'default_timezone' => $row->default_timezone,
             'verify_tls' => $row->verify_tls,
             'timeout_seconds' => $row->timeout_seconds,
             'last_health_check_at' => $row->last_health_check_at?->toIso8601String(),
@@ -129,6 +133,8 @@ class MailSettingsService
         $row->default_mx_host = (string) ($payload['default_mx_host'] ?? '');
         $row->default_mx_priority = (int) ($payload['default_mx_priority'] ?? 10);
         $row->default_spf_include = $payload['default_spf_include'] ?? null;
+        $row->inbound_smtp_host = $payload['inbound_smtp_host'] ?? null;
+        $row->default_timezone = $payload['default_timezone'] ?? null;
         $row->verify_tls = (bool) ($payload['verify_tls'] ?? true);
         $row->timeout_seconds = (int) ($payload['timeout_seconds'] ?? 15);
         $row->save();

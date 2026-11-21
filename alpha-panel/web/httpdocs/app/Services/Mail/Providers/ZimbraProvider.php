@@ -44,7 +44,7 @@ class ZimbraProvider implements MailProviderInterface
             return;
         }
 
-        $this->client->createDomain($domain->fqdn);
+        $this->client->createDomain($domain->fqdn, $this->domainAttributes($domain));
         Log::info('mail.zimbra.domain.created', ['fqdn' => $domain->fqdn]);
     }
 
@@ -222,8 +222,35 @@ class ZimbraProvider implements MailProviderInterface
             return;
         }
 
-        $this->client->createDomain($domain->fqdn);
+        $this->client->createDomain($domain->fqdn, $this->domainAttributes($domain));
         Log::info('mail.zimbra.domain.auto_created', ['fqdn' => $domain->fqdn]);
+    }
+
+    /**
+     * Domain-level Zimbra attributes written on creation. Mirrors the Admin
+     * Console "General Information" + "Virtual Hosts" tabs: public service
+     * host (mail.{fqdn} over https), Inbound SMTP host, time zone and a
+     * wildcard virtual host so *.{fqdn} logins default to this domain.
+     *
+     * @return array<string, string>
+     */
+    private function domainAttributes(Domain $domain): array
+    {
+        $setting = ZimbraServerSetting::current();
+        $envCfg = (array) config('panel.mail.zimbra');
+
+        $inboundSmtpHost = $setting?->inbound_smtp_host
+            ?: ($envCfg['inbound_smtp_host'] ?? null)
+            ?: ($setting?->default_mx_host ?: ($envCfg['default_mx_host'] ?? null));
+        $timezone = $setting?->default_timezone ?: ($envCfg['default_timezone'] ?? null);
+
+        return array_filter([
+            'zimbraPublicServiceHostname' => 'mail.'.$domain->fqdn,
+            'zimbraPublicServiceProtocol' => 'https',
+            'zimbraDNSCheckHostname' => $inboundSmtpHost ? rtrim($inboundSmtpHost, '.') : null,
+            'zimbraPrefTimeZoneId' => $timezone,
+            'zimbraVirtualHostname' => '*.'.$domain->fqdn,
+        ], static fn (?string $v): bool => $v !== null && $v !== '');
     }
 
     /** @param array<string, mixed> $row */

@@ -18,6 +18,8 @@ class ZimbraServerSetting extends Model
         'default_mx_host',
         'default_mx_priority',
         'default_spf_include',
+        'inbound_smtp_host',
+        'default_timezone',
         'verify_tls',
         'timeout_seconds',
         'last_health_check_at',

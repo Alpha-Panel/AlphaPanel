@@ -2089,5 +2089,9 @@
   "Unable to register this passkey.": "Impossible d'enregistrer cette passkey.",
   "Passkey not recognized. It may have been removed from your account.": "Passkey non reconnue. Elle a peut-être été supprimée de votre compte.",
   "Invalid credential format.": "Format d'identifiant invalide.",
-  "Passkey session expired. Please try again.": "La session passkey a expiré. Veuillez réessayer."
+  "Passkey session expired. Please try again.": "La session passkey a expiré. Veuillez réessayer.",
+  "New domain defaults": "Valeurs par défaut des nouveaux domaines",
+  "Applied when the panel creates a domain in Zimbra. Public service host name is set to mail.{domain} (https) and *.{domain} is added as a virtual host.": "Appliqué lorsque le panneau crée un domaine dans Zimbra. Le nom d'hôte du service public est défini sur mail.{domain} (https) et *.{domain} est ajouté comme hôte virtuel.",
+  "Inbound SMTP host name": "Nom d'hôte SMTP entrant",
+  "Time zone": "Fuseau horaire"
 }

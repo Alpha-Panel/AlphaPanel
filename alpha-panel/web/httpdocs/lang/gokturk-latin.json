@@ -2081,5 +2081,9 @@
   "Unable to register this passkey.": "bu passkey yazılmadı.",
   "Passkey not recognized. It may have been removed from your account.": "passkey tanılmadı. hesabıŋdan çıqarılmış bolğay.",
   "Invalid credential format.": "Yañlış kimlik biçimi.",
-  "Passkey session expired. Please try again.": "passkey ödi tükedi. Qayta sına."
+  "Passkey session expired. Please try again.": "passkey ödi tükedi. Qayta sına.",
+  "New domain defaults": "Yaňı domain öňgillileri",
+  "Applied when the panel creates a domain in Zimbra. Public service host name is set to mail.{domain} (https) and *.{domain} is added as a virtual host.": "Panel Zimbrada domain yaratsar tutulur. mail.{domain} (https) qamağ qonaq atı bolur, *.{domain} qonaq bolup qošulur.",
+  "Inbound SMTP host name": "Kirür SMTP qonağı atı",
+  "Time zone": "Öd bölüki"
 }

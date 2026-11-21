@@ -147,6 +147,8 @@ def write_root_env(path: Path, form: dict[str, Any], secrets: dict[str, str]) ->
     add(_env_line("ZIMBRA_DEFAULT_MX_HOST", form.get("zimbra_default_mx_host", "")))
     add(_env_line("ZIMBRA_DEFAULT_MX_PRIORITY", str(form.get("zimbra_default_mx_priority", 10))))
     add(_env_line("ZIMBRA_DEFAULT_SPF_INCLUDE", form.get("zimbra_default_spf_include", "")))
+    add(_env_line("ZIMBRA_INBOUND_SMTP_HOST", form.get("zimbra_inbound_smtp_host", "")))
+    add(_env_line("ZIMBRA_DEFAULT_TIMEZONE", form.get("zimbra_default_timezone", "Europe/Istanbul")))
     add(_env_line("ZIMBRA_VERIFY_TLS", "true" if form.get("zimbra_verify_tls", True) else "false"))
     add(_env_line("ZIMBRA_TIMEOUT_SECONDS", str(form.get("zimbra_timeout_seconds", 15))))
 

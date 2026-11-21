@@ -22,6 +22,8 @@ class UpdateZimbraApiRequest extends FormRequest
             'default_mx_host' => ['required_if:enabled,true', 'nullable', 'string', 'max:255'],
             'default_mx_priority' => ['nullable', 'integer', 'between:0,65535'],
             'default_spf_include' => ['nullable', 'string', 'max:255'],
+            'inbound_smtp_host' => ['nullable', 'string', 'max:255', 'regex:/^[A-Za-z0-9.-]+$/'],
+            'default_timezone' => ['nullable', 'string', 'timezone:all'],
             'verify_tls' => ['boolean'],
             'timeout_seconds' => ['nullable', 'integer', 'between:1,120'],
         ];

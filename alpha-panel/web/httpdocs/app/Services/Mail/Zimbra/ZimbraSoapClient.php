@@ -64,11 +64,12 @@ class ZimbraSoapClient
         ], 'domain');
     }
 
-    public function createDomain(string $name): void
+    /** @param array<string, string> $attrs */
+    public function createDomain(string $name, array $attrs = []): void
     {
         $this->soap('CreateDomainRequest', [
             'name' => $name,
-        ]);
+        ] + $this->attrPayload($attrs));
     }
 
     public function deleteDomain(string $id): void
@@ -223,6 +224,7 @@ class ZimbraSoapClient
     {
         $xml = '';
         foreach ($body as $key => $value) {
+            $key = preg_replace('/__\d+$/', '', (string) $key);
             if (is_array($value)) {
                 $attrString = '';
                 $content = '';
@@ -253,7 +255,7 @@ class ZimbraSoapClient
             $payload['a__'.($i++)] = ['n' => $name, '_content' => $value];
         }
 
-        // Reduce numeric suffixes to plain `a` keys via post-encoding XML rewrite.
+        // `a__N` keys keep repeated <a> elements unique; encodeBody() strips the suffix.
         return $payload;
     }
 

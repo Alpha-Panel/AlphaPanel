@@ -2177,5 +2177,9 @@
   "Unable to register this passkey.": "Bu passkey kaydedilemedi.",
   "Passkey not recognized. It may have been removed from your account.": "Passkey tanınmadı. Hesabınızdan kaldırılmış olabilir.",
   "Invalid credential format.": "Geçersiz kimlik bilgisi biçimi.",
-  "Passkey session expired. Please try again.": "Passkey oturumunun süresi doldu. Lütfen tekrar deneyin."
+  "Passkey session expired. Please try again.": "Passkey oturumunun süresi doldu. Lütfen tekrar deneyin.",
+  "New domain defaults": "Yeni alan adı varsayılanları",
+  "Applied when the panel creates a domain in Zimbra. Public service host name is set to mail.{domain} (https) and *.{domain} is added as a virtual host.": "Panel Zimbra'da alan adı oluştururken uygulanır. Genel hizmet ana bilgisayar adı mail.{domain} (https) olarak ayarlanır ve *.{domain} sanal ana bilgisayar olarak eklenir.",
+  "Inbound SMTP host name": "Gelen SMTP ana bilgisayar adı",
+  "Time zone": "Saat dilimi"
 }

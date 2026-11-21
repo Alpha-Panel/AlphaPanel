@@ -40,6 +40,28 @@
                 <label class="form-label">{{ t('Default SPF include (optional)') }}</label>
                 <input v-model="form.default_spf_include" type="text" class="form-input" placeholder="include:_spf.zimbra.example.com" />
             </div>
+            <div class="md:col-span-2">
+                <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('New domain defaults') }}</p>
+                <p class="text-xs text-gray-500">
+                    {{ t('Applied when the panel creates a domain in Zimbra. Public service host name is set to mail.{domain} (https) and *.{domain} is added as a virtual host.') }}
+                </p>
+            </div>
+            <div>
+                <label class="form-label">{{ t('Inbound SMTP host name') }}</label>
+                <input
+                    v-model="form.inbound_smtp_host"
+                    type="text"
+                    class="form-input"
+                    :placeholder="form.default_mx_host || 'mail.example.com'"
+                />
+            </div>
+            <div>
+                <label class="form-label">{{ t('Time zone') }}</label>
+                <input v-model="form.default_timezone" type="text" list="zimbra-timezones" class="form-input" placeholder="Europe/Istanbul" />
+                <datalist id="zimbra-timezones">
+                    <option v-for="tz in timezones" :key="tz" :value="tz" />
+                </datalist>
+            </div>
             <div class="flex items-center gap-2">
                 <input id="verify-tls" v-model="form.verify_tls" type="checkbox" />
                 <label for="verify-tls" class="text-sm">{{ t('Verify TLS certificate') }}</label>
@@ -98,9 +120,13 @@ const form = useForm({
     default_mx_host: props.zimbra.default_mx_host ?? '',
     default_mx_priority: props.zimbra.default_mx_priority ?? 10,
     default_spf_include: props.zimbra.default_spf_include ?? '',
+    inbound_smtp_host: props.zimbra.inbound_smtp_host ?? '',
+    default_timezone: props.zimbra.default_timezone ?? 'Europe/Istanbul',
     verify_tls: props.zimbra.verify_tls ?? true,
     timeout_seconds: props.zimbra.timeout_seconds ?? 15,
 });
+
+const timezones = typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [];
 
 const testing = ref(false);
 const testResult = ref(null);

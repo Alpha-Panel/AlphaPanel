@@ -289,6 +289,8 @@ return [
             'default_mx_host' => env('ZIMBRA_DEFAULT_MX_HOST'),
             'default_mx_priority' => (int) env('ZIMBRA_DEFAULT_MX_PRIORITY', 10),
             'default_spf_include' => env('ZIMBRA_DEFAULT_SPF_INCLUDE'),
+            'inbound_smtp_host' => env('ZIMBRA_INBOUND_SMTP_HOST'),
+            'default_timezone' => env('ZIMBRA_DEFAULT_TIMEZONE', 'Europe/Istanbul'),
             'verify_tls' => filter_var(env('ZIMBRA_VERIFY_TLS', true), FILTER_VALIDATE_BOOL),
             'timeout_seconds' => (int) env('ZIMBRA_TIMEOUT_SECONDS', 15),
         ],
